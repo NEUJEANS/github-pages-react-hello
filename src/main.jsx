@@ -85,20 +85,24 @@ function useSpaNavigation() {
   }, [screen])
 
   React.useEffect(() => {
-    const onHashChange = () => {
+    const syncFromLocation = () => {
       const next = getStateFromHash()
       setDirection(getDirectionalTransition(currentScreenRef.current, next.screen))
+      currentScreenRef.current = next.screen
       setState(next)
     }
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
+    window.addEventListener('hashchange', syncFromLocation)
+    window.addEventListener('popstate', syncFromLocation)
+    return () => {
+      window.removeEventListener('hashchange', syncFromLocation)
+      window.removeEventListener('popstate', syncFromLocation)
+    }
   }, [])
 
   const syncHash = React.useCallback((nextScreen, nextOverlay) => {
     const nextHash = nextOverlay === 'address' ? 'address' : nextScreen
     if (window.location.hash.replace(/^#/, '') === nextHash) return
     window.history.pushState(null, '', `#${nextHash}`)
-    window.dispatchEvent(new HashChangeEvent('hashchange'))
   }, [])
 
   const navigate = React.useCallback((nextScreen) => {
