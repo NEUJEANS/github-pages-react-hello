@@ -64,6 +64,14 @@ function getDirectionalTransition(fromScreen, toScreen) {
   const from = getScreenMeta(fromScreen)
   const to = getScreenMeta(toScreen)
 
+  if (to.column === 0) {
+    return -1
+  }
+
+  if (to.column === 2) {
+    return 1
+  }
+
   if (from.column !== to.column) {
     return to.column > from.column ? 1 : -1
   }
