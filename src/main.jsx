@@ -2,7 +2,20 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './styles.css'
 
-const screenOrder = ['home', 'ai', 'space', 'layout', 'beds']
+const transitionGroups = [
+  ['ai', 'space'],
+  ['layout', 'address'],
+  ['beds', 'home'],
+]
+
+const screenMeta = {
+  ai: { column: 0, step: 0 },
+  space: { column: 0, step: 1 },
+  layout: { column: 1, step: 0 },
+  address: { column: 1, step: 1 },
+  beds: { column: 2, step: 0 },
+  home: { column: 2, step: 1 },
+}
 
 const screens = [
   { id: 'ai', label: 'AI 추천 입력', badge: '01', title: 'AI 전문가 추천 입력 화면' },
@@ -32,23 +45,54 @@ function getStateFromHash() {
   const hash = window.location.hash.replace(/^#/, '')
   if (!hash) return { screen: 'home', overlay: null }
   if (hash === 'address') return { screen: 'layout', overlay: 'address' }
-  if (screenOrder.includes(hash)) return { screen: hash, overlay: null }
+  if (screenMeta[hash]) return { screen: hash, overlay: null }
   return { screen: 'home', overlay: null }
+}
+
+function getScreenMeta(screen) {
+  return screenMeta[screen] ?? screenMeta.home
+}
+
+function getScreenGroupLabel(screen) {
+  const { column, step } = getScreenMeta(screen)
+  return `${column * 2 + step + 1}`
+}
+
+function getDirectionalTransition(fromScreen, toScreen) {
+  if (fromScreen === toScreen) return 0
+
+  const from = getScreenMeta(fromScreen)
+  const to = getScreenMeta(toScreen)
+
+  if (from.column !== to.column) {
+    return to.column > from.column ? 1 : -1
+  }
+
+  if (from.step !== to.step) {
+    return to.step > from.step ? 1 : -1
+  }
+
+  return 0
 }
 
 function useSpaNavigation() {
   const [{ screen, overlay }, setState] = React.useState(() => getStateFromHash())
-  const [direction, setDirection] = React.useState(1)
+  const [direction, setDirection] = React.useState(0)
+  const currentScreenRef = React.useRef(screen)
+
+  React.useEffect(() => {
+    currentScreenRef.current = screen
+  }, [screen])
 
   React.useEffect(() => {
     const onHashChange = () => {
       const next = getStateFromHash()
-      setDirection(screenOrder.indexOf(next.screen) >= screenOrder.indexOf(screen) ? 1 : -1)
+      setDirection(getDirectionalTransition(currentScreenRef.current, next.screen))
       setState(next)
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
-  }, [screen])
+  }, [])
 
   const syncHash = React.useCallback((nextScreen, nextOverlay) => {
     const nextHash = nextOverlay === 'address' ? 'address' : nextScreen
@@ -58,9 +102,8 @@ function useSpaNavigation() {
   }, [])
 
   const navigate = React.useCallback((nextScreen) => {
-    const currentIndex = screenOrder.indexOf(screen)
-    const nextIndex = screenOrder.indexOf(nextScreen)
-    setDirection(nextIndex >= currentIndex ? 1 : -1)
+    const nextDirection = getDirectionalTransition(currentScreenRef.current, nextScreen)
+    setDirection(nextDirection)
 
     if (document.startViewTransition) {
       document.startViewTransition(() => {
@@ -70,8 +113,9 @@ function useSpaNavigation() {
       setState({ screen: nextScreen, overlay: null })
     }
 
+    currentScreenRef.current = nextScreen
     syncHash(nextScreen, null)
-  }, [screen, syncHash])
+  }, [syncHash])
 
   const openOverlay = React.useCallback((nextOverlay = 'address') => {
     if (document.startViewTransition) {
@@ -118,16 +162,18 @@ function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay 
 function StageTransition({ screen, direction, children }) {
   const [displayScreen, setDisplayScreen] = React.useState(screen)
   const [phase, setPhase] = React.useState('enter')
+  const [activeDirection, setActiveDirection] = React.useState(direction)
 
   React.useEffect(() => {
     if (screen === displayScreen) return
+    setActiveDirection(direction)
     setPhase('exit')
     const outTimer = window.setTimeout(() => {
       setDisplayScreen(screen)
       setPhase('enter')
     }, 180)
     return () => window.clearTimeout(outTimer)
-  }, [screen, displayScreen])
+  }, [screen, displayScreen, direction])
 
   React.useEffect(() => {
     if (phase !== 'enter') return
@@ -137,7 +183,10 @@ function StageTransition({ screen, direction, children }) {
 
   return (
     <div className={`stageViewport ${phase === 'exit' ? 'is-exiting' : ''}`}>
-      <div key={`${displayScreen}-${phase}`} className={`stageSlide phase-${phase} ${direction >= 0 ? 'dir-forward' : 'dir-back'}`}>
+      <div
+        key={`${displayScreen}-${phase}-${activeDirection}`}
+        className={`stageSlide phase-${phase} ${activeDirection >= 0 ? 'dir-forward' : 'dir-back'}`}
+      >
         {children(displayScreen)}
       </div>
     </div>
@@ -150,6 +199,8 @@ function App() {
   const checklist = [
     '화면 전환이 브라우저 전체 새로고침 없이 앱 내부에서 이뤄질 것',
     '상위 화면 전환은 짧은 directional/fade 모션으로 연속성을 줄 것',
+    '좌(01·02) / 중(03·03A) / 우(04·05) 스크린 군 기준으로 진입 방향이 결정될 것',
+    '03·03A 진입은 출발 군에 따라 좌↔우 방향이 달라질 것',
     '주소 입력은 별도 페이지 점프가 아니라 현재 화면 위 오버레이로 열릴 것',
     '즉시 가능한 전환에는 로딩 스피너/빈 화면을 노출하지 않을 것',
     '핵심 CTA와 상단 네비가 실제로 다른 화면/오버레이를 열도록 연결될 것',
@@ -162,7 +213,7 @@ function App() {
         <div>
           <p className="eyebrow">HAVENLY React Conversion</p>
           <h1>화면을 “페이지 이동”이 아니라 앱 흐름처럼 바꿨습니다</h1>
-          <p className="subcopy">Material의 fade-through/shared-axis, Motion의 keyed enter/exit, Carbon의 “즉시면 로더를 보이지 말 것” 패턴을 참고해 in-place SPA 전환으로 정리했습니다.</p>
+          <p className="subcopy">Smashing Magazine의 spatial continuity, web.dev View Transitions SPA guidance, Motion/AnimatePresence식 keyed enter-exit 패턴을 참고해 좌·중·우 스크린 군 기반 directional model로 정리했습니다.</p>
         </div>
         <div className="sourceNotes">
           <strong>Transition refinement checklist</strong>
@@ -173,22 +224,31 @@ function App() {
       </section>
 
       <section className="screenNav">
-        {screens.map((item) => {
-          const isOverlay = item.id === 'address'
-          const active = isOverlay ? overlay === 'address' : screen === item.id
-          return (
-            <button
-              key={item.id}
-              className={`screenChip ${active ? 'active' : ''}`}
-              onClick={() => (isOverlay ? openOverlay('address') : navigate(item.id))}
-            >
-              <span>{item.badge}</span>{item.label}
-            </button>
-          )
-        })}
+        {transitionGroups.map((group, index) => (
+          <div key={`group-${index}`} className="screenGroup">
+            <span className="groupLabel">Group {index + 1}</span>
+            {group.map((screenId) => {
+              const item = screens.find((screenItem) => screenItem.id === screenId)
+              const isOverlay = item.id === 'address'
+              const active = isOverlay ? overlay === 'address' : screen === item.id
+              return (
+                <button
+                  key={item.id}
+                  className={`screenChip ${active ? 'active' : ''}`}
+                  onClick={() => (isOverlay ? openOverlay('address') : navigate(item.id))}
+                >
+                  <span>{item.badge}</span>{item.label}
+                </button>
+              )
+            })}
+          </div>
+        ))}
       </section>
 
       <section className={`screenStage ${overlay ? 'overlayOpen' : ''}`}>
+        <div className="directionBadge" aria-live="polite">
+          Now showing {getScreenGroupLabel(screen)} · {direction > 0 ? 'enter from right' : direction < 0 ? 'enter from left' : 'steady'}
+        </div>
         <StageTransition screen={screen} direction={direction}>
           {(visibleScreen) => renderScreen(visibleScreen, { navigate, openOverlay })}
         </StageTransition>
@@ -459,6 +519,7 @@ function FurnitureHomeScreen({ navigate, openOverlay }) {
     </div>
   )
 }
+
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

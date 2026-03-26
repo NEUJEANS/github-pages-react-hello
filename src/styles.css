@@ -32,7 +32,9 @@ button:active { transform: translateY(0); }
 .subcopy { margin: 0; max-width: 56ch; color: #595959; font-size: 17px; line-height: 1.72; }
 .sourceNotes strong { display: block; margin-bottom: 12px; letter-spacing: -.01em; }
 .sourceNotes ul { margin: 0; padding-left: 18px; color: #595959; line-height: 1.8; }
-.screenNav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.screenNav { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; align-items: stretch; }
+.screenGroup { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,.68); border: 1px solid rgba(139,115,85,.12); border-radius: 999px; }
+.groupLabel { display: inline-flex; align-items: center; justify-content: center; min-width: 72px; padding: 7px 10px; border-radius: 999px; background: #f3ebe1; color: #8b7355; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .screenChip { border: 1px solid #dbcfc2; background: rgba(255,255,255,.8); color: #604f3d; padding: 11px 15px; border-radius: 999px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; letter-spacing: -.01em; }
 .screenChip span { background: #f1e7db; border-radius: 999px; padding: 4px 8px; font-size: 12px; }
 .screenChip.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: 0 10px 24px rgba(139,115,85,.2); }

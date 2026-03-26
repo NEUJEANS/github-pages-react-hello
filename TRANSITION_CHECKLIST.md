@@ -8,6 +8,8 @@ Research basis used before implementation:
 ## Must satisfy
 - [x] Screen changes happen inside the SPA without browser page reloads
 - [x] Main screen switches use short in-place motion to preserve continuity
+- [x] Transition direction is resolved from screen groups, not a single flat route list
+- [x] Middle-group screens (03/03A) enter from the left when reached from 04/05, and from the right when reached from 01/02
 - [x] Address/setup opens as an overlay over the current flow instead of feeling like a separate page load
 - [x] No spinner / blank-loading state is shown for immediate local transitions
 - [x] Primary CTAs and top navigation trigger actual connected flow transitions
