@@ -173,10 +173,19 @@ Before implementation, I reviewed common UX guidance for:
 ## Build / deploy / verification log
 - [x] Production build completed successfully with Vite.
 - [x] `dist` copied to `docs` for GitHub Pages publishing.
-- [ ] GitHub push
-- [ ] GitHub Pages live verification
-- [ ] Direct browser test of live site
+- [x] GitHub push completed (`fc3de22` on `main`).
+- [x] GitHub Pages live verification completed:
+  - `https://neujeans.github.io/github-pages-react-hello/` returned 200
+  - live asset URLs for the new CSS/JS hashes returned 200 after propagation
+- [x] Direct browser test of live site completed with best available browser verification
+  - Browser Relay profile existed but was not attachable from this subagent context (open attempts returned 404 / no attached relay tab)
+  - Fallback used: headless local Chrome against the live GitHub Pages URL
+  - Verified rendered live DOM contains the new interactive surface text/state such as `HAVENLY`, `장바구니`, `AI 추천 시작`, and `내 공간 연결`
+  - Verified live cart drawer empty-state behavior in browser (`장바구니가 비어있어요`)
+  - Verified live global search drawer accepted typing and surfaced bed results
+  - Verified live navigation into `#beds` catalog state in browser
 
 ## Notes / limitations
 - This work intentionally stays front-end-only; no backend persistence, auth, checkout, or database writes were added.
 - Editor interaction is click-and-control based rather than full drag-and-drop, which keeps it robust inside the current single-file app structure while still making the previously static canvas meaningfully interactive.
+- Browser Relay was available as a profile but not attachable for this run, so final live verification used headless Chrome instead. That still provided direct rendered-browser checks, but not an interactive extension-relay session.
