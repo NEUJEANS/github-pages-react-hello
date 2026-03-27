@@ -72,16 +72,17 @@ button:active { transform: translateY(0); }
 label { display: block; margin: 18px 0 8px; font-size: 14px; font-weight: 700; color: #5c5c5c; }
 .inputWrap { display: flex; align-items: center; gap: 10px; padding: 0 14px; border: 2px solid #e8dfd5; border-radius: 12px; background: white; height: 52px; color: #aaa; }
 .inputWrap.big { height: 56px; }
+.inputWrap.compactInput { margin-bottom: 12px; }
 .inputWrap input { border: 0; outline: 0; width: 100%; background: transparent; }
 textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd5; border-radius: 12px; background: white; padding: 14px; color: #666; line-height: 1.6; }
 .resultCard { margin-top: 10px; padding: 16px; border: 1px solid #e6dbc8; background: #faf7f1; border-radius: 14px; display: flex; flex-direction: column; gap: 4px; }
 .resultCard.selected { border-width: 2px; border-color: var(--accent); }
 .resultCard span { color: #8b8b8b; font-size: 13px; }
-.chipRow, .typeStrip, .tabRow, .sorts, .colorDots, .heroActions { display: flex; flex-wrap: wrap; gap: 8px; }
-.chipRow button, .typeStrip button, .mini, .ghost, .tool, .sorts button, .searchPill { border: 1px solid #dccfbe; background: white; color: #725d49; border-radius: 999px; padding: 10px 14px; }
-.chipRow button.solid, .typeStrip button.solid, .mini.solid, .tool.active, .ghost.dark, .sorts .solid { background: var(--accent); color: white; border-color: var(--accent); }
+.chipRow, .typeStrip, .tabRow, .sorts, .colorDots, .heroActions, .filterChips, .cardActions, .quickMeta { display: flex; flex-wrap: wrap; gap: 8px; }
+.chipRow button, .typeStrip button, .mini, .ghost, .tool, .sorts button, .searchPill, .metaToggle { border: 1px solid #dccfbe; background: white; color: #725d49; border-radius: 999px; padding: 10px 14px; }
+.chipRow button.solid, .typeStrip button.solid, .mini.solid, .tool.active, .ghost.dark, .sorts .solid, .metaToggle.on { background: var(--accent); color: white; border-color: var(--accent); }
 .styleGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.styleBox { border: 2px solid #e8dfd5; border-radius: 14px; padding: 14px; text-align: center; display: grid; gap: 6px; color: #65584b; }
+.styleBox { border: 2px solid #e8dfd5; border-radius: 14px; padding: 14px; text-align: center; display: grid; gap: 6px; color: #65584b; background: white; }
 .styleBox.selected { border-color: var(--accent); background: #faf7f1; }
 .styleBox span { font-size: 24px; }
 .cta { background: var(--accent); color: white; border: 0; padding: 14px 20px; border-radius: 12px; font-weight: 800; letter-spacing: -.01em; }
@@ -89,12 +90,16 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .cta:hover { background: var(--accent-dark); }
 .ghost { background: white; }
 .ghost.full { width: 100%; justify-content: center; }
+.ghost.minor { border-radius: 12px; }
 .resultPanel { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding-block: 40px; }
 .badge, .tinyPill { background: var(--accent); color: white; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 800; letter-spacing: .03em; }
 .resultPanel h3, .cardSurface h2, .setupInner h2, .heroBanner h2, .leftPanel h2 { margin: 0; font-size: 30px; line-height: 1.18; letter-spacing: -.03em; }
+.resultSummary { margin: 0; text-align: center; color: #6d6257; max-width: 64ch; }
 .floorplanViewport { width: min(100%, 720px); display: grid; gap: 14px; }
 .floorplanFrame { padding: clamp(14px, 2vw, 22px); background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,243,236,.92)); border: 1px solid rgba(139,115,85,.16); border-radius: 24px; }
 .floorplan { width: 100%; aspect-ratio: 590 / 430; background: white; border-radius: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.08); position: relative; overflow: hidden; }
+.floorplan.theme-natural { background: linear-gradient(180deg, #fffef9 0%, #f6f0e6 100%); }
+.floorplan.theme-lux { background: linear-gradient(180deg, #f7f2f7 0%, #eee6ef 100%); }
 .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(139,115,85,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(139,115,85,.06) 1px, transparent 1px); background-size: 36px 36px; }
 .roomBorder, .roomFrame { position: absolute; inset: 36px; border: 3px solid #333; }
 .windowMark, .doorMark { position: absolute; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
@@ -109,6 +114,7 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .productMini { background: white; border-radius: 14px; box-shadow: 0 4px 14px rgba(0,0,0,.06); padding: 14px; display: grid; gap: 6px; }
 .emojiCard { height: 84px; background: #f6f0e8; border-radius: 12px; display: grid; place-items: center; font-size: 30px; }
 .productMini span { color: var(--accent); font-size: 13px; font-weight: 700; }
+.productMini small { color: #7f776e; }
 .productMini button { border: 0; background: var(--accent); color: white; padding: 8px 10px; border-radius: 10px; }
 .reasonBox { width: min(100%, 720px); background: #faf6ef; border-left: 4px solid var(--accent); border-radius: 12px; padding: 16px; color: #625a54; line-height: 1.7; }
 .cardStage { padding: clamp(22px, 3vw, 40px); display: grid; place-items: center; }
@@ -123,7 +129,7 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .planBoard { background: #faf7f1; border: 1px solid #ebdfd3; border-radius: 20px; padding: 18px; position: relative; min-height: 420px; aspect-ratio: 1.42 / 1; }
 .planBoard.small { min-height: 300px; aspect-ratio: 1.55 / 1; }
 .compass { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border-radius: 50%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,.1); display: grid; place-items: center; color: #e45a52; font-weight: 800; }
-.zone { position: absolute; border: 2px dashed rgba(139,115,85,.25); border-radius: 12px; display: grid; place-items: center; gap: 2px; color: #6c635d; background: rgba(255,255,255,.56); text-align: center; }
+.zone { position: absolute; border: 2px dashed rgba(139,115,85,.25); border-radius: 12px; display: grid; place-items: center; gap: 2px; color: #6c635d; background: rgba(255,255,255,.56); text-align: center; appearance: none; }
 .zone.selected { border-color: var(--accent); background: rgba(139,115,85,.12); }
 .zone b { font-size: 28px; }
 .zone span { font-size: 13px; font-weight: 700; }
@@ -150,9 +156,10 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .editorSide { background: white; padding: 18px; min-width: 0; }
 .editorSide.left { border-right: 1px solid #ece3d8; }
 .editorSide.right { border-left: 1px solid #ece3d8; }
-.sideHead input { width: 100%; border: 1px solid #e4ddd3; padding: 10px 12px; border-radius: 12px; color: #999; margin-top: 8px; }
+.sideHead input { width: 100%; border: 1px solid #e4ddd3; padding: 10px 12px; border-radius: 12px; color: #444; margin-top: 8px; }
 .dragGrid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-top: 14px; }
 .dragCard { background: #faf7f1; border: 2px solid #ebdfd3; border-radius: 14px; padding: 12px; text-align: center; display: grid; gap: 4px; }
+.buttonCard { appearance: none; width: 100%; }
 .dragCard span { font-size: 28px; }
 .dragCard strong { font-size: 12px; }
 .dragCard small { color: #9a948d; }
@@ -162,15 +169,13 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .editorCanvasShell { width: min(100%, 860px); display: grid; gap: 12px; }
 .editorCanvasMeta { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; color: #6f665f; font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
 .editorCanvasMeta span { padding: 7px 12px; border-radius: 999px; background: rgba(255,255,255,.72); border: 1px solid rgba(139,115,85,.18); }
+.editorMoveButtons { display: grid; justify-items: center; gap: 8px; }
+.editorMoveButtons > div { display: flex; gap: 8px; }
 .editorRoomFrame { width: 100%; padding: clamp(14px, 2vw, 20px); border-radius: 28px; background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(240,232,223,.95)); border: 1px solid rgba(139,115,85,.18); box-shadow: inset 0 1px 0 rgba(255,255,255,.55); }
 .editorRoom { width: 100%; aspect-ratio: 650 / 420; background: white; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,.08); overflow: hidden; position: relative; }
 .roomFrame { inset: 24px; }
-.placed { background: #e6d7bf; border-radius: 8px; }
-.placed.sofa { top: 64px; left: 36px; width: 180px; height: 70px; }
-.placed.table { top: 152px; left: 80px; width: 84px; height: 84px; border-radius: 50%; }
-.placed.tv { top: 42px; right: 80px; width: 150px; height: 20px; background: #5d5d5d; color: white; }
-.placed.shelf { top: 72px; right: 80px; width: 150px; height: 44px; }
-.placed.plant { top: 60px; left: 270px; width: 42px; height: 42px; border-radius: 50%; background: #acd99e; }
+.placed { background: #e6d7bf; border-radius: 8px; appearance: none; }
+.placed.circle { border-radius: 999px; }
 .placed.sel { outline: 3px solid rgba(57,118,255,.25); }
 .infoPills, .recommendStrip { width: min(100%, 860px); }
 .infoPills { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
@@ -183,23 +188,41 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .propBlock p { margin: 0; color: #666; line-height: 1.7; }
 .split { display: flex; gap: 8px; }
 .split span { background: #f6f2ed; border-radius: 10px; padding: 10px 12px; }
-.colorDots i { display: block; width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; }
-.colorDots .active { border-color: #111; }
-.c1 { background: #eee2d1; } .c2 { background: #d4c0a7; } .c3 { background: #bda488; } .c4 { background: #8b7355; }
+.colorDot { display: block; width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; }
+.colorDot.active { border-color: #111; }
 .actionBlock { border-bottom: 0; }
 .overlayLayer { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; }
 .overlayScrim { position: absolute; inset: 0; background: rgba(17,16,14,.36); backdrop-filter: blur(8px); animation: fade-in 180ms ease both; }
 .overlayPanel { position: relative; z-index: 1; width: min(1120px, calc(100% - 36px)); max-height: calc(100% - 36px); animation: overlay-up var(--screen-ease) both; display: flex; }
 .overlayHeader { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #eee6dc; font-weight: 800; letter-spacing: -.01em; }
 .overlayClose { width: 40px; height: 40px; border: 1px solid #e4dbcf; border-radius: 50%; background: white; font-size: 18px; }
+.drawerLayer { position: absolute; inset: 0; z-index: 30; display: flex; justify-content: flex-end; }
+.drawerPanel, .quickViewPanel { position: relative; z-index: 1; background: white; width: min(420px, 100%); height: 100%; box-shadow: -12px 0 32px rgba(0,0,0,.12); animation: drawer-in var(--screen-ease) both; }
+.searchDrawer { width: min(520px, 100%); }
+.quickViewPanel { width: min(720px, calc(100% - 36px)); height: auto; border-radius: 24px; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.16); }
+.drawerBody { padding: 18px 20px 24px; display: grid; gap: 16px; }
+.searchResults, .cartList { display: grid; gap: 10px; }
+.searchResult, .cartItem { display: flex; justify-content: space-between; gap: 12px; align-items: center; border: 1px solid #ece3d8; border-radius: 14px; padding: 14px; background: #faf7f1; }
+.searchResult span { font-size: 28px; }
+.searchResult strong, .searchResult small, .cartItem strong, .cartItem small { display: block; }
+.searchResult small, .cartItem small { color: #8b8177; }
+.qtyStepper { display: flex; align-items: center; gap: 8px; }
+.qtyStepper button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #d6c6b4; background: white; }
+.cartSummary { display: flex; justify-content: space-between; padding-top: 6px; border-top: 1px solid #eee5da; font-weight: 800; }
+.emptyState { min-height: 320px; display: grid; place-items: center; text-align: center; color: #6b645c; padding: 24px; }
+.emptyEmoji { font-size: 46px; }
+.quickViewContent { padding: 24px; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 22px; align-items: start; }
+.quickHero { min-height: 220px; border-radius: 24px; background: #f7f0e7; display: grid; place-items: center; font-size: 82px; }
+.quickMeta span { background: #faf4ec; border: 1px solid #eadcca; border-radius: 999px; padding: 7px 12px; font-size: 13px; }
+.quickPrice { display: block; margin-top: 16px; font-size: 28px; }
 @keyframes overlay-up { from { opacity: 0; transform: translateY(24px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes drawer-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
 .setupInner { padding: 24px clamp(22px, 3vw, 28px) 32px; }
 .catalogWrap { display: grid; grid-template-columns: minmax(220px, 250px) minmax(0, 1fr); gap: var(--panel-gap); padding: 28px clamp(22px, 3vw, 32px) 36px; }
 .subnav { padding: 14px 32px; border-bottom: 1px solid #f1ece6; color: #8a8178; }
 .filterCol { padding-top: 22px; }
-.filterBox { background: #fbf8f3; border: 1px solid #ece2d8; border-radius: 16px; padding: 14px; display: grid; gap: 4px; margin-bottom: 10px; }
-.filterBox span { color: #968f88; }
+.filterBox { background: #fbf8f3; border: 1px solid #ece2d8; border-radius: 16px; padding: 14px; display: grid; gap: 12px; margin-bottom: 10px; }
 .catalogHero { display: flex; justify-content: space-between; gap: 20px; align-items: flex-end; margin-bottom: 24px; }
 .breadcrumb { margin: 0 0 10px; font-size: 13px; color: #aaa095; }
 .catalogHero h2 { margin: 0; font-size: 38px; line-height: 1.05; letter-spacing: -.04em; }
@@ -210,13 +233,15 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .badgeTag, .fitTag { position: absolute; left: 12px; background: white; border-radius: 10px; padding: 6px 10px; font-size: 12px; font-weight: 800; }
 .badgeTag { top: 12px; color: #e84d4d; }
 .fitTag { bottom: 12px; color: #16a15c; }
-.wish { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.9); display: grid; place-items: center; }
+.wish { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.9); display: grid; place-items: center; border: 0; }
+.wish.active { background: #fce5e6; color: #e84d4d; }
 .bigEmoji { font-size: 64px; }
 .shopInfo { padding: 18px 16px 16px; display: grid; gap: 8px; align-content: start; }
 .shopInfo small { color: var(--accent); font-weight: 800; letter-spacing: .04em; }
 .shopInfo h4 { margin: 0; font-size: 18px; line-height: 1.28; letter-spacing: -.02em; }
 .shopInfo p { margin: 0; color: #807971; line-height: 1.45; }
 .shopInfo button, .scrollCard button { border: 1.5px solid var(--accent); background: white; color: var(--accent); border-radius: 12px; padding: 10px; font-weight: 800; }
+.priceLine strong { font-size: 20px; }
 .heroBanner { min-height: clamp(360px, 44vw, 470px); background: linear-gradient(135deg, #f5eee7 0%, #eadbcf 100%); display: grid; grid-template-columns: 1.1fr .9fr; align-items: center; padding: clamp(30px, 4vw, 48px) clamp(24px, 4vw, 56px); column-gap: 36px; }
 .darkEyebrow { color: white; background: var(--accent); display: inline-block; padding: 8px 12px; border-radius: 999px; }
 .heroBanner p { color: #67615c; max-width: 580px; line-height: 1.76; margin: 16px 0 0; }
@@ -233,7 +258,7 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .iconCat.active div { background: var(--accent); color: white; }
 .iconCat.active span { color: var(--accent); font-weight: 800; }
 .collections { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; padding: 0 32px 24px; }
-.collection { background: #f7f1e9; border-radius: 20px; min-height: 180px; display: flex; align-items: end; padding: 20px; position: relative; overflow: hidden; }
+.collection { background: #f7f1e9; border-radius: 20px; min-height: 180px; display: flex; align-items: end; padding: 20px; position: relative; overflow: hidden; border: 0; text-align: left; }
 .collection.large { min-height: 340px; grid-row: span 2; }
 .collection > div:first-child { position: absolute; right: 16px; top: 16px; font-size: 52px; opacity: .8; }
 .collection strong, .collection span { display: block; position: relative; z-index: 1; }
@@ -270,7 +295,7 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
   .hScrollProducts { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 1100px) {
-  .heroBanner, .twoCol, .catalogWrap, .editorLayout, .spaceLayout, .spaceLayout.compact { grid-template-columns: 1fr; }
+  .heroBanner, .twoCol, .catalogWrap, .editorLayout, .spaceLayout, .spaceLayout.compact, .quickViewContent { grid-template-columns: 1fr; }
   .topbar { padding: 14px 24px; flex-wrap: wrap; }
   .productGrid3, .collections, .hScrollProducts, .productRow, .recommendStrip { grid-template-columns: 1fr 1fr; }
   .floorplanViewport, .productRow, .reasonBox, .editorCanvasShell, .infoPills, .recommendStrip { width: 100%; }
@@ -294,13 +319,14 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
   .floatingCard { width: 100%; height: auto; min-height: 148px; }
   .floatingCard.lifted { transform: none; }
   .collections, .productGrid3, .hScrollProducts, .productRow, .recommendStrip, .dragGrid { grid-template-columns: 1fr; }
-  .catalogHero, .footerButtons, .aiStrip, .heroActions, .stackOnMobile, .editorCanvasMeta { flex-direction: column; align-items: flex-start; }
+  .catalogHero, .footerButtons, .aiStrip, .heroActions, .stackOnMobile, .editorCanvasMeta, .quickViewContent { flex-direction: column; align-items: flex-start; }
   .footerButtons > * { width: 100%; }
   .aiStrip { gap: 14px; }
   .iconCategories { gap: 14px; padding: 24px 20px; justify-content: flex-start; }
   .collection, .collection.large { min-height: 150px; }
   .catalogWrap, .subnav, .collections, .hScrollProducts { padding-left: 20px; padding-right: 20px; }
-  .overlayPanel { width: calc(100% - 20px); max-height: calc(100% - 20px); }
+  .overlayPanel, .quickViewPanel { width: calc(100% - 20px); max-height: calc(100% - 20px); }
   .planBoard, .planBoard.small, .editorRoom { aspect-ratio: auto; min-height: 320px; }
   .editorCanvasMeta span { width: 100%; }
+  .drawerPanel { width: 100%; }
 }

@@ -11,19 +11,52 @@ const screenMeta = {
   home: { column: 2, step: 1 },
 }
 
+const roomOptions = ['거실', '침실', '주방', '서재']
+const styleOptions = [
+  { id: 'minimal', emoji: '🤍', label: '미니멀' },
+  { id: 'natural', emoji: '🌿', label: '내추럴' },
+  { id: 'lux', emoji: '✨', label: '모던 럭스' },
+]
+
 const aiProducts = [
-  { emoji: '🛋️', name: '코튼베이지 모듈 소파', price: '₩1,290,000' },
-  { emoji: '🪑', name: '오벌 우드 테이블', price: '₩389,000' },
-  { emoji: '🪴', name: '세라믹 플로어 플랜트', price: '₩89,000' },
+  { id: 'sofa-001', category: '소파', emoji: '🛋️', name: '코튼베이지 모듈 소파', price: 1290000, priceLabel: '₩1,290,000', fitScore: 96, blurb: '동선 확보가 쉬운 모듈형 구성이에요.', size: '2200 x 900', colors: ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355'] },
+  { id: 'table-001', category: '테이블', emoji: '🪑', name: '오벌 우드 테이블', price: 389000, priceLabel: '₩389,000', fitScore: 92, blurb: '거실과 다이닝을 유연하게 연결해줘요.', size: '1200 x 800', colors: ['#efe4d5', '#d7c0a3', '#a88c68'] },
+  { id: 'plant-001', category: '소품', emoji: '🪴', name: '세라믹 플로어 플랜트', price: 89000, priceLabel: '₩89,000', fitScore: 88, blurb: '밝은 톤 공간에 생기를 더하는 포인트예요.', size: '450 x 450', colors: ['#dfe7d8', '#c6d9b8', '#97b17e'] },
+]
+
+const libraryItems = [
+  ...aiProducts,
+  { id: 'tv-001', category: '수납', emoji: '📺', name: '슬림 TV 콘솔', price: 540000, priceLabel: '₩540,000', fitScore: 84, blurb: '벽면 배치에 안정적인 저상형 수납장.', size: '1800 x 400', colors: ['#f2ede5', '#d8ccb8', '#8c7354'] },
+  { id: 'mirror-001', category: '소품', emoji: '🪞', name: '아치형 스탠드 미러', price: 219000, priceLabel: '₩219,000', fitScore: 79, blurb: '채광을 반사해 공간이 넓어 보여요.', size: '700 x 60', colors: ['#f6f0e7', '#d6c1a2', '#927151'] },
+  { id: 'lamp-001', category: '조명', emoji: '💡', name: '포인트 플로어 램프', price: 179000, priceLabel: '₩179,000', fitScore: 83, blurb: '코너 무드 조명으로 분위기를 정리합니다.', size: '420 x 420', colors: ['#fff7dd', '#f4d38c', '#b8904e'] },
 ]
 
 const bedProducts = [
-  { badge: 'BEST', emoji: '🛏️', name: '헤이븐 패브릭 침대', fit: 'AI 추천 94%', price: '₩890,000', review: '4.9 · 182' },
-  { badge: 'NEW', emoji: '🛌', name: '클라우드 쿠션 침대', fit: '중형 침실 적합', price: '₩1,120,000', review: '4.8 · 74' },
-  { badge: 'SALE', emoji: '🪵', name: '월넛 프레임 침대', fit: 'AI 추천 88%', price: '₩760,000', review: '4.7 · 58' },
-  { badge: 'HOT', emoji: '✨', name: '리넨 헤드보드 침대', fit: '원룸 배치 적합', price: '₩940,000', review: '4.8 · 101' },
-  { badge: 'BEST', emoji: '🌙', name: '소프트 아이보리 침대', fit: 'AI 추천 91%', price: '₩830,000', review: '4.9 · 133' },
-  { badge: 'NEW', emoji: '🧸', name: '웜그레이 플랫폼 침대', fit: '패브릭 룩', price: '₩690,000', review: '4.6 · 45' },
+  { id: 'bed-001', badge: 'BEST', emoji: '🛏️', name: '헤이븐 패브릭 침대', fit: 'AI 추천 94%', fitScore: 94, price: 890000, priceLabel: '₩890,000', review: '4.9 · 182', color: '아이보리', size: '퀸', material: '패브릭', blurb: '부드러운 헤드보드와 웜 톤 패브릭이 특징이에요.' },
+  { id: 'bed-002', badge: 'NEW', emoji: '🛌', name: '클라우드 쿠션 침대', fit: '중형 침실 적합', fitScore: 87, price: 1120000, priceLabel: '₩1,120,000', review: '4.8 · 74', color: '베이지', size: '킹', material: '패브릭', blurb: '도톰한 쿠션 헤드보드로 호텔라이크 분위기를 줍니다.' },
+  { id: 'bed-003', badge: 'SALE', emoji: '🪵', name: '월넛 프레임 침대', fit: 'AI 추천 88%', fitScore: 88, price: 760000, priceLabel: '₩760,000', review: '4.7 · 58', color: '우드', size: '퀸', material: '원목', blurb: '차분한 월넛 마감으로 공간을 안정감 있게 잡아줘요.' },
+  { id: 'bed-004', badge: 'HOT', emoji: '✨', name: '리넨 헤드보드 침대', fit: '원룸 배치 적합', fitScore: 91, price: 940000, priceLabel: '₩940,000', review: '4.8 · 101', color: '그레이', size: '슈퍼싱글', material: '리넨', blurb: '작은 공간에도 답답하지 않게 들어가는 슬림 헤드 타입.' },
+  { id: 'bed-005', badge: 'BEST', emoji: '🌙', name: '소프트 아이보리 침대', fit: 'AI 추천 91%', fitScore: 91, price: 830000, priceLabel: '₩830,000', review: '4.9 · 133', color: '아이보리', size: '퀸', material: '패브릭', blurb: '아이보리 톤으로 침실을 더 환하게 보이게 해줘요.' },
+  { id: 'bed-006', badge: 'NEW', emoji: '🧸', name: '웜그레이 플랫폼 침대', fit: '패브릭 룩', fitScore: 85, price: 690000, priceLabel: '₩690,000', review: '4.6 · 45', color: '그레이', size: '퀸', material: '합성패브릭', blurb: '로우 플랫폼 구조로 천장이 낮아도 깔끔해 보여요.' },
+]
+
+const baseZones = [
+  { id: 'living', icon: '🛋️', name: '거실', size: '23.4㎡', className: 'living', selected: true },
+  { id: 'kitchen', icon: '🍳', name: '주방', size: '11.2㎡', className: 'kitchen', selected: false },
+  { id: 'bed1', icon: '🛏️', name: '안방', size: '14.8㎡', className: 'bed1', selected: true },
+  { id: 'bed2', icon: '📚', name: '침실/서재', size: '9.1㎡', className: 'bed2', selected: false },
+  { id: 'bath', icon: '🛁', name: '욕실', size: '4.1㎡', className: 'bath', selected: false },
+  { id: 'entry', icon: '🚪', name: '현관', size: '3.7㎡', className: 'entry', selected: true },
+]
+
+const apartmentTypes = ['84A', '84B', '101A', '59A']
+
+const initialEditorItems = [
+  { id: 'placed-sofa', sourceId: 'sofa-001', name: '코튼베이지 모듈 소파', label: 'SOFA', x: 10, y: 16, w: 28, h: 18, rotation: 0, colorIndex: 2 },
+  { id: 'placed-table', sourceId: 'table-001', name: '오벌 우드 테이블', label: 'TABLE', x: 16, y: 46, w: 13, h: 20, rotation: 0, colorIndex: 1, circle: true },
+  { id: 'placed-tv', sourceId: 'tv-001', name: '슬림 TV 콘솔', label: 'TV', x: 67, y: 10, w: 24, h: 6, rotation: 0, colorIndex: 2 },
+  { id: 'placed-shelf', sourceId: 'tv-001', name: '슬림 TV 콘솔', label: 'SHELF', x: 67, y: 18, w: 24, h: 12, rotation: 0, colorIndex: 1 },
+  { id: 'placed-plant', sourceId: 'plant-001', name: '세라믹 플로어 플랜트', label: '🌿', x: 42, y: 14, w: 7, h: 10, rotation: 0, colorIndex: 2 },
 ]
 
 function getStateFromHash() {
@@ -44,23 +77,24 @@ function getDirectionalTransition(fromScreen, toScreen) {
   const from = getScreenMeta(fromScreen)
   const to = getScreenMeta(toScreen)
 
-  if (to.column === 0) {
-    return -1
-  }
-
-  if (to.column === 2) {
-    return 1
-  }
-
-  if (from.column !== to.column) {
-    return to.column > from.column ? 1 : -1
-  }
-
-  if (from.step !== to.step) {
-    return to.step > from.step ? 1 : -1
-  }
-
+  if (to.column === 0) return -1
+  if (to.column === 2) return 1
+  if (from.column !== to.column) return to.column > from.column ? 1 : -1
+  if (from.step !== to.step) return to.step > from.step ? 1 : -1
   return 0
+}
+
+function formatPrice(value) {
+  return `₩${value.toLocaleString('ko-KR')}`
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function buildRecommendationSummary({ room, style, apartmentType, extraRequest }) {
+  const styleLabel = styleOptions.find((item) => item.id === style)?.label ?? '미니멀'
+  return `${apartmentType} ${room} 기준으로 ${styleLabel} 톤을 유지하면서 ${extraRequest || '채광과 동선을 우선'} 방향으로 정리한 추천안입니다.`
 }
 
 function useSpaNavigation() {
@@ -128,7 +162,147 @@ function useSpaNavigation() {
   return { screen, overlay, direction, navigate, openOverlay, closeOverlay }
 }
 
-function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay }) {
+function useCart() {
+  const [isOpen, setIsOpen] = React.useState(false)
+  const [items, setItems] = React.useState([])
+
+  const addItem = React.useCallback((product) => {
+    setItems((current) => {
+      const existing = current.find((item) => item.id === product.id)
+      if (existing) {
+        return current.map((item) => item.id === product.id ? { ...item, qty: item.qty + 1 } : item)
+      }
+      return [...current, { ...product, qty: 1 }]
+    })
+    setIsOpen(true)
+  }, [])
+
+  const updateQty = React.useCallback((id, delta) => {
+    setItems((current) => current.flatMap((item) => {
+      if (item.id !== id) return [item]
+      const nextQty = item.qty + delta
+      return nextQty <= 0 ? [] : [{ ...item, qty: nextQty }]
+    }))
+  }, [])
+
+  const clear = React.useCallback(() => setItems([]), [])
+  const count = items.reduce((sum, item) => sum + item.qty, 0)
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0)
+
+  return { isOpen, setIsOpen, items, addItem, updateQty, clear, count, subtotal }
+}
+
+function useQuickView() {
+  const [product, setProduct] = React.useState(null)
+  return {
+    product,
+    open: setProduct,
+    close: () => setProduct(null),
+  }
+}
+
+function useEditorState() {
+  const [items, setItems] = React.useState(initialEditorItems)
+  const [history, setHistory] = React.useState([])
+  const [selectedId, setSelectedId] = React.useState(initialEditorItems[0].id)
+  const [activeTool, setActiveTool] = React.useState('select')
+  const [snapOn, setSnapOn] = React.useState(true)
+  const [notice, setNotice] = React.useState('소파가 선택되어 있어요. 방향/이동/색상을 바꿔볼 수 있어요.')
+
+  const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null
+
+  const commit = React.useCallback((nextItems, nextNotice) => {
+    setHistory((current) => [...current, items])
+    setItems(nextItems)
+    if (nextNotice) setNotice(nextNotice)
+  }, [items])
+
+  const updateSelected = React.useCallback((updater, nextNotice) => {
+    if (!selectedId) return
+    const nextItems = items.map((item) => item.id === selectedId ? updater(item) : item)
+    commit(nextItems, nextNotice)
+  }, [commit, items, selectedId])
+
+  const moveSelected = React.useCallback((dx, dy) => {
+    updateSelected((item) => {
+      const step = snapOn ? 4 : 2
+      return {
+        ...item,
+        x: clamp(item.x + dx * step, 2, 88),
+        y: clamp(item.y + dy * step, 2, 82),
+      }
+    }, snapOn ? '스냅 단위로 가구를 이동했어요.' : '자유 이동으로 가구 위치를 조정했어요.')
+  }, [snapOn, updateSelected])
+
+  const rotateSelected = React.useCallback(() => {
+    updateSelected((item) => ({ ...item, rotation: (item.rotation + 90) % 360 }), '선택한 가구를 90° 회전했어요.')
+  }, [updateSelected])
+
+  const cycleColor = React.useCallback(() => {
+    updateSelected((item) => ({ ...item, colorIndex: ((item.colorIndex ?? 0) + 1) % 4 }), '선택한 가구 컬러 프리셋을 바꿨어요.')
+  }, [updateSelected])
+
+  const setSelectedColor = React.useCallback((colorIndex) => {
+    updateSelected((item) => ({ ...item, colorIndex }), '선택한 컬러 스와치를 적용했어요.')
+  }, [updateSelected])
+
+  const addLibraryItem = React.useCallback((product) => {
+    const nextItem = {
+      id: `${product.id}-${Date.now()}`,
+      sourceId: product.id,
+      name: product.name,
+      label: product.category === '소품' ? product.emoji : product.category.toUpperCase(),
+      x: 34,
+      y: 32,
+      w: product.category === '소품' ? 8 : 18,
+      h: product.category === '테이블' ? 14 : 12,
+      rotation: 0,
+      colorIndex: 0,
+      circle: product.category === '테이블',
+    }
+    commit([...items, nextItem], `${product.name}을(를) 배치안에 추가했어요.`)
+    setSelectedId(nextItem.id)
+  }, [commit, items])
+
+  const undo = React.useCallback(() => {
+    setHistory((current) => {
+      if (!current.length) return current
+      const previous = current[current.length - 1]
+      setItems(previous)
+      setSelectedId(previous[0]?.id ?? null)
+      setNotice('직전 변경을 되돌렸어요.')
+      return current.slice(0, -1)
+    })
+  }, [])
+
+  const reset = React.useCallback(() => {
+    setHistory((current) => [...current, items])
+    setItems(initialEditorItems)
+    setSelectedId(initialEditorItems[0].id)
+    setNotice('초기 배치안으로 되돌렸어요.')
+  }, [items])
+
+  return {
+    items,
+    selected,
+    selectedId,
+    setSelectedId,
+    activeTool,
+    setActiveTool,
+    snapOn,
+    setSnapOn,
+    notice,
+    moveSelected,
+    rotateSelected,
+    cycleColor,
+    setSelectedColor,
+    addLibraryItem,
+    undo,
+    reset,
+  }
+}
+
+function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay, onOpenCart, cartCount, onSearchOpen }) {
   return (
     <header className={`topbar ${dark ? 'dark' : ''}`}>
       <button className="logo logoBtn" onClick={() => onNavigate('home')}>HAVENLY</button>
@@ -142,10 +316,10 @@ function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay 
         ))}
       </nav>
       <div className="topActions">
-        {!dark && <button className="searchPill">🔎 스타일 또는 가구 검색</button>}
+        {!dark && <button className="searchPill" onClick={onSearchOpen}>🔎 스타일 또는 가구 검색</button>}
         {dark && <button className="miniBtn secondary" onClick={() => onOpenOverlay('address')}>공간 정보</button>}
         {dark && <button className="miniBtn primary" onClick={() => onNavigate('ai')}>AI 추천</button>}
-        <button className="cart">🛒<span>3</span></button>
+        <button className="cart" onClick={onOpenCart} aria-label="장바구니 열기">🛒<span>{cartCount}</span></button>
       </div>
     </header>
   )
@@ -187,68 +361,216 @@ function StageTransition({ screen, direction, children }) {
 
 function App() {
   const { screen, overlay, direction, navigate, openOverlay, closeOverlay } = useSpaNavigation()
+  const cart = useCart()
+  const quickView = useQuickView()
+  const editor = useEditorState()
+  const [searchDrawerOpen, setSearchDrawerOpen] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState('')
+  const [aiForm, setAiForm] = React.useState({
+    apartmentQuery: '래미안 포레스트 84A',
+    apartmentType: '84A',
+    room: '거실',
+    style: 'minimal',
+    extraRequest: '아이보리/우드 톤으로 따뜻하게, 반려식물과 패브릭 위주로 꾸미고 싶어요.',
+  })
+  const [selectedSpaces, setSelectedSpaces] = React.useState(() => baseZones.filter((zone) => zone.selected).map((zone) => zone.id))
+  const [addressForm, setAddressForm] = React.useState({
+    query: '서울 성동구 성수이로 123 HAVENLY Apartments',
+    apartmentType: '84A',
+    spaces: ['living', 'bed1'],
+  })
+  const [bedFilters, setBedFilters] = React.useState({
+    search: '',
+    sorts: 'recommended',
+    size: '전체',
+    color: '전체',
+    material: '전체',
+    fit: '전체',
+  })
+  const [wishlistedIds, setWishlistedIds] = React.useState([])
+
+  const aiSummary = buildRecommendationSummary(aiForm)
+  const selectedBed = bedProducts.find((product) => product.id === quickView.product?.id)
+
+  const filteredSearchResults = React.useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    const all = [...libraryItems, ...bedProducts]
+    if (!query) return all.slice(0, 6)
+    return all.filter((item) => `${item.name} ${item.category ?? ''} ${item.material ?? ''}`.toLowerCase().includes(query)).slice(0, 8)
+  }, [searchQuery])
+
+  const filteredBedProducts = React.useMemo(() => {
+    let items = [...bedProducts]
+    const query = bedFilters.search.trim().toLowerCase()
+    if (query) {
+      items = items.filter((item) => `${item.name} ${item.color} ${item.material}`.toLowerCase().includes(query))
+    }
+    if (bedFilters.size !== '전체') items = items.filter((item) => item.size === bedFilters.size)
+    if (bedFilters.color !== '전체') items = items.filter((item) => item.color === bedFilters.color)
+    if (bedFilters.material !== '전체') items = items.filter((item) => item.material === bedFilters.material)
+    if (bedFilters.fit !== '전체') {
+      items = items.filter((item) => item.fitScore >= Number(bedFilters.fit))
+    }
+    if (bedFilters.sorts === 'priceLow') items.sort((a, b) => a.price - b.price)
+    if (bedFilters.sorts === 'fit') items.sort((a, b) => b.fitScore - a.fitScore)
+    return items
+  }, [bedFilters])
+
+  const cartActions = {
+    openCart: () => cart.setIsOpen(true),
+    cartCount: cart.count,
+  }
+
+  const shared = {
+    navigate,
+    openOverlay,
+    quickViewOpen: quickView.open,
+    addToCart: cart.addItem,
+    onSearchOpen: () => setSearchDrawerOpen(true),
+    ...cartActions,
+  }
+
+  const screenProps = {
+    ai: {
+      form: aiForm,
+      setForm: setAiForm,
+      summary: aiSummary,
+    },
+    space: {
+      selectedSpaces,
+      setSelectedSpaces,
+    },
+    layout: {
+      editor,
+      addressSummary: `${addressForm.apartmentType} · ${addressForm.spaces.length}개 공간 선택`,
+    },
+    beds: {
+      filters: bedFilters,
+      setFilters: setBedFilters,
+      items: filteredBedProducts,
+      wishlistedIds,
+      toggleWishlist: (id) => setWishlistedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]),
+    },
+    home: {
+      wishlistedIds,
+    },
+  }
 
   return (
     <main className="appShell">
       <section className={`screenStage ${overlay ? 'overlayOpen' : ''}`}>
         <StageTransition screen={screen} direction={direction}>
-          {(visibleScreen) => renderScreen(visibleScreen, { navigate, openOverlay })}
+          {(visibleScreen) => renderScreen(visibleScreen, { ...shared, ...screenProps[visibleScreen] })}
         </StageTransition>
 
         {overlay === 'address' && (
           <div className="overlayLayer" role="dialog" aria-modal="true">
             <div className="overlayScrim" onClick={closeOverlay} />
             <div className="overlayPanel">
-              <AddressSetupScreen navigate={navigate} closeOverlay={closeOverlay} />
+              <AddressSetupScreen
+                navigate={navigate}
+                closeOverlay={closeOverlay}
+                addressForm={addressForm}
+                setAddressForm={setAddressForm}
+                selectedSpaces={selectedSpaces}
+              />
             </div>
           </div>
+        )}
+
+        {cart.isOpen && (
+          <CartDrawer
+            cart={cart}
+            onClose={() => cart.setIsOpen(false)}
+          />
+        )}
+
+        {searchDrawerOpen && (
+          <SearchDrawer
+            query={searchQuery}
+            setQuery={setSearchQuery}
+            results={filteredSearchResults}
+            onClose={() => setSearchDrawerOpen(false)}
+            onPick={(product) => {
+              setSearchDrawerOpen(false)
+              if (product.material) quickView.open(product)
+              else cart.addItem(product)
+            }}
+          />
+        )}
+
+        {quickView.product && (
+          <QuickViewModal
+            product={selectedBed ?? quickView.product}
+            onClose={quickView.close}
+            onAddToCart={(product) => {
+              cart.addItem(product)
+              quickView.close()
+            }}
+            onApplyToLayout={(product) => {
+              editor.addLibraryItem({
+                ...product,
+                category: product.material ? '침대' : product.category,
+              })
+              quickView.close()
+              navigate('layout')
+            }}
+          />
         )}
       </section>
     </main>
   )
 }
 
-function renderScreen(screen, actions) {
+function renderScreen(screen, props) {
   switch (screen) {
     case 'ai':
-      return <AiRecommendScreen {...actions} />
+      return <AiRecommendScreen {...props} />
     case 'space':
-      return <SpaceSelectScreen {...actions} />
+      return <SpaceSelectScreen {...props} />
     case 'layout':
-      return <LayoutEditorScreen {...actions} />
+      return <LayoutEditorScreen {...props} />
     case 'beds':
-      return <BedsCategoryScreen {...actions} />
+      return <BedsCategoryScreen {...props} />
     case 'home':
     default:
-      return <FurnitureHomeScreen {...actions} />
+      return <FurnitureHomeScreen {...props} />
   }
 }
 
-function AiRecommendScreen({ navigate, openOverlay }) {
+function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, summary }) {
+  const currentStyle = styleOptions.find((item) => item.id === form.style)
+
   return (
     <div className="screenCanvas warmBg">
-      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} />
+      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} />
       <div className="twoCol">
         <aside className="panel leftPanel">
           <div className="stepDots"><b className="on">1</b><span /><b className="done">2</b><span /><b>3</b></div>
           <h2>AI가 공간에 맞는 가구를 추천해드릴게요</h2>
-          <p className="muted">아파트 타입, 원하는 공간, 선호 스타일을 입력하면 HAVENLY 톤의 레이아웃과 상품을 제안합니다.</p>
+          <p className="muted">아파트 타입, 원하는 공간, 선호 스타일을 직접 바꾸면 추천 문구와 강조 상태가 함께 반영됩니다.</p>
           <label>아파트 검색</label>
-          <div className="inputWrap">🔎<input value="래미안 포레스트 84A" readOnly /></div>
+          <div className="inputWrap">🔎<input value={form.apartmentQuery} onChange={(event) => setForm((current) => ({ ...current, apartmentQuery: event.target.value }))} /></div>
           <div className="resultCard">
-            <strong>래미안 포레스트 84A</strong>
-            <span>전용 84㎡ · 4Bay · 거실 확장형</span>
+            <strong>{form.apartmentQuery || '아파트명을 입력해보세요'}</strong>
+            <span>전용 84㎡ · {form.apartmentType} · 4Bay · 거실 확장형</span>
           </div>
           <label>공간 선택</label>
-          <div className="chipRow"><button className="solid">거실</button><button>침실</button><button>주방</button><button>서재</button></div>
+          <div className="chipRow">
+            {roomOptions.map((room) => (
+              <button key={room} className={form.room === room ? 'solid' : ''} onClick={() => setForm((current) => ({ ...current, room }))}>{room}</button>
+            ))}
+          </div>
           <label>선호 스타일</label>
           <div className="styleGrid">
-            <div className="styleBox selected"><span>🤍</span>미니멀</div>
-            <div className="styleBox"><span>🌿</span>내추럴</div>
-            <div className="styleBox"><span>✨</span>모던 럭스</div>
+            {styleOptions.map((style) => (
+              <button key={style.id} className={`styleBox ${form.style === style.id ? 'selected' : ''}`} onClick={() => setForm((current) => ({ ...current, style: style.id }))}>
+                <span>{style.emoji}</span>{style.label}
+              </button>
+            ))}
           </div>
           <label>추가 요청</label>
-          <textarea readOnly value={'아이보리/우드 톤으로 따뜻하게, 반려식물과 패브릭 위주로 꾸미고 싶어요.'} />
+          <textarea value={form.extraRequest} onChange={(event) => setForm((current) => ({ ...current, extraRequest: event.target.value }))} />
           <div className="footerButtons stackOnMobile">
             <button className="ghost" onClick={() => openOverlay('address')}>평면도 불러오기</button>
             <button className="cta" onClick={() => navigate('space')}>추천받기</button>
@@ -256,15 +578,16 @@ function AiRecommendScreen({ navigate, openOverlay }) {
         </aside>
         <div className="panel resultPanel">
           <div className="badge">AI 추천 결과</div>
-          <h3>거실 배치안 + 상품 추천</h3>
+          <h3>{form.room} 배치안 + 상품 추천</h3>
+          <p className="resultSummary"><b>{currentStyle?.label}</b> 무드 기준 · {summary}</p>
           <div className="floorplanViewport">
             <div className="floorplanFrame">
-              <div className="floorplan">
+              <div className={`floorplan theme-${form.style}`}>
                 <div className="grid" />
                 <div className="roomBorder">
                   <div className="windowMark">창문</div>
                   <div className="doorMark">현관</div>
-                  <div className="furn sofa">3인 소파</div>
+                  <div className="furn sofa">{form.room === '침실' ? '침대' : '3인 소파'}</div>
                   <div className="furn rug">러그</div>
                   <div className="furn table">테이블</div>
                   <div className="furn tv">TV장</div>
@@ -274,50 +597,57 @@ function AiRecommendScreen({ navigate, openOverlay }) {
           </div>
           <div className="productRow">
             {aiProducts.map((item) => (
-              <article key={item.name} className="productMini">
+              <article key={item.id} className="productMini">
                 <div className="emojiCard">{item.emoji}</div>
                 <strong>{item.name}</strong>
-                <span>{item.price}</span>
-                <button onClick={() => navigate('layout')}>배치에 담기</button>
+                <span>{item.priceLabel}</span>
+                <small>적합도 {item.fitScore}%</small>
+                <div className="cardActions two">
+                  <button className="ghost minor" onClick={() => addToCart(item)}>담기</button>
+                  <button onClick={() => navigate('layout')}>배치에 담기</button>
+                </div>
               </article>
             ))}
           </div>
-          <div className="reasonBox"><strong>AI 코멘트</strong> 채광이 좋은 거실이라 밝은 패브릭 소파와 원형 테이블을 중심으로 동선을 열어두고, 우드/베이지 톤으로 정리했습니다.</div>
+          <div className="reasonBox"><strong>AI 코멘트</strong> {summary}</div>
         </div>
       </div>
     </div>
   )
 }
 
-function SpaceSelectScreen({ navigate, openOverlay }) {
-  const items = [
-    ['🛋️', '거실', '23.4㎡'], ['🍳', '주방', '11.2㎡'], ['🛏️', '안방', '14.8㎡'], ['📚', '침실/서재', '9.1㎡'], ['🛁', '욕실', '4.1㎡'], ['🚪', '현관', '3.7㎡']
-  ]
+function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, selectedSpaces, setSelectedSpaces }) {
+  const zones = baseZones.map((zone) => ({ ...zone, selected: selectedSpaces.includes(zone.id) }))
+  const chosen = zones.filter((zone) => zone.selected)
+
   return (
     <div className="screenCanvas sandBg">
-      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} />
+      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} />
       <section className="cardStage">
         <div className="cardSurface">
           <div className="progressBar"><span className="fill wide" /></div>
           <p className="tinyPill">평면도 기반 선택</p>
           <h2>어떤 공간을 먼저 꾸밀까요?</h2>
-          <p className="muted">공간 선택은 같은 앱 컨텍스트 안에서 바로 다음 스테이지로 이어지도록 구성했습니다.</p>
+          <p className="muted">평면도 영역과 오른쪽 요약 패널이 같은 선택 상태를 공유합니다. 최소 1개 이상 선택할 수 있어요.</p>
           <div className="spaceLayout">
             <div className="planBoard">
               <div className="compass">N</div>
-              <div className="zone living selected"><b>🛋️</b><span>거실</span></div>
-              <div className="zone kitchen"><b>🍳</b><span>주방</span></div>
-              <div className="zone bed1"><b>🛏️</b><span>안방</span></div>
-              <div className="zone bed2"><b>📚</b><span>침실/서재</span></div>
-              <div className="zone bath"><b>🛁</b><span>욕실</span></div>
-              <div className="zone entry"><b>🚪</b><span>현관</span></div>
+              {zones.map((zone) => (
+                <button
+                  key={zone.id}
+                  className={`zone ${zone.className} ${zone.selected ? 'selected' : ''}`}
+                  onClick={() => setSelectedSpaces((current) => current.includes(zone.id) ? (current.length === 1 ? current : current.filter((id) => id !== zone.id)) : [...current, zone.id])}
+                >
+                  <b>{zone.icon}</b><span>{zone.name}</span>
+                </button>
+              ))}
             </div>
             <aside className="selectionPanel">
               <h3>선택된 공간</h3>
-              {items.slice(0, 3).map(([icon, name, size]) => (
-                <div className="selectionItem" key={name}><span>{icon}</span><div><strong>{name}</strong><small>{size}</small></div></div>
+              {chosen.map((item) => (
+                <div className="selectionItem" key={item.id}><span>{item.icon}</span><div><strong>{item.name}</strong><small>{item.size}</small></div></div>
               ))}
-              <div className="selectionTotal"><span>총 선택</span><b>3개</b></div>
+              <div className="selectionTotal"><span>총 선택</span><b>{chosen.length}개</b></div>
             </aside>
           </div>
           <div className="footerButtons">
@@ -330,79 +660,131 @@ function SpaceSelectScreen({ navigate, openOverlay }) {
   )
 }
 
-function LayoutEditorScreen({ navigate, openOverlay }) {
+function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary }) {
+  const selectedMeta = libraryItems.find((item) => item.id === editor.selected?.sourceId)
+  const categoryTabs = ['전체', '소파', '테이블', '수납', '소품', '조명']
+  const [activeCategory, setActiveCategory] = React.useState('전체')
+  const [librarySearch, setLibrarySearch] = React.useState('')
+
+  const visibleLibrary = libraryItems.filter((item) => {
+    const matchesCategory = activeCategory === '전체' || item.category === activeCategory
+    const matchesSearch = `${item.name} ${item.category}`.toLowerCase().includes(librarySearch.toLowerCase())
+    return matchesCategory && matchesSearch
+  })
+
   return (
     <div className="screenCanvas editorBg">
-      <Header dark active="내가 배치하기" onNavigate={navigate} onOpenOverlay={openOverlay} />
+      <Header dark active="내가 배치하기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} />
       <section className="editorLayout">
         <aside className="editorSide left">
-          <div className="sideHead"><h3>가구 라이브러리</h3><input value="가구 검색" readOnly /></div>
-          <div className="tabRow"><button className="solid mini">소파</button><button className="mini">테이블</button><button className="mini">수납</button></div>
+          <div className="sideHead"><h3>가구 라이브러리</h3><input value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="가구 검색" /></div>
+          <div className="tabRow">
+            {categoryTabs.map((tab) => <button key={tab} className={`mini ${activeCategory === tab ? 'solid' : ''}`} onClick={() => setActiveCategory(tab)}>{tab}</button>)}
+          </div>
           <div className="dragGrid">
-            {['🛋️','🪑','🪴','📺','🪞','💡'].map((e, i) => <div key={i} className="dragCard"><span>{e}</span><strong>드래그 아이템</strong><small>1200 x 800</small></div>)}
+            {visibleLibrary.map((item) => (
+              <button key={item.id} className="dragCard buttonCard" onClick={() => editor.addLibraryItem(item)}>
+                <span>{item.emoji}</span><strong>{item.name}</strong><small>{item.size}</small>
+              </button>
+            ))}
           </div>
         </aside>
         <div className="editorCenter">
-          <div className="toolbar"> <button className="tool active">✥</button><button className="tool">↔</button><button className="tool">⊞</button><button className="tool">⟲</button></div>
+          <div className="toolbar">
+            <button className={`tool ${editor.activeTool === 'select' ? 'active' : ''}`} onClick={() => editor.setActiveTool('select')}>✥</button>
+            <button className={`tool ${editor.activeTool === 'move' ? 'active' : ''}`} onClick={() => { editor.setActiveTool('move'); editor.moveSelected(1, 0) }}>↔</button>
+            <button className={`tool ${editor.activeTool === 'color' ? 'active' : ''}`} onClick={() => { editor.setActiveTool('color'); editor.cycleColor() }}>◉</button>
+            <button className={`tool ${editor.activeTool === 'rotate' ? 'active' : ''}`} onClick={() => { editor.setActiveTool('rotate'); editor.rotateSelected() }}>⟲</button>
+            <button className="tool" onClick={editor.undo}>↶</button>
+          </div>
           <div className="editorCanvasShell">
             <div className="editorCanvasMeta">
-              <span>실측 비율 유지</span>
-              <span>wide / tall 화면 대응</span>
+              <span>{addressSummary}</span>
+              <button className={`metaToggle ${editor.snapOn ? 'on' : ''}`} onClick={() => editor.setSnapOn((current) => !current)}>{editor.snapOn ? '스냅 ON' : '스냅 OFF'}</button>
+              <span>{editor.notice}</span>
+            </div>
+            <div className="editorMoveButtons">
+              <button className="mini" onClick={() => editor.moveSelected(0, -1)}>↑</button>
+              <div><button className="mini" onClick={() => editor.moveSelected(-1, 0)}>←</button><button className="mini" onClick={() => editor.moveSelected(1, 0)}>→</button></div>
+              <button className="mini" onClick={() => editor.moveSelected(0, 1)}>↓</button>
             </div>
             <div className="editorRoomFrame">
               <div className="editorRoom">
                 <div className="grid" />
                 <div className="roomFrame">
-                  <div className="placed sofa sel">SOFA</div>
-                  <div className="placed table">TABLE</div>
-                  <div className="placed tv">TV</div>
-                  <div className="placed shelf">SHELF</div>
-                  <div className="placed plant">🌿</div>
+                  {editor.items.map((item) => {
+                    const itemMeta = libraryItems.find((entry) => entry.id === item.sourceId)
+                    return (
+                      <button
+                        key={item.id}
+                        className={`placed ${editor.selectedId === item.id ? 'sel' : ''} ${item.circle ? 'circle' : ''}`}
+                        style={{
+                          left: `${item.x}%`,
+                          top: `${item.y}%`,
+                          width: `${item.w}%`,
+                          height: `${item.h}%`,
+                          transform: `rotate(${item.rotation}deg)`,
+                          background: itemMeta?.colors?.[item.colorIndex ?? 0] ?? '#e6d7bf',
+                        }}
+                        onClick={() => editor.setSelectedId(item.id)}
+                      >
+                        {item.label}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             </div>
           </div>
-          <div className="infoPills"><span>거실 5400 x 3400</span><span>스냅 ON</span><span>AI 제안 3개</span></div>
+          <div className="infoPills"><span>거실 5400 x 3400</span><span>{editor.snapOn ? '스냅 ON' : '자유 이동'}</span><span>배치 가구 {editor.items.length}개</span></div>
           <div className="recommendStrip">
-            {aiProducts.map((item) => <div key={item.name} className="recommendCard"><div>{item.emoji}</div><strong>{item.name}</strong><small>{item.price}</small></div>)}
+            {aiProducts.map((item) => (
+              <button key={item.id} className="recommendCard buttonCard" onClick={() => editor.addLibraryItem(item)}>
+                <div>{item.emoji}</div><strong>{item.name}</strong><small>{item.priceLabel}</small>
+              </button>
+            ))}
           </div>
         </div>
         <aside className="editorSide right">
           <div className="sideHead"><h3>속성 패널</h3></div>
-          <div className="propBlock"><label>선택 오브젝트</label><strong>코튼베이지 모듈 소파</strong></div>
-          <div className="propBlock"><label>크기</label><div className="split"><span>W 2200</span><span>D 900</span></div></div>
-          <div className="propBlock"><label>컬러</label><div className="colorDots"><i className="c1"/><i className="c2"/><i className="c3 active"/><i className="c4"/></div></div>
-          <div className="propBlock"><label>배치 메모</label><p>창가와 러그 축을 맞춰 안정적인 시선 흐름을 만들었습니다.</p></div>
-          <div className="propBlock actionBlock"><button className="cta" onClick={() => navigate('beds')}>가구 더 보기</button><button className="ghost" onClick={() => openOverlay('address')}>공간 다시 선택</button></div>
+          <div className="propBlock"><label>선택 오브젝트</label><strong>{editor.selected?.name ?? '선택 없음'}</strong></div>
+          <div className="propBlock"><label>크기</label><div className="split"><span>X {Math.round(editor.selected?.x ?? 0)}</span><span>Y {Math.round(editor.selected?.y ?? 0)}</span></div></div>
+          <div className="propBlock"><label>컬러</label><div className="colorDots">{(selectedMeta?.colors ?? ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355']).slice(0, 4).map((color, index) => <button key={color} className={`colorDot ${index === (editor.selected?.colorIndex ?? 0) ? 'active' : ''}`} style={{ background: color }} onClick={() => editor.setSelectedColor(index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
+          <div className="propBlock"><label>배치 메모</label><p>{selectedMeta?.blurb ?? '선택한 오브젝트의 활용 팁이 여기에 표시됩니다.'}</p></div>
+          <div className="propBlock actionBlock"><button className="cta" onClick={() => navigate('beds')}>가구 더 보기</button><button className="ghost" onClick={() => openOverlay('address')}>공간 다시 선택</button><button className="ghost" onClick={() => selectedMeta && addToCart(selectedMeta)}>선택 가구 담기</button><button className="ghost" onClick={editor.reset}>초기 배치 복원</button></div>
         </aside>
       </section>
     </div>
   )
 }
 
-function AddressSetupScreen({ navigate, closeOverlay }) {
+function AddressSetupScreen({ navigate, closeOverlay, addressForm, setAddressForm }) {
+  const overlayZones = baseZones.filter((zone) => ['living', 'kitchen', 'bed1', 'bed2'].includes(zone.id))
+
   return (
     <div className="setupCard">
       <div className="overlayHeader"><span>공간 정보 연결</span><button className="overlayClose" onClick={closeOverlay}>✕</button></div>
       <div className="setupInner">
         <div className="progressBar"><span className="fill half" /></div>
         <h2>배치하기 전에 공간 정보를 불러올게요</h2>
-        <p className="muted">이 단계는 별도 페이지가 아니라 현재 흐름 위에서 바로 여는 설정 오버레이입니다.</p>
+        <p className="muted">주소/타입/시작 공간을 오버레이 안에서 바로 수정할 수 있게 정리했습니다.</p>
         <label>아파트 또는 주소 검색</label>
-        <div className="inputWrap big">🔎<input value="서울 성동구 성수이로 123 HAVENLY Apartments" readOnly /></div>
-        <div className="resultCard selected"><strong>HAVENLY Apartments 84A</strong><span>실측 평면도 · 거실/침실/주방 데이터 제공</span></div>
-        <div className="typeStrip"><button className="solid">84A</button><button>84B</button><button>101A</button><button>59A</button></div>
+        <div className="inputWrap big">🔎<input value={addressForm.query} onChange={(event) => setAddressForm((current) => ({ ...current, query: event.target.value }))} /></div>
+        <div className="resultCard selected"><strong>{addressForm.query || '주소를 입력해보세요'}</strong><span>실측 평면도 · 거실/침실/주방 데이터 제공</span></div>
+        <div className="typeStrip">{apartmentTypes.map((type) => <button key={type} className={addressForm.apartmentType === type ? 'solid' : ''} onClick={() => setAddressForm((current) => ({ ...current, apartmentType: type }))}>{type}</button>)}</div>
         <div className="spaceLayout compact">
           <div className="planBoard small">
-            <div className="zone living selected"><b>🛋️</b><span>거실</span></div>
-            <div className="zone kitchen"><b>🍳</b><span>주방</span></div>
-            <div className="zone bed1 selected"><b>🛏️</b><span>안방</span></div>
-            <div className="zone bed2"><b>📚</b><span>침실2</span></div>
+            {overlayZones.map((zone) => (
+              <button key={zone.id} className={`zone ${zone.className} ${addressForm.spaces.includes(zone.id) ? 'selected' : ''}`} onClick={() => setAddressForm((current) => ({ ...current, spaces: current.spaces.includes(zone.id) ? current.spaces.filter((id) => id !== zone.id) : [...current.spaces, zone.id] }))}>
+                <b>{zone.icon}</b><span>{zone.name}</span>
+              </button>
+            ))}
           </div>
           <aside className="selectionPanel narrow">
             <h3>시작할 공간</h3>
-            <div className="selectionItem"><span>🛋️</span><div><strong>거실</strong><small>23.4㎡</small></div></div>
-            <div className="selectionItem"><span>🛏️</span><div><strong>안방</strong><small>14.8㎡</small></div></div>
+            {overlayZones.filter((zone) => addressForm.spaces.includes(zone.id)).map((zone) => (
+              <div className="selectionItem" key={zone.id}><span>{zone.icon}</span><div><strong>{zone.name}</strong><small>{zone.size}</small></div></div>
+            ))}
           </aside>
         </div>
         <div className="footerButtons"><button className="ghost" onClick={closeOverlay}>닫기</button><button className="cta small" onClick={() => { closeOverlay(); navigate('layout') }}>에디터 열기</button></div>
@@ -411,27 +793,44 @@ function AddressSetupScreen({ navigate, closeOverlay }) {
   )
 }
 
-function BedsCategoryScreen({ navigate, openOverlay }) {
+function BedsCategoryScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, quickViewOpen, addToCart, filters, setFilters, items, wishlistedIds, toggleWishlist }) {
+  const filterGroups = {
+    size: ['전체', '슈퍼싱글', '퀸', '킹'],
+    color: ['전체', '아이보리', '베이지', '우드', '그레이'],
+    material: ['전체', '패브릭', '원목', '리넨', '합성패브릭'],
+    fit: ['전체', '85', '90'],
+  }
+
   return (
     <div className="screenCanvas plainBg">
-      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} />
+      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} />
       <div className="subnav">전체 · 소파 · 테이블 · 수납 · <b>침대</b> · 조명 · 패브릭</div>
       <section className="catalogWrap">
         <aside className="filterCol">
           <h3>필터</h3>
-          {['사이즈', '색상', '가격대', '소재', 'AI 적합도'].map((f) => <div key={f} className="filterBox"><strong>{f}</strong><span>옵션 선택</span></div>)}
-          <button className="ghost full">필터 초기화</button>
+          <div className="inputWrap compactInput">🔎<input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="제품명/색상 검색" /></div>
+          {Object.entries(filterGroups).map(([key, options]) => (
+            <div key={key} className="filterBox">
+              <strong>{key === 'fit' ? 'AI 적합도' : key === 'size' ? '사이즈' : key === 'color' ? '색상' : '소재'}</strong>
+              <div className="filterChips">
+                {options.map((option) => (
+                  <button key={option} className={filters[key] === option ? 'solid mini' : 'mini'} onClick={() => setFilters((current) => ({ ...current, [key]: option }))}>{key === 'fit' && option !== '전체' ? `${option}%+` : option}</button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <button className="ghost full" onClick={() => setFilters({ search: '', sorts: 'recommended', size: '전체', color: '전체', material: '전체', fit: '전체' })}>필터 초기화</button>
         </aside>
         <div className="catalogMain">
           <div className="catalogHero">
-            <div><p className="breadcrumb">가구 먼저 찾기 / 침실 / 침대</p><h2>침대 <em>326개</em></h2><p className="muted">카테고리 탐색은 앱 내부에서 바로 상세/배치 흐름으로 이어집니다.</p></div>
-            <div className="sorts"><button className="mini solid">추천순</button><button className="mini">낮은 가격순</button><button className="mini">AI 적합도</button></div>
+            <div><p className="breadcrumb">가구 먼저 찾기 / 침실 / 침대</p><h2>침대 <em>{items.length}개</em></h2><p className="muted">검색, 필터, 정렬, 찜, 빠른 보기까지 프론트 상태로 연결해 두었습니다.</p></div>
+            <div className="sorts"><button className={`mini ${filters.sorts === 'recommended' ? 'solid' : ''}`} onClick={() => setFilters((current) => ({ ...current, sorts: 'recommended' }))}>추천순</button><button className={`mini ${filters.sorts === 'priceLow' ? 'solid' : ''}`} onClick={() => setFilters((current) => ({ ...current, sorts: 'priceLow' }))}>낮은 가격순</button><button className={`mini ${filters.sorts === 'fit' ? 'solid' : ''}`} onClick={() => setFilters((current) => ({ ...current, sorts: 'fit' }))}>AI 적합도</button></div>
           </div>
           <div className="productGrid3">
-            {bedProducts.map((item) => (
-              <article key={item.name} className="shopCard">
-                <div className="shopVisual"><span className="badgeTag">{item.badge}</span><div className="wish">♡</div><div className="bigEmoji">{item.emoji}</div><div className="fitTag">{item.fit}</div></div>
-                <div className="shopInfo"><small>HAVENLY SELECT</small><h4>{item.name}</h4><p>{item.review}</p><div className="priceLine"><strong>{item.price}</strong></div><button onClick={() => openOverlay('address')}>빠른 보기</button></div>
+            {items.map((item) => (
+              <article key={item.id} className="shopCard">
+                <div className="shopVisual"><span className="badgeTag">{item.badge}</span><button className={`wish ${wishlistedIds.includes(item.id) ? 'active' : ''}`} onClick={() => toggleWishlist(item.id)}>{wishlistedIds.includes(item.id) ? '♥' : '♡'}</button><div className="bigEmoji">{item.emoji}</div><div className="fitTag">{item.fit}</div></div>
+                <div className="shopInfo"><small>HAVENLY SELECT</small><h4>{item.name}</h4><p>{item.review} · {item.color} · {item.material}</p><div className="priceLine"><strong>{item.priceLabel}</strong></div><div className="cardActions"><button onClick={() => quickViewOpen(item)}>빠른 보기</button><button className="ghost minor" onClick={() => addToCart(item)}>담기</button></div></div>
               </article>
             ))}
           </div>
@@ -441,20 +840,20 @@ function BedsCategoryScreen({ navigate, openOverlay }) {
   )
 }
 
-function FurnitureHomeScreen({ navigate, openOverlay }) {
+function FurnitureHomeScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart }) {
   return (
     <div className="screenCanvas plainBg">
-      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} />
+      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} />
       <section className="heroBanner">
         <div>
           <div className="eyebrow darkEyebrow">FURNITURE FIRST</div>
           <h2>먼저 가구를 찾고, <em>내 공간 적합도</em>를 확인하세요</h2>
-          <p>홈 → 카테고리 → 배치하기 흐름이 새 페이지 로딩처럼 느껴지지 않도록, 앱 안에서 바로 전환되게 다듬었습니다.</p>
+          <p>홈 → 카테고리 → 배치하기 흐름이 새 페이지 로딩처럼 느껴지지 않도록 유지하면서, 검색/장바구니/빠른 연결 요소들을 실제로 반응하게 만들었습니다.</p>
           <div className="heroActions"><button className="cta" onClick={() => navigate('beds')}>지금 둘러보기</button><button className="ghost" onClick={() => openOverlay('address')}>내 공간 연결</button></div>
         </div>
         <div className="heroCards">
-          <div className="floatingCard"><span>🛋️</span><strong>웜 베이지 소파</strong><small>AI 적합도 96%</small></div>
-          <div className="floatingCard lifted"><span>🛏️</span><strong>패브릭 침대</strong><small>침실 추천</small></div>
+          <div className="floatingCard"><span>🛋️</span><strong>웜 베이지 소파</strong><small>AI 적합도 96%</small><button className="ghost minor" onClick={() => addToCart(aiProducts[0])}>담기</button></div>
+          <div className="floatingCard lifted"><span>🛏️</span><strong>패브릭 침대</strong><small>침실 추천</small><button className="ghost minor" onClick={() => navigate('beds')}>보러가기</button></div>
         </div>
       </section>
       <section className="aiStrip"><div><strong>AI 매칭</strong><span>내 공간 정보로 가구 사이즈/동선 적합도를 바로 확인</span></div><button className="ghost dark" onClick={() => navigate('ai')}>AI 추천 시작</button></section>
@@ -462,18 +861,90 @@ function FurnitureHomeScreen({ navigate, openOverlay }) {
         {['소파','침대','테이블','수납','조명','패브릭'].map((name, i) => <button key={name} className={`iconCat ${i===1?'active':''}`} onClick={() => navigate(i === 1 ? 'beds' : 'home')}><div>{['🛋️','🛏️','🪑','🗄️','💡','🧺'][i]}</div><span>{name}</span></button>)}
       </section>
       <section className="collections">
-        <div className="collection large"><div>🏡</div><div><strong>내추럴 리빙 컬렉션</strong><span>24 products</span></div></div>
-        <div className="collection"><div>🌙</div><div><strong>호텔라이크 침실</strong></div></div>
-        <div className="collection"><div>☁️</div><div><strong>소프트 모노톤</strong></div></div>
-        <div className="collection"><div>🌿</div><div><strong>우드 & 플랜트</strong></div></div>
+        <button className="collection large buttonCard" onClick={() => navigate('ai')}><div>🏡</div><div><strong>내추럴 리빙 컬렉션</strong><span>24 products</span></div></button>
+        <button className="collection buttonCard" onClick={() => navigate('beds')}><div>🌙</div><div><strong>호텔라이크 침실</strong></div></button>
+        <button className="collection buttonCard" onClick={() => openOverlay('address')}><div>☁️</div><div><strong>소프트 모노톤</strong></div></button>
+        <button className="collection buttonCard" onClick={() => navigate('layout')}><div>🌿</div><div><strong>우드 & 플랜트</strong></div></button>
       </section>
       <section className="hScrollProducts">
-        {bedProducts.slice(0,5).map((item) => <article key={item.name} className="scrollCard"><div className="bigEmoji">{item.emoji}</div><small>HAVENLY SELECT</small><strong>{item.name}</strong><span>{item.price}</span><button onClick={() => openOverlay('address')}>AI 적합도 보기</button></article>)}
+        {bedProducts.slice(0,5).map((item) => <article key={item.id} className="scrollCard"><div className="bigEmoji">{item.emoji}</div><small>HAVENLY SELECT</small><strong>{item.name}</strong><span>{item.priceLabel}</span><button onClick={() => addToCart(item)}>장바구니 담기</button></article>)}
       </section>
     </div>
   )
 }
 
+function CartDrawer({ cart, onClose }) {
+  return (
+    <div className="drawerLayer" role="dialog" aria-modal="true">
+      <div className="overlayScrim" onClick={onClose} />
+      <aside className="drawerPanel">
+        <div className="overlayHeader"><span>장바구니</span><button className="overlayClose" onClick={onClose}>✕</button></div>
+        <div className="drawerBody">
+          {!cart.items.length ? (
+            <div className="emptyState"><div className="emptyEmoji">🛒</div><strong>장바구니가 비어있어요</strong><p>추천 상품에서 ‘담기’를 눌러 프론트 전용 장바구니 흐름을 테스트해보세요.</p></div>
+          ) : (
+            <>
+              <div className="cartList">
+                {cart.items.map((item) => (
+                  <div key={item.id} className="cartItem">
+                    <div><strong>{item.name}</strong><small>{formatPrice(item.price)}</small></div>
+                    <div className="qtyStepper"><button onClick={() => cart.updateQty(item.id, -1)}>-</button><b>{item.qty}</b><button onClick={() => cart.updateQty(item.id, 1)}>+</button></div>
+                  </div>
+                ))}
+              </div>
+              <div className="cartSummary"><span>소계</span><strong>{formatPrice(cart.subtotal)}</strong></div>
+              <div className="footerButtons stackOnMobile"><button className="ghost" onClick={cart.clear}>비우기</button><button className="cta">주문하기 (데모)</button></div>
+            </>
+          )}
+        </div>
+      </aside>
+    </div>
+  )
+}
+
+function SearchDrawer({ query, setQuery, results, onClose, onPick }) {
+  return (
+    <div className="drawerLayer" role="dialog" aria-modal="true">
+      <div className="overlayScrim" onClick={onClose} />
+      <aside className="drawerPanel searchDrawer">
+        <div className="overlayHeader"><span>통합 검색</span><button className="overlayClose" onClick={onClose}>✕</button></div>
+        <div className="drawerBody">
+          <div className="inputWrap big">🔎<input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="가구명, 소재, 카테고리를 검색해보세요" /></div>
+          <div className="searchResults">
+            {results.map((item) => (
+              <button key={item.id} className="searchResult" onClick={() => onPick(item)}>
+                <span>{item.emoji}</span>
+                <div><strong>{item.name}</strong><small>{item.priceLabel ?? formatPrice(item.price)}</small></div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </aside>
+    </div>
+  )
+}
+
+function QuickViewModal({ product, onClose, onAddToCart, onApplyToLayout }) {
+  return (
+    <div className="overlayLayer" role="dialog" aria-modal="true">
+      <div className="overlayScrim" onClick={onClose} />
+      <div className="quickViewPanel">
+        <div className="overlayHeader"><span>빠른 보기</span><button className="overlayClose" onClick={onClose}>✕</button></div>
+        <div className="quickViewContent">
+          <div className="quickHero">{product.emoji}</div>
+          <div>
+            <p className="tinyPill">{product.badge ?? '추천 상품'}</p>
+            <h3>{product.name}</h3>
+            <p className="muted">{product.blurb ?? '공간에 맞는 배치 정보와 상품 요약을 바로 확인할 수 있어요.'}</p>
+            <div className="quickMeta"><span>{product.fit ?? `AI 적합도 ${product.fitScore}%`}</span><span>{product.material ?? product.category}</span><span>{product.size ?? '배치 가능'}</span></div>
+            <strong className="quickPrice">{product.priceLabel ?? formatPrice(product.price)}</strong>
+            <div className="footerButtons stackOnMobile"><button className="ghost" onClick={() => onApplyToLayout(product)}>배치안에 적용</button><button className="cta" onClick={() => onAddToCart(product)}>장바구니 담기</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
