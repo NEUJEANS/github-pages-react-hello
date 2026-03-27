@@ -2,12 +2,6 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './styles.css'
 
-const transitionGroups = [
-  ['ai', 'space'],
-  ['layout', 'address'],
-  ['beds', 'home'],
-]
-
 const screenMeta = {
   ai: { column: 0, step: 0 },
   space: { column: 0, step: 1 },
@@ -16,15 +10,6 @@ const screenMeta = {
   beds: { column: 2, step: 0 },
   home: { column: 2, step: 1 },
 }
-
-const screens = [
-  { id: 'ai', label: 'AI 추천 입력', badge: '01', title: 'AI 전문가 추천 입력 화면' },
-  { id: 'space', label: '공간 선택', badge: '02', title: '꾸밀 공간 선택 화면' },
-  { id: 'layout', label: '내가 배치하기', badge: '03', title: '내가 배치하기 에디터' },
-  { id: 'address', label: '주소 입력', badge: '03A', title: '배치하기 시작 전 주소/공간 설정' },
-  { id: 'beds', label: '침대 카테고리', badge: '04', title: '침대 카테고리 상품 탐색' },
-  { id: 'home', label: '가구 먼저 찾기', badge: '05', title: '가구 먼저 찾기 홈페이지' },
-]
 
 const aiProducts = [
   { emoji: '🛋️', name: '코튼베이지 모듈 소파', price: '₩1,290,000' },
@@ -51,11 +36,6 @@ function getStateFromHash() {
 
 function getScreenMeta(screen) {
   return screenMeta[screen] ?? screenMeta.home
-}
-
-function getScreenGroupLabel(screen) {
-  const { column, step } = getScreenMeta(screen)
-  return `${column * 2 + step + 1}`
 }
 
 function getDirectionalTransition(fromScreen, toScreen) {
@@ -208,59 +188,9 @@ function StageTransition({ screen, direction, children }) {
 function App() {
   const { screen, overlay, direction, navigate, openOverlay, closeOverlay } = useSpaNavigation()
 
-  const checklist = [
-    '화면 전환이 브라우저 전체 새로고침 없이 앱 내부에서 이뤄질 것',
-    '상위 화면 전환은 짧은 directional/fade 모션으로 연속성을 줄 것',
-    '좌(01·02) / 중(03·03A) / 우(04·05) 스크린 군 기준으로 진입 방향이 결정될 것',
-    '03·03A 진입은 출발 군에 따라 좌↔우 방향이 달라질 것',
-    '주소 입력은 별도 페이지 점프가 아니라 현재 화면 위 오버레이로 열릴 것',
-    '즉시 가능한 전환에는 로딩 스피너/빈 화면을 노출하지 않을 것',
-    '핵심 CTA와 상단 네비가 실제로 다른 화면/오버레이를 열도록 연결될 것',
-    'URL hash로 현재 상태를 유지해 새 탭에서도 같은 화면을 열 수 있을 것',
-  ]
-
   return (
     <main className="appShell">
-      <section className="introHero">
-        <div>
-          <p className="eyebrow">HAVENLY React Conversion</p>
-          <h1>화면을 “페이지 이동”이 아니라 앱 흐름처럼 바꿨습니다</h1>
-          <p className="subcopy">Smashing Magazine의 spatial continuity, web.dev View Transitions SPA guidance, Motion/AnimatePresence식 keyed enter-exit 패턴을 참고해 좌·중·우 스크린 군 기반 directional model로 정리했습니다.</p>
-        </div>
-        <div className="sourceNotes">
-          <strong>Transition refinement checklist</strong>
-          <ul>
-            {checklist.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </div>
-      </section>
-
-      <section className="screenNav">
-        {transitionGroups.map((group, index) => (
-          <div key={`group-${index}`} className="screenGroup">
-            <span className="groupLabel">Group {index + 1}</span>
-            {group.map((screenId) => {
-              const item = screens.find((screenItem) => screenItem.id === screenId)
-              const isOverlay = item.id === 'address'
-              const active = isOverlay ? overlay === 'address' : screen === item.id
-              return (
-                <button
-                  key={item.id}
-                  className={`screenChip ${active ? 'active' : ''}`}
-                  onClick={() => (isOverlay ? openOverlay('address') : navigate(item.id))}
-                >
-                  <span>{item.badge}</span>{item.label}
-                </button>
-              )
-            })}
-          </div>
-        ))}
-      </section>
-
       <section className={`screenStage ${overlay ? 'overlayOpen' : ''}`}>
-        <div className="directionBadge" aria-live="polite">
-          Now showing {getScreenGroupLabel(screen)} · {direction > 0 ? 'enter from right' : direction < 0 ? 'enter from left' : 'steady'}
-        </div>
         <StageTransition screen={screen} direction={direction}>
           {(visibleScreen) => renderScreen(visibleScreen, { navigate, openOverlay })}
         </StageTransition>
@@ -327,15 +257,19 @@ function AiRecommendScreen({ navigate, openOverlay }) {
         <div className="panel resultPanel">
           <div className="badge">AI 추천 결과</div>
           <h3>거실 배치안 + 상품 추천</h3>
-          <div className="floorplan">
-            <div className="grid" />
-            <div className="roomBorder">
-              <div className="windowMark">창문</div>
-              <div className="doorMark">현관</div>
-              <div className="furn sofa">3인 소파</div>
-              <div className="furn rug">러그</div>
-              <div className="furn table">테이블</div>
-              <div className="furn tv">TV장</div>
+          <div className="floorplanViewport">
+            <div className="floorplanFrame">
+              <div className="floorplan">
+                <div className="grid" />
+                <div className="roomBorder">
+                  <div className="windowMark">창문</div>
+                  <div className="doorMark">현관</div>
+                  <div className="furn sofa">3인 소파</div>
+                  <div className="furn rug">러그</div>
+                  <div className="furn table">테이블</div>
+                  <div className="furn tv">TV장</div>
+                </div>
+              </div>
             </div>
           </div>
           <div className="productRow">
@@ -410,14 +344,22 @@ function LayoutEditorScreen({ navigate, openOverlay }) {
         </aside>
         <div className="editorCenter">
           <div className="toolbar"> <button className="tool active">✥</button><button className="tool">↔</button><button className="tool">⊞</button><button className="tool">⟲</button></div>
-          <div className="editorRoom">
-            <div className="grid" />
-            <div className="roomFrame">
-              <div className="placed sofa sel">SOFA</div>
-              <div className="placed table">TABLE</div>
-              <div className="placed tv">TV</div>
-              <div className="placed shelf">SHELF</div>
-              <div className="placed plant">🌿</div>
+          <div className="editorCanvasShell">
+            <div className="editorCanvasMeta">
+              <span>실측 비율 유지</span>
+              <span>wide / tall 화면 대응</span>
+            </div>
+            <div className="editorRoomFrame">
+              <div className="editorRoom">
+                <div className="grid" />
+                <div className="roomFrame">
+                  <div className="placed sofa sel">SOFA</div>
+                  <div className="placed table">TABLE</div>
+                  <div className="placed tv">TV</div>
+                  <div className="placed shelf">SHELF</div>
+                  <div className="placed plant">🌿</div>
+                </div>
+              </div>
             </div>
           </div>
           <div className="infoPills"><span>거실 5400 x 3400</span><span>스냅 ON</span><span>AI 제안 3개</span></div>
