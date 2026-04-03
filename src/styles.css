@@ -71,21 +71,6 @@ button:active { transform: translateY(0); }
 .stepDots b.on { background: var(--accent); color: white; }
 .stepDots b.done { background: #cdb89a; color: white; }
 .stepDots span { width: 18px; height: 2px; background: #ded7cf; }
-.stagePlanCard { margin-bottom: 22px; padding: 18px; border: 1px solid #eadfce; border-radius: 18px; background: linear-gradient(180deg, #fffdf9 0%, #f8f1e8 100%); display: grid; gap: 14px; }
-.stagePlanCard.inline { margin-top: 18px; }
-.stagePlanCard.compact { margin-bottom: 20px; }
-.stagePlanEyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--accent-dark); text-transform: uppercase; }
-.stagePlanHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
-.stagePlanHeader h3 { margin: 0 0 6px; font-size: 19px; }
-.stagePlanHeader p { margin: 0; color: #6f655b; line-height: 1.6; }
-.stagePill { display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 999px; background: white; border: 1px solid #decdb8; color: #7a6148; font-size: 12px; font-weight: 800; white-space: nowrap; }
-.stagePill.active { background: var(--accent); border-color: var(--accent); color: white; }
-.planMiniChecklist { display: grid; gap: 10px; }
-.planMiniChecklist.twoColList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.planMiniItem { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.76); border: 1px solid #eadfce; }
-.planMiniItem.done { border-color: rgba(139,115,85,.4); background: rgba(139,115,85,.08); }
-.planMiniItem b { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: #f0e8de; color: #6f5943; font-size: 12px; flex: 0 0 auto; }
-.planMiniItem span { color: #5f574f; line-height: 1.5; font-size: 14px; }
 label { display: block; margin: 18px 0 8px; font-size: 14px; font-weight: 700; color: #5c5c5c; }
 .inputWrap { display: flex; align-items: center; gap: 10px; padding: 0 14px; border: 2px solid #e8dfd5; border-radius: 12px; background: white; height: 52px; color: #aaa; }
 .inputWrap.big { height: 56px; }
@@ -134,13 +119,6 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .productMini small { color: #7f776e; }
 .productMini button { border: 0; background: var(--accent); color: white; padding: 8px 10px; border-radius: 10px; }
 .reasonBox { width: min(100%, 720px); background: #faf6ef; border-left: 4px solid var(--accent); border-radius: 12px; padding: 16px; color: #625a54; line-height: 1.7; }
-.planDocumentCard { width: min(100%, 720px); background: white; border: 1px solid #ece1d3; border-radius: 18px; padding: 18px; display: grid; gap: 14px; box-shadow: 0 8px 22px rgba(49,34,18,.05); }
-.planDocumentHead { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-.planDocumentHead span { color: #8a7c6c; font-size: 13px; }
-.planDocumentGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.planDocumentGrid > div { border: 1px solid #f0e7dc; border-radius: 14px; padding: 14px; background: #fcfaf7; }
-.planDocumentGrid label { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #9a8c7b; }
-.planDocumentGrid p { margin: 0; color: #5e584f; line-height: 1.6; }
 .cardStage { padding: clamp(22px, 3vw, 40px); display: grid; place-items: center; }
 .cardSurface, .setupCard { width: min(1120px, calc(100% - 48px)); background: white; border-radius: 28px; box-shadow: 0 18px 45px rgba(0,0,0,.08); overflow: hidden; }
 .cardSurface { padding: 28px clamp(22px, 3vw, 32px) 32px; }
@@ -176,9 +154,6 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .miniBtn { border: 0; border-radius: 10px; padding: 10px 14px; font-weight: 700; }
 .miniBtn.primary { background: #3976ff; color: white; }
 .miniBtn.secondary { background: rgba(255,255,255,.12); color: white; }
-.editorStageBanner { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 18px var(--content-gutter); background: linear-gradient(135deg, rgba(26,42,68,.96) 0%, rgba(45,70,95,.92) 100%); color: white; border-bottom: 1px solid rgba(255,255,255,.08); }
-.editorStageBanner strong { display: block; font-size: 18px; margin-top: 6px; }
-.editorStagePills { display: flex; flex-wrap: wrap; gap: 10px; }
 .editorLayout { display: grid; grid-template-columns: minmax(220px, 250px) minmax(0, 1fr) minmax(250px, 290px); min-height: calc(var(--stage-min) - 74px); }
 .editorSide { background: white; padding: 18px; min-width: 0; }
 .editorSide.left { border-right: 1px solid #ece3d8; }
@@ -217,11 +192,6 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .split span { background: #f6f2ed; border-radius: 10px; padding: 10px 12px; }
 .colorDot { display: block; width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; }
 .colorDot.active { border-color: #111; }
-.executionDoc { display: grid; gap: 10px; }
-.executionDocItem { border: 1px solid #eee2d4; border-radius: 14px; padding: 12px; background: #faf7f2; }
-.executionDocItem small { display: inline-block; margin-bottom: 4px; color: var(--accent); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.executionDocItem strong { display: block; margin-bottom: 6px; }
-.executionDocItem p { margin: 0; color: #665d55; line-height: 1.55; }
 .actionBlock { border-bottom: 0; }
 .overlayLayer { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; }
 .overlayScrim { position: absolute; inset: 0; background: rgba(17,16,14,.36); backdrop-filter: blur(8px); animation: fade-in 180ms ease both; }
@@ -274,11 +244,6 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .shopInfo p { margin: 0; color: #807971; line-height: 1.45; }
 .shopInfo button, .scrollCard button { border: 1.5px solid var(--accent); background: white; color: var(--accent); border-radius: 12px; padding: 10px; font-weight: 800; }
 .priceLine strong { font-size: 20px; }
-.roadmapBand { padding: 24px 32px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.roadmapCard { border-radius: 18px; border: 1px solid #ece2d7; background: linear-gradient(180deg, #fffdf9 0%, #f7f0e7 100%); padding: 18px; display: grid; gap: 8px; }
-.roadmapCard span { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.roadmapCard strong { font-size: 18px; line-height: 1.3; }
-.roadmapCard p { margin: 0; color: #6d645c; line-height: 1.6; }
 .heroBanner { min-height: clamp(360px, 44vw, 470px); background: linear-gradient(135deg, #f5eee7 0%, #eadbcf 100%); display: grid; grid-template-columns: 1.1fr .9fr; align-items: center; padding: clamp(30px, 4vw, 48px) clamp(24px, 4vw, 56px); column-gap: 36px; }
 .darkEyebrow { color: white; background: var(--accent); display: inline-block; padding: 8px 12px; border-radius: 999px; }
 .heroBanner p { color: #67615c; max-width: 580px; line-height: 1.76; margin: 16px 0 0; }
@@ -332,7 +297,7 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
   .hScrollProducts { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 1100px) {
-  .heroBanner, .twoCol, .catalogWrap, .editorLayout, .spaceLayout, .spaceLayout.compact, .quickViewContent, .roadmapBand, .planDocumentGrid { grid-template-columns: 1fr; }
+  .heroBanner, .twoCol, .catalogWrap, .editorLayout, .spaceLayout, .spaceLayout.compact, .quickViewContent { grid-template-columns: 1fr; }
   .topbar { padding: 14px 24px; flex-wrap: wrap; }
   .productGrid3, .collections, .hScrollProducts, .productRow, .recommendStrip { grid-template-columns: 1fr 1fr; }
   .floorplanViewport, .productRow, .reasonBox, .editorCanvasShell, .infoPills, .recommendStrip { width: 100%; }
@@ -355,7 +320,7 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
   .heroCards { flex-direction: column; align-items: stretch; width: 100%; }
   .floatingCard { width: 100%; height: auto; min-height: 148px; }
   .floatingCard.lifted { transform: none; }
-  .collections, .productGrid3, .hScrollProducts, .productRow, .recommendStrip, .dragGrid, .roadmapBand, .planMiniChecklist.twoColList, .planDocumentGrid { grid-template-columns: 1fr; }
+  .collections, .productGrid3, .hScrollProducts, .productRow, .recommendStrip, .dragGrid { grid-template-columns: 1fr; }
   .catalogHero, .footerButtons, .aiStrip, .heroActions, .stackOnMobile, .editorCanvasMeta, .quickViewContent { flex-direction: column; align-items: flex-start; }
   .footerButtons > * { width: 100%; }
   .aiStrip { gap: 14px; }
