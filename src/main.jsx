@@ -2,6 +2,12 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './styles.css'
 
+const initialEngagement = {
+  aiRequests: 0,
+  furniturePlacements: 0,
+  draftBoards: 0,
+}
+
 const screenMeta = {
   ai: { column: 0, step: 0 },
   space: { column: 0, step: 1 },
@@ -302,7 +308,7 @@ function useEditorState() {
   }
 }
 
-function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay, onOpenCart, cartCount, onSearchOpen }) {
+function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay, onOpenCart, cartCount, onSearchOpen, onOpenLogin }) {
   return (
     <header className={`topbar ${dark ? 'dark' : ''}`}>
       <button className="logo logoBtn" onClick={() => onNavigate('home')}>HAVENLY</button>
@@ -318,7 +324,15 @@ function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay,
       <div className="topActions">
         {!dark && <button className="searchPill" onClick={onSearchOpen}>🔎 스타일 또는 가구 검색</button>}
         {dark && <button className="miniBtn secondary" onClick={() => onOpenOverlay('address')}>공간 정보</button>}
-        {dark && <button className="miniBtn primary" onClick={() => onNavigate('ai')}>AI 추천</button>}
+        <button className="accountTrigger" onClick={onOpenLogin} aria-label="로그인 열기">
+          <span className="accountGlyph" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <circle cx="12" cy="8" r="3.2" />
+              <path d="M5.5 18.2c1.8-3.1 4.4-4.7 6.5-4.7s4.7 1.6 6.5 4.7" />
+            </svg>
+          </span>
+          <span>{dark ? '로그인' : '계정'}</span>
+        </button>
         <button className="cart" onClick={onOpenCart} aria-label="장바구니 열기">🛒<span>{cartCount}</span></button>
       </div>
     </header>
@@ -388,6 +402,8 @@ function App() {
     fit: '전체',
   })
   const [wishlistedIds, setWishlistedIds] = React.useState([])
+  const [loginModalState, setLoginModalState] = React.useState('closed')
+  const [engagement, setEngagement] = React.useState(initialEngagement)
 
   const aiSummary = buildRecommendationSummary(aiForm)
   const selectedBed = bedProducts.find((product) => product.id === quickView.product?.id)
@@ -416,10 +432,40 @@ function App() {
     return items
   }, [bedFilters])
 
+  const loginGuardReasons = React.useMemo(() => {
+    const reasons = []
+    if (engagement.aiRequests > 0) reasons.push(`AI 추천 요청 ${engagement.aiRequests}회`)
+    if (engagement.furniturePlacements > 0) reasons.push(`가구 배치 ${engagement.furniturePlacements}회`)
+    if (engagement.draftBoards > 0) reasons.push(`진행 중 보드 ${engagement.draftBoards}개`)
+    return reasons
+  }, [engagement])
+
+  const hasLoginGuard = loginGuardReasons.length > 0
+
+  const openLogin = React.useCallback(() => {
+    setLoginModalState(hasLoginGuard ? 'guard' : 'form')
+  }, [hasLoginGuard])
+
   const cartActions = {
     openCart: () => cart.setIsOpen(true),
     cartCount: cart.count,
   }
+
+  const trackAiRequest = React.useCallback(() => {
+    setEngagement((current) => ({ ...current, aiRequests: current.aiRequests + 1 }))
+  }, [])
+
+  const trackBoardProgress = React.useCallback(() => {
+    setEngagement((current) => ({ ...current, draftBoards: Math.max(current.draftBoards, 1) }))
+  }, [])
+
+  const trackFurniturePlacement = React.useCallback(() => {
+    setEngagement((current) => ({
+      ...current,
+      furniturePlacements: current.furniturePlacements + 1,
+      draftBoards: Math.max(current.draftBoards, 1),
+    }))
+  }, [])
 
   const shared = {
     navigate,
@@ -427,6 +473,9 @@ function App() {
     quickViewOpen: quickView.open,
     addToCart: cart.addItem,
     onSearchOpen: () => setSearchDrawerOpen(true),
+    onOpenLogin: openLogin,
+    trackBoardProgress,
+    trackFurniturePlacement,
     ...cartActions,
   }
 
@@ -435,6 +484,10 @@ function App() {
       form: aiForm,
       setForm: setAiForm,
       summary: aiSummary,
+      onRecommend: () => {
+        trackAiRequest()
+        navigate('space')
+      },
     },
     space: {
       selectedSpaces,
@@ -473,6 +526,7 @@ function App() {
                 addressForm={addressForm}
                 setAddressForm={setAddressForm}
                 selectedSpaces={selectedSpaces}
+                trackBoardProgress={trackBoardProgress}
               />
             </div>
           </div>
@@ -499,6 +553,16 @@ function App() {
           />
         )}
 
+        {loginModalState !== 'closed' && (
+          <LoginModal
+            state={loginModalState}
+            engagement={engagement}
+            reasons={loginGuardReasons}
+            onClose={() => setLoginModalState('closed')}
+            onProceed={() => setLoginModalState('form')}
+          />
+        )}
+
         {quickView.product && (
           <QuickViewModal
             product={selectedBed ?? quickView.product}
@@ -512,6 +576,7 @@ function App() {
                 ...product,
                 category: product.material ? '침대' : product.category,
               })
+              trackFurniturePlacement()
               quickView.close()
               navigate('layout')
             }}
@@ -538,12 +603,12 @@ function renderScreen(screen, props) {
   }
 }
 
-function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, summary }) {
+function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, summary, onRecommend, onOpenLogin }) {
   const currentStyle = styleOptions.find((item) => item.id === form.style)
 
   return (
     <div className="screenCanvas warmBg">
-      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} />
+      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
       <div className="twoCol">
         <aside className="panel leftPanel">
           <div className="stepDots"><b className="on">1</b><span /><b className="done">2</b><span /><b>3</b></div>
@@ -573,7 +638,7 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
           <textarea value={form.extraRequest} onChange={(event) => setForm((current) => ({ ...current, extraRequest: event.target.value }))} />
           <div className="footerButtons stackOnMobile">
             <button className="ghost" onClick={() => openOverlay('address')}>평면도 불러오기</button>
-            <button className="cta" onClick={() => navigate('space')}>추천받기</button>
+            <button className="cta" onClick={onRecommend}>추천받기</button>
           </div>
         </aside>
         <div className="panel resultPanel">
@@ -616,13 +681,13 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
   )
 }
 
-function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, selectedSpaces, setSelectedSpaces }) {
+function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, selectedSpaces, setSelectedSpaces, onOpenLogin }) {
   const zones = baseZones.map((zone) => ({ ...zone, selected: selectedSpaces.includes(zone.id) }))
   const chosen = zones.filter((zone) => zone.selected)
 
   return (
     <div className="screenCanvas sandBg">
-      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} />
+      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
       <section className="cardStage">
         <div className="cardSurface">
           <div className="progressBar"><span className="fill wide" /></div>
@@ -660,7 +725,7 @@ function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearc
   )
 }
 
-function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary }) {
+function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary, onOpenLogin, trackFurniturePlacement }) {
   const selectedMeta = libraryItems.find((item) => item.id === editor.selected?.sourceId)
   const categoryTabs = ['전체', '소파', '테이블', '수납', '소품', '조명']
   const [activeCategory, setActiveCategory] = React.useState('전체')
@@ -674,7 +739,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
 
   return (
     <div className="screenCanvas editorBg">
-      <Header dark active="내가 배치하기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} />
+      <Header dark active="내가 배치하기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
       <section className="editorLayout">
         <aside className="editorSide left">
           <div className="sideHead"><h3>가구 라이브러리</h3><input value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="가구 검색" /></div>
@@ -683,7 +748,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
           </div>
           <div className="dragGrid">
             {visibleLibrary.map((item) => (
-              <button key={item.id} className="dragCard buttonCard" onClick={() => editor.addLibraryItem(item)}>
+              <button key={item.id} className="dragCard buttonCard" onClick={() => { editor.addLibraryItem(item); trackFurniturePlacement() }}>
                 <span>{item.emoji}</span><strong>{item.name}</strong><small>{item.size}</small>
               </button>
             ))}
@@ -739,7 +804,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
           <div className="infoPills"><span>거실 5400 x 3400</span><span>{editor.snapOn ? '스냅 ON' : '자유 이동'}</span><span>배치 가구 {editor.items.length}개</span></div>
           <div className="recommendStrip">
             {aiProducts.map((item) => (
-              <button key={item.id} className="recommendCard buttonCard" onClick={() => editor.addLibraryItem(item)}>
+              <button key={item.id} className="recommendCard buttonCard" onClick={() => { editor.addLibraryItem(item); trackFurniturePlacement() }}>
                 <div>{item.emoji}</div><strong>{item.name}</strong><small>{item.priceLabel}</small>
               </button>
             ))}
@@ -758,7 +823,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
   )
 }
 
-function AddressSetupScreen({ navigate, closeOverlay, addressForm, setAddressForm }) {
+function AddressSetupScreen({ navigate, closeOverlay, addressForm, setAddressForm, trackBoardProgress }) {
   const overlayZones = baseZones.filter((zone) => ['living', 'kitchen', 'bed1', 'bed2'].includes(zone.id))
 
   return (
@@ -775,7 +840,7 @@ function AddressSetupScreen({ navigate, closeOverlay, addressForm, setAddressFor
         <div className="spaceLayout compact">
           <div className="planBoard small">
             {overlayZones.map((zone) => (
-              <button key={zone.id} className={`zone ${zone.className} ${addressForm.spaces.includes(zone.id) ? 'selected' : ''}`} onClick={() => setAddressForm((current) => ({ ...current, spaces: current.spaces.includes(zone.id) ? current.spaces.filter((id) => id !== zone.id) : [...current.spaces, zone.id] }))}>
+              <button key={zone.id} className={`zone ${zone.className} ${addressForm.spaces.includes(zone.id) ? 'selected' : ''}`} onClick={() => { trackBoardProgress(); setAddressForm((current) => ({ ...current, spaces: current.spaces.includes(zone.id) ? current.spaces.filter((id) => id !== zone.id) : [...current.spaces, zone.id] })) }}>
                 <b>{zone.icon}</b><span>{zone.name}</span>
               </button>
             ))}
@@ -787,13 +852,13 @@ function AddressSetupScreen({ navigate, closeOverlay, addressForm, setAddressFor
             ))}
           </aside>
         </div>
-        <div className="footerButtons"><button className="ghost" onClick={closeOverlay}>닫기</button><button className="cta small" onClick={() => { closeOverlay(); navigate('layout') }}>에디터 열기</button></div>
+        <div className="footerButtons"><button className="ghost" onClick={closeOverlay}>닫기</button><button className="cta small" onClick={() => { trackBoardProgress(); closeOverlay(); navigate('layout') }}>에디터 열기</button></div>
       </div>
     </div>
   )
 }
 
-function BedsCategoryScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, quickViewOpen, addToCart, filters, setFilters, items, wishlistedIds, toggleWishlist }) {
+function BedsCategoryScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, quickViewOpen, addToCart, filters, setFilters, items, wishlistedIds, toggleWishlist, onOpenLogin }) {
   const filterGroups = {
     size: ['전체', '슈퍼싱글', '퀸', '킹'],
     color: ['전체', '아이보리', '베이지', '우드', '그레이'],
@@ -803,7 +868,7 @@ function BedsCategoryScreen({ navigate, openOverlay, openCart, cartCount, onSear
 
   return (
     <div className="screenCanvas plainBg">
-      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} />
+      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
       <div className="subnav">전체 · 소파 · 테이블 · 수납 · <b>침대</b> · 조명 · 패브릭</div>
       <section className="catalogWrap">
         <aside className="filterCol">
@@ -840,16 +905,16 @@ function BedsCategoryScreen({ navigate, openOverlay, openCart, cartCount, onSear
   )
 }
 
-function FurnitureHomeScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart }) {
+function FurnitureHomeScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, onOpenLogin, trackBoardProgress }) {
   return (
     <div className="screenCanvas plainBg">
-      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} />
+      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
       <section className="heroBanner">
         <div>
           <div className="eyebrow darkEyebrow">FURNITURE FIRST</div>
           <h2>먼저 가구를 찾고, <em>내 공간 적합도</em>를 확인하세요</h2>
           <p>홈 → 카테고리 → 배치하기 흐름이 새 페이지 로딩처럼 느껴지지 않도록 유지하면서, 검색/장바구니/빠른 연결 요소들을 실제로 반응하게 만들었습니다.</p>
-          <div className="heroActions"><button className="cta" onClick={() => navigate('beds')}>지금 둘러보기</button><button className="ghost" onClick={() => openOverlay('address')}>내 공간 연결</button></div>
+          <div className="heroActions"><button className="cta" onClick={() => navigate('beds')}>지금 둘러보기</button><button className="ghost" onClick={() => { trackBoardProgress(); openOverlay('address') }}>내 공간 연결</button></div>
         </div>
         <div className="heroCards">
           <div className="floatingCard"><span>🛋️</span><strong>웜 베이지 소파</strong><small>AI 적합도 96%</small><button className="ghost minor" onClick={() => addToCart(aiProducts[0])}>담기</button></div>
@@ -863,7 +928,7 @@ function FurnitureHomeScreen({ navigate, openOverlay, openCart, cartCount, onSea
       <section className="collections">
         <button className="collection large buttonCard" onClick={() => navigate('ai')}><div>🏡</div><div><strong>내추럴 리빙 컬렉션</strong><span>24 products</span></div></button>
         <button className="collection buttonCard" onClick={() => navigate('beds')}><div>🌙</div><div><strong>호텔라이크 침실</strong></div></button>
-        <button className="collection buttonCard" onClick={() => openOverlay('address')}><div>☁️</div><div><strong>소프트 모노톤</strong></div></button>
+        <button className="collection buttonCard" onClick={() => { trackBoardProgress(); openOverlay('address') }}><div>☁️</div><div><strong>소프트 모노톤</strong></div></button>
         <button className="collection buttonCard" onClick={() => navigate('layout')}><div>🌿</div><div><strong>우드 & 플랜트</strong></div></button>
       </section>
       <section className="hScrollProducts">
@@ -924,7 +989,67 @@ function SearchDrawer({ query, setQuery, results, onClose, onPick }) {
   )
 }
 
-function QuickViewModal({ product, onClose, onAddToCart, onApplyToLayout }) {
+
+function LoginModal({ state, engagement, reasons, onClose, onProceed }) {
+  const guarded = state === 'guard'
+
+  return (
+    <div className="overlayLayer" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <div className="overlayScrim" onClick={onClose} />
+      <div className="loginPanel">
+        <div className="overlayHeader">
+          <span>{guarded ? '로그인 전 확인' : 'HAVENLY 로그인'}</span>
+          <button className="overlayClose" onClick={onClose}>✕</button>
+        </div>
+        <div className="loginContent">
+          <div className="loginBadge">ACCOUNT</div>
+          <h2 id="login-title">{guarded ? '진행 중인 작업이 있어요. 그대로 로그인할까요?' : '로그인하고 추천 · 보드 · 장바구니를 이어서 관리하세요'}</h2>
+          <p className="muted">{guarded ? '게스트 상태에서 만든 초안과 활동이 있어 먼저 안내해드려요. 계속하면 계정과 연결하거나 새 상태로 전환될 수 있습니다.' : '페이지를 떠나지 않고 바로 계정을 연결하는 온보딩 블록입니다. 저장한 보드, AI 추천 이력, 찜 목록을 한 번에 이어볼 수 있어요.'}</p>
+
+          {guarded ? (
+            <>
+              <div className="loginGuardCard">
+                <strong>현재 감지된 진행 내역</strong>
+                <div className="loginReasonList">
+                  {reasons.map((reason) => <span key={reason}>{reason}</span>)}
+                </div>
+                <div className="guardSummary">
+                  <div><label>AI 요청</label><b>{engagement.aiRequests}회</b></div>
+                  <div><label>가구 배치</label><b>{engagement.furniturePlacements}회</b></div>
+                  <div><label>보드 초안</label><b>{engagement.draftBoards}개</b></div>
+                </div>
+              </div>
+              <div className="footerButtons stackOnMobile">
+                <button className="ghost" onClick={onClose}>계속 둘러보기</button>
+                <button className="cta" onClick={onProceed}>그래도 로그인하기</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="loginBenefits">
+                <div><strong>AI 이력 저장</strong><span>공간별 추천 결과를 다시 불러올 수 있어요.</span></div>
+                <div><strong>보드 이어서 작업</strong><span>배치 중인 가구와 평면도 초안을 계정에 연결합니다.</span></div>
+                <div><strong>찜 · 장바구니 동기화</strong><span>디바이스가 바뀌어도 선택을 이어갈 수 있어요.</span></div>
+              </div>
+              <div className="loginForm">
+                <label>이메일</label>
+                <div className="inputWrap big">✉️<input placeholder="name@example.com" /></div>
+                <label>비밀번호</label>
+                <div className="inputWrap big">🔒<input type="password" placeholder="8자 이상 입력" /></div>
+                <div className="footerButtons stackOnMobile">
+                  <button className="ghost" onClick={onClose}>나중에 할게요</button>
+                  <button className="cta" onClick={onClose}>로그인 / 회원가입</button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function QuickViewModal({ product, onClose, onAddToCart, onApplyToLayout, trackFurniturePlacement }) {
   return (
     <div className="overlayLayer" role="dialog" aria-modal="true">
       <div className="overlayScrim" onClick={onClose} />
