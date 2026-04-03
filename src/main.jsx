@@ -57,6 +57,38 @@ const baseZones = [
 
 const apartmentTypes = ['84A', '84B', '101A', '59A']
 
+const planningChecklist = [
+  '아파트/평면도 기준 정보 정리',
+  '우선 꾸밀 공간과 동선 우선순위 선택',
+  '스타일 · 예산 · 요청사항 확정',
+  '실행 가능한 추천안과 배치 초안 생성',
+]
+
+const planningRoadmap = [
+  {
+    horizon: 'Now',
+    title: 'IA-first 추천 플로우',
+    detail: '집 정보 → 공간 선택 → 스타일/요청 정리까지 먼저 확정해 추천 품질과 설명력을 높입니다.',
+  },
+  {
+    horizon: 'Next',
+    title: 'React 편집 경험 고도화',
+    detail: '상태 동기화, 편집 히스토리, 저장/재개 구조를 React 중심으로 정리해 실제 프로덕트 전환 기반을 만듭니다.',
+  },
+  {
+    horizon: 'Later',
+    title: '서버비용 절약형 개인화',
+    detail: '무거운 연산은 꼭 필요할 때만 호출하고, 기본 상호작용은 프론트 상태와 캐시 중심으로 운영합니다.',
+  },
+]
+
+const techStackNotes = [
+  { label: 'UI', value: 'React + Vite 기반 단계형 IA/에디터 데모' },
+  { label: 'State', value: '추천 입력 · 평면도 · 배치 상태를 프론트에서 우선 관리' },
+  { label: 'Backend', value: '실시간 생성형 호출은 최소화하고 저장/동기화 시점만 서버 연동' },
+  { label: 'Docs', value: '추천 이유와 다음 계획을 문서형 카드로 사용자에게 명확히 전달' },
+]
+
 const initialEditorItems = [
   { id: 'placed-sofa', sourceId: 'sofa-001', name: '코튼베이지 모듈 소파', label: 'SOFA', x: 10, y: 16, w: 28, h: 18, rotation: 0, colorIndex: 2 },
   { id: 'placed-table', sourceId: 'table-001', name: '오벌 우드 테이블', label: 'TABLE', x: 16, y: 46, w: 13, h: 20, rotation: 0, colorIndex: 1, circle: true },
@@ -377,6 +409,8 @@ function StageTransition({ screen, direction, children }) {
 
 function App() {
   const { screen, overlay, direction, navigate, openOverlay, closeOverlay } = useSpaNavigation()
+
+  const currentStage = screen === 'layout' || screen === 'beds' ? 2 : 1
   const cart = useCart()
   const quickView = useQuickView()
   const editor = useEditorState()
@@ -478,10 +512,22 @@ function App() {
     onOpenLogin: openLogin,
     trackBoardProgress,
     trackFurniturePlacement,
+    planning: {
+      currentStage,
+      checklist: planningChecklist,
+      roadmap: planningRoadmap,
+      stackNotes: techStackNotes,
+    },
     ...cartActions,
   }
 
   const screenProps = {
+    sharedPlanning: {
+      currentStage,
+      checklist: planningChecklist,
+      roadmap: planningRoadmap,
+      stackNotes: techStackNotes,
+    },
     ai: {
       form: aiForm,
       setForm: setAiForm,
@@ -605,7 +651,7 @@ function renderScreen(screen, props) {
   }
 }
 
-function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, summary, onRecommend, onOpenLogin }) {
+function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, summary, onRecommend, onOpenLogin, planning }) {
   const currentStyle = styleOptions.find((item) => item.id === form.style)
 
   return (
@@ -613,7 +659,21 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
       <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
       <div className="twoCol">
         <aside className="panel leftPanel">
-          <div className="stepDots"><b className="on">1</b><span /><b className="done">2</b><span /><b>3</b></div>
+          <div className="stagePlanCard compact">
+            <div className="stagePlanEyebrow">STAGE 1 · IA FIRST</div>
+            <div className="stagePlanHeader">
+              <div>
+                <h3>먼저 집 정보와 우선순위를 정리해요</h3>
+                <p>추천 이전에 정보구조를 먼저 잡아 두면, 이후 배치/상품 추천이 더 일관되고 설명 가능해집니다.</p>
+              </div>
+              <div className="stagePill active">{planning.currentStage}/2 단계</div>
+            </div>
+            <div className="planMiniChecklist">
+              {planning.checklist.map((item, index) => (
+                <div key={item} className={`planMiniItem ${index < 2 ? 'done' : ''}`}><b>{index + 1}</b><span>{item}</span></div>
+              ))}
+            </div>
+          </div>
           <h2>AI가 공간에 맞는 가구를 추천해드릴게요</h2>
           <p className="muted">아파트 타입, 원하는 공간, 선호 스타일을 직접 바꾸면 추천 문구와 강조 상태가 함께 반영됩니다.</p>
           <label>아파트 검색</label>
@@ -677,13 +737,27 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
             ))}
           </div>
           <div className="reasonBox"><strong>AI 코멘트</strong> {summary}</div>
+          <div className="planDocumentCard">
+            <div className="planDocumentHead">
+              <strong>추천 계획 문서</strong>
+              <span>Notion 방향 반영</span>
+            </div>
+            <div className="planDocumentGrid">
+              {planning.stackNotes.map((item) => (
+                <div key={item.label}>
+                  <label>{item.label}</label>
+                  <p>{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, selectedSpaces, setSelectedSpaces, onOpenLogin }) {
+function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, selectedSpaces, setSelectedSpaces, onOpenLogin, planning }) {
   const zones = baseZones.map((zone) => ({ ...zone, selected: selectedSpaces.includes(zone.id) }))
   const chosen = zones.filter((zone) => zone.selected)
 
@@ -696,6 +770,20 @@ function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearc
           <p className="tinyPill">평면도 기반 선택</p>
           <h2>어떤 공간을 먼저 꾸밀까요?</h2>
           <p className="muted">평면도 영역과 오른쪽 요약 패널이 같은 선택 상태를 공유합니다. 최소 1개 이상 선택할 수 있어요.</p>
+          <div className="stagePlanCard inline">
+            <div className="stagePlanHeader">
+              <div>
+                <h3>Stage 1 산출물</h3>
+                <p>추천 전에 어떤 공간을 우선 해결할지 명확히 적는 IA 단계입니다.</p>
+              </div>
+              <div className="stagePill active">IA 정리 중</div>
+            </div>
+            <div className="planMiniChecklist twoColList">
+              {planning.checklist.map((item, index) => (
+                <div key={item} className={`planMiniItem ${index < 3 ? 'done' : ''}`}><b>{index + 1}</b><span>{item}</span></div>
+              ))}
+            </div>
+          </div>
           <div className="spaceLayout">
             <div className="planBoard">
               <div className="compass">N</div>
@@ -727,7 +815,7 @@ function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearc
   )
 }
 
-function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary, onOpenLogin, trackFurniturePlacement }) {
+function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary, onOpenLogin, trackFurniturePlacement, planning }) {
   const selectedMeta = libraryItems.find((item) => item.id === editor.selected?.sourceId)
   const categoryTabs = ['전체', '소파', '테이블', '수납', '소품', '조명']
   const [activeCategory, setActiveCategory] = React.useState('전체')
@@ -742,6 +830,16 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
   return (
     <div className="screenCanvas editorBg">
       <Header dark active="내가 배치하기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
+      <section className="editorStageBanner">
+        <div>
+          <span className="stagePlanEyebrow">STAGE 2 · EXECUTE & REFINE</span>
+          <strong>IA에서 정리한 입력값을 실제 배치와 상품 선택으로 연결하는 단계</strong>
+        </div>
+        <div className="editorStagePills">
+          <span className="stagePill">Stage 1 완료</span>
+          <span className="stagePill active">Stage 2 진행 중</span>
+        </div>
+      </section>
       <section className="editorLayout">
         <aside className="editorSide left">
           <div className="sideHead"><h3>가구 라이브러리</h3><input value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="가구 검색" /></div>
@@ -818,6 +916,18 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
           <div className="propBlock"><label>크기</label><div className="split"><span>X {Math.round(editor.selected?.x ?? 0)}</span><span>Y {Math.round(editor.selected?.y ?? 0)}</span></div></div>
           <div className="propBlock"><label>컬러</label><div className="colorDots">{(selectedMeta?.colors ?? ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355']).slice(0, 4).map((color, index) => <button key={color} className={`colorDot ${index === (editor.selected?.colorIndex ?? 0) ? 'active' : ''}`} style={{ background: color }} onClick={() => editor.setSelectedColor(index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
           <div className="propBlock"><label>배치 메모</label><p>{selectedMeta?.blurb ?? '선택한 오브젝트의 활용 팁이 여기에 표시됩니다.'}</p></div>
+          <div className="propBlock">
+            <label>실행 계획 문서</label>
+            <div className="executionDoc">
+              {planning.roadmap.map((item) => (
+                <div key={item.horizon} className="executionDocItem">
+                  <small>{item.horizon}</small>
+                  <strong>{item.title}</strong>
+                  <p>{item.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="propBlock actionBlock"><button className="cta" onClick={() => navigate('beds')}>가구 더 보기</button><button className="ghost" onClick={() => openOverlay('address')}>공간 다시 선택</button><button className="ghost" onClick={() => selectedMeta && addToCart(selectedMeta)}>선택 가구 담기</button><button className="ghost" onClick={editor.reset}>초기 배치 복원</button></div>
         </aside>
       </section>
@@ -907,10 +1017,19 @@ function BedsCategoryScreen({ navigate, openOverlay, openCart, cartCount, onSear
   )
 }
 
-function FurnitureHomeScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, onOpenLogin, trackBoardProgress }) {
+function FurnitureHomeScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, onOpenLogin, trackBoardProgress, planning }) {
   return (
     <div className="screenCanvas plainBg">
       <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
+      <section className="roadmapBand">
+        {planning.roadmap.map((item) => (
+          <article key={item.horizon} className="roadmapCard">
+            <span>{item.horizon}</span>
+            <strong>{item.title}</strong>
+            <p>{item.detail}</p>
+          </article>
+        ))}
+      </section>
       <section className="heroBanner">
         <div>
           <div className="eyebrow darkEyebrow">FURNITURE FIRST</div>
