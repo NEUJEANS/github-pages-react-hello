@@ -308,6 +308,8 @@ function useEditorState() {
   }
 }
 
+const LOGIN_BUTTON_LABEL = '로그인'
+
 function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay, onOpenCart, cartCount, onSearchOpen, onOpenLogin }) {
   return (
     <header className={`topbar ${dark ? 'dark' : ''}`}>
@@ -324,16 +326,16 @@ function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay,
       <div className="topActions">
         {!dark && <button className="searchPill" onClick={onSearchOpen}>🔎 스타일 또는 가구 검색</button>}
         {dark && <button className="miniBtn secondary" onClick={() => onOpenOverlay('address')}>공간 정보</button>}
-        <button className="accountTrigger" onClick={onOpenLogin} aria-label="로그인 열기">
+        <button className="accountTrigger utilityButton" onClick={onOpenLogin} aria-label="로그인 열기">
           <span className="accountGlyph" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false">
               <circle cx="12" cy="8" r="3.2" />
               <path d="M5.5 18.2c1.8-3.1 4.4-4.7 6.5-4.7s4.7 1.6 6.5 4.7" />
             </svg>
           </span>
-          <span>{dark ? '로그인' : '계정'}</span>
+          <span>{LOGIN_BUTTON_LABEL}</span>
         </button>
-        <button className="cart" onClick={onOpenCart} aria-label="장바구니 열기">🛒<span>{cartCount}</span></button>
+        <button className="cart utilityButton utilityIconButton" onClick={onOpenCart} aria-label="장바구니 열기">🛒<span>{cartCount}</span></button>
       </div>
     </header>
   )

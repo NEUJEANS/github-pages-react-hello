@@ -58,8 +58,10 @@ button:active { transform: translateY(0); }
 .topbar.dark .navlinks button.active { color: white; border-bottom-color: white; }
 .topActions { display: flex; align-items: center; gap: 12px; }
 .searchPill { background: #f4f1ed; padding: 10px 16px; border-radius: 999px; color: #878787; min-width: 250px; line-height: 1.15; text-align: left; }
-.cart { position: relative; font-size: 24px; }
-.cart span { position: absolute; top: -8px; right: -10px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; background: #eb584c; color: white; }
+.utilityButton { min-height: 50px; }
+.utilityIconButton { width: 50px; min-width: 50px; justify-content: center; }
+.cart { position: relative; display: inline-grid; place-items: center; font-size: 24px; border-radius: 999px; }
+.cart span { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; background: #eb584c; color: white; }
 .twoCol { display: grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); min-height: calc(var(--stage-min) - 74px); }
 .panel { padding: clamp(22px, 3vw, 32px); }
 .leftPanel { background: white; border-right: 1px solid #f0eae3; }
@@ -333,13 +335,16 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .accountTrigger {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+  min-width: 106px;
   border: 1px solid rgba(139,115,85,.24);
   background: rgba(255,255,255,.9);
   color: #5f4e3d;
   border-radius: 999px;
-  padding: 8px 14px 8px 10px;
+  padding: 7px 16px 7px 10px;
   font-weight: 700;
+  line-height: 1;
 }
 .topbar.dark .accountTrigger {
   background: rgba(255,255,255,.1);
@@ -419,6 +424,10 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .guardSummary b { font-size: 18px; }
 @media (max-width: 780px) {
   .accountTrigger span:last-child { display: none; }
-  .accountTrigger { padding-right: 10px; }
+  .accountTrigger {
+    min-width: 50px;
+    width: 50px;
+    padding: 7px;
+  }
   .loginPanel { width: calc(100% - 20px); }
 }
