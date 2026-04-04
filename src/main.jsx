@@ -213,7 +213,9 @@ function useEditorState() {
   const [selectedId, setSelectedId] = React.useState(initialEditorItems[0].id)
   const [activeTool, setActiveTool] = React.useState('select')
   const [snapOn, setSnapOn] = React.useState(true)
-  const [notice, setNotice] = React.useState('소파가 선택되어 있어요. 방향/이동/색상을 바꿔볼 수 있어요.')
+  const [notice, setNotice] = React.useState('가구를 길게 누르거나 바로 드래그해서 원하는 위치로 옮겨보세요.')
+  const [dragState, setDragState] = React.useState(null)
+  const historyCommittedRef = React.useRef(false)
 
   const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null
 
@@ -266,9 +268,60 @@ function useEditorState() {
       colorIndex: 0,
       circle: product.category === '테이블',
     }
-    commit([...items, nextItem], `${product.name}을(를) 배치안에 추가했어요.`)
+    commit([...items, nextItem], `${product.name}을(를) 배치안에 추가했어요. 바로 드래그해서 위치를 조정할 수 있어요.`)
     setSelectedId(nextItem.id)
   }, [commit, items])
+
+  const beginDrag = React.useCallback((itemId, pointer, bounds) => {
+    const item = items.find((entry) => entry.id === itemId)
+    if (!item || !bounds?.width || !bounds?.height) return
+
+    setSelectedId(itemId)
+    setActiveTool('move')
+    historyCommittedRef.current = false
+    setDragState({
+      itemId,
+      pointerId: pointer.pointerId,
+      startClientX: pointer.clientX,
+      startClientY: pointer.clientY,
+      originX: item.x,
+      originY: item.y,
+      roomWidth: bounds.width,
+      roomHeight: bounds.height,
+      moved: false,
+    })
+    setNotice(snapOn ? '드래그 중 · 스냅 그리드에 맞춰 배치하고 있어요.' : '드래그 중 · 자유롭게 위치를 조정하고 있어요.')
+  }, [items, snapOn])
+
+  const updateDrag = React.useCallback((pointer) => {
+    if (!dragState) return
+
+    const deltaX = ((pointer.clientX - dragState.startClientX) / dragState.roomWidth) * 100
+    const deltaY = ((pointer.clientY - dragState.startClientY) / dragState.roomHeight) * 100
+    const nextXRaw = clamp(dragState.originX + deltaX, 2, 88)
+    const nextYRaw = clamp(dragState.originY + deltaY, 2, 82)
+    const snapStep = 4
+    const nextX = snapOn ? clamp(Math.round(nextXRaw / snapStep) * snapStep, 2, 88) : nextXRaw
+    const nextY = snapOn ? clamp(Math.round(nextYRaw / snapStep) * snapStep, 2, 82) : nextYRaw
+
+    if (!historyCommittedRef.current) {
+      setHistory((current) => [...current, items])
+      historyCommittedRef.current = true
+    }
+
+    setItems((current) => current.map((item) => item.id === dragState.itemId ? { ...item, x: nextX, y: nextY } : item))
+    setDragState((current) => current ? { ...current, moved: current.moved || Math.abs(deltaX) > 0.2 || Math.abs(deltaY) > 0.2 } : current)
+  }, [dragState, items, snapOn])
+
+  const endDrag = React.useCallback(() => {
+    if (!dragState) return
+
+    setNotice(dragState.moved
+      ? (snapOn ? '가구를 드래그해서 스냅 위치로 옮겼어요.' : '가구를 드래그해서 원하는 위치로 옮겼어요.')
+      : '가구를 선택했어요. 눌러서 바로 드래그할 수 있어요.')
+    historyCommittedRef.current = false
+    setDragState(null)
+  }, [dragState, snapOn])
 
   const undo = React.useCallback(() => {
     setHistory((current) => {
@@ -277,6 +330,8 @@ function useEditorState() {
       setItems(previous)
       setSelectedId(previous[0]?.id ?? null)
       setNotice('직전 변경을 되돌렸어요.')
+      historyCommittedRef.current = false
+      setDragState(null)
       return current.slice(0, -1)
     })
   }, [])
@@ -286,6 +341,8 @@ function useEditorState() {
     setItems(initialEditorItems)
     setSelectedId(initialEditorItems[0].id)
     setNotice('초기 배치안으로 되돌렸어요.')
+    historyCommittedRef.current = false
+    setDragState(null)
   }, [items])
 
   return {
@@ -298,6 +355,10 @@ function useEditorState() {
     snapOn,
     setSnapOn,
     notice,
+    dragState,
+    beginDrag,
+    updateDrag,
+    endDrag,
     moveSelected,
     rotateSelected,
     cycleColor,
@@ -732,12 +793,33 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
   const categoryTabs = ['전체', '소파', '테이블', '수납', '소품', '조명']
   const [activeCategory, setActiveCategory] = React.useState('전체')
   const [librarySearch, setLibrarySearch] = React.useState('')
+  const roomFrameRef = React.useRef(null)
 
   const visibleLibrary = libraryItems.filter((item) => {
     const matchesCategory = activeCategory === '전체' || item.category === activeCategory
     const matchesSearch = `${item.name} ${item.category}`.toLowerCase().includes(librarySearch.toLowerCase())
     return matchesCategory && matchesSearch
   })
+
+  const handlePointerMove = React.useCallback((event) => {
+    editor.updateDrag(event)
+  }, [editor])
+
+  const handlePointerUp = React.useCallback(() => {
+    editor.endDrag()
+  }, [editor])
+
+  React.useEffect(() => {
+    if (!editor.dragState) return undefined
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointercancel', handlePointerUp)
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerUp)
+    }
+  }, [editor.dragState, handlePointerMove, handlePointerUp])
 
   return (
     <div className="screenCanvas editorBg">
@@ -759,7 +841,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
         <div className="editorCenter">
           <div className="toolbar">
             <button className={`tool ${editor.activeTool === 'select' ? 'active' : ''}`} onClick={() => editor.setActiveTool('select')}>✥</button>
-            <button className={`tool ${editor.activeTool === 'move' ? 'active' : ''}`} onClick={() => { editor.setActiveTool('move'); editor.moveSelected(1, 0) }}>↔</button>
+            <button className={`tool ${editor.activeTool === 'move' ? 'active' : ''}`} onClick={() => editor.setActiveTool('move')}>✋</button>
             <button className={`tool ${editor.activeTool === 'color' ? 'active' : ''}`} onClick={() => { editor.setActiveTool('color'); editor.cycleColor() }}>◉</button>
             <button className={`tool ${editor.activeTool === 'rotate' ? 'active' : ''}`} onClick={() => { editor.setActiveTool('rotate'); editor.rotateSelected() }}>⟲</button>
             <button className="tool" onClick={editor.undo}>↶</button>
@@ -770,21 +852,21 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
               <button className={`metaToggle ${editor.snapOn ? 'on' : ''}`} onClick={() => editor.setSnapOn((current) => !current)}>{editor.snapOn ? '스냅 ON' : '스냅 OFF'}</button>
               <span>{editor.notice}</span>
             </div>
-            <div className="editorMoveButtons">
-              <button className="mini" onClick={() => editor.moveSelected(0, -1)}>↑</button>
-              <div><button className="mini" onClick={() => editor.moveSelected(-1, 0)}>←</button><button className="mini" onClick={() => editor.moveSelected(1, 0)}>→</button></div>
-              <button className="mini" onClick={() => editor.moveSelected(0, 1)}>↓</button>
+            <div className="editorHintRow">
+              <span className="editorHintBadge">PRESS + DRAG</span>
+              <p>가구를 누른 채 바로 끌어서 이동하세요. 스냅을 끄면 더 자유롭게 배치할 수 있어요.</p>
             </div>
             <div className="editorRoomFrame">
-              <div className="editorRoom">
+              <div className={`editorRoom ${editor.dragState ? 'is-dragging' : ''}`}>
                 <div className="grid" />
-                <div className="roomFrame">
+                <div ref={roomFrameRef} className="roomFrame">
                   {editor.items.map((item) => {
                     const itemMeta = libraryItems.find((entry) => entry.id === item.sourceId)
+                    const isDragging = editor.dragState?.itemId === item.id
                     return (
                       <button
                         key={item.id}
-                        className={`placed ${editor.selectedId === item.id ? 'sel' : ''} ${item.circle ? 'circle' : ''}`}
+                        className={`placed ${editor.selectedId === item.id ? 'sel' : ''} ${item.circle ? 'circle' : ''} ${isDragging ? 'dragging' : ''}`}
                         style={{
                           left: `${item.x}%`,
                           top: `${item.y}%`,
@@ -794,6 +876,14 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
                           background: itemMeta?.colors?.[item.colorIndex ?? 0] ?? '#e6d7bf',
                         }}
                         onClick={() => editor.setSelectedId(item.id)}
+                        onPointerDown={(event) => {
+                          if (event.button !== 0) return
+                          const bounds = roomFrameRef.current?.getBoundingClientRect()
+                          if (!bounds) return
+                          event.preventDefault()
+                          event.currentTarget.setPointerCapture?.(event.pointerId)
+                          editor.beginDrag(item.id, event, bounds)
+                        }}
                       >
                         {item.label}
                       </button>
@@ -815,9 +905,10 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
         <aside className="editorSide right">
           <div className="sideHead"><h3>속성 패널</h3></div>
           <div className="propBlock"><label>선택 오브젝트</label><strong>{editor.selected?.name ?? '선택 없음'}</strong></div>
-          <div className="propBlock"><label>크기</label><div className="split"><span>X {Math.round(editor.selected?.x ?? 0)}</span><span>Y {Math.round(editor.selected?.y ?? 0)}</span></div></div>
+          <div className="propBlock"><label>위치</label><div className="split"><span>X {Math.round(editor.selected?.x ?? 0)}</span><span>Y {Math.round(editor.selected?.y ?? 0)}</span></div></div>
           <div className="propBlock"><label>컬러</label><div className="colorDots">{(selectedMeta?.colors ?? ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355']).slice(0, 4).map((color, index) => <button key={color} className={`colorDot ${index === (editor.selected?.colorIndex ?? 0) ? 'active' : ''}`} style={{ background: color }} onClick={() => editor.setSelectedColor(index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
           <div className="propBlock"><label>배치 메모</label><p>{selectedMeta?.blurb ?? '선택한 오브젝트의 활용 팁이 여기에 표시됩니다.'}</p></div>
+          <div className="propBlock"><label>이동 방식</label><p>이제 방향 버튼 대신 직접 드래그로 배치합니다. Undo와 스냅 토글은 그대로 유지했어요.</p></div>
           <div className="propBlock actionBlock"><button className="cta" onClick={() => navigate('beds')}>가구 더 보기</button><button className="ghost" onClick={() => openOverlay('address')}>공간 다시 선택</button><button className="ghost" onClick={() => selectedMeta && addToCart(selectedMeta)}>선택 가구 담기</button><button className="ghost" onClick={editor.reset}>초기 배치 복원</button></div>
         </aside>
       </section>
