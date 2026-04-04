@@ -216,6 +216,18 @@ function useEditorState() {
   const [notice, setNotice] = React.useState('가구를 길게 누르거나 바로 드래그해서 원하는 위치로 옮겨보세요.')
   const [dragState, setDragState] = React.useState(null)
   const historyCommittedRef = React.useRef(false)
+  const itemsRef = React.useRef(items)
+  const clickMoveAnimationRef = React.useRef(null)
+
+  React.useEffect(() => {
+    itemsRef.current = items
+  }, [items])
+
+  React.useEffect(() => () => {
+    if (clickMoveAnimationRef.current?.frame) {
+      window.cancelAnimationFrame(clickMoveAnimationRef.current.frame)
+    }
+  }, [])
 
   const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null
 
@@ -231,7 +243,15 @@ function useEditorState() {
     commit(nextItems, nextNotice)
   }, [commit, items, selectedId])
 
+  const stopClickMoveAnimation = React.useCallback(() => {
+    if (clickMoveAnimationRef.current?.frame) {
+      window.cancelAnimationFrame(clickMoveAnimationRef.current.frame)
+    }
+    clickMoveAnimationRef.current = null
+  }, [])
+
   const moveSelected = React.useCallback((dx, dy) => {
+    stopClickMoveAnimation()
     updateSelected((item) => {
       const step = snapOn ? 4 : 2
       return {
@@ -240,7 +260,73 @@ function useEditorState() {
         y: clamp(item.y + dy * step, 2, 82),
       }
     }, snapOn ? '스냅 단위로 가구를 이동했어요.' : '자유 이동으로 가구 위치를 조정했어요.')
-  }, [snapOn, updateSelected])
+  }, [snapOn, stopClickMoveAnimation, updateSelected])
+
+  const moveSelectedTo = React.useCallback((targetX, targetY) => {
+    if (!selectedId) return
+
+    const currentItems = itemsRef.current
+    const currentItem = currentItems.find((item) => item.id === selectedId)
+    if (!currentItem) return
+
+    stopClickMoveAnimation()
+    historyCommittedRef.current = false
+    setDragState(null)
+    setActiveTool('move')
+
+    const snappedX = snapOn ? clamp(Math.round(targetX / 4) * 4, 2, 88) : clamp(targetX, 2, 88)
+    const snappedY = snapOn ? clamp(Math.round(targetY / 4) * 4, 2, 82) : clamp(targetY, 2, 82)
+
+    if (Math.abs(currentItem.x - snappedX) < 0.01 && Math.abs(currentItem.y - snappedY) < 0.01) {
+      setNotice('이미 그 위치에 가까워요. 다른 지점을 클릭하면 부드럽게 이동해요.')
+      return
+    }
+
+    setHistory((current) => [...current, currentItems])
+    setNotice(snapOn
+      ? '클릭한 위치로 스냅 단위 애니메이션 이동 중이에요.'
+      : '클릭한 위치로 부드럽게 이동 중이에요.')
+
+    const stepToward = (value, target, step = 1) => {
+      if (Math.abs(target - value) <= step) return target
+      return value + Math.sign(target - value) * step
+    }
+
+    const tick = () => {
+      const currentItemsForFrame = itemsRef.current
+      const currentSelected = currentItemsForFrame.find((item) => item.id === selectedId)
+      if (!currentSelected) {
+        clickMoveAnimationRef.current = null
+        return
+      }
+
+      const nextX = stepToward(currentSelected.x, snappedX)
+      const nextY = stepToward(currentSelected.y, snappedY)
+      const reached = Math.abs(nextX - snappedX) < 0.01 && Math.abs(nextY - snappedY) < 0.01
+
+      setItems((current) => {
+        const next = current.map((item) => item.id === selectedId ? { ...item, x: nextX, y: nextY } : item)
+        itemsRef.current = next
+        return next
+      })
+
+      if (reached) {
+        clickMoveAnimationRef.current = null
+        setNotice(snapOn
+          ? '클릭한 위치까지 부드럽게 이동한 뒤 스냅 위치에 맞췄어요.'
+          : '클릭한 위치까지 부드럽게 이동했어요.')
+        return
+      }
+
+      clickMoveAnimationRef.current = {
+        frame: window.requestAnimationFrame(tick),
+      }
+    }
+
+    clickMoveAnimationRef.current = {
+      frame: window.requestAnimationFrame(tick),
+    }
+  }, [selectedId, snapOn, stopClickMoveAnimation])
 
   const rotateSelected = React.useCallback(() => {
     updateSelected((item) => ({ ...item, rotation: (item.rotation + 90) % 360 }), '선택한 가구를 90° 회전했어요.')
@@ -276,6 +362,7 @@ function useEditorState() {
     const item = items.find((entry) => entry.id === itemId)
     if (!item || !bounds?.width || !bounds?.height) return
 
+    stopClickMoveAnimation()
     setSelectedId(itemId)
     setActiveTool('move')
     historyCommittedRef.current = false
@@ -291,7 +378,7 @@ function useEditorState() {
       moved: false,
     })
     setNotice(snapOn ? '드래그 중 · 스냅 그리드에 맞춰 배치하고 있어요.' : '드래그 중 · 자유롭게 위치를 조정하고 있어요.')
-  }, [items, snapOn])
+  }, [items, snapOn, stopClickMoveAnimation])
 
   const updateDrag = React.useCallback((pointer) => {
     if (!dragState) return
@@ -332,18 +419,20 @@ function useEditorState() {
       setNotice('직전 변경을 되돌렸어요.')
       historyCommittedRef.current = false
       setDragState(null)
+      stopClickMoveAnimation()
       return current.slice(0, -1)
     })
-  }, [])
+  }, [stopClickMoveAnimation])
 
   const reset = React.useCallback(() => {
+    stopClickMoveAnimation()
     setHistory((current) => [...current, items])
     setItems(initialEditorItems)
     setSelectedId(initialEditorItems[0].id)
     setNotice('초기 배치안으로 되돌렸어요.')
     historyCommittedRef.current = false
     setDragState(null)
-  }, [items])
+  }, [items, stopClickMoveAnimation])
 
   return {
     items,
@@ -360,6 +449,7 @@ function useEditorState() {
     updateDrag,
     endDrag,
     moveSelected,
+    moveSelectedTo,
     rotateSelected,
     cycleColor,
     setSelectedColor,
@@ -805,8 +895,25 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
     editor.updateDrag(event)
   }, [editor])
 
-  const handlePointerUp = React.useCallback(() => {
+  const handlePointerUp = React.useCallback((event) => {
+    if (editor.dragState && event?.pointerId === editor.dragState.pointerId) {
+      roomFrameRef.current?.releasePointerCapture?.(event.pointerId)
+    }
     editor.endDrag()
+  }, [editor])
+
+  const handleRoomClick = React.useCallback((event) => {
+    if (event.target !== event.currentTarget) return
+    if (editor.activeTool !== 'move' || editor.dragState || !editor.selected) return
+
+    const bounds = roomFrameRef.current?.getBoundingClientRect()
+    if (!bounds?.width || !bounds?.height) return
+
+    const percentX = ((event.clientX - bounds.left) / bounds.width) * 100
+    const percentY = ((event.clientY - bounds.top) / bounds.height) * 100
+    const targetX = clamp(percentX - ((editor.selected.w ?? 0) / 2), 2, 88)
+    const targetY = clamp(percentY - ((editor.selected.h ?? 0) / 2), 2, 82)
+    editor.moveSelectedTo(targetX, targetY)
   }, [editor])
 
   return (
@@ -841,8 +948,8 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
               <span>{editor.notice}</span>
             </div>
             <div className="editorHintRow">
-              <span className="editorHintBadge">PRESS + DRAG</span>
-              <p>가구를 누른 채 바로 끌어서 이동하세요. 스냅을 끄면 더 자유롭게 배치할 수 있어요.</p>
+              <span className="editorHintBadge">PRESS + DRAG / CLICK MOVE</span>
+              <p>가구를 누른 채 바로 끌어도 되고, ✋ 이동 툴에서 빈 공간을 클릭하면 선택한 가구가 부드럽게 이동해요. 스냅을 끄면 더 자유롭게 배치할 수 있어요.</p>
             </div>
             <div className="editorRoomFrame">
               <div className={`editorRoom ${editor.dragState ? 'is-dragging' : ''}`}>
@@ -854,6 +961,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
                   onPointerUp={handlePointerUp}
                   onPointerCancel={handlePointerUp}
                   onLostPointerCapture={handlePointerUp}
+                  onClick={handleRoomClick}
                 >
                   {editor.items.map((item) => {
                     const itemMeta = libraryItems.find((entry) => entry.id === item.sourceId)
@@ -903,7 +1011,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
           <div className="propBlock"><label>위치</label><div className="split"><span>X {Math.round(editor.selected?.x ?? 0)}</span><span>Y {Math.round(editor.selected?.y ?? 0)}</span></div></div>
           <div className="propBlock"><label>컬러</label><div className="colorDots">{(selectedMeta?.colors ?? ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355']).slice(0, 4).map((color, index) => <button key={color} className={`colorDot ${index === (editor.selected?.colorIndex ?? 0) ? 'active' : ''}`} style={{ background: color }} onClick={() => editor.setSelectedColor(index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
           <div className="propBlock"><label>배치 메모</label><p>{selectedMeta?.blurb ?? '선택한 오브젝트의 활용 팁이 여기에 표시됩니다.'}</p></div>
-          <div className="propBlock"><label>이동 방식</label><p>이제 방향 버튼 대신 직접 드래그로 배치합니다. Undo와 스냅 토글은 그대로 유지했어요.</p></div>
+          <div className="propBlock"><label>이동 방식</label><p>직접 드래그는 그대로 유지하고, ✋ 이동 툴에서는 빈 공간 클릭 시 선택 가구가 부드럽게 이동합니다. Undo와 스냅 토글도 그대로 유지했어요.</p></div>
           <div className="propBlock actionBlock"><button className="cta" onClick={() => navigate('beds')}>가구 더 보기</button><button className="ghost" onClick={() => openOverlay('address')}>공간 다시 선택</button><button className="ghost" onClick={() => selectedMeta && addToCart(selectedMeta)}>선택 가구 담기</button><button className="ghost" onClick={editor.reset}>초기 배치 복원</button></div>
         </aside>
       </section>
