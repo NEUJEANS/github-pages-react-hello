@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "review:gemini": "bash ./scripts/gemini-review.sh",
+    "checkpoint:status": "git status --short --branch && echo '---' && git log --oneline --decorate -5"
   },
   "dependencies": {
     "react": "^19.1.0",
