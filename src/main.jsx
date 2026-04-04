@@ -108,9 +108,31 @@ function formatApartmentOption(option) {
   return [option.brand, option.complex, option.unitLabel].filter(Boolean).join(' ')
 }
 
-function buildRecommendationSummary({ room, style, apartmentType, extraRequest }) {
+function buildRecommendationSummary({ apartmentType, room, style, priority, lifestyle, extraRequest }) {
   const styleLabel = styleOptions.find((item) => item.id === style)?.label ?? '미니멀'
-  return `${apartmentType} ${room} 기준으로 ${styleLabel} 톤을 유지하면서 ${extraRequest || '채광과 동선을 우선'} 방향으로 정리한 추천안입니다.`
+  const priorityLabel = priorityOptions.find((item) => item.id === priority)?.label ?? '채광/동선 우선'
+  const lifestyleLabel = lifestyle?.length ? `${lifestyle.join(' · ')} 중심으로` : '기본 생활 패턴 기준으로'
+  const requestLabel = extraRequest?.trim() || '웜 뉴트럴 톤과 패브릭 중심으로 정돈'
+  return `${apartmentType} ${room} 기준, ${styleLabel} 톤을 유지하면서 ${priorityLabel}로 ${lifestyleLabel} ${requestLabel} 방향의 추천안입니다.`
+}
+
+function buildInputBrief(form) {
+  const apartment = apartmentSearchResults.find((item) => item.id === form.apartmentSelectionId)
+  const apartmentLabel = apartment ? formatApartmentOption(apartment) : form.apartmentQuery
+  const styleLabel = styleOptions.find((item) => item.id === form.style)?.label ?? '미니멀'
+  const priorityLabel = priorityOptions.find((item) => item.id === form.priority)?.label ?? '채광/동선 우선'
+  const lifestyleLabel = form.lifestyle.length ? form.lifestyle.join(', ') : '기본'
+
+  return {
+    apartmentLabel,
+    apartmentMeta: apartment
+      ? [apartment.areaLabel, apartment.unitLabel, apartment.layoutLabel, apartment.variantLabel].join(' · ')
+      : `${form.apartmentType} · 공간 정보 확인 필요`,
+    styleLabel,
+    priorityLabel,
+    lifestyleLabel,
+    requestLabel: form.extraRequest?.trim() || '추가 요청 없음',
+  }
 }
 
 function useSpaNavigation() {
@@ -824,6 +846,11 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
           <div className="badge">AI 추천 결과</div>
           <h3>{form.room} 배치안 + 상품 추천</h3>
           <p className="resultSummary"><b>{currentStyle?.label}</b> 무드 기준 · {summary}</p>
+          <div className="resultInputMeta">
+            <span>{brief.priorityLabel}</span>
+            <span>{brief.lifestyleLabel}</span>
+            <span>{brief.apartmentMeta}</span>
+          </div>
           <div className="floorplanViewport">
             <div className="floorplanFrame">
               <div className={`floorplan theme-${form.style}`}>
