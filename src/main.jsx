@@ -809,18 +809,6 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
     editor.endDrag()
   }, [editor])
 
-  React.useEffect(() => {
-    if (!editor.dragState) return undefined
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
-    window.addEventListener('pointercancel', handlePointerUp)
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-      window.removeEventListener('pointercancel', handlePointerUp)
-    }
-  }, [editor.dragState, handlePointerMove, handlePointerUp])
-
   return (
     <div className="screenCanvas editorBg">
       <Header dark active="내가 배치하기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
@@ -859,7 +847,14 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
             <div className="editorRoomFrame">
               <div className={`editorRoom ${editor.dragState ? 'is-dragging' : ''}`}>
                 <div className="grid" />
-                <div ref={roomFrameRef} className="roomFrame">
+                <div
+                  ref={roomFrameRef}
+                  className="roomFrame"
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerUp}
+                  onLostPointerCapture={handlePointerUp}
+                >
                   {editor.items.map((item) => {
                     const itemMeta = libraryItems.find((entry) => entry.id === item.sourceId)
                     const isDragging = editor.dragState?.itemId === item.id
@@ -881,7 +876,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
                           const bounds = roomFrameRef.current?.getBoundingClientRect()
                           if (!bounds) return
                           event.preventDefault()
-                          event.currentTarget.setPointerCapture?.(event.pointerId)
+                          roomFrameRef.current?.setPointerCapture?.(event.pointerId)
                           editor.beginDrag(item.id, event, bounds)
                         }}
                       >
