@@ -9,9 +9,9 @@
 - [x] Add visible affordance/copy so drag behavior is discoverable
 - [x] Build locally and fix any regressions
 - [x] Run a manual browser feedback loop on desktop/mobile-style interaction
-- [ ] Commit and push to GitHub
-- [ ] Verify GitHub Pages deployed the new bundle
-- [ ] Re-test the live deployed interaction directly
+- [x] Commit and push to GitHub
+- [x] Verify GitHub Pages deployed the new bundle
+- [x] Re-test the live deployed interaction directly
 
 ## Research notes applied
 
