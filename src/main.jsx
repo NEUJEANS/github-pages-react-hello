@@ -24,6 +24,14 @@ const styleOptions = [
   { id: 'lux', emoji: '✨', label: '모던 럭스' },
 ]
 
+const priorityOptions = [
+  { id: 'flow', label: '채광/동선 우선' },
+  { id: 'storage', label: '수납 우선' },
+  { id: 'hosting', label: '손님맞이 우선' },
+]
+
+const lifestyleOptions = ['기본', '재택근무', '반려동물', '수납 많이']
+
 const aiProducts = [
   { id: 'sofa-001', category: '소파', emoji: '🛋️', name: '코튼베이지 모듈 소파', price: 1290000, priceLabel: '₩1,290,000', fitScore: 96, blurb: '동선 확보가 쉬운 모듈형 구성이에요.', size: '2200 x 900', colors: ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355'] },
   { id: 'table-001', category: '테이블', emoji: '🪑', name: '오벌 우드 테이블', price: 389000, priceLabel: '₩389,000', fitScore: 92, blurb: '거실과 다이닝을 유연하게 연결해줘요.', size: '1200 x 800', colors: ['#efe4d5', '#d7c0a3', '#a88c68'] },
@@ -571,6 +579,8 @@ function App() {
     apartmentSelectionId: apartmentSearchResults[0].id,
     room: '거실',
     style: 'minimal',
+    priority: 'flow',
+    lifestyle: ['기본'],
     extraRequest: '아이보리/우드 톤으로 따뜻하게, 반려식물과 패브릭 위주로 꾸미고 싶어요.',
   })
   const [selectedSpaces, setSelectedSpaces] = React.useState(() => baseZones.filter((zone) => zone.selected).map((zone) => zone.id))
@@ -592,6 +602,7 @@ function App() {
   const [engagement, setEngagement] = React.useState(initialEngagement)
 
   const aiSummary = buildRecommendationSummary(aiForm)
+  const inputBrief = React.useMemo(() => buildInputBrief(aiForm), [aiForm])
   const selectedBed = bedProducts.find((product) => product.id === quickView.product?.id)
 
   const filteredSearchResults = React.useMemo(() => {
@@ -669,6 +680,7 @@ function App() {
     ai: {
       form: aiForm,
       setForm: setAiForm,
+      brief: inputBrief,
       summary: aiSummary,
       onRecommend: () => {
         trackAiRequest()
@@ -789,7 +801,7 @@ function renderScreen(screen, props) {
   }
 }
 
-function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, summary, onRecommend, onOpenLogin }) {
+function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, brief, summary, onRecommend, onOpenLogin }) {
   const currentStyle = styleOptions.find((item) => item.id === form.style)
   const selectedApartment = apartmentSearchResults.find((item) => item.id === form.apartmentSelectionId)
   const apartmentLabel = selectedApartment ? formatApartmentOption(selectedApartment) : (form.apartmentQuery || '아파트명을 선택해보세요')

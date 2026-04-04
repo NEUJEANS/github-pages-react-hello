@@ -119,6 +119,8 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .briefGrid div { background: rgba(255,255,255,.74); border: 1px solid #ebdfd3; border-radius: 12px; padding: 12px; display: grid; gap: 6px; }
 .briefGrid span { color: #8b7e71; font-size: 12px; font-weight: 700; }
 .briefGrid b { color: #50453b; font-size: 14px; line-height: 1.45; }
+.resultInputMeta { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.resultInputMeta span { padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,.84); border: 1px solid #e4d8ca; color: #695d52; font-size: 13px; font-weight: 700; }
 .resultCard { margin-top: 10px; padding: 16px; border: 1px solid #e6dbc8; background: #faf7f1; border-radius: 14px; display: flex; flex-direction: column; gap: 4px; }
 .resultCard.selected { border-width: 2px; border-color: var(--accent); }
 .resultCard span { color: #8b8b8b; font-size: 13px; }
