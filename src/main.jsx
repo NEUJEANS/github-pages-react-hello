@@ -57,6 +57,12 @@ const baseZones = [
 
 const apartmentTypes = ['84A', '84B', '101A', '59A']
 
+const apartmentSearchResults = [
+  { id: 'raemian-forest-84a', brand: '래미안', complex: '포레스트', unitLabel: '84A', areaLabel: '전용 84㎡', layoutLabel: '4Bay', variantLabel: '거실 확장형' },
+  { id: 'acrovista-river-101a', brand: '아크로', complex: '리버뷰', unitLabel: '101A', areaLabel: '전용 101㎡', layoutLabel: '타워형', variantLabel: '주방 확장형' },
+  { id: 'xi-central-59a', brand: '자이', complex: '센트럴', unitLabel: '59A', areaLabel: '전용 59㎡', layoutLabel: '판상형', variantLabel: '기본형' },
+]
+
 const initialEditorItems = [
   { id: 'placed-sofa', sourceId: 'sofa-001', name: '코튼베이지 모듈 소파', label: 'SOFA', x: 10, y: 16, w: 28, h: 18, rotation: 0, colorIndex: 2 },
   { id: 'placed-table', sourceId: 'table-001', name: '오벌 우드 테이블', label: 'TABLE', x: 16, y: 46, w: 13, h: 20, rotation: 0, colorIndex: 1, circle: true },
@@ -96,6 +102,10 @@ function formatPrice(value) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
+}
+
+function formatApartmentOption(option) {
+  return [option.brand, option.complex, option.unitLabel].filter(Boolean).join(' ')
 }
 
 function buildRecommendationSummary({ room, style, apartmentType, extraRequest }) {
@@ -534,8 +544,9 @@ function App() {
   const [searchDrawerOpen, setSearchDrawerOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
   const [aiForm, setAiForm] = React.useState({
-    apartmentQuery: '래미안 포레스트 84A',
-    apartmentType: '84A',
+    apartmentQuery: formatApartmentOption(apartmentSearchResults[0]),
+    apartmentType: apartmentSearchResults[0].unitLabel,
+    apartmentSelectionId: apartmentSearchResults[0].id,
     room: '거실',
     style: 'minimal',
     extraRequest: '아이보리/우드 톤으로 따뜻하게, 반려식물과 패브릭 위주로 꾸미고 싶어요.',
@@ -758,6 +769,11 @@ function renderScreen(screen, props) {
 
 function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, summary, onRecommend, onOpenLogin }) {
   const currentStyle = styleOptions.find((item) => item.id === form.style)
+  const selectedApartment = apartmentSearchResults.find((item) => item.id === form.apartmentSelectionId)
+  const apartmentLabel = selectedApartment ? formatApartmentOption(selectedApartment) : (form.apartmentQuery || '아파트명을 선택해보세요')
+  const apartmentMeta = selectedApartment
+    ? [selectedApartment.areaLabel, selectedApartment.unitLabel, selectedApartment.layoutLabel, selectedApartment.variantLabel].join(' · ')
+    : `전용 84㎡ · ${form.apartmentType} · 4Bay · 거실 확장형`
 
   return (
     <div className="screenCanvas warmBg">
@@ -768,10 +784,21 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
           <h2>AI가 공간에 맞는 가구를 추천해드릴게요</h2>
           <p className="muted">아파트 타입, 원하는 공간, 선호 스타일을 직접 바꾸면 추천 문구와 강조 상태가 함께 반영됩니다.</p>
           <label>아파트 검색</label>
-          <div className="inputWrap">🔎<input value={form.apartmentQuery} onChange={(event) => setForm((current) => ({ ...current, apartmentQuery: event.target.value }))} /></div>
+          <button
+            type="button"
+            className="searchSelectButton"
+            onClick={() => openOverlay('address')}
+          >
+            <span className="searchSelectIcon" aria-hidden="true">🔎</span>
+            <span className="searchSelectText">
+              <strong>{apartmentLabel}</strong>
+              <small>아파트명 또는 평면도를 선택해 공간 정보를 불러오세요</small>
+            </span>
+            <span className="searchSelectAction">불러오기</span>
+          </button>
           <div className="resultCard">
-            <strong>{form.apartmentQuery || '아파트명을 입력해보세요'}</strong>
-            <span>전용 84㎡ · {form.apartmentType} · 4Bay · 거실 확장형</span>
+            <strong>{selectedApartment ? (<><span className="apartmentBrand">{selectedApartment.brand}</span> <span>{selectedApartment.complex}</span></>) : apartmentLabel}</strong>
+            <span>{apartmentMeta}</span>
           </div>
           <label>공간 선택</label>
           <div className="chipRow">
@@ -789,8 +816,7 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
           </div>
           <label>추가 요청</label>
           <textarea value={form.extraRequest} onChange={(event) => setForm((current) => ({ ...current, extraRequest: event.target.value }))} />
-          <div className="footerButtons stackOnMobile">
-            <button className="ghost" onClick={() => openOverlay('address')}>평면도 불러오기</button>
+          <div className="footerButtons stackOnMobile aiFooterButtons">
             <button className="cta" onClick={onRecommend}>추천받기</button>
           </div>
         </aside>
