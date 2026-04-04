@@ -9,5 +9,5 @@
 - [x] Iterate if anything still feels cramped or over-stretched
 - [x] Commit and push to GitHub
 - [x] Confirm GitHub Pages deployment picked up the change
-- [ ] Sync the updated production build into docs/ because Pages is serving main/docs
-- [ ] Verify the live site reflects the wider/fuller layout
+- [x] Sync the updated production build into docs/ because Pages is serving main/docs
+- [x] Verify the live site reflects the wider/fuller layout
