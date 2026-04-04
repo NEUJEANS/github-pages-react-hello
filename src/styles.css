@@ -49,17 +49,19 @@ button:active { transform: translateY(0); }
 .sandBg { background: #f4f0eb; }
 .plainBg { background: #fff; }
 .editorBg { background: #ece7e1; }
-.topbar { min-height: 74px; display: flex; align-items: center; justify-content: space-between; padding: 14px var(--content-gutter); background: rgba(255,255,255,.94); border-bottom: 1px solid #eee6dc; gap: 20px; }
+.topbar { position: relative; min-height: 74px; display: grid; grid-template-columns: minmax(max-content, 1fr) minmax(max-content, 1fr); align-items: center; padding: 14px var(--content-gutter); background: rgba(255,255,255,.94); border-bottom: 1px solid #eee6dc; gap: 20px; }
 .topbar.dark { background: var(--navy); color: white; border-bottom-color: rgba(255,255,255,.08); }
 .logo { font-family: 'Playfair Display', Georgia, serif; font-size: 30px; font-weight: 700; letter-spacing: -.03em; }
 .logoBtn, .navlinks button, .searchPill, .cart, .iconCat { appearance: none; border: 0; background: transparent; padding: 0; }
-.logoBtn { color: inherit; }
-.navlinks { display: flex; gap: 26px; align-items: center; align-self: stretch; }
+.logoBtn { color: inherit; justify-self: start; }
+.navlinks { position: absolute; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, minmax(112px, max-content)); column-gap: 26px; align-items: center; align-self: stretch; }
 .navlinks button {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  min-width: 112px;
   height: 46px;
   padding: 0;
   color: #8b8b8b;
@@ -83,7 +85,7 @@ button:active { transform: translateY(0); }
 .navlinks button.active::after { background: var(--accent); }
 .topbar.dark .navlinks button.active { color: white; }
 .topbar.dark .navlinks button.active::after { background: white; }
-.topActions { display: flex; align-items: center; gap: 12px; }
+.topActions { display: flex; align-items: center; gap: 12px; justify-self: end; }
 .searchPill { background: #f4f1ed; padding: 10px 16px; border-radius: 999px; color: #878787; min-width: 250px; line-height: 1.15; text-align: left; }
 .utilityButton { min-height: 50px; }
 .utilityIconButton { width: 50px; min-width: 50px; justify-content: center; }
@@ -332,7 +334,10 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 }
 @media (max-width: 1100px) {
   .heroBanner, .twoCol, .catalogWrap, .editorLayout, .spaceLayout, .spaceLayout.compact, .quickViewContent { grid-template-columns: 1fr; }
-  .topbar { padding: 14px 24px; flex-wrap: wrap; }
+  .topbar { padding: 14px 24px; grid-template-columns: minmax(0, 1fr); }
+  .logoBtn { justify-self: start; }
+  .navlinks { position: static; left: auto; transform: none; justify-self: start; }
+  .topActions { justify-self: stretch; }
   .productGrid3, .collections, .hScrollProducts, .productRow, .recommendStrip { grid-template-columns: 1fr 1fr; }
   .floorplanViewport, .productRow, .reasonBox, .editorCanvasShell, .infoPills, .recommendStrip { width: 100%; }
   .heroCards { justify-content: flex-start; }
@@ -345,7 +350,7 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
   .subcopy { font-size: 14px; line-height: 1.62; }
   .topbar { padding: 14px 18px; }
   .logo { font-size: 24px; }
-  .navlinks { gap: 18px; width: 100%; order: 3; overflow: auto; }
+  .navlinks { grid-template-columns: repeat(3, minmax(112px, max-content)); column-gap: 18px; width: 100%; overflow: auto; }
   .topActions { width: 100%; justify-content: space-between; gap: 10px; }
   .searchPill { min-width: 0; flex: 1; font-size: 13px; }
   .cardStage, .catalogWrap { padding: 18px; }
