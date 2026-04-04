@@ -848,6 +848,48 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
               </button>
             ))}
           </div>
+          <label>우선 기준</label>
+          <div className="chipRow preferenceRow">
+            {priorityOptions.map((option) => (
+              <button
+                key={option.id}
+                className={form.priority === option.id ? 'solid' : ''}
+                onClick={() => setForm((current) => ({ ...current, priority: option.id }))}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <label>라이프스타일</label>
+          <div className="chipRow preferenceRow">
+            {lifestyleOptions.map((item) => {
+              const isSelected = form.lifestyle.includes(item)
+              return (
+                <button
+                  key={item}
+                  className={isSelected ? 'solid' : ''}
+                  onClick={() => setForm((current) => {
+                    if (item === '기본') {
+                      return { ...current, lifestyle: ['기본'] }
+                    }
+
+                    const nextLifestyle = current.lifestyle.filter((value) => value !== '기본')
+                    const updated = isSelected
+                      ? nextLifestyle.filter((value) => value !== item)
+                      : [...nextLifestyle, item]
+
+                    return {
+                      ...current,
+                      lifestyle: updated.length ? updated : ['기본'],
+                    }
+                  })}
+                >
+                  {item}
+                </button>
+              )
+            })}
+          </div>
+          <p className="fieldHint">선택한 우선 기준과 라이프스타일이 오른쪽 추천 결과 요약과 AI 코멘트에 바로 반영돼요.</p>
           <label>추가 요청</label>
           <textarea value={form.extraRequest} onChange={(event) => setForm((current) => ({ ...current, extraRequest: event.target.value }))} />
           <div className="footerButtons stackOnMobile aiFooterButtons">

@@ -125,8 +125,10 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .resultCard.selected { border-width: 2px; border-color: var(--accent); }
 .resultCard span { color: #8b8b8b; font-size: 13px; }
 .chipRow, .typeStrip, .tabRow, .sorts, .colorDots, .heroActions, .filterChips, .cardActions, .quickMeta { display: flex; flex-wrap: wrap; gap: 8px; }
+.preferenceRow { margin-bottom: 6px; }
 .chipRow button, .typeStrip button, .mini, .ghost, .tool, .sorts button, .searchPill, .metaToggle { border: 1px solid #dccfbe; background: white; color: #725d49; border-radius: 999px; padding: 10px 14px; }
 .chipRow button.solid, .typeStrip button.solid, .mini.solid, .tool.active, .ghost.dark, .sorts .solid, .metaToggle.on { background: var(--accent); color: white; border-color: var(--accent); }
+.fieldHint { margin: -2px 0 4px; font-size: 13px; line-height: 1.5; color: #8b7663; }
 .styleGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .styleBox { border: 2px solid #e8dfd5; border-radius: 14px; padding: 14px; text-align: center; display: grid; gap: 6px; color: #65584b; background: white; }
 .styleBox.selected { border-color: var(--accent); background: #faf7f1; }
