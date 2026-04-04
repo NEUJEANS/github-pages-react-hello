@@ -7,6 +7,7 @@
 - [x] Build locally
 - [x] Verify visually in browser on desktop viewport(s)
 - [x] Iterate if anything still feels cramped or over-stretched
-- [ ] Commit and push to GitHub
-- [ ] Confirm GitHub Pages deployment picked up the change
+- [x] Commit and push to GitHub
+- [x] Confirm GitHub Pages deployment picked up the change
+- [ ] Sync the updated production build into docs/ because Pages is serving main/docs
 - [ ] Verify the live site reflects the wider/fuller layout
