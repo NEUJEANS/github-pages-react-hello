@@ -1233,8 +1233,8 @@ function LoginModal({ state, engagement, reasons, onClose, onProceed }) {
                 <label>비밀번호</label>
                 <div className="inputWrap big">🔒<input type="password" placeholder="8자 이상 입력" /></div>
                 <div className="footerButtons stackOnMobile">
-                  <button className="ghost" onClick={onClose}>나중에 할게요</button>
-                  <button className="cta" onClick={onClose}>로그인 / 회원가입</button>
+                  <button className="ghost" onClick={onClose}>회원가입</button>
+                  <button className="cta" onClick={onClose}>로그인</button>
                 </div>
               </div>
             </>
