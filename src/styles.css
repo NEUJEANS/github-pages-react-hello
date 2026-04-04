@@ -54,11 +54,35 @@ button:active { transform: translateY(0); }
 .logo { font-family: 'Playfair Display', Georgia, serif; font-size: 30px; font-weight: 700; letter-spacing: -.03em; }
 .logoBtn, .navlinks button, .searchPill, .cart, .iconCat { appearance: none; border: 0; background: transparent; padding: 0; }
 .logoBtn { color: inherit; }
-.navlinks { display: flex; gap: 26px; align-items: center; }
-.navlinks button { color: #8b8b8b; text-decoration: none; font-size: 14px; line-height: 1; letter-spacing: -.01em; }
+.navlinks { display: flex; gap: 26px; align-items: center; align-self: stretch; }
+.navlinks button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  padding: 0;
+  color: #8b8b8b;
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: -.01em;
+}
+.navlinks button::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 999px;
+  background: transparent;
+}
 .topbar.dark .navlinks button { color: rgba(255,255,255,.55); }
-.navlinks button.active { color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 6px; font-weight: 700; }
-.topbar.dark .navlinks button.active { color: white; border-bottom-color: white; }
+.navlinks button.active { color: var(--accent); font-weight: 700; }
+.navlinks button.active::after { background: var(--accent); }
+.topbar.dark .navlinks button.active { color: white; }
+.topbar.dark .navlinks button.active::after { background: white; }
 .topActions { display: flex; align-items: center; gap: 12px; }
 .searchPill { background: #f4f1ed; padding: 10px 16px; border-radius: 999px; color: #878787; min-width: 250px; line-height: 1.15; text-align: left; }
 .utilityButton { min-height: 50px; }
