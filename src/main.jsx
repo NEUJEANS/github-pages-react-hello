@@ -987,16 +987,14 @@ function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearc
 
 function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary, onOpenLogin, trackFurniturePlacement }) {
   const selectedMeta = libraryItems.find((item) => item.id === editor.selected?.sourceId)
-  const categoryTabs = ['전체', '소파', '테이블', '수납', '소품', '조명']
   const [activeCategory, setActiveCategory] = React.useState('전체')
   const [librarySearch, setLibrarySearch] = React.useState('')
   const roomFrameRef = React.useRef(null)
 
-  const visibleLibrary = libraryItems.filter((item) => {
-    const matchesCategory = activeCategory === '전체' || item.category === activeCategory
-    const matchesSearch = `${item.name} ${item.category}`.toLowerCase().includes(librarySearch.toLowerCase())
-    return matchesCategory && matchesSearch
-  })
+  const visibleLibrary = React.useMemo(
+    () => buildVisibleLibrary(libraryItems, activeCategory, librarySearch),
+    [activeCategory, librarySearch],
+  )
 
   const handlePointerMove = React.useCallback((event) => {
     editor.updateDrag(event)
@@ -1030,7 +1028,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
         <aside className="editorSide left">
           <div className="sideHead"><h3>가구 라이브러리</h3><input value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="가구 검색" /></div>
           <div className="tabRow">
-            {categoryTabs.map((tab) => <button key={tab} className={`mini ${activeCategory === tab ? 'solid' : ''}`} onClick={() => setActiveCategory(tab)}>{tab}</button>)}
+            {layoutLibraryCategoryTabs.map((tab) => <button key={tab} className={`mini ${activeCategory === tab ? 'solid' : ''}`} onClick={() => setActiveCategory(tab)}>{tab}</button>)}
           </div>
           <div className="dragGrid">
             {visibleLibrary.map((item) => (
