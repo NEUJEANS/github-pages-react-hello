@@ -148,6 +148,21 @@ function buildInputBrief(form, spaceProfile) {
   }
 }
 
+function buildSelectedSpaceSummary(spaceIds) {
+  const selectedZones = baseZones.filter((zone) => spaceIds.includes(zone.id))
+  const primarySpace = selectedZones[0]?.name ?? '거실'
+  const primaryRoom = selectedZones.find((zone) => ['living', 'kitchen'].includes(zone.id))?.name
+    ?? (selectedZones.find((zone) => ['bed1', 'bed2'].includes(zone.id)) ? '침실' : '거실')
+
+  return {
+    chips: selectedZones.map((zone) => ({ id: zone.id, icon: zone.icon, name: zone.name })),
+    caption: selectedZones.length
+      ? `${primarySpace} 포함 ${selectedZones.length}개 공간이 현재 AI 추천과 배치 화면에 함께 연결돼 있어요.`
+      : '아직 연결된 공간이 없어요.',
+    primaryRoom,
+  }
+}
+
 function useSpaNavigation() {
   const [{ screen, overlay }, setState] = React.useState(() => getStateFromHash())
   const [direction, setDirection] = React.useState(0)
@@ -615,7 +630,14 @@ function App() {
   }), [aiForm, selectedApartment, spaceProfile])
   const aiSummary = buildRecommendationSummary(recommendationContext)
   const inputBrief = React.useMemo(() => buildInputBrief(aiForm, spaceProfile), [aiForm, spaceProfile])
+  const selectedSpaceSummary = React.useMemo(() => buildSelectedSpaceSummary(spaceProfile.spaces), [spaceProfile.spaces])
   const selectedBed = bedProducts.find((product) => product.id === quickView.product?.id)
+
+  React.useEffect(() => {
+    if (!selectedSpaceSummary.chips.length) return
+    const nextRoom = selectedSpaceSummary.primaryRoom
+    setAiForm((current) => current.room === nextRoom ? current : { ...current, room: nextRoom })
+  }, [selectedSpaceSummary])
 
   const filteredSearchResults = React.useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -694,6 +716,7 @@ function App() {
       setForm: setAiForm,
       brief: inputBrief,
       summary: aiSummary,
+      selectedSpaceSummary,
       onRecommend: () => {
         trackAiRequest()
         navigate('space')
@@ -819,7 +842,7 @@ function renderScreen(screen, props) {
   }
 }
 
-function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, brief, summary, onRecommend, onOpenLogin }) {
+function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, brief, summary, selectedSpaceSummary, onRecommend, onOpenLogin }) {
   const currentStyle = styleOptions.find((item) => item.id === form.style)
   const selectedApartment = apartmentSearchResults.find((item) => item.id === form.apartmentSelectionId)
   const apartmentLabel = brief.apartmentLabel || '아파트명을 선택해보세요'
@@ -849,6 +872,20 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
           <div className="resultCard">
             <strong>{selectedApartment ? (<><span className="apartmentBrand">{selectedApartment.brand}</span> <span>{selectedApartment.complex}</span></>) : apartmentLabel}</strong>
             <span>{apartmentMeta}</span>
+          </div>
+          <div className="spaceProfileCard">
+            <div className="spaceProfileCardHead">
+              <div>
+                <strong>연결된 공간 프로필</strong>
+                <p>{selectedSpaceSummary.caption}</p>
+              </div>
+              <button className="ghost minor" onClick={() => openOverlay('address')}>수정</button>
+            </div>
+            <div className="spaceProfileChips">
+              {selectedSpaceSummary.chips.map((zone) => (
+                <span key={zone.id} className="spaceProfileChip">{zone.icon} {zone.name}</span>
+              ))}
+            </div>
           </div>
           <label>공간 선택</label>
           <div className="chipRow">

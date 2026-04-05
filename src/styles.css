@@ -124,6 +124,12 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .resultCard { margin-top: 10px; padding: 16px; border: 1px solid #e6dbc8; background: #faf7f1; border-radius: 14px; display: flex; flex-direction: column; gap: 4px; }
 .resultCard.selected { border-width: 2px; border-color: var(--accent); }
 .resultCard span { color: #8b8b8b; font-size: 13px; }
+.spaceProfileCard { margin-top: 12px; padding: 16px; border: 1px solid #e6dbc8; background: linear-gradient(180deg, #fffdfa 0%, #f8f2ea 100%); border-radius: 16px; display: grid; gap: 12px; }
+.spaceProfileCardHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.spaceProfileCardHead strong { color: #5c4e40; }
+.spaceProfileCardHead p { margin: 4px 0 0; color: #8b7663; font-size: 13px; line-height: 1.5; }
+.spaceProfileChips { display: flex; flex-wrap: wrap; gap: 8px; }
+.spaceProfileChip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,.84); border: 1px solid #e4d8ca; color: #695d52; font-size: 13px; font-weight: 700; }
 .chipRow, .typeStrip, .tabRow, .sorts, .colorDots, .heroActions, .filterChips, .cardActions, .quickMeta { display: flex; flex-wrap: wrap; gap: 8px; }
 .preferenceRow { margin-bottom: 6px; }
 .chipRow button, .typeStrip button, .mini, .ghost, .tool, .sorts button, .searchPill, .metaToggle { border: 1px solid #dccfbe; background: white; color: #725d49; border-radius: 999px; padding: 10px 14px; }
