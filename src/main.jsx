@@ -46,6 +46,7 @@ import {
 import {
   buildEditorPalette,
   buildLayoutEditorActionButtons,
+  buildLayoutEditorHint,
   buildLayoutEditorInfoPills,
   buildLayoutEditorMovementNote,
   buildLayoutEditorSelectionSnapshot,
@@ -1019,6 +1020,10 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
     [selectedMeta],
   )
   const movementNote = React.useMemo(() => buildLayoutEditorMovementNote(), [])
+  const editorHint = React.useMemo(
+    () => buildLayoutEditorHint({ snapOn: editor.snapOn }),
+    [editor.snapOn],
+  )
 
   const handlePointerMove = React.useCallback((event) => {
     editor.updateDrag(event)
@@ -1106,8 +1111,8 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
               <span>{editor.notice}</span>
             </div>
             <div className="editorHintRow">
-              <span className="editorHintBadge">PRESS + DRAG / CLICK MOVE</span>
-              <p>가구를 누른 채 바로 끌어도 되고, ✋ 이동 툴에서 빈 공간을 클릭하면 선택한 가구가 부드럽게 이동해요. 스냅을 끄면 더 자유롭게 배치할 수 있어요.</p>
+              <span className="editorHintBadge">{editorHint.badge}</span>
+              <p>{editorHint.description}</p>
             </div>
             <div className="editorRoomFrame">
               <div className={`editorRoom ${editor.dragState ? 'is-dragging' : ''}`}>

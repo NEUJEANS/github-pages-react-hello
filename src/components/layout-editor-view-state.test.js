@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   buildEditorPalette,
   buildLayoutEditorActionButtons,
+  buildLayoutEditorHint,
   buildLayoutEditorInfoPills,
   buildLayoutEditorMovementNote,
   buildLayoutEditorSelectionSnapshot,
@@ -11,6 +12,7 @@ import {
   buildPlacedItemClassName,
   buildPlacedItemStyle,
   defaultEditorColors,
+  defaultLayoutEditorHintBadge,
   defaultLayoutEditorMovementNote,
   defaultPlacedItemBlurb,
   defaultPlacedItemColor,
@@ -101,6 +103,18 @@ test('buildLayoutEditorInfoPills summarizes snap mode and placed item count', ()
     '자유 이동',
     '배치 가구 0개',
   ])
+})
+
+test('buildLayoutEditorHint adjusts the helper copy for snap mode', () => {
+  assert.deepEqual(buildLayoutEditorHint({ snapOn: true }), {
+    badge: defaultLayoutEditorHintBadge,
+    description: '가구를 누른 채 바로 끌어도 되고, ✋ 이동 툴에서 빈 공간을 클릭하면 선택한 가구가 부드럽게 이동해요. 스냅을 끄면 더 자유롭게 배치할 수 있어요.',
+  })
+
+  assert.deepEqual(buildLayoutEditorHint({ snapOn: false }), {
+    badge: defaultLayoutEditorHintBadge,
+    description: '가구를 누른 채 바로 끌거나 ✋ 이동 툴에서 빈 공간을 클릭해 움직일 수 있어요. 지금은 스냅이 꺼져 있어서 더 자유롭게 배치됩니다.',
+  })
 })
 
 test('buildLayoutEditorSelectionSnapshot exposes stable property-panel copy and fallbacks', () => {

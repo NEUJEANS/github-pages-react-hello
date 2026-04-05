@@ -1,6 +1,7 @@
 export const defaultEditorColors = ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355']
 export const defaultPlacedItemColor = '#e6d7bf'
 export const defaultPlacedItemBlurb = '선택한 오브젝트의 활용 팁이 여기에 표시됩니다.'
+export const defaultLayoutEditorHintBadge = 'PRESS + DRAG / CLICK MOVE'
 export const defaultLayoutEditorMovementNote =
   '직접 드래그는 그대로 유지하고, ✋ 이동 툴에서는 빈 공간 클릭 시 선택 가구가 부드럽게 이동합니다. Undo와 스냅 토글도 그대로 유지했어요.'
 
@@ -49,6 +50,15 @@ export function buildLayoutEditorInfoPills({ snapOn, itemCount }) {
     snapOn ? '스냅 ON' : '자유 이동',
     `배치 가구 ${itemCount}개`,
   ]
+}
+
+export function buildLayoutEditorHint({ snapOn }) {
+  return {
+    badge: defaultLayoutEditorHintBadge,
+    description: snapOn
+      ? '가구를 누른 채 바로 끌어도 되고, ✋ 이동 툴에서 빈 공간을 클릭하면 선택한 가구가 부드럽게 이동해요. 스냅을 끄면 더 자유롭게 배치할 수 있어요.'
+      : '가구를 누른 채 바로 끌거나 ✋ 이동 툴에서 빈 공간을 클릭해 움직일 수 있어요. 지금은 스냅이 꺼져 있어서 더 자유롭게 배치됩니다.',
+  }
 }
 
 export function buildLayoutEditorSelectionSnapshot(selectedItem, selectedMeta) {
