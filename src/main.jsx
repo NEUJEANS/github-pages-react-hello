@@ -124,9 +124,9 @@ function buildRecommendationSummary({ apartmentType, room, style, priority, life
   return `${apartmentType} ${room} 기준, ${styleLabel} 톤을 유지하면서 ${priorityLabel}로 ${lifestyleLabel} ${requestLabel} 방향의 추천안입니다.`
 }
 
-function buildInputBrief(form) {
-  const apartment = apartmentSearchResults.find((item) => item.id === form.apartmentSelectionId)
-  const apartmentLabel = apartment ? formatApartmentOption(apartment) : form.apartmentQuery
+function buildInputBrief(form, spaceProfile) {
+  const apartment = apartmentSearchResults.find((item) => item.id === spaceProfile.apartmentSelectionId)
+  const apartmentLabel = apartment ? formatApartmentOption(apartment) : spaceProfile.query
   const styleLabel = styleOptions.find((item) => item.id === form.style)?.label ?? '미니멀'
   const priorityLabel = priorityOptions.find((item) => item.id === form.priority)?.label ?? '채광/동선 우선'
   const lifestyleLabel = form.lifestyle.length ? form.lifestyle.join(', ') : '기본'
@@ -135,7 +135,7 @@ function buildInputBrief(form) {
     apartmentLabel,
     apartmentMeta: apartment
       ? [apartment.areaLabel, apartment.unitLabel, apartment.layoutLabel, apartment.variantLabel].join(' · ')
-      : `${form.apartmentType} · 공간 정보 확인 필요`,
+      : `${spaceProfile.apartmentType} · 공간 정보 확인 필요`,
     styleLabel,
     priorityLabel,
     lifestyleLabel,
@@ -574,20 +574,17 @@ function App() {
   const [searchDrawerOpen, setSearchDrawerOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
   const [aiForm, setAiForm] = React.useState({
-    apartmentQuery: formatApartmentOption(apartmentSearchResults[0]),
-    apartmentType: apartmentSearchResults[0].unitLabel,
-    apartmentSelectionId: apartmentSearchResults[0].id,
     room: '거실',
     style: 'minimal',
     priority: 'flow',
     lifestyle: ['기본'],
     extraRequest: '아이보리/우드 톤으로 따뜻하게, 반려식물과 패브릭 위주로 꾸미고 싶어요.',
   })
-  const [selectedSpaces, setSelectedSpaces] = React.useState(() => baseZones.filter((zone) => zone.selected).map((zone) => zone.id))
-  const [addressForm, setAddressForm] = React.useState({
+  const [spaceProfile, setSpaceProfile] = React.useState({
     query: '서울 성동구 성수이로 123 HAVENLY Apartments',
-    apartmentType: '84A',
-    spaces: ['living', 'bed1'],
+    apartmentType: apartmentSearchResults[0].unitLabel,
+    apartmentSelectionId: apartmentSearchResults[0].id,
+    spaces: baseZones.filter((zone) => zone.selected).map((zone) => zone.id),
   })
   const [bedFilters, setBedFilters] = React.useState({
     search: '',
@@ -601,8 +598,18 @@ function App() {
   const [loginModalState, setLoginModalState] = React.useState('closed')
   const [engagement, setEngagement] = React.useState(initialEngagement)
 
-  const aiSummary = buildRecommendationSummary(aiForm)
-  const inputBrief = React.useMemo(() => buildInputBrief(aiForm), [aiForm])
+  const selectedApartment = React.useMemo(
+    () => apartmentSearchResults.find((item) => item.id === spaceProfile.apartmentSelectionId) ?? null,
+    [spaceProfile.apartmentSelectionId],
+  )
+  const recommendationContext = React.useMemo(() => ({
+    ...aiForm,
+    apartmentType: spaceProfile.apartmentType,
+    apartmentQuery: selectedApartment ? formatApartmentOption(selectedApartment) : spaceProfile.query,
+    apartmentSelectionId: spaceProfile.apartmentSelectionId,
+  }), [aiForm, selectedApartment, spaceProfile])
+  const aiSummary = buildRecommendationSummary(recommendationContext)
+  const inputBrief = React.useMemo(() => buildInputBrief(aiForm, spaceProfile), [aiForm, spaceProfile])
   const selectedBed = bedProducts.find((product) => product.id === quickView.product?.id)
 
   const filteredSearchResults = React.useMemo(() => {
@@ -688,12 +695,15 @@ function App() {
       },
     },
     space: {
-      selectedSpaces,
-      setSelectedSpaces,
+      selectedSpaces: spaceProfile.spaces,
+      setSelectedSpaces: (updater) => setSpaceProfile((current) => ({
+        ...current,
+        spaces: typeof updater === 'function' ? updater(current.spaces) : updater,
+      })),
     },
     layout: {
       editor,
-      addressSummary: `${addressForm.apartmentType} · ${addressForm.spaces.length}개 공간 선택`,
+      addressSummary: `${spaceProfile.apartmentType} · ${spaceProfile.spaces.length}개 공간 선택`,
     },
     beds: {
       filters: bedFilters,
@@ -721,9 +731,8 @@ function App() {
               <AddressSetupScreen
                 navigate={navigate}
                 closeOverlay={closeOverlay}
-                addressForm={addressForm}
-                setAddressForm={setAddressForm}
-                selectedSpaces={selectedSpaces}
+                spaceProfile={spaceProfile}
+                setSpaceProfile={setSpaceProfile}
                 trackBoardProgress={trackBoardProgress}
               />
             </div>
@@ -804,10 +813,8 @@ function renderScreen(screen, props) {
 function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, brief, summary, onRecommend, onOpenLogin }) {
   const currentStyle = styleOptions.find((item) => item.id === form.style)
   const selectedApartment = apartmentSearchResults.find((item) => item.id === form.apartmentSelectionId)
-  const apartmentLabel = selectedApartment ? formatApartmentOption(selectedApartment) : (form.apartmentQuery || '아파트명을 선택해보세요')
-  const apartmentMeta = selectedApartment
-    ? [selectedApartment.areaLabel, selectedApartment.unitLabel, selectedApartment.layoutLabel, selectedApartment.variantLabel].join(' · ')
-    : `전용 84㎡ · ${form.apartmentType} · 4Bay · 거실 확장형`
+  const apartmentLabel = brief.apartmentLabel || '아파트명을 선택해보세요'
+  const apartmentMeta = brief.apartmentMeta || `전용 84㎡ · ${form.apartmentType} · 4Bay · 거실 확장형`
 
   return (
     <div className="screenCanvas warmBg">
@@ -1126,8 +1133,13 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
   )
 }
 
-function AddressSetupScreen({ navigate, closeOverlay, addressForm, setAddressForm, trackBoardProgress }) {
+function AddressSetupScreen({ navigate, closeOverlay, spaceProfile, setSpaceProfile, trackBoardProgress }) {
   const overlayZones = baseZones.filter((zone) => ['living', 'kitchen', 'bed1', 'bed2'].includes(zone.id))
+  const selectedApartment = apartmentSearchResults.find((item) => item.id === spaceProfile.apartmentSelectionId)
+  const apartmentLabel = selectedApartment ? formatApartmentOption(selectedApartment) : (spaceProfile.query || '주소를 입력해보세요')
+  const apartmentMeta = selectedApartment
+    ? [selectedApartment.areaLabel, selectedApartment.unitLabel, selectedApartment.layoutLabel, selectedApartment.variantLabel].join(' · ')
+    : '실측 평면도 · 거실/침실/주방 데이터 제공'
 
   return (
     <div className="setupCard">
@@ -1135,22 +1147,38 @@ function AddressSetupScreen({ navigate, closeOverlay, addressForm, setAddressFor
       <div className="setupInner">
         <div className="progressBar"><span className="fill half" /></div>
         <h2>배치하기 전에 공간 정보를 불러올게요</h2>
-        <p className="muted">주소/타입/시작 공간을 오버레이 안에서 바로 수정할 수 있게 정리했습니다.</p>
+        <p className="muted">AI 추천 화면과 같은 아파트/공간 상태를 여기서 바로 바꾸면 배치 화면에도 즉시 반영됩니다.</p>
         <label>아파트 또는 주소 검색</label>
-        <div className="inputWrap big">🔎<input value={addressForm.query} onChange={(event) => setAddressForm((current) => ({ ...current, query: event.target.value }))} /></div>
-        <div className="resultCard selected"><strong>{addressForm.query || '주소를 입력해보세요'}</strong><span>실측 평면도 · 거실/침실/주방 데이터 제공</span></div>
-        <div className="typeStrip">{apartmentTypes.map((type) => <button key={type} className={addressForm.apartmentType === type ? 'solid' : ''} onClick={() => setAddressForm((current) => ({ ...current, apartmentType: type }))}>{type}</button>)}</div>
+        <div className="inputWrap big">🔎<input value={spaceProfile.query} onChange={(event) => setSpaceProfile((current) => ({ ...current, query: event.target.value }))} /></div>
+        <div className="chipRow preferenceRow">
+          {apartmentSearchResults.map((option) => (
+            <button
+              key={option.id}
+              className={spaceProfile.apartmentSelectionId === option.id ? 'solid' : ''}
+              onClick={() => setSpaceProfile((current) => ({
+                ...current,
+                query: formatApartmentOption(option),
+                apartmentType: option.unitLabel,
+                apartmentSelectionId: option.id,
+              }))}
+            >
+              {formatApartmentOption(option)}
+            </button>
+          ))}
+        </div>
+        <div className="resultCard selected"><strong>{apartmentLabel}</strong><span>{apartmentMeta}</span></div>
+        <div className="typeStrip">{apartmentTypes.map((type) => <button key={type} className={spaceProfile.apartmentType === type ? 'solid' : ''} onClick={() => setSpaceProfile((current) => ({ ...current, apartmentType: type }))}>{type}</button>)}</div>
         <div className="spaceLayout compact">
           <div className="planBoard small">
             {overlayZones.map((zone) => (
-              <button key={zone.id} className={`zone ${zone.className} ${addressForm.spaces.includes(zone.id) ? 'selected' : ''}`} onClick={() => { trackBoardProgress(); setAddressForm((current) => ({ ...current, spaces: current.spaces.includes(zone.id) ? current.spaces.filter((id) => id !== zone.id) : [...current.spaces, zone.id] })) }}>
+              <button key={zone.id} className={`zone ${zone.className} ${spaceProfile.spaces.includes(zone.id) ? 'selected' : ''}`} onClick={() => { trackBoardProgress(); setSpaceProfile((current) => ({ ...current, spaces: current.spaces.includes(zone.id) ? (current.spaces.length === 1 ? current.spaces : current.spaces.filter((id) => id !== zone.id)) : [...current.spaces, zone.id] })) }}>
                 <b>{zone.icon}</b><span>{zone.name}</span>
               </button>
             ))}
           </div>
           <aside className="selectionPanel narrow">
             <h3>시작할 공간</h3>
-            {overlayZones.filter((zone) => addressForm.spaces.includes(zone.id)).map((zone) => (
+            {overlayZones.filter((zone) => spaceProfile.spaces.includes(zone.id)).map((zone) => (
               <div className="selectionItem" key={zone.id}><span>{zone.icon}</span><div><strong>{zone.name}</strong><small>{zone.size}</small></div></div>
             ))}
           </aside>
