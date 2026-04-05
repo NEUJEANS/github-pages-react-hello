@@ -44,13 +44,10 @@ import {
   resolveSearchPickMode,
 } from './components/product-flow-state.js'
 import {
-  buildLayoutEditorActionButtons,
   buildLayoutEditorActionCommands,
-  buildLayoutEditorColorOptions,
   buildLayoutEditorHint,
   buildLayoutEditorInfoPills,
-  buildLayoutEditorMovementNote,
-  buildLayoutEditorSelectionSnapshot,
+  buildLayoutEditorPropertyPanelState,
   buildLayoutEditorToolbarButtons,
   buildLayoutEditorToolbarCommands,
   buildPlacedItemClassName,
@@ -1018,19 +1015,10 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
     }),
     [editor.items.length, editor.snapOn],
   )
-  const selectionSnapshot = React.useMemo(
-    () => buildLayoutEditorSelectionSnapshot(editor.selected, selectedMeta),
+  const propertyPanelState = React.useMemo(
+    () => buildLayoutEditorPropertyPanelState(editor.selected, selectedMeta),
     [editor.selected, selectedMeta],
   )
-  const actionButtons = React.useMemo(
-    () => buildLayoutEditorActionButtons(Boolean(selectedMeta)),
-    [selectedMeta],
-  )
-  const colorOptions = React.useMemo(
-    () => buildLayoutEditorColorOptions(selectedMeta, selectionSnapshot.selectedColorIndex),
-    [selectedMeta, selectionSnapshot.selectedColorIndex],
-  )
-  const movementNote = React.useMemo(() => buildLayoutEditorMovementNote(), [])
   const editorHint = React.useMemo(
     () => buildLayoutEditorHint({ snapOn: editor.snapOn }),
     [editor.snapOn],
@@ -1183,13 +1171,13 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
         </div>
         <aside className="editorSide right">
           <div className="sideHead"><h3>속성 패널</h3></div>
-          <div className="propBlock"><label>선택 오브젝트</label><strong>{selectionSnapshot.selectedName}</strong></div>
-          <div className="propBlock"><label>위치</label><div className="split"><span>X {selectionSnapshot.position.x}</span><span>Y {selectionSnapshot.position.y}</span></div></div>
-          <div className="propBlock"><label>컬러</label><div className="colorDots">{colorOptions.map((option) => <button key={option.color} className={`colorDot ${option.isActive ? 'active' : ''}`} style={{ background: option.color }} onClick={() => editor.setSelectedColor(option.index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
-          <div className="propBlock"><label>배치 메모</label><p>{selectionSnapshot.selectedBlurb}</p></div>
-          <div className="propBlock"><label>이동 방식</label><p>{movementNote}</p></div>
+          <div className="propBlock"><label>선택 오브젝트</label><strong>{propertyPanelState.selectionSnapshot.selectedName}</strong></div>
+          <div className="propBlock"><label>위치</label><div className="split"><span>X {propertyPanelState.selectionSnapshot.position.x}</span><span>Y {propertyPanelState.selectionSnapshot.position.y}</span></div></div>
+          <div className="propBlock"><label>컬러</label><div className="colorDots">{propertyPanelState.colorOptions.map((option) => <button key={option.color} className={`colorDot ${option.isActive ? 'active' : ''}`} style={{ background: option.color }} onClick={() => editor.setSelectedColor(option.index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
+          <div className="propBlock"><label>배치 메모</label><p>{propertyPanelState.selectionSnapshot.selectedBlurb}</p></div>
+          <div className="propBlock"><label>이동 방식</label><p>{propertyPanelState.movementNote}</p></div>
           <div className="propBlock actionBlock">
-            {actionButtons.map((button) => (
+            {propertyPanelState.actionButtons.map((button) => (
               <button
                 key={button.id}
                 className={button.tone}

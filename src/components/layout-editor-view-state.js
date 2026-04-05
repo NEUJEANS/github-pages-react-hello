@@ -132,3 +132,14 @@ export function buildLayoutEditorActionCommands(action) {
 export function buildLayoutEditorMovementNote() {
   return defaultLayoutEditorMovementNote
 }
+
+export function buildLayoutEditorPropertyPanelState(selectedItem, selectedMeta) {
+  const selectionSnapshot = buildLayoutEditorSelectionSnapshot(selectedItem, selectedMeta)
+
+  return {
+    selectionSnapshot,
+    colorOptions: buildLayoutEditorColorOptions(selectedMeta, selectionSnapshot.selectedColorIndex),
+    movementNote: buildLayoutEditorMovementNote(),
+    actionButtons: buildLayoutEditorActionButtons(Boolean(selectedMeta)),
+  }
+}

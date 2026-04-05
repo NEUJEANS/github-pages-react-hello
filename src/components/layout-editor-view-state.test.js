@@ -9,6 +9,7 @@ import {
   buildLayoutEditorHint,
   buildLayoutEditorInfoPills,
   buildLayoutEditorMovementNote,
+  buildLayoutEditorPropertyPanelState,
   buildLayoutEditorSelectionSnapshot,
   buildLayoutEditorToolbarButtons,
   buildLayoutEditorToolbarCommands,
@@ -212,4 +213,38 @@ test('buildLayoutEditorActionCommands exposes stable property-panel command sequ
 
 test('buildLayoutEditorMovementNote returns the stable movement guidance copy', () => {
   assert.equal(buildLayoutEditorMovementNote(), defaultLayoutEditorMovementNote)
+})
+
+test('buildLayoutEditorPropertyPanelState composes selection, color, movement, and action state for the property panel', () => {
+  assert.deepEqual(
+    buildLayoutEditorPropertyPanelState(
+      { name: '코튼베이지 모듈 소파', x: 43.6, y: 27.2, colorIndex: 2 },
+      {
+        blurb: '동선 확보가 쉬운 모듈형 구성이에요.',
+        colors: ['#111111', '#222222', '#333333'],
+      },
+    ),
+    {
+      selectionSnapshot: {
+        selectedName: '코튼베이지 모듈 소파',
+        position: { x: 44, y: 27 },
+        selectedColorIndex: 2,
+        selectedBlurb: '동선 확보가 쉬운 모듈형 구성이에요.',
+      },
+      colorOptions: [
+        { color: '#111111', index: 0, isActive: false },
+        { color: '#222222', index: 1, isActive: false },
+        { color: '#333333', index: 2, isActive: true },
+      ],
+      movementNote: defaultLayoutEditorMovementNote,
+      actionButtons: [
+        { id: 'browse-more', label: '가구 더 보기', tone: 'cta', action: 'navigate-beds', disabled: false },
+        { id: 'reselect-space', label: '공간 다시 선택', tone: 'ghost', action: 'open-address-overlay', disabled: false },
+        { id: 'add-selected-to-cart', label: '선택 가구 담기', tone: 'ghost', action: 'add-selected-to-cart', disabled: false },
+        { id: 'reset-layout', label: '초기 배치 복원', tone: 'ghost', action: 'reset-layout', disabled: false },
+      ],
+    },
+  )
+
+  assert.equal(buildLayoutEditorPropertyPanelState(undefined, undefined).actionButtons[2].disabled, true)
 })
