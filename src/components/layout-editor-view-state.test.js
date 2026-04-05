@@ -154,12 +154,12 @@ test('buildLayoutEditorSelectionSnapshot exposes stable property-panel copy and 
 })
 
 
-test('buildLayoutEditorActionButtons disables add-to-cart until a selection exists', () => {
+test('buildLayoutEditorActionButtons exposes action metadata and disables add-to-cart until a selection exists', () => {
   assert.deepEqual(buildLayoutEditorActionButtons(true), [
-    { id: 'browse-more', label: '가구 더 보기', tone: 'cta', disabled: false },
-    { id: 'reselect-space', label: '공간 다시 선택', tone: 'ghost', disabled: false },
-    { id: 'add-selected-to-cart', label: '선택 가구 담기', tone: 'ghost', disabled: false },
-    { id: 'reset-layout', label: '초기 배치 복원', tone: 'ghost', disabled: false },
+    { id: 'browse-more', label: '가구 더 보기', tone: 'cta', action: 'navigate-beds', disabled: false },
+    { id: 'reselect-space', label: '공간 다시 선택', tone: 'ghost', action: 'open-address-overlay', disabled: false },
+    { id: 'add-selected-to-cart', label: '선택 가구 담기', tone: 'ghost', action: 'add-selected-to-cart', disabled: false },
+    { id: 'reset-layout', label: '초기 배치 복원', tone: 'ghost', action: 'reset-layout', disabled: false },
   ])
 
   assert.equal(buildLayoutEditorActionButtons(false)[2].disabled, true)

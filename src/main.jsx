@@ -1183,19 +1183,19 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
                 className={button.tone}
                 disabled={button.disabled}
                 onClick={() => {
-                  if (button.id === 'browse-more') {
+                  if (button.action === 'navigate-beds') {
                     navigate('beds')
                     return
                   }
-                  if (button.id === 'reselect-space') {
+                  if (button.action === 'open-address-overlay') {
                     openOverlay('address')
                     return
                   }
-                  if (button.id === 'add-selected-to-cart') {
+                  if (button.action === 'add-selected-to-cart') {
                     if (selectedMeta) addToCart(selectedMeta)
                     return
                   }
-                  if (button.id === 'reset-layout') {
+                  if (button.action === 'reset-layout') {
                     editor.reset()
                   }
                 }}
