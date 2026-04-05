@@ -262,14 +262,18 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .quickViewPanel { width: min(720px, calc(100% - 36px)); height: auto; border-radius: 24px; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.16); }
 .drawerBody { padding: 18px 20px 24px; display: grid; gap: 16px; }
 .searchResults, .cartList { display: grid; gap: 10px; }
-.searchResult, .cartItem { display: flex; justify-content: space-between; gap: 12px; align-items: center; border: 1px solid #ece3d8; border-radius: 14px; padding: 14px; background: #faf7f1; }
+.searchResult, .cartItem { display: flex; justify-content: space-between; gap: 12px; align-items: center; border: 1px solid #ece3d8; border-radius: 14px; padding: 14px; background: #faf7f1; text-align: left; }
 .searchResult span { font-size: 28px; }
 .searchResult strong, .searchResult small, .cartItem strong, .cartItem small { display: block; }
+.searchResult > div { flex: 1; min-width: 0; }
+.searchResult > small { white-space: nowrap; font-weight: 700; }
 .searchResult small, .cartItem small { color: #8b8177; }
 .qtyStepper { display: flex; align-items: center; gap: 8px; }
 .qtyStepper button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #d6c6b4; background: white; }
 .cartSummary { display: flex; justify-content: space-between; padding-top: 6px; border-top: 1px solid #eee5da; font-weight: 800; }
 .emptyState { min-height: 320px; display: grid; place-items: center; text-align: center; color: #6b645c; padding: 24px; }
+.emptyState.compact { min-height: 180px; border: 1px dashed #dfd2c4; border-radius: 18px; background: #fbf8f3; }
+.emptyState p { margin: 10px 0 0; line-height: 1.6; }
 .emptyEmoji { font-size: 46px; }
 .quickViewContent { padding: 24px; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 22px; align-items: start; }
 .quickHero { min-height: 220px; border-radius: 24px; background: #f7f0e7; display: grid; place-items: center; font-size: 82px; }

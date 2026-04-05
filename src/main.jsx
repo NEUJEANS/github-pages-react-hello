@@ -1289,7 +1289,7 @@ function CartDrawer({ cart, onClose }) {
   )
 }
 
-function SearchDrawer({ query, setQuery, results, onClose, onPick }) {
+function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, onPick }) {
   return (
     <div className="drawerLayer" role="dialog" aria-modal="true">
       <div className="overlayScrim" onClick={onClose} />
@@ -1298,10 +1298,19 @@ function SearchDrawer({ query, setQuery, results, onClose, onPick }) {
         <div className="drawerBody">
           <div className="inputWrap big">🔎<input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="가구명, 소재, 카테고리를 검색해보세요" /></div>
           <div className="searchResults">
-            {results.map((item) => (
+            {isEmpty ? (
+              <div className="emptyState compact">
+                <div>
+                  <div className="emptyEmoji">🔎</div>
+                  <strong>{`"${queryLabel}"에 맞는 결과가 아직 없어요`}</strong>
+                  <p>가구명, 소재, 컬러 키워드로 다시 찾아보거나 검색어를 지워 전체 추천을 확인해보세요.</p>
+                </div>
+              </div>
+            ) : results.map((item) => (
               <button key={item.id} className="searchResult" onClick={() => onPick(item)}>
                 <span>{item.emoji}</span>
-                <div><strong>{item.name}</strong><small>{item.priceLabel ?? formatPrice(item.price)}</small></div>
+                <div><strong>{item.name}</strong><small>{item.searchMeta || item.priceLabel || formatPrice(item.price)}</small></div>
+                <small>{item.priceLabel ?? formatPrice(item.price)}</small>
               </button>
             ))}
           </div>
