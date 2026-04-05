@@ -15,6 +15,11 @@ import { buildSearchDrawerState } from './components/search-drawer.js'
 import { buildFilteredBedProducts } from './components/bed-filter-state.js'
 import { toggleWishlistId } from './components/wishlist-state.js'
 import {
+  addCartItem,
+  buildCartTotals,
+  updateCartItemQty,
+} from './components/cart-state.js'
+import {
   buildLayoutAddressSummary,
   buildRecommendationContext,
   buildSelectedApartment,
@@ -206,27 +211,16 @@ function useCart() {
   const [items, setItems] = React.useState([])
 
   const addItem = React.useCallback((product) => {
-    setItems((current) => {
-      const existing = current.find((item) => item.id === product.id)
-      if (existing) {
-        return current.map((item) => item.id === product.id ? { ...item, qty: item.qty + 1 } : item)
-      }
-      return [...current, { ...product, qty: 1 }]
-    })
+    setItems((current) => addCartItem(current, product))
     setIsOpen(true)
   }, [])
 
   const updateQty = React.useCallback((id, delta) => {
-    setItems((current) => current.flatMap((item) => {
-      if (item.id !== id) return [item]
-      const nextQty = item.qty + delta
-      return nextQty <= 0 ? [] : [{ ...item, qty: nextQty }]
-    }))
+    setItems((current) => updateCartItemQty(current, id, delta))
   }, [])
 
   const clear = React.useCallback(() => setItems([]), [])
-  const count = items.reduce((sum, item) => sum + item.qty, 0)
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0)
+  const { count, subtotal } = buildCartTotals(items)
 
   return { isOpen, setIsOpen, items, addItem, updateQty, clear, count, subtotal }
 }
