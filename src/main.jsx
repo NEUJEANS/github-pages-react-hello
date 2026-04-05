@@ -13,6 +13,12 @@ import { buildSelectedSpaceSummary } from './components/space-summary.js'
 import { buildLoginGuardSnapshot } from './components/login-guard.js'
 import { buildSearchDrawerState } from './components/search-drawer.js'
 import { buildFilteredBedProducts } from './components/bed-filter-state.js'
+import {
+  buildLayoutAddressSummary,
+  buildRecommendationContext,
+  buildSelectedApartment,
+  resolveAiRoomSelection,
+} from './components/app-state.js'
 import './styles.css'
 
 const initialEngagement = {
@@ -585,14 +591,14 @@ function App() {
   const [engagement, setEngagement] = React.useState(initialEngagement)
 
   const selectedApartment = React.useMemo(
-    () => apartmentSearchResults.find((item) => item.id === spaceProfile.apartmentSelectionId) ?? null,
+    () => buildSelectedApartment(apartmentSearchResults, spaceProfile.apartmentSelectionId),
     [spaceProfile.apartmentSelectionId],
   )
-  const recommendationContext = React.useMemo(() => ({
-    ...aiForm,
-    apartmentType: spaceProfile.apartmentType,
-    apartmentQuery: selectedApartment ? formatApartmentOption(selectedApartment) : spaceProfile.query,
-    apartmentSelectionId: spaceProfile.apartmentSelectionId,
+  const recommendationContext = React.useMemo(() => buildRecommendationContext({
+    aiForm,
+    spaceProfile,
+    selectedApartment,
+    formatApartmentOption,
   }), [aiForm, selectedApartment, spaceProfile])
   const aiSummary = React.useMemo(() => buildRecommendationSummary({
     ...recommendationContext,
@@ -614,13 +620,8 @@ function App() {
   const selectedBed = bedProducts.find((product) => product.id === quickView.product?.id)
 
   React.useEffect(() => {
-    if (!selectedSpaceSummary.chips.length) return
-
     setAiForm((current) => {
-      const nextRoom = selectedSpaceSummary.availableRooms.includes(current.room)
-        ? current.room
-        : selectedSpaceSummary.primaryRoom
-
+      const nextRoom = resolveAiRoomSelection(current.room, selectedSpaceSummary)
       return current.room === nextRoom ? current : { ...current, room: nextRoom }
     })
   }, [selectedSpaceSummary])
@@ -707,7 +708,7 @@ function App() {
     },
     layout: {
       editor,
-      addressSummary: `${spaceProfile.apartmentType} · ${spaceProfile.spaces.length}개 공간 선택`,
+      addressSummary: buildLayoutAddressSummary(spaceProfile),
     },
     beds: {
       filters: bedFilters,
