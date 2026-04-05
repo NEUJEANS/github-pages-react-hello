@@ -30,6 +30,11 @@ import {
   getDirectionalTransition,
   parseHashState,
 } from './components/navigation-state.js'
+import {
+  buildLayoutProduct,
+  resolveQuickViewProduct,
+  resolveSearchPickMode,
+} from './components/product-flow-state.js'
 import './styles.css'
 
 const initialEngagement = {
@@ -578,7 +583,10 @@ function App() {
     () => buildSelectedSpaceSummary(baseZones, roomOptions, spaceProfile.spaces),
     [spaceProfile.spaces],
   )
-  const selectedBed = bedProducts.find((product) => product.id === quickView.product?.id)
+  const selectedBed = React.useMemo(
+    () => resolveQuickViewProduct(bedProducts, quickView.product),
+    [quickView.product],
+  )
 
   React.useEffect(() => {
     setAiForm((current) => {
@@ -726,7 +734,7 @@ function App() {
             onClose={() => setSearchDrawerOpen(false)}
             onPick={(product) => {
               setSearchDrawerOpen(false)
-              if (product.material) quickView.open(product)
+              if (resolveSearchPickMode(product) === 'quickView') quickView.open(product)
               else cart.addItem(product)
             }}
           />
@@ -751,10 +759,7 @@ function App() {
               quickView.close()
             }}
             onApplyToLayout={(product) => {
-              editor.addLibraryItem({
-                ...product,
-                category: product.material ? '침대' : product.category,
-              })
+              editor.addLibraryItem(buildLayoutProduct(product))
               trackFurniturePlacement()
               quickView.close()
               navigate('layout')
