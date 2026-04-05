@@ -153,6 +153,13 @@ function buildSelectedSpaceSummary(spaceIds) {
   const primarySpace = selectedZones[0]?.name ?? '거실'
   const primaryRoom = selectedZones.find((zone) => ['living', 'kitchen'].includes(zone.id))?.name
     ?? (selectedZones.find((zone) => ['bed1', 'bed2'].includes(zone.id)) ? '침실' : '거실')
+  const availableRooms = roomOptions.filter((room) => {
+    if (room === '거실') return spaceIds.includes('living')
+    if (room === '주방') return spaceIds.includes('kitchen')
+    if (room === '침실') return spaceIds.some((id) => ['bed1', 'bed2'].includes(id))
+    if (room === '서재') return spaceIds.includes('bed2')
+    return false
+  })
 
   return {
     chips: selectedZones.map((zone) => ({ id: zone.id, icon: zone.icon, name: zone.name })),
@@ -160,6 +167,7 @@ function buildSelectedSpaceSummary(spaceIds) {
       ? `${primarySpace} 포함 ${selectedZones.length}개 공간이 현재 AI 추천과 배치 화면에 함께 연결돼 있어요.`
       : '아직 연결된 공간이 없어요.',
     primaryRoom,
+    availableRooms: availableRooms.length ? availableRooms : ['거실'],
   }
 }
 
@@ -635,8 +643,14 @@ function App() {
 
   React.useEffect(() => {
     if (!selectedSpaceSummary.chips.length) return
-    const nextRoom = selectedSpaceSummary.primaryRoom
-    setAiForm((current) => current.room === nextRoom ? current : { ...current, room: nextRoom })
+
+    setAiForm((current) => {
+      const nextRoom = selectedSpaceSummary.availableRooms.includes(current.room)
+        ? current.room
+        : selectedSpaceSummary.primaryRoom
+
+      return current.room === nextRoom ? current : { ...current, room: nextRoom }
+    })
   }, [selectedSpaceSummary])
 
   const filteredSearchResults = React.useMemo(() => {
@@ -843,6 +857,11 @@ function renderScreen(screen, props) {
 }
 
 function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, brief, summary, selectedSpaceSummary, onRecommend, onOpenLogin }) {
+  const availableRooms = selectedSpaceSummary.availableRooms ?? roomOptions
+  const unavailableRoomCount = roomOptions.length - availableRooms.length
+  const roomHint = unavailableRoomCount > 0
+    ? `연결된 공간 프로필에 맞춰 ${availableRooms.join(' · ')} 추천만 바로 선택할 수 있어요.`
+    : '연결된 공간 프로필과 AI 추천 방 선택이 같은 상태로 유지돼요.'
   const currentStyle = styleOptions.find((item) => item.id === form.style)
   const selectedApartment = apartmentSearchResults.find((item) => item.id === form.apartmentSelectionId)
   const apartmentLabel = brief.apartmentLabel || '아파트명을 선택해보세요'
@@ -888,11 +907,27 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
             </div>
           </div>
           <label>공간 선택</label>
-          <div className="chipRow">
-            {roomOptions.map((room) => (
-              <button key={room} className={form.room === room ? 'solid' : ''} onClick={() => setForm((current) => ({ ...current, room }))}>{room}</button>
-            ))}
+          <div className="chipRow roomChipRow">
+            {roomOptions.map((room) => {
+              const isAvailable = availableRooms.includes(room)
+              return (
+                <button
+                  key={room}
+                  className={form.room === room ? 'solid' : ''}
+                  disabled={!isAvailable}
+                  aria-disabled={!isAvailable}
+                  title={isAvailable ? `${room} 추천 보기` : '현재 연결된 공간 프로필에 없는 공간이에요.'}
+                  onClick={() => {
+                    if (!isAvailable) return
+                    setForm((current) => ({ ...current, room }))
+                  }}
+                >
+                  {room}
+                </button>
+              )
+            })}
           </div>
+          <p className="fieldHint">{roomHint}</p>
           <label>선호 스타일</label>
           <div className="styleGrid">
             {styleOptions.map((style) => (
