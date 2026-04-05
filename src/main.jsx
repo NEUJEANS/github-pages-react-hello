@@ -5,6 +5,10 @@ import {
   SpaceSelectionBoard,
 } from './components/space-profile.jsx'
 import { toggleRequiredSelection } from './components/space-profile-state.js'
+import {
+  buildInputBrief,
+  buildRecommendationSummary,
+} from './components/ai-recommendation-state.js'
 import { buildSelectedSpaceSummary } from './components/space-summary.js'
 import { buildLoginGuardSnapshot } from './components/login-guard.js'
 import { buildSearchDrawerState } from './components/search-drawer.js'
@@ -122,33 +126,6 @@ function clamp(value, min, max) {
 
 function formatApartmentOption(option) {
   return [option.brand, option.complex, option.unitLabel].filter(Boolean).join(' ')
-}
-
-function buildRecommendationSummary({ apartmentType, room, style, priority, lifestyle, extraRequest }) {
-  const styleLabel = styleOptions.find((item) => item.id === style)?.label ?? '미니멀'
-  const priorityLabel = priorityOptions.find((item) => item.id === priority)?.label ?? '채광/동선 우선'
-  const lifestyleLabel = lifestyle?.length ? `${lifestyle.join(' · ')} 중심으로` : '기본 생활 패턴 기준으로'
-  const requestLabel = extraRequest?.trim() || '웜 뉴트럴 톤과 패브릭 중심으로 정돈'
-  return `${apartmentType} ${room} 기준, ${styleLabel} 톤을 유지하면서 ${priorityLabel}로 ${lifestyleLabel} ${requestLabel} 방향의 추천안입니다.`
-}
-
-function buildInputBrief(form, spaceProfile) {
-  const apartment = apartmentSearchResults.find((item) => item.id === spaceProfile.apartmentSelectionId)
-  const apartmentLabel = apartment ? formatApartmentOption(apartment) : spaceProfile.query
-  const styleLabel = styleOptions.find((item) => item.id === form.style)?.label ?? '미니멀'
-  const priorityLabel = priorityOptions.find((item) => item.id === form.priority)?.label ?? '채광/동선 우선'
-  const lifestyleLabel = form.lifestyle.length ? form.lifestyle.join(', ') : '기본'
-
-  return {
-    apartmentLabel,
-    apartmentMeta: apartment
-      ? [apartment.areaLabel, apartment.unitLabel, apartment.layoutLabel, apartment.variantLabel].join(' · ')
-      : `${spaceProfile.apartmentType} · 공간 정보 확인 필요`,
-    styleLabel,
-    priorityLabel,
-    lifestyleLabel,
-    requestLabel: form.extraRequest?.trim() || '추가 요청 없음',
-  }
 }
 
 function useSpaNavigation() {
@@ -616,8 +593,19 @@ function App() {
     apartmentQuery: selectedApartment ? formatApartmentOption(selectedApartment) : spaceProfile.query,
     apartmentSelectionId: spaceProfile.apartmentSelectionId,
   }), [aiForm, selectedApartment, spaceProfile])
-  const aiSummary = buildRecommendationSummary(recommendationContext)
-  const inputBrief = React.useMemo(() => buildInputBrief(aiForm, spaceProfile), [aiForm, spaceProfile])
+  const aiSummary = React.useMemo(() => buildRecommendationSummary({
+    ...recommendationContext,
+    styleOptions,
+    priorityOptions,
+  }), [recommendationContext])
+  const inputBrief = React.useMemo(() => buildInputBrief({
+    form: aiForm,
+    spaceProfile,
+    apartmentSearchResults,
+    formatApartmentOption,
+    styleOptions,
+    priorityOptions,
+  }), [aiForm, spaceProfile])
   const selectedSpaceSummary = React.useMemo(
     () => buildSelectedSpaceSummary(baseZones, roomOptions, spaceProfile.spaces),
     [spaceProfile.spaces],
