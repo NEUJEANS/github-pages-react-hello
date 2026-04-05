@@ -35,6 +35,11 @@ import {
   resolveQuickViewProduct,
   resolveSearchPickMode,
 } from './components/product-flow-state.js'
+import {
+  buildEditorPalette,
+  findLibraryItemMeta,
+  resolvePlacedItemColor,
+} from './components/layout-editor-view-state.js'
 import './styles.css'
 
 const initialEngagement = {
@@ -986,7 +991,10 @@ function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearc
 }
 
 function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary, onOpenLogin, trackFurniturePlacement }) {
-  const selectedMeta = libraryItems.find((item) => item.id === editor.selected?.sourceId)
+  const selectedMeta = React.useMemo(
+    () => findLibraryItemMeta(libraryItems, editor.selected?.sourceId),
+    [editor.selected?.sourceId],
+  )
   const [activeCategory, setActiveCategory] = React.useState('전체')
   const [librarySearch, setLibrarySearch] = React.useState('')
   const roomFrameRef = React.useRef(null)
@@ -1069,7 +1077,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
                   onClick={handleRoomClick}
                 >
                   {editor.items.map((item) => {
-                    const itemMeta = libraryItems.find((entry) => entry.id === item.sourceId)
+                    const itemMeta = findLibraryItemMeta(libraryItems, item.sourceId)
                     const isDragging = editor.dragState?.itemId === item.id
                     return (
                       <button
@@ -1081,7 +1089,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
                           width: `${item.w}%`,
                           height: `${item.h}%`,
                           transform: `rotate(${item.rotation}deg)`,
-                          background: itemMeta?.colors?.[item.colorIndex ?? 0] ?? '#e6d7bf',
+                          background: resolvePlacedItemColor(item, itemMeta),
                         }}
                         onClick={() => editor.setSelectedId(item.id)}
                         onPointerDown={(event) => {
@@ -1114,7 +1122,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
           <div className="sideHead"><h3>속성 패널</h3></div>
           <div className="propBlock"><label>선택 오브젝트</label><strong>{editor.selected?.name ?? '선택 없음'}</strong></div>
           <div className="propBlock"><label>위치</label><div className="split"><span>X {Math.round(editor.selected?.x ?? 0)}</span><span>Y {Math.round(editor.selected?.y ?? 0)}</span></div></div>
-          <div className="propBlock"><label>컬러</label><div className="colorDots">{(selectedMeta?.colors ?? ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355']).slice(0, 4).map((color, index) => <button key={color} className={`colorDot ${index === (editor.selected?.colorIndex ?? 0) ? 'active' : ''}`} style={{ background: color }} onClick={() => editor.setSelectedColor(index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
+          <div className="propBlock"><label>컬러</label><div className="colorDots">{buildEditorPalette(selectedMeta).map((color, index) => <button key={color} className={`colorDot ${index === (editor.selected?.colorIndex ?? 0) ? 'active' : ''}`} style={{ background: color }} onClick={() => editor.setSelectedColor(index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
           <div className="propBlock"><label>배치 메모</label><p>{selectedMeta?.blurb ?? '선택한 오브젝트의 활용 팁이 여기에 표시됩니다.'}</p></div>
           <div className="propBlock"><label>이동 방식</label><p>직접 드래그는 그대로 유지하고, ✋ 이동 툴에서는 빈 공간 클릭 시 선택 가구가 부드럽게 이동합니다. Undo와 스냅 토글도 그대로 유지했어요.</p></div>
           <div className="propBlock actionBlock"><button className="cta" onClick={() => navigate('beds')}>가구 더 보기</button><button className="ghost" onClick={() => openOverlay('address')}>공간 다시 선택</button><button className="ghost" onClick={() => selectedMeta && addToCart(selectedMeta)}>선택 가구 담기</button><button className="ghost" onClick={editor.reset}>초기 배치 복원</button></div>
