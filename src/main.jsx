@@ -45,7 +45,9 @@ import {
 } from './components/product-flow-state.js'
 import {
   buildEditorPalette,
+  buildLayoutEditorActionButtons,
   buildLayoutEditorInfoPills,
+  buildLayoutEditorMovementNote,
   buildLayoutEditorSelectionSnapshot,
   buildLayoutEditorToolbarButtons,
   buildPlacedItemClassName,
@@ -1012,6 +1014,11 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
     () => buildLayoutEditorSelectionSnapshot(editor.selected, selectedMeta),
     [editor.selected, selectedMeta],
   )
+  const actionButtons = React.useMemo(
+    () => buildLayoutEditorActionButtons(Boolean(selectedMeta)),
+    [selectedMeta],
+  )
+  const movementNote = React.useMemo(() => buildLayoutEditorMovementNote(), [])
 
   const handlePointerMove = React.useCallback((event) => {
     editor.updateDrag(event)
@@ -1159,8 +1166,35 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
           <div className="propBlock"><label>위치</label><div className="split"><span>X {selectionSnapshot.position.x}</span><span>Y {selectionSnapshot.position.y}</span></div></div>
           <div className="propBlock"><label>컬러</label><div className="colorDots">{buildEditorPalette(selectedMeta).map((color, index) => <button key={color} className={`colorDot ${index === selectionSnapshot.selectedColorIndex ? 'active' : ''}`} style={{ background: color }} onClick={() => editor.setSelectedColor(index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
           <div className="propBlock"><label>배치 메모</label><p>{selectionSnapshot.selectedBlurb}</p></div>
-          <div className="propBlock"><label>이동 방식</label><p>직접 드래그는 그대로 유지하고, ✋ 이동 툴에서는 빈 공간 클릭 시 선택 가구가 부드럽게 이동합니다. Undo와 스냅 토글도 그대로 유지했어요.</p></div>
-          <div className="propBlock actionBlock"><button className="cta" onClick={() => navigate('beds')}>가구 더 보기</button><button className="ghost" onClick={() => openOverlay('address')}>공간 다시 선택</button><button className="ghost" onClick={() => selectedMeta && addToCart(selectedMeta)}>선택 가구 담기</button><button className="ghost" onClick={editor.reset}>초기 배치 복원</button></div>
+          <div className="propBlock"><label>이동 방식</label><p>{movementNote}</p></div>
+          <div className="propBlock actionBlock">
+            {actionButtons.map((button) => (
+              <button
+                key={button.id}
+                className={button.tone}
+                disabled={button.disabled}
+                onClick={() => {
+                  if (button.id === 'browse-more') {
+                    navigate('beds')
+                    return
+                  }
+                  if (button.id === 'reselect-space') {
+                    openOverlay('address')
+                    return
+                  }
+                  if (button.id === 'add-selected-to-cart') {
+                    if (selectedMeta) addToCart(selectedMeta)
+                    return
+                  }
+                  if (button.id === 'reset-layout') {
+                    editor.reset()
+                  }
+                }}
+              >
+                {button.label}
+              </button>
+            ))}
+          </div>
         </aside>
       </section>
     </div>

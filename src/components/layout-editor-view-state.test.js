@@ -3,12 +3,15 @@ import assert from 'node:assert/strict'
 
 import {
   buildEditorPalette,
+  buildLayoutEditorActionButtons,
   buildLayoutEditorInfoPills,
+  buildLayoutEditorMovementNote,
   buildLayoutEditorSelectionSnapshot,
   buildLayoutEditorToolbarButtons,
   buildPlacedItemClassName,
   buildPlacedItemStyle,
   defaultEditorColors,
+  defaultLayoutEditorMovementNote,
   defaultPlacedItemBlurb,
   defaultPlacedItemColor,
   findLibraryItemMeta,
@@ -120,4 +123,21 @@ test('buildLayoutEditorSelectionSnapshot exposes stable property-panel copy and 
     selectedColorIndex: 0,
     selectedBlurb: defaultPlacedItemBlurb,
   })
+})
+
+
+test('buildLayoutEditorActionButtons disables add-to-cart until a selection exists', () => {
+  assert.deepEqual(buildLayoutEditorActionButtons(true), [
+    { id: 'browse-more', label: '가구 더 보기', tone: 'cta', disabled: false },
+    { id: 'reselect-space', label: '공간 다시 선택', tone: 'ghost', disabled: false },
+    { id: 'add-selected-to-cart', label: '선택 가구 담기', tone: 'ghost', disabled: false },
+    { id: 'reset-layout', label: '초기 배치 복원', tone: 'ghost', disabled: false },
+  ])
+
+  assert.equal(buildLayoutEditorActionButtons(false)[2].disabled, true)
+})
+
+
+test('buildLayoutEditorMovementNote returns the stable movement guidance copy', () => {
+  assert.equal(buildLayoutEditorMovementNote(), defaultLayoutEditorMovementNote)
 })

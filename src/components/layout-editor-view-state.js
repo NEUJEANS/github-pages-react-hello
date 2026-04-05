@@ -1,6 +1,8 @@
 export const defaultEditorColors = ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355']
 export const defaultPlacedItemColor = '#e6d7bf'
 export const defaultPlacedItemBlurb = '선택한 오브젝트의 활용 팁이 여기에 표시됩니다.'
+export const defaultLayoutEditorMovementNote =
+  '직접 드래그는 그대로 유지하고, ✋ 이동 툴에서는 빈 공간 클릭 시 선택 가구가 부드럽게 이동합니다. Undo와 스냅 토글도 그대로 유지했어요.'
 
 export function findLibraryItemMeta(items, sourceId) {
   return items.find((item) => item.id === sourceId)
@@ -59,4 +61,17 @@ export function buildLayoutEditorSelectionSnapshot(selectedItem, selectedMeta) {
     selectedColorIndex: selectedItem?.colorIndex ?? 0,
     selectedBlurb: selectedMeta?.blurb ?? defaultPlacedItemBlurb,
   }
+}
+
+export function buildLayoutEditorActionButtons(hasSelectedMeta) {
+  return [
+    { id: 'browse-more', label: '가구 더 보기', tone: 'cta', disabled: false },
+    { id: 'reselect-space', label: '공간 다시 선택', tone: 'ghost', disabled: false },
+    { id: 'add-selected-to-cart', label: '선택 가구 담기', tone: 'ghost', disabled: !hasSelectedMeta },
+    { id: 'reset-layout', label: '초기 배치 복원', tone: 'ghost', disabled: false },
+  ]
+}
+
+export function buildLayoutEditorMovementNote() {
+  return defaultLayoutEditorMovementNote
 }
