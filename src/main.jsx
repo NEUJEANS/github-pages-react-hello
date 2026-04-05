@@ -49,6 +49,10 @@ import {
   buildPlacedItemStyle,
   findLibraryItemMeta,
 } from './components/layout-editor-view-state.js'
+import {
+  buildVisibleLibrary,
+  layoutLibraryCategoryTabs,
+} from './components/layout-library-state.js'
 import './styles.css'
 
 const initialEngagement = {
