@@ -4,12 +4,14 @@ import assert from 'node:assert/strict'
 import {
   buildEditorPalette,
   buildLayoutEditorActionButtons,
+  buildLayoutEditorActionCommands,
   buildLayoutEditorColorOptions,
   buildLayoutEditorHint,
   buildLayoutEditorInfoPills,
   buildLayoutEditorMovementNote,
   buildLayoutEditorSelectionSnapshot,
   buildLayoutEditorToolbarButtons,
+  buildLayoutEditorToolbarCommands,
   buildPlacedItemClassName,
   buildPlacedItemStyle,
   defaultEditorColors,
@@ -94,6 +96,26 @@ test('buildLayoutEditorToolbarButtons exposes a stable tool order with active-st
   assert.equal(buildLayoutEditorToolbarButtons('select', { canUndo: true })[4].disabled, false)
 })
 
+test('buildLayoutEditorToolbarCommands exposes stable command sequences for each toolbar control', () => {
+  assert.deepEqual(buildLayoutEditorToolbarCommands('select'), [
+    { type: 'set-active-tool', value: 'select' },
+  ])
+
+  assert.deepEqual(buildLayoutEditorToolbarCommands('color'), [
+    { type: 'set-active-tool', value: 'color' },
+    { type: 'cycle-color' },
+  ])
+
+  assert.deepEqual(buildLayoutEditorToolbarCommands('rotate'), [
+    { type: 'set-active-tool', value: 'rotate' },
+    { type: 'rotate-selected' },
+  ])
+
+  assert.deepEqual(buildLayoutEditorToolbarCommands('undo'), [
+    { type: 'undo' },
+  ])
+})
+
 test('buildLayoutEditorInfoPills summarizes snap mode and placed item count', () => {
   assert.deepEqual(buildLayoutEditorInfoPills({ snapOn: true, itemCount: 3 }), [
     '거실 5400 x 3400',
@@ -167,6 +189,26 @@ test('buildLayoutEditorActionButtons exposes action metadata and disables add-to
   assert.equal(buildLayoutEditorActionButtons(false)[2].disabled, true)
 })
 
+
+test('buildLayoutEditorActionCommands exposes stable property-panel command sequences', () => {
+  assert.deepEqual(buildLayoutEditorActionCommands('navigate-beds'), [
+    { type: 'navigate', value: 'beds' },
+  ])
+
+  assert.deepEqual(buildLayoutEditorActionCommands('open-address-overlay'), [
+    { type: 'open-overlay', value: 'address' },
+  ])
+
+  assert.deepEqual(buildLayoutEditorActionCommands('add-selected-to-cart'), [
+    { type: 'add-selected-to-cart' },
+  ])
+
+  assert.deepEqual(buildLayoutEditorActionCommands('reset-layout'), [
+    { type: 'reset-layout' },
+  ])
+
+  assert.deepEqual(buildLayoutEditorActionCommands('unknown'), [])
+})
 
 test('buildLayoutEditorMovementNote returns the stable movement guidance copy', () => {
   assert.equal(buildLayoutEditorMovementNote(), defaultLayoutEditorMovementNote)

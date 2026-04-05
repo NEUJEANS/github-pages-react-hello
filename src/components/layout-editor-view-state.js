@@ -52,6 +52,13 @@ export function buildLayoutEditorToolbarButtons(activeTool, { canUndo = false } 
   ]
 }
 
+export function buildLayoutEditorToolbarCommands(toolId) {
+  if (toolId === 'undo') return [{ type: 'undo' }]
+  if (toolId === 'color') return [{ type: 'set-active-tool', value: 'color' }, { type: 'cycle-color' }]
+  if (toolId === 'rotate') return [{ type: 'set-active-tool', value: 'rotate' }, { type: 'rotate-selected' }]
+  return [{ type: 'set-active-tool', value: toolId }]
+}
+
 export function buildLayoutEditorInfoPills({ snapOn, itemCount }) {
   return [
     '거실 5400 x 3400',
@@ -112,6 +119,14 @@ export function buildLayoutEditorActionButtons(hasSelectedMeta) {
       disabled: false,
     },
   ]
+}
+
+export function buildLayoutEditorActionCommands(action) {
+  if (action === 'navigate-beds') return [{ type: 'navigate', value: 'beds' }]
+  if (action === 'open-address-overlay') return [{ type: 'open-overlay', value: 'address' }]
+  if (action === 'add-selected-to-cart') return [{ type: 'add-selected-to-cart' }]
+  if (action === 'reset-layout') return [{ type: 'reset-layout' }]
+  return []
 }
 
 export function buildLayoutEditorMovementNote() {

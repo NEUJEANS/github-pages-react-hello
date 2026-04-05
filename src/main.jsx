@@ -45,12 +45,14 @@ import {
 } from './components/product-flow-state.js'
 import {
   buildLayoutEditorActionButtons,
+  buildLayoutEditorActionCommands,
   buildLayoutEditorColorOptions,
   buildLayoutEditorHint,
   buildLayoutEditorInfoPills,
   buildLayoutEditorMovementNote,
   buildLayoutEditorSelectionSnapshot,
   buildLayoutEditorToolbarButtons,
+  buildLayoutEditorToolbarCommands,
   buildPlacedItemClassName,
   buildPlacedItemStyle,
   findLibraryItemMeta,
@@ -1053,6 +1055,46 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
     editor.moveSelectedTo(target.x, target.y)
   }, [editor])
 
+  const handleToolbarAction = React.useCallback((toolId) => {
+    buildLayoutEditorToolbarCommands(toolId).forEach((command) => {
+      if (command.type === 'undo') {
+        editor.undo()
+        return
+      }
+      if (command.type === 'cycle-color') {
+        editor.cycleColor()
+        return
+      }
+      if (command.type === 'rotate-selected') {
+        editor.rotateSelected()
+        return
+      }
+      if (command.type === 'set-active-tool') {
+        editor.setActiveTool(command.value)
+      }
+    })
+  }, [editor])
+
+  const handleActionButton = React.useCallback((action) => {
+    buildLayoutEditorActionCommands(action).forEach((command) => {
+      if (command.type === 'navigate') {
+        navigate(command.value)
+        return
+      }
+      if (command.type === 'open-overlay') {
+        openOverlay(command.value)
+        return
+      }
+      if (command.type === 'add-selected-to-cart') {
+        if (selectedMeta) addToCart(selectedMeta)
+        return
+      }
+      if (command.type === 'reset-layout') {
+        editor.reset()
+      }
+    })
+  }, [addToCart, editor, navigate, openOverlay, selectedMeta])
+
   return (
     <div className="screenCanvas editorBg">
       <Header dark active="내가 배치하기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
@@ -1086,23 +1128,8 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
               <button
                 key={tool.id}
                 className={`tool ${tool.isActive ? 'active' : ''}`}
-                onClick={() => {
-                  if (tool.id === 'undo') {
-                    editor.undo()
-                    return
-                  }
-                  if (tool.id === 'color') {
-                    editor.setActiveTool('color')
-                    editor.cycleColor()
-                    return
-                  }
-                  if (tool.id === 'rotate') {
-                    editor.setActiveTool('rotate')
-                    editor.rotateSelected()
-                    return
-                  }
-                  editor.setActiveTool(tool.id)
-                }}
+                disabled={tool.disabled}
+                onClick={() => handleToolbarAction(tool.id)}
               >
                 {tool.label}
               </button>
@@ -1182,23 +1209,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
                 key={button.id}
                 className={button.tone}
                 disabled={button.disabled}
-                onClick={() => {
-                  if (button.action === 'navigate-beds') {
-                    navigate('beds')
-                    return
-                  }
-                  if (button.action === 'open-address-overlay') {
-                    openOverlay('address')
-                    return
-                  }
-                  if (button.action === 'add-selected-to-cart') {
-                    if (selectedMeta) addToCart(selectedMeta)
-                    return
-                  }
-                  if (button.action === 'reset-layout') {
-                    editor.reset()
-                  }
-                }}
+                onClick={() => handleActionButton(button.action)}
               >
                 {button.label}
               </button>
