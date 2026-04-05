@@ -215,6 +215,8 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .editorSide.right { border-left: 1px solid #ece3d8; }
 .sideHead input { width: 100%; border: 1px solid #e4ddd3; padding: 10px 12px; border-radius: 12px; color: #444; margin-top: 8px; }
 .dragGrid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-top: 14px; }
+.editorLibraryEmptyState { margin-top: 14px; }
+.editorLibraryEmptyState strong { display: block; margin-top: 10px; }
 .dragCard { background: #faf7f1; border: 2px solid #ebdfd3; border-radius: 14px; padding: 12px; text-align: center; display: grid; gap: 4px; }
 .buttonCard { appearance: none; width: 100%; }
 .dragCard span { font-size: 28px; }

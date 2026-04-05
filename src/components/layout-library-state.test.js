@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  buildLibraryEmptyState,
   buildVisibleLibrary,
   layoutLibraryCategoryTabs,
 } from './layout-library-state.js'
@@ -32,4 +33,26 @@ test('buildVisibleLibrary filters by normalized search query across name and cat
 test('buildVisibleLibrary combines category and search constraints', () => {
   assert.deepEqual(buildVisibleLibrary(libraryItems, '조명', '포인트'), [libraryItems[2]])
   assert.deepEqual(buildVisibleLibrary(libraryItems, '조명', '소파'), [])
+})
+
+test('buildLibraryEmptyState explains zero-result search states', () => {
+  assert.deepEqual(buildLibraryEmptyState('조명', '  벽등 '), {
+    emoji: '🪄',
+    title: '검색 결과가 없어요',
+    description: '“벽등”와 일치하는 조명 가구가 아직 없어요. 다른 키워드나 카테고리로 다시 찾아보세요.',
+  })
+})
+
+test('buildLibraryEmptyState falls back to category guidance when no search query is active', () => {
+  assert.deepEqual(buildLibraryEmptyState('전체', ''), {
+    emoji: '🪑',
+    title: '표시할 가구가 없어요',
+    description: '지금 조건에서는 표시할 가구가 아직 없어요. 검색어를 지우거나 다른 카테고리를 선택해보세요.',
+  })
+
+  assert.deepEqual(buildLibraryEmptyState('테이블', undefined), {
+    emoji: '🪑',
+    title: '표시할 가구가 없어요',
+    description: '테이블 카테고리에 표시할 가구가 아직 없어요. 다른 카테고리를 선택해보세요.',
+  })
 })

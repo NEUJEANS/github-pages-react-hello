@@ -52,6 +52,7 @@ import {
   findLibraryItemMeta,
 } from './components/layout-editor-view-state.js'
 import {
+  buildLibraryEmptyState,
   buildVisibleLibrary,
   layoutLibraryCategoryTabs,
 } from './components/layout-library-state.js'
@@ -991,6 +992,10 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
     () => buildVisibleLibrary(libraryItems, activeCategory, librarySearch),
     [activeCategory, librarySearch],
   )
+  const libraryEmptyState = React.useMemo(
+    () => buildLibraryEmptyState(activeCategory, librarySearch),
+    [activeCategory, librarySearch],
+  )
   const infoPills = React.useMemo(
     () => buildLayoutEditorInfoPills({
       snapOn: editor.snapOn,
@@ -1036,13 +1041,23 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
           <div className="tabRow">
             {layoutLibraryCategoryTabs.map((tab) => <button key={tab} className={`mini ${activeCategory === tab ? 'solid' : ''}`} onClick={() => setActiveCategory(tab)}>{tab}</button>)}
           </div>
-          <div className="dragGrid">
-            {visibleLibrary.map((item) => (
-              <button key={item.id} className="dragCard buttonCard" onClick={() => { editor.addLibraryItem(item); trackFurniturePlacement() }}>
-                <span>{item.emoji}</span><strong>{item.name}</strong><small>{item.size}</small>
-              </button>
-            ))}
-          </div>
+          {visibleLibrary.length > 0 ? (
+            <div className="dragGrid">
+              {visibleLibrary.map((item) => (
+                <button key={item.id} className="dragCard buttonCard" onClick={() => { editor.addLibraryItem(item); trackFurniturePlacement() }}>
+                  <span>{item.emoji}</span><strong>{item.name}</strong><small>{item.size}</small>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="emptyState compact editorLibraryEmptyState">
+              <div>
+                <div className="emptyEmoji">{libraryEmptyState.emoji}</div>
+                <strong>{libraryEmptyState.title}</strong>
+                <p>{libraryEmptyState.description}</p>
+              </div>
+            </div>
+          )}
         </aside>
         <div className="editorCenter">
           <div className="toolbar">
