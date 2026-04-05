@@ -26,8 +26,9 @@ test('runLayoutEditorCommands dispatches commands to matching handlers in order'
   ])
 })
 
-test('runLayoutEditorCommands skips unknown command types', () => {
+test('runLayoutEditorCommands skips unknown command types while reporting them through the unhandled callback', () => {
   const seen = []
+  const unhandled = []
 
   runLayoutEditorCommands(
     [
@@ -39,10 +40,31 @@ test('runLayoutEditorCommands skips unknown command types', () => {
       navigate: (command) => seen.push(['navigate', command.value]),
       'reset-layout': () => seen.push(['reset-layout']),
     },
+    {
+      onUnhandledCommand: (command) => unhandled.push(command.type),
+    },
   )
 
   assert.deepEqual(seen, [
     ['navigate', 'beds'],
     ['reset-layout'],
   ])
+  assert.deepEqual(unhandled, ['unknown-command'])
+})
+
+test('runLayoutEditorCommands warns about unhandled commands outside production by default', () => {
+  const originalWarn = console.warn
+  const warnings = []
+  console.warn = (message) => warnings.push(message)
+
+  try {
+    runLayoutEditorCommands(
+      [{ type: 'missing-handler' }],
+      {},
+    )
+  } finally {
+    console.warn = originalWarn
+  }
+
+  assert.deepEqual(warnings, ['[layout-editor] Unhandled command: missing-handler'])
 })
