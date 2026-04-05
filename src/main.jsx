@@ -13,6 +13,7 @@ import { buildSelectedSpaceSummary } from './components/space-summary.js'
 import { buildLoginGuardSnapshot } from './components/login-guard.js'
 import { buildSearchDrawerState } from './components/search-drawer.js'
 import { buildFilteredBedProducts } from './components/bed-filter-state.js'
+import { toggleWishlistId } from './components/wishlist-state.js'
 import {
   buildLayoutAddressSummary,
   buildRecommendationContext,
@@ -715,7 +716,7 @@ function App() {
       setFilters: setBedFilters,
       items: filteredBedProducts,
       wishlistedIds,
-      toggleWishlist: (id) => setWishlistedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]),
+      toggleWishlist: (id) => setWishlistedIds((current) => toggleWishlistId(current, id)),
     },
     home: {
       wishlistedIds,
