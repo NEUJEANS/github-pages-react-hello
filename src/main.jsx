@@ -7,6 +7,7 @@ import {
 } from './components/space-profile.jsx'
 import { buildSelectedSpaceSummary } from './components/space-summary.js'
 import { buildLoginGuardSnapshot } from './components/login-guard.js'
+import { buildSearchDrawerState } from './components/search-drawer.js'
 import './styles.css'
 
 const initialEngagement = {
@@ -635,12 +636,11 @@ function App() {
     })
   }, [selectedSpaceSummary])
 
-  const filteredSearchResults = React.useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
-    const all = [...libraryItems, ...bedProducts]
-    if (!query) return all.slice(0, 6)
-    return all.filter((item) => `${item.name} ${item.category ?? ''} ${item.material ?? ''}`.toLowerCase().includes(query)).slice(0, 8)
-  }, [searchQuery])
+  const searchDrawerState = React.useMemo(() => buildSearchDrawerState({
+    query: searchQuery,
+    libraryItems,
+    bedProducts,
+  }), [searchQuery])
 
   const filteredBedProducts = React.useMemo(() => {
     let items = [...bedProducts]
@@ -781,7 +781,9 @@ function App() {
           <SearchDrawer
             query={searchQuery}
             setQuery={setSearchQuery}
-            results={filteredSearchResults}
+            results={searchDrawerState.results}
+            queryLabel={searchDrawerState.queryLabel}
+            isEmpty={searchDrawerState.isEmpty}
             onClose={() => setSearchDrawerOpen(false)}
             onPick={(product) => {
               setSearchDrawerOpen(false)
@@ -1296,7 +1298,7 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
       <aside className="drawerPanel searchDrawer">
         <div className="overlayHeader"><span>통합 검색</span><button className="overlayClose" onClick={onClose}>✕</button></div>
         <div className="drawerBody">
-          <div className="inputWrap big">🔎<input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="가구명, 소재, 카테고리를 검색해보세요" /></div>
+          <div className="inputWrap big">🔎<input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="가구명, 소재, 컬러, 카테고리를 검색해보세요" /></div>
           <div className="searchResults">
             {isEmpty ? (
               <div className="emptyState compact">
