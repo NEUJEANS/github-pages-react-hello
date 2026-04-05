@@ -3,8 +3,8 @@ import ReactDOM from 'react-dom/client'
 import {
   AddressSetupScreen,
   SpaceSelectionBoard,
-  toggleRequiredSelection,
 } from './components/space-profile.jsx'
+import { toggleRequiredSelection } from './components/space-profile-state.js'
 import { buildSelectedSpaceSummary } from './components/space-summary.js'
 import { buildLoginGuardSnapshot } from './components/login-guard.js'
 import { buildSearchDrawerState } from './components/search-drawer.js'

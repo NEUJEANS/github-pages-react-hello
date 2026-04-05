@@ -1,10 +1,11 @@
-export function toggleRequiredSelection(values, nextValue) {
-  if (values.includes(nextValue)) {
-    return values.length === 1 ? values : values.filter((value) => value !== nextValue)
-  }
-
-  return [...values, nextValue]
-}
+import {
+  applyApartmentSelection,
+  buildApartmentSelectionSnapshot,
+  getAddressOverlayZones,
+  toggleSpaceProfileZone,
+  updateSpaceProfileApartmentType,
+  updateSpaceProfileQuery,
+} from './space-profile-state.js'
 
 export function SpaceSelectionBoard({ zones, selectedIds, onToggle, compact = false, panelTitle = '선택된 공간' }) {
   const chosenZones = zones.filter((zone) => selectedIds.includes(zone.id))
@@ -43,33 +44,25 @@ export function SpaceProfileFields({
   apartmentTypes,
   formatApartmentOption,
 }) {
-  const selectedApartment = apartmentSearchResults.find((item) => item.id === spaceProfile.apartmentSelectionId)
-  const apartmentLabel = selectedApartment ? formatApartmentOption(selectedApartment) : (spaceProfile.query || '주소를 입력해보세요')
-  const apartmentMeta = selectedApartment
-    ? [selectedApartment.areaLabel, selectedApartment.unitLabel, selectedApartment.layoutLabel, selectedApartment.variantLabel].join(' · ')
-    : '실측 평면도 · 거실/침실/주방 데이터 제공'
+  const { apartmentLabel, apartmentMeta } = buildApartmentSelectionSnapshot({
+    spaceProfile,
+    apartmentSearchResults,
+    formatApartmentOption,
+  })
 
   const selectApartment = (option) => {
-    setSpaceProfile((current) => ({
-      ...current,
-      query: formatApartmentOption(option),
-      apartmentType: option.unitLabel,
-      apartmentSelectionId: option.id,
-    }))
+    setSpaceProfile((current) => applyApartmentSelection(current, option, formatApartmentOption))
   }
 
   const toggleZone = (zoneId) => {
     trackBoardProgress()
-    setSpaceProfile((current) => ({
-      ...current,
-      spaces: toggleRequiredSelection(current.spaces, zoneId),
-    }))
+    setSpaceProfile((current) => toggleSpaceProfileZone(current, zoneId))
   }
 
   return (
     <>
       <label>아파트 또는 주소 검색</label>
-      <div className="inputWrap big">🔎<input value={spaceProfile.query} onChange={(event) => setSpaceProfile((current) => ({ ...current, query: event.target.value }))} /></div>
+      <div className="inputWrap big">🔎<input value={spaceProfile.query} onChange={(event) => setSpaceProfile((current) => updateSpaceProfileQuery(current, event.target.value))} /></div>
       <div className="chipRow preferenceRow">
         {apartmentSearchResults.map((option) => (
           <button
@@ -82,7 +75,7 @@ export function SpaceProfileFields({
         ))}
       </div>
       <div className="resultCard selected"><strong>{apartmentLabel}</strong><span>{apartmentMeta}</span></div>
-      <div className="typeStrip">{apartmentTypes.map((type) => <button key={type} className={spaceProfile.apartmentType === type ? 'solid' : ''} onClick={() => setSpaceProfile((current) => ({ ...current, apartmentType: type }))}>{type}</button>)}</div>
+      <div className="typeStrip">{apartmentTypes.map((type) => <button key={type} className={spaceProfile.apartmentType === type ? 'solid' : ''} onClick={() => setSpaceProfile((current) => updateSpaceProfileApartmentType(current, type))}>{type}</button>)}</div>
       <SpaceSelectionBoard
         zones={spaceZones}
         selectedIds={spaceProfile.spaces}
@@ -105,7 +98,7 @@ export function AddressSetupScreen({
   apartmentTypes,
   formatApartmentOption,
 }) {
-  const overlayZones = baseZones.filter((zone) => ['living', 'kitchen', 'bed1', 'bed2'].includes(zone.id))
+  const overlayZones = getAddressOverlayZones(baseZones)
 
   return (
     <div className="setupCard">
