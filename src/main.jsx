@@ -25,21 +25,17 @@ import {
   buildSelectedApartment,
   resolveAiRoomSelection,
 } from './components/app-state.js'
+import {
+  buildNavigationHash,
+  getDirectionalTransition,
+  parseHashState,
+} from './components/navigation-state.js'
 import './styles.css'
 
 const initialEngagement = {
   aiRequests: 0,
   furniturePlacements: 0,
   draftBoards: 0,
-}
-
-const screenMeta = {
-  ai: { column: 0, step: 0 },
-  space: { column: 0, step: 1 },
-  layout: { column: 1, step: 0 },
-  address: { column: 1, step: 1 },
-  beds: { column: 2, step: 0 },
-  home: { column: 2, step: 1 },
 }
 
 const roomOptions = ['거실', '침실', '주방', '서재']
@@ -104,31 +100,6 @@ const initialEditorItems = [
   { id: 'placed-plant', sourceId: 'plant-001', name: '세라믹 플로어 플랜트', label: '🌿', x: 42, y: 14, w: 7, h: 10, rotation: 0, colorIndex: 2 },
 ]
 
-function getStateFromHash() {
-  const hash = window.location.hash.replace(/^#/, '')
-  if (!hash) return { screen: 'home', overlay: null }
-  if (hash === 'address') return { screen: 'layout', overlay: 'address' }
-  if (screenMeta[hash]) return { screen: hash, overlay: null }
-  return { screen: 'home', overlay: null }
-}
-
-function getScreenMeta(screen) {
-  return screenMeta[screen] ?? screenMeta.home
-}
-
-function getDirectionalTransition(fromScreen, toScreen) {
-  if (fromScreen === toScreen) return 0
-
-  const from = getScreenMeta(fromScreen)
-  const to = getScreenMeta(toScreen)
-
-  if (to.column === 0) return -1
-  if (to.column === 2) return 1
-  if (from.column !== to.column) return to.column > from.column ? 1 : -1
-  if (from.step !== to.step) return to.step > from.step ? 1 : -1
-  return 0
-}
-
 function formatPrice(value) {
   return `₩${value.toLocaleString('ko-KR')}`
 }
@@ -142,7 +113,7 @@ function formatApartmentOption(option) {
 }
 
 function useSpaNavigation() {
-  const [{ screen, overlay }, setState] = React.useState(() => getStateFromHash())
+  const [{ screen, overlay }, setState] = React.useState(() => parseHashState(window.location.hash))
   const [direction, setDirection] = React.useState(0)
   const currentScreenRef = React.useRef(screen)
 
@@ -152,7 +123,7 @@ function useSpaNavigation() {
 
   React.useEffect(() => {
     const syncFromLocation = () => {
-      const next = getStateFromHash()
+      const next = parseHashState(window.location.hash)
       setDirection(getDirectionalTransition(currentScreenRef.current, next.screen))
       currentScreenRef.current = next.screen
       setState(next)
@@ -166,7 +137,7 @@ function useSpaNavigation() {
   }, [])
 
   const syncHash = React.useCallback((nextScreen, nextOverlay) => {
-    const nextHash = nextOverlay === 'address' ? 'address' : nextScreen
+    const nextHash = buildNavigationHash(nextScreen, nextOverlay)
     if (window.location.hash.replace(/^#/, '') === nextHash) return
     window.history.pushState(null, '', `#${nextHash}`)
   }, [])
