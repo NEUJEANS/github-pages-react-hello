@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "node --test src/components/*.test.js",
     "review:gemini": "bash ./scripts/gemini-review.sh",
     "checkpoint:status": "git status --short --branch && echo '---' && git log --oneline --decorate -5"
   },
