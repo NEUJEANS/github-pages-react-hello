@@ -6,6 +6,7 @@ import {
   toggleRequiredSelection,
 } from './components/space-profile.jsx'
 import { buildSelectedSpaceSummary } from './components/space-summary.js'
+import { buildLoginGuardSnapshot } from './components/login-guard.js'
 import './styles.css'
 
 const initialEngagement = {
@@ -658,15 +659,13 @@ function App() {
     return items
   }, [bedFilters])
 
-  const loginGuardReasons = React.useMemo(() => {
-    const reasons = []
-    if (engagement.aiRequests > 0) reasons.push(`AI 추천 요청 ${engagement.aiRequests}회`)
-    if (engagement.furniturePlacements > 0) reasons.push(`가구 배치 ${engagement.furniturePlacements}회`)
-    if (engagement.draftBoards > 0) reasons.push(`진행 중 보드 ${engagement.draftBoards}개`)
-    return reasons
-  }, [engagement])
+  const loginGuardSnapshot = React.useMemo(() => buildLoginGuardSnapshot({
+    engagement,
+    wishlistCount: wishlistedIds.length,
+    cartCount: cart.count,
+  }), [cart.count, engagement, wishlistedIds.length])
 
-  const hasLoginGuard = loginGuardReasons.length > 0
+  const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 
   const openLogin = React.useCallback(() => {
     setLoginModalState(hasLoginGuard ? 'guard' : 'form')
@@ -795,7 +794,7 @@ function App() {
         {loginModalState !== 'closed' && (
           <LoginModal
             state={loginModalState}
-            engagement={engagement}
+            engagement={loginGuardMetrics}
             reasons={loginGuardReasons}
             onClose={() => setLoginModalState('closed')}
             onProceed={() => setLoginModalState('form')}
@@ -1340,6 +1339,8 @@ function LoginModal({ state, engagement, reasons, onClose, onProceed }) {
                   <div><label>AI 요청</label><b>{engagement.aiRequests}회</b></div>
                   <div><label>가구 배치</label><b>{engagement.furniturePlacements}회</b></div>
                   <div><label>보드 초안</label><b>{engagement.draftBoards}개</b></div>
+                  <div><label>찜</label><b>{engagement.wishlistCount}개</b></div>
+                  <div><label>장바구니</label><b>{engagement.cartCount}개</b></div>
                 </div>
               </div>
               <div className="footerButtons stackOnMobile">
