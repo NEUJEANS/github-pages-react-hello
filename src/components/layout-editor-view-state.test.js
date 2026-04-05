@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 
 import {
   buildEditorPalette,
+  buildPlacedItemClassName,
+  buildPlacedItemStyle,
   defaultEditorColors,
   defaultPlacedItemColor,
   findLibraryItemMeta,
@@ -43,4 +45,29 @@ test('resolvePlacedItemColor reads the selected swatch and falls back safely', (
   )
 
   assert.equal(resolvePlacedItemColor({}, undefined), defaultPlacedItemColor)
+})
+
+test('buildPlacedItemClassName composes selected, circle, and dragging flags', () => {
+  assert.equal(buildPlacedItemClassName(), 'placed')
+  assert.equal(
+    buildPlacedItemClassName({ isSelected: true, isCircle: true, isDragging: true }),
+    'placed sel circle dragging',
+  )
+})
+
+test('buildPlacedItemStyle returns percent-based geometry and background color', () => {
+  assert.deepEqual(
+    buildPlacedItemStyle(
+      { x: 12, y: 24, w: 18, h: 9, rotation: 90, colorIndex: 1 },
+      { colors: ['#111111', '#222222'] },
+    ),
+    {
+      left: '12%',
+      top: '24%',
+      width: '18%',
+      height: '9%',
+      transform: 'rotate(90deg)',
+      background: '#222222',
+    },
+  )
 })

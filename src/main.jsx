@@ -25,6 +25,7 @@ import {
   buildSelectedApartment,
   resolveAiRoomSelection,
 } from './components/app-state.js'
+import { resolveRoomClickTarget } from './components/editor-state.js'
 import {
   buildNavigationHash,
   getDirectionalTransition,
@@ -37,8 +38,9 @@ import {
 } from './components/product-flow-state.js'
 import {
   buildEditorPalette,
+  buildPlacedItemClassName,
+  buildPlacedItemStyle,
   findLibraryItemMeta,
-  resolvePlacedItemColor,
 } from './components/layout-editor-view-state.js'
 import './styles.css'
 
@@ -112,10 +114,6 @@ const initialEditorItems = [
 
 function formatPrice(value) {
   return `₩${value.toLocaleString('ko-KR')}`
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value))
 }
 
 function formatApartmentOption(option) {
@@ -1024,9 +1022,8 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
 
     const percentX = ((event.clientX - bounds.left) / bounds.width) * 100
     const percentY = ((event.clientY - bounds.top) / bounds.height) * 100
-    const targetX = clamp(percentX - ((editor.selected.w ?? 0) / 2), 2, 88)
-    const targetY = clamp(percentY - ((editor.selected.h ?? 0) / 2), 2, 82)
-    editor.moveSelectedTo(targetX, targetY)
+    const target = resolveRoomClickTarget(percentX, percentY, editor.selected)
+    editor.moveSelectedTo(target.x, target.y)
   }, [editor])
 
   return (
@@ -1082,15 +1079,12 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
                     return (
                       <button
                         key={item.id}
-                        className={`placed ${editor.selectedId === item.id ? 'sel' : ''} ${item.circle ? 'circle' : ''} ${isDragging ? 'dragging' : ''}`}
-                        style={{
-                          left: `${item.x}%`,
-                          top: `${item.y}%`,
-                          width: `${item.w}%`,
-                          height: `${item.h}%`,
-                          transform: `rotate(${item.rotation}deg)`,
-                          background: resolvePlacedItemColor(item, itemMeta),
-                        }}
+                        className={buildPlacedItemClassName({
+                          isSelected: editor.selectedId === item.id,
+                          isCircle: item.circle,
+                          isDragging,
+                        })}
+                        style={buildPlacedItemStyle(item, itemMeta)}
                         onClick={() => editor.setSelectedId(item.id)}
                         onPointerDown={(event) => {
                           if (event.button !== 0) return
