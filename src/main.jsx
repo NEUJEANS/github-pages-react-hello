@@ -57,6 +57,7 @@ import {
   buildPlacedItemStyle,
   findLibraryItemMeta,
 } from './components/layout-editor-view-state.js'
+import { runLayoutEditorCommands } from './components/layout-editor-command-runner.js'
 import {
   buildLibraryEmptyState,
   buildVisibleLibrary,
@@ -1060,42 +1061,22 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
   }, [editor])
 
   const handleToolbarAction = React.useCallback((toolId) => {
-    buildLayoutEditorToolbarCommands(toolId).forEach((command) => {
-      if (command.type === 'undo') {
-        editor.undo()
-        return
-      }
-      if (command.type === 'cycle-color') {
-        editor.cycleColor()
-        return
-      }
-      if (command.type === 'rotate-selected') {
-        editor.rotateSelected()
-        return
-      }
-      if (command.type === 'set-active-tool') {
-        editor.setActiveTool(command.value)
-      }
+    runLayoutEditorCommands(buildLayoutEditorToolbarCommands(toolId), {
+      undo: () => editor.undo(),
+      'cycle-color': () => editor.cycleColor(),
+      'rotate-selected': () => editor.rotateSelected(),
+      'set-active-tool': (command) => editor.setActiveTool(command.value),
     })
   }, [editor])
 
   const handleActionButton = React.useCallback((action) => {
-    buildLayoutEditorActionCommands(action).forEach((command) => {
-      if (command.type === 'navigate') {
-        navigate(command.value)
-        return
-      }
-      if (command.type === 'open-overlay') {
-        openOverlay(command.value)
-        return
-      }
-      if (command.type === 'add-selected-to-cart') {
+    runLayoutEditorCommands(buildLayoutEditorActionCommands(action), {
+      navigate: (command) => navigate(command.value),
+      'open-overlay': (command) => openOverlay(command.value),
+      'add-selected-to-cart': () => {
         if (selectedMeta) addToCart(selectedMeta)
-        return
-      }
-      if (command.type === 'reset-layout') {
-        editor.reset()
-      }
+      },
+      'reset-layout': () => editor.reset(),
     })
   }, [addToCart, editor, navigate, openOverlay, selectedMeta])
 
