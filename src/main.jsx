@@ -143,6 +143,42 @@ function buildInputBrief(form, spaceProfile) {
   }
 }
 
+function toggleRequiredSelection(values, nextValue) {
+  if (values.includes(nextValue)) {
+    return values.length === 1 ? values : values.filter((value) => value !== nextValue)
+  }
+
+  return [...values, nextValue]
+}
+
+function SpaceSelectionBoard({ zones, selectedIds, onToggle, compact = false, panelTitle = '선택된 공간' }) {
+  const chosenZones = zones.filter((zone) => selectedIds.includes(zone.id))
+
+  return (
+    <div className={`spaceLayout ${compact ? 'compact' : ''}`}>
+      <div className={`planBoard ${compact ? 'small' : ''}`}>
+        {!compact && <div className="compass">N</div>}
+        {zones.map((zone) => (
+          <button
+            key={zone.id}
+            className={`zone ${zone.className} ${selectedIds.includes(zone.id) ? 'selected' : ''}`}
+            onClick={() => onToggle(zone.id)}
+          >
+            <b>{zone.icon}</b><span>{zone.name}</span>
+          </button>
+        ))}
+      </div>
+      <aside className={`selectionPanel ${compact ? 'narrow' : ''}`}>
+        <h3>{panelTitle}</h3>
+        {chosenZones.map((zone) => (
+          <div className="selectionItem" key={zone.id}><span>{zone.icon}</span><div><strong>{zone.name}</strong><small>{zone.size}</small></div></div>
+        ))}
+        {!compact && <div className="selectionTotal"><span>총 선택</span><b>{chosenZones.length}개</b></div>}
+      </aside>
+    </div>
+  )
+}
+
 function useSpaNavigation() {
   const [{ screen, overlay }, setState] = React.useState(() => getStateFromHash())
   const [direction, setDirection] = React.useState(0)
@@ -949,9 +985,6 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
 }
 
 function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, selectedSpaces, setSelectedSpaces, onOpenLogin }) {
-  const zones = baseZones.map((zone) => ({ ...zone, selected: selectedSpaces.includes(zone.id) }))
-  const chosen = zones.filter((zone) => zone.selected)
-
   return (
     <div className="screenCanvas sandBg">
       <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
@@ -961,27 +994,11 @@ function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearc
           <p className="tinyPill">평면도 기반 선택</p>
           <h2>어떤 공간을 먼저 꾸밀까요?</h2>
           <p className="muted">평면도 영역과 오른쪽 요약 패널이 같은 선택 상태를 공유합니다. 최소 1개 이상 선택할 수 있어요.</p>
-          <div className="spaceLayout">
-            <div className="planBoard">
-              <div className="compass">N</div>
-              {zones.map((zone) => (
-                <button
-                  key={zone.id}
-                  className={`zone ${zone.className} ${zone.selected ? 'selected' : ''}`}
-                  onClick={() => setSelectedSpaces((current) => current.includes(zone.id) ? (current.length === 1 ? current : current.filter((id) => id !== zone.id)) : [...current, zone.id])}
-                >
-                  <b>{zone.icon}</b><span>{zone.name}</span>
-                </button>
-              ))}
-            </div>
-            <aside className="selectionPanel">
-              <h3>선택된 공간</h3>
-              {chosen.map((item) => (
-                <div className="selectionItem" key={item.id}><span>{item.icon}</span><div><strong>{item.name}</strong><small>{item.size}</small></div></div>
-              ))}
-              <div className="selectionTotal"><span>총 선택</span><b>{chosen.length}개</b></div>
-            </aside>
-          </div>
+          <SpaceSelectionBoard
+            zones={baseZones}
+            selectedIds={selectedSpaces}
+            onToggle={(zoneId) => setSelectedSpaces((current) => toggleRequiredSelection(current, zoneId))}
+          />
           <div className="footerButtons">
             <button className="ghost" onClick={() => navigate('ai')}>이전</button>
             <button className="cta small" onClick={() => navigate('layout')}>다음 단계 →</button>
@@ -1133,13 +1150,60 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
   )
 }
 
-function AddressSetupScreen({ navigate, closeOverlay, spaceProfile, setSpaceProfile, trackBoardProgress }) {
-  const overlayZones = baseZones.filter((zone) => ['living', 'kitchen', 'bed1', 'bed2'].includes(zone.id))
+function SpaceProfileFields({ spaceProfile, setSpaceProfile, spaceZones, trackBoardProgress }) {
   const selectedApartment = apartmentSearchResults.find((item) => item.id === spaceProfile.apartmentSelectionId)
   const apartmentLabel = selectedApartment ? formatApartmentOption(selectedApartment) : (spaceProfile.query || '주소를 입력해보세요')
   const apartmentMeta = selectedApartment
     ? [selectedApartment.areaLabel, selectedApartment.unitLabel, selectedApartment.layoutLabel, selectedApartment.variantLabel].join(' · ')
     : '실측 평면도 · 거실/침실/주방 데이터 제공'
+
+  const selectApartment = (option) => {
+    setSpaceProfile((current) => ({
+      ...current,
+      query: formatApartmentOption(option),
+      apartmentType: option.unitLabel,
+      apartmentSelectionId: option.id,
+    }))
+  }
+
+  const toggleZone = (zoneId) => {
+    trackBoardProgress()
+    setSpaceProfile((current) => ({
+      ...current,
+      spaces: toggleRequiredSelection(current.spaces, zoneId),
+    }))
+  }
+
+  return (
+    <>
+      <label>아파트 또는 주소 검색</label>
+      <div className="inputWrap big">🔎<input value={spaceProfile.query} onChange={(event) => setSpaceProfile((current) => ({ ...current, query: event.target.value }))} /></div>
+      <div className="chipRow preferenceRow">
+        {apartmentSearchResults.map((option) => (
+          <button
+            key={option.id}
+            className={spaceProfile.apartmentSelectionId === option.id ? 'solid' : ''}
+            onClick={() => selectApartment(option)}
+          >
+            {formatApartmentOption(option)}
+          </button>
+        ))}
+      </div>
+      <div className="resultCard selected"><strong>{apartmentLabel}</strong><span>{apartmentMeta}</span></div>
+      <div className="typeStrip">{apartmentTypes.map((type) => <button key={type} className={spaceProfile.apartmentType === type ? 'solid' : ''} onClick={() => setSpaceProfile((current) => ({ ...current, apartmentType: type }))}>{type}</button>)}</div>
+      <SpaceSelectionBoard
+        zones={spaceZones}
+        selectedIds={spaceProfile.spaces}
+        onToggle={toggleZone}
+        compact
+        panelTitle="시작할 공간"
+      />
+    </>
+  )
+}
+
+function AddressSetupScreen({ navigate, closeOverlay, spaceProfile, setSpaceProfile, trackBoardProgress }) {
+  const overlayZones = baseZones.filter((zone) => ['living', 'kitchen', 'bed1', 'bed2'].includes(zone.id))
 
   return (
     <div className="setupCard">
@@ -1148,41 +1212,12 @@ function AddressSetupScreen({ navigate, closeOverlay, spaceProfile, setSpaceProf
         <div className="progressBar"><span className="fill half" /></div>
         <h2>배치하기 전에 공간 정보를 불러올게요</h2>
         <p className="muted">AI 추천 화면과 같은 아파트/공간 상태를 여기서 바로 바꾸면 배치 화면에도 즉시 반영됩니다.</p>
-        <label>아파트 또는 주소 검색</label>
-        <div className="inputWrap big">🔎<input value={spaceProfile.query} onChange={(event) => setSpaceProfile((current) => ({ ...current, query: event.target.value }))} /></div>
-        <div className="chipRow preferenceRow">
-          {apartmentSearchResults.map((option) => (
-            <button
-              key={option.id}
-              className={spaceProfile.apartmentSelectionId === option.id ? 'solid' : ''}
-              onClick={() => setSpaceProfile((current) => ({
-                ...current,
-                query: formatApartmentOption(option),
-                apartmentType: option.unitLabel,
-                apartmentSelectionId: option.id,
-              }))}
-            >
-              {formatApartmentOption(option)}
-            </button>
-          ))}
-        </div>
-        <div className="resultCard selected"><strong>{apartmentLabel}</strong><span>{apartmentMeta}</span></div>
-        <div className="typeStrip">{apartmentTypes.map((type) => <button key={type} className={spaceProfile.apartmentType === type ? 'solid' : ''} onClick={() => setSpaceProfile((current) => ({ ...current, apartmentType: type }))}>{type}</button>)}</div>
-        <div className="spaceLayout compact">
-          <div className="planBoard small">
-            {overlayZones.map((zone) => (
-              <button key={zone.id} className={`zone ${zone.className} ${spaceProfile.spaces.includes(zone.id) ? 'selected' : ''}`} onClick={() => { trackBoardProgress(); setSpaceProfile((current) => ({ ...current, spaces: current.spaces.includes(zone.id) ? (current.spaces.length === 1 ? current.spaces : current.spaces.filter((id) => id !== zone.id)) : [...current.spaces, zone.id] })) }}>
-                <b>{zone.icon}</b><span>{zone.name}</span>
-              </button>
-            ))}
-          </div>
-          <aside className="selectionPanel narrow">
-            <h3>시작할 공간</h3>
-            {overlayZones.filter((zone) => spaceProfile.spaces.includes(zone.id)).map((zone) => (
-              <div className="selectionItem" key={zone.id}><span>{zone.icon}</span><div><strong>{zone.name}</strong><small>{zone.size}</small></div></div>
-            ))}
-          </aside>
-        </div>
+        <SpaceProfileFields
+          spaceProfile={spaceProfile}
+          setSpaceProfile={setSpaceProfile}
+          spaceZones={overlayZones}
+          trackBoardProgress={trackBoardProgress}
+        />
         <div className="footerButtons"><button className="ghost" onClick={closeOverlay}>닫기</button><button className="cta small" onClick={() => { trackBoardProgress(); closeOverlay(); navigate('layout') }}>에디터 열기</button></div>
       </div>
     </div>
