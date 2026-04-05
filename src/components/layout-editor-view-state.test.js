@@ -82,14 +82,16 @@ test('buildPlacedItemStyle returns percent-based geometry and background color',
   )
 })
 
-test('buildLayoutEditorToolbarButtons exposes a stable tool order with active-state flags', () => {
+test('buildLayoutEditorToolbarButtons exposes a stable tool order with active-state and undo availability metadata', () => {
   assert.deepEqual(buildLayoutEditorToolbarButtons('move'), [
-    { id: 'select', label: '✥', isActive: false },
-    { id: 'move', label: '✋', isActive: true },
-    { id: 'color', label: '◉', isActive: false },
-    { id: 'rotate', label: '⟲', isActive: false },
-    { id: 'undo', label: '↶', isActive: false },
+    { id: 'select', label: '✥', isActive: false, disabled: false },
+    { id: 'move', label: '✋', isActive: true, disabled: false },
+    { id: 'color', label: '◉', isActive: false, disabled: false },
+    { id: 'rotate', label: '⟲', isActive: false, disabled: false },
+    { id: 'undo', label: '↶', isActive: false, disabled: true },
   ])
+
+  assert.equal(buildLayoutEditorToolbarButtons('select', { canUndo: true })[4].disabled, false)
 })
 
 test('buildLayoutEditorInfoPills summarizes snap mode and placed item count', () => {

@@ -42,13 +42,13 @@ export function buildPlacedItemStyle(item, itemMeta) {
   }
 }
 
-export function buildLayoutEditorToolbarButtons(activeTool) {
+export function buildLayoutEditorToolbarButtons(activeTool, { canUndo = false } = {}) {
   return [
-    { id: 'select', label: '✥', isActive: activeTool === 'select' },
-    { id: 'move', label: '✋', isActive: activeTool === 'move' },
-    { id: 'color', label: '◉', isActive: activeTool === 'color' },
-    { id: 'rotate', label: '⟲', isActive: activeTool === 'rotate' },
-    { id: 'undo', label: '↶', isActive: false },
+    { id: 'select', label: '✥', isActive: activeTool === 'select', disabled: false },
+    { id: 'move', label: '✋', isActive: activeTool === 'move', disabled: false },
+    { id: 'color', label: '◉', isActive: activeTool === 'color', disabled: false },
+    { id: 'rotate', label: '⟲', isActive: activeTool === 'rotate', disabled: false },
+    { id: 'undo', label: '↶', isActive: false, disabled: !canUndo },
   ]
 }
 

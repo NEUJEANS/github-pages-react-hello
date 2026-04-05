@@ -1001,8 +1001,8 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
     [activeCategory, librarySearch],
   )
   const toolbarButtons = React.useMemo(
-    () => buildLayoutEditorToolbarButtons(editor.activeTool),
-    [editor.activeTool],
+    () => buildLayoutEditorToolbarButtons(editor.activeTool, { canUndo: editor.canUndo }),
+    [editor.activeTool, editor.canUndo],
   )
   const infoPills = React.useMemo(
     () => buildLayoutEditorInfoPills({
