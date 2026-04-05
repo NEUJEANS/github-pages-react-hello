@@ -25,7 +25,14 @@ import {
   buildSelectedApartment,
   resolveAiRoomSelection,
 } from './components/app-state.js'
-import { resolveRoomClickTarget } from './components/editor-state.js'
+import {
+  buildPlacedLibraryItem,
+  resolveAnimatedTarget,
+  resolveDragPosition,
+  resolveMovedItemPosition,
+  resolveRoomClickTarget,
+  stepToward,
+} from './components/editor-state.js'
 import {
   buildNavigationHash,
   getDirectionalTransition,
@@ -258,14 +265,10 @@ function useEditorState() {
 
   const moveSelected = React.useCallback((dx, dy) => {
     stopClickMoveAnimation()
-    updateSelected((item) => {
-      const step = snapOn ? 4 : 2
-      return {
-        ...item,
-        x: clamp(item.x + dx * step, 2, 88),
-        y: clamp(item.y + dy * step, 2, 82),
-      }
-    }, snapOn ? '스냅 단위로 가구를 이동했어요.' : '자유 이동으로 가구 위치를 조정했어요.')
+    updateSelected((item) => ({
+      ...item,
+      ...resolveMovedItemPosition(item, dx, dy, snapOn),
+    }), snapOn ? '스냅 단위로 가구를 이동했어요.' : '자유 이동으로 가구 위치를 조정했어요.')
   }, [snapOn, stopClickMoveAnimation, updateSelected])
 
   const moveSelectedTo = React.useCallback((targetX, targetY) => {
@@ -280,8 +283,7 @@ function useEditorState() {
     setDragState(null)
     setActiveTool('move')
 
-    const snappedX = snapOn ? clamp(Math.round(targetX / 4) * 4, 2, 88) : clamp(targetX, 2, 88)
-    const snappedY = snapOn ? clamp(Math.round(targetY / 4) * 4, 2, 82) : clamp(targetY, 2, 82)
+    const { x: snappedX, y: snappedY } = resolveAnimatedTarget(targetX, targetY, snapOn)
 
     if (Math.abs(currentItem.x - snappedX) < 0.01 && Math.abs(currentItem.y - snappedY) < 0.01) {
       setNotice('이미 그 위치에 가까워요. 다른 지점을 클릭하면 부드럽게 이동해요.')
@@ -342,19 +344,7 @@ function useEditorState() {
   }, [updateSelected])
 
   const addLibraryItem = React.useCallback((product) => {
-    const nextItem = {
-      id: `${product.id}-${Date.now()}`,
-      sourceId: product.id,
-      name: product.name,
-      label: product.category === '소품' ? product.emoji : product.category.toUpperCase(),
-      x: 34,
-      y: 32,
-      w: product.category === '소품' ? 8 : 18,
-      h: product.category === '테이블' ? 14 : 12,
-      rotation: 0,
-      colorIndex: 0,
-      circle: product.category === '테이블',
-    }
+    const nextItem = buildPlacedLibraryItem(product, `${product.id}-${Date.now()}`)
     commit([...items, nextItem], `${product.name}을(를) 배치안에 추가했어요. 바로 드래그해서 위치를 조정할 수 있어요.`)
     setSelectedId(nextItem.id)
   }, [commit, items])
@@ -384,21 +374,15 @@ function useEditorState() {
   const updateDrag = React.useCallback((pointer) => {
     if (!dragState) return
 
-    const deltaX = ((pointer.clientX - dragState.startClientX) / dragState.roomWidth) * 100
-    const deltaY = ((pointer.clientY - dragState.startClientY) / dragState.roomHeight) * 100
-    const nextXRaw = clamp(dragState.originX + deltaX, 2, 88)
-    const nextYRaw = clamp(dragState.originY + deltaY, 2, 82)
-    const snapStep = 4
-    const nextX = snapOn ? clamp(Math.round(nextXRaw / snapStep) * snapStep, 2, 88) : nextXRaw
-    const nextY = snapOn ? clamp(Math.round(nextYRaw / snapStep) * snapStep, 2, 82) : nextYRaw
+    const { point, moved } = resolveDragPosition(dragState, pointer, snapOn)
 
     if (!historyCommittedRef.current) {
       setHistory((current) => [...current, items])
       historyCommittedRef.current = true
     }
 
-    setItems((current) => current.map((item) => item.id === dragState.itemId ? { ...item, x: nextX, y: nextY } : item))
-    setDragState((current) => current ? { ...current, moved: current.moved || Math.abs(deltaX) > 0.2 || Math.abs(deltaY) > 0.2 } : current)
+    setItems((current) => current.map((item) => item.id === dragState.itemId ? { ...item, x: point.x, y: point.y } : item))
+    setDragState((current) => current ? { ...current, moved: current.moved || moved } : current)
   }, [dragState, items, snapOn])
 
   const endDrag = React.useCallback(() => {
