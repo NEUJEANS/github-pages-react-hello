@@ -1,5 +1,6 @@
 export const defaultEditorColors = ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355']
 export const defaultPlacedItemColor = '#e6d7bf'
+export const defaultPlacedItemBlurb = '선택한 오브젝트의 활용 팁이 여기에 표시됩니다.'
 
 export function findLibraryItemMeta(items, sourceId) {
   return items.find((item) => item.id === sourceId)
@@ -27,5 +28,25 @@ export function buildPlacedItemStyle(item, itemMeta) {
     height: `${item.h}%`,
     transform: `rotate(${item.rotation}deg)`,
     background: resolvePlacedItemColor(item, itemMeta),
+  }
+}
+
+export function buildLayoutEditorInfoPills({ snapOn, itemCount }) {
+  return [
+    '거실 5400 x 3400',
+    snapOn ? '스냅 ON' : '자유 이동',
+    `배치 가구 ${itemCount}개`,
+  ]
+}
+
+export function buildLayoutEditorSelectionSnapshot(selectedItem, selectedMeta) {
+  return {
+    selectedName: selectedItem?.name ?? '선택 없음',
+    position: {
+      x: Math.round(selectedItem?.x ?? 0),
+      y: Math.round(selectedItem?.y ?? 0),
+    },
+    selectedColorIndex: selectedItem?.colorIndex ?? 0,
+    selectedBlurb: selectedMeta?.blurb ?? defaultPlacedItemBlurb,
   }
 }

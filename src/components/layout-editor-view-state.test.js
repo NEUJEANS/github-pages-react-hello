@@ -3,9 +3,12 @@ import assert from 'node:assert/strict'
 
 import {
   buildEditorPalette,
+  buildLayoutEditorInfoPills,
+  buildLayoutEditorSelectionSnapshot,
   buildPlacedItemClassName,
   buildPlacedItemStyle,
   defaultEditorColors,
+  defaultPlacedItemBlurb,
   defaultPlacedItemColor,
   findLibraryItemMeta,
   resolvePlacedItemColor,
@@ -70,4 +73,40 @@ test('buildPlacedItemStyle returns percent-based geometry and background color',
       background: '#222222',
     },
   )
+})
+
+test('buildLayoutEditorInfoPills summarizes snap mode and placed item count', () => {
+  assert.deepEqual(buildLayoutEditorInfoPills({ snapOn: true, itemCount: 3 }), [
+    '거실 5400 x 3400',
+    '스냅 ON',
+    '배치 가구 3개',
+  ])
+
+  assert.deepEqual(buildLayoutEditorInfoPills({ snapOn: false, itemCount: 0 }), [
+    '거실 5400 x 3400',
+    '자유 이동',
+    '배치 가구 0개',
+  ])
+})
+
+test('buildLayoutEditorSelectionSnapshot exposes stable property-panel copy and fallbacks', () => {
+  assert.deepEqual(
+    buildLayoutEditorSelectionSnapshot(
+      { name: '코튼베이지 모듈 소파', x: 43.6, y: 27.2, colorIndex: 2 },
+      { blurb: '동선 확보가 쉬운 모듈형 구성이에요.' },
+    ),
+    {
+      selectedName: '코튼베이지 모듈 소파',
+      position: { x: 44, y: 27 },
+      selectedColorIndex: 2,
+      selectedBlurb: '동선 확보가 쉬운 모듈형 구성이에요.',
+    },
+  )
+
+  assert.deepEqual(buildLayoutEditorSelectionSnapshot(undefined, undefined), {
+    selectedName: '선택 없음',
+    position: { x: 0, y: 0 },
+    selectedColorIndex: 0,
+    selectedBlurb: defaultPlacedItemBlurb,
+  })
 })

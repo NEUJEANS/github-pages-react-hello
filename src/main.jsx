@@ -1091,7 +1091,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
               </div>
             </div>
           </div>
-          <div className="infoPills"><span>거실 5400 x 3400</span><span>{editor.snapOn ? '스냅 ON' : '자유 이동'}</span><span>배치 가구 {editor.items.length}개</span></div>
+          <div className="infoPills">{infoPills.map((pill) => <span key={pill}>{pill}</span>)}</div>
           <div className="recommendStrip">
             {aiProducts.map((item) => (
               <button key={item.id} className="recommendCard buttonCard" onClick={() => { editor.addLibraryItem(item); trackFurniturePlacement() }}>
