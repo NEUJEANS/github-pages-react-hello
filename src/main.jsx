@@ -285,11 +285,6 @@ function useEditorState() {
       ? '클릭한 위치로 스냅 단위 애니메이션 이동 중이에요.'
       : '클릭한 위치로 부드럽게 이동 중이에요.')
 
-    const stepToward = (value, target, step = 1) => {
-      if (Math.abs(target - value) <= step) return target
-      return value + Math.sign(target - value) * step
-    }
-
     const tick = () => {
       const currentItemsForFrame = itemsRef.current
       const currentSelected = currentItemsForFrame.find((item) => item.id === selectedId)
