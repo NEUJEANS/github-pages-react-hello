@@ -31,6 +31,16 @@ export function buildPlacedItemStyle(item, itemMeta) {
   }
 }
 
+export function buildLayoutEditorToolbarButtons(activeTool) {
+  return [
+    { id: 'select', label: '✥', isActive: activeTool === 'select' },
+    { id: 'move', label: '✋', isActive: activeTool === 'move' },
+    { id: 'color', label: '◉', isActive: activeTool === 'color' },
+    { id: 'rotate', label: '⟲', isActive: activeTool === 'rotate' },
+    { id: 'undo', label: '↶', isActive: false },
+  ]
+}
+
 export function buildLayoutEditorInfoPills({ snapOn, itemCount }) {
   return [
     '거실 5400 x 3400',

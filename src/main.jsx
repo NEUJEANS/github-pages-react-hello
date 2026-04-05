@@ -47,6 +47,7 @@ import {
   buildEditorPalette,
   buildLayoutEditorInfoPills,
   buildLayoutEditorSelectionSnapshot,
+  buildLayoutEditorToolbarButtons,
   buildPlacedItemClassName,
   buildPlacedItemStyle,
   findLibraryItemMeta,
@@ -996,6 +997,10 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
     () => buildLibraryEmptyState(activeCategory, librarySearch),
     [activeCategory, librarySearch],
   )
+  const toolbarButtons = React.useMemo(
+    () => buildLayoutEditorToolbarButtons(editor.activeTool),
+    [editor.activeTool],
+  )
   const infoPills = React.useMemo(
     () => buildLayoutEditorInfoPills({
       snapOn: editor.snapOn,
@@ -1061,11 +1066,31 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
         </aside>
         <div className="editorCenter">
           <div className="toolbar">
-            <button className={`tool ${editor.activeTool === 'select' ? 'active' : ''}`} onClick={() => editor.setActiveTool('select')}>✥</button>
-            <button className={`tool ${editor.activeTool === 'move' ? 'active' : ''}`} onClick={() => editor.setActiveTool('move')}>✋</button>
-            <button className={`tool ${editor.activeTool === 'color' ? 'active' : ''}`} onClick={() => { editor.setActiveTool('color'); editor.cycleColor() }}>◉</button>
-            <button className={`tool ${editor.activeTool === 'rotate' ? 'active' : ''}`} onClick={() => { editor.setActiveTool('rotate'); editor.rotateSelected() }}>⟲</button>
-            <button className="tool" onClick={editor.undo}>↶</button>
+            {toolbarButtons.map((tool) => (
+              <button
+                key={tool.id}
+                className={`tool ${tool.isActive ? 'active' : ''}`}
+                onClick={() => {
+                  if (tool.id === 'undo') {
+                    editor.undo()
+                    return
+                  }
+                  if (tool.id === 'color') {
+                    editor.setActiveTool('color')
+                    editor.cycleColor()
+                    return
+                  }
+                  if (tool.id === 'rotate') {
+                    editor.setActiveTool('rotate')
+                    editor.rotateSelected()
+                    return
+                  }
+                  editor.setActiveTool(tool.id)
+                }}
+              >
+                {tool.label}
+              </button>
+            ))}
           </div>
           <div className="editorCanvasShell">
             <div className="editorCanvasMeta">

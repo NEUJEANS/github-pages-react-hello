@@ -5,6 +5,7 @@ import {
   buildEditorPalette,
   buildLayoutEditorInfoPills,
   buildLayoutEditorSelectionSnapshot,
+  buildLayoutEditorToolbarButtons,
   buildPlacedItemClassName,
   buildPlacedItemStyle,
   defaultEditorColors,
@@ -73,6 +74,16 @@ test('buildPlacedItemStyle returns percent-based geometry and background color',
       background: '#222222',
     },
   )
+})
+
+test('buildLayoutEditorToolbarButtons exposes a stable tool order with active-state flags', () => {
+  assert.deepEqual(buildLayoutEditorToolbarButtons('move'), [
+    { id: 'select', label: '✥', isActive: false },
+    { id: 'move', label: '✋', isActive: true },
+    { id: 'color', label: '◉', isActive: false },
+    { id: 'rotate', label: '⟲', isActive: false },
+    { id: 'undo', label: '↶', isActive: false },
+  ])
 })
 
 test('buildLayoutEditorInfoPills summarizes snap mode and placed item count', () => {
