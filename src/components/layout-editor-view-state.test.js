@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   buildEditorPalette,
   buildLayoutEditorActionButtons,
+  buildLayoutEditorColorOptions,
   buildLayoutEditorHint,
   buildLayoutEditorInfoPills,
   buildLayoutEditorMovementNote,
@@ -115,6 +116,19 @@ test('buildLayoutEditorHint adjusts the helper copy for snap mode', () => {
     badge: defaultLayoutEditorHintBadge,
     description: '가구를 누른 채 바로 끌거나 ✋ 이동 툴에서 빈 공간을 클릭해 움직일 수 있어요. 지금은 스냅이 꺼져 있어서 더 자유롭게 배치됩니다.',
   })
+})
+
+test('buildLayoutEditorColorOptions exposes palette swatches with active-state metadata', () => {
+  assert.deepEqual(
+    buildLayoutEditorColorOptions({ colors: ['#111111', '#222222', '#333333'] }, 1),
+    [
+      { color: '#111111', index: 0, isActive: false },
+      { color: '#222222', index: 1, isActive: true },
+      { color: '#333333', index: 2, isActive: false },
+    ],
+  )
+
+  assert.equal(buildLayoutEditorColorOptions(undefined, 0)[0].isActive, true)
 })
 
 test('buildLayoutEditorSelectionSnapshot exposes stable property-panel copy and fallbacks', () => {

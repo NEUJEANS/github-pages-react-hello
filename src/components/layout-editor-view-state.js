@@ -13,6 +13,14 @@ export function buildEditorPalette(itemMeta) {
   return (itemMeta?.colors ?? defaultEditorColors).slice(0, 4)
 }
 
+export function buildLayoutEditorColorOptions(itemMeta, selectedColorIndex = 0) {
+  return buildEditorPalette(itemMeta).map((color, index) => ({
+    color,
+    index,
+    isActive: index === selectedColorIndex,
+  }))
+}
+
 export function resolvePlacedItemColor(item, itemMeta) {
   return itemMeta?.colors?.[item.colorIndex ?? 0] ?? defaultPlacedItemColor
 }
