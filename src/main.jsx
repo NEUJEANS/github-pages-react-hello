@@ -716,6 +716,11 @@ function App() {
         trackAiRequest()
         navigate('space')
       },
+      onApplyToLayout: (product) => {
+        editor.addLibraryItem(product)
+        trackFurniturePlacement()
+        navigate('layout')
+      },
     },
     space: {
       selectedSpaces: spaceProfile.spaces,
@@ -837,7 +842,7 @@ function renderScreen(screen, props) {
   }
 }
 
-function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, brief, summary, selectedSpaceSummary, onRecommend, onOpenLogin }) {
+function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, brief, summary, selectedSpaceSummary, onRecommend, onApplyToLayout, onOpenLogin }) {
   const availableRooms = selectedSpaceSummary.availableRooms ?? roomOptions
   const unavailableRoomCount = roomOptions.length - availableRooms.length
   const roomHint = unavailableRoomCount > 0
@@ -998,7 +1003,7 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
                 <small>적합도 {item.fitScore}%</small>
                 <div className="cardActions two">
                   <button className="ghost minor" onClick={() => addToCart(item)}>담기</button>
-                  <button onClick={() => navigate('layout')}>배치에 담기</button>
+                  <button onClick={() => onApplyToLayout(item)}>배치에 담기</button>
                 </div>
               </article>
             ))}
