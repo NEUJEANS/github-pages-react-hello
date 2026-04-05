@@ -639,6 +639,11 @@ function App() {
     }))
   }, [])
 
+  const addProductToLayout = React.useCallback((product) => {
+    editor.addLibraryItem(buildLayoutProduct(product))
+    trackFurniturePlacement()
+  }, [editor, trackFurniturePlacement])
+
   const shared = {
     navigate,
     openOverlay,
@@ -646,6 +651,7 @@ function App() {
     addToCart: cart.addItem,
     onSearchOpen: () => setSearchDrawerOpen(true),
     onOpenLogin: openLogin,
+    onAddProductToLayout: addProductToLayout,
     trackBoardProgress,
     trackFurniturePlacement,
     ...cartActions,
@@ -663,8 +669,7 @@ function App() {
         navigate('space')
       },
       onApplyToLayout: (product) => {
-        editor.addLibraryItem(product)
-        trackFurniturePlacement()
+        addProductToLayout(product)
         navigate('layout')
       },
     },
@@ -759,8 +764,7 @@ function App() {
               quickView.close()
             }}
             onApplyToLayout={(product) => {
-              editor.addLibraryItem(buildLayoutProduct(product))
-              trackFurniturePlacement()
+              addProductToLayout(product)
               quickView.close()
               navigate('layout')
             }}
@@ -985,7 +989,7 @@ function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearc
   )
 }
 
-function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary, onOpenLogin, trackFurniturePlacement }) {
+function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary, onOpenLogin, onAddProductToLayout }) {
   const selectedMeta = React.useMemo(
     () => findLibraryItemMeta(libraryItems, editor.selected?.sourceId),
     [editor.selected?.sourceId],
@@ -1107,7 +1111,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
           {visibleLibrary.length > 0 ? (
             <div className="dragGrid">
               {visibleLibrary.map((item) => (
-                <button key={item.id} className="dragCard buttonCard" onClick={() => { editor.addLibraryItem(item); trackFurniturePlacement() }}>
+                <button key={item.id} className="dragCard buttonCard" onClick={() => onAddProductToLayout(item)}>
                   <span>{item.emoji}</span><strong>{item.name}</strong><small>{item.size}</small>
                 </button>
               ))}
@@ -1190,7 +1194,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
           <div className="infoPills">{infoPills.map((pill) => <span key={pill}>{pill}</span>)}</div>
           <div className="recommendStrip">
             {aiProducts.map((item) => (
-              <button key={item.id} className="recommendCard buttonCard" onClick={() => { editor.addLibraryItem(item); trackFurniturePlacement() }}>
+              <button key={item.id} className="recommendCard buttonCard" onClick={() => onAddProductToLayout(item)}>
                 <div>{item.emoji}</div><strong>{item.name}</strong><small>{item.priceLabel}</small>
               </button>
             ))}
@@ -1423,7 +1427,7 @@ function LoginModal({ state, engagement, reasons, onClose, onProceed }) {
   )
 }
 
-function QuickViewModal({ product, onClose, onAddToCart, onApplyToLayout, trackFurniturePlacement }) {
+function QuickViewModal({ product, onClose, onAddToCart, onApplyToLayout }) {
   return (
     <div className="overlayLayer" role="dialog" aria-modal="true">
       <div className="overlayScrim" onClick={onClose} />
