@@ -766,7 +766,7 @@ function App() {
 
     ;(async () => {
       const result = await readAuthSession({
-        endpoint: '/api/auth/session',
+        endpoint: authConfig.sessionEndpoint,
         ...authConfig,
       })
 

@@ -16,6 +16,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     {
       apiBaseUrl: 'https://runtime.example.com',
       loginEndpoint: '/api/auth/login',
+      sessionEndpoint: '/api/auth/session',
       credentialsMode: 'include',
       source: 'runtime',
       isConfigured: true,
@@ -34,6 +35,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     {
       apiBaseUrl: 'https://query.example.com',
       loginEndpoint: '/api/auth/login',
+      sessionEndpoint: '/api/auth/session',
       credentialsMode: 'include',
       source: 'query',
       isConfigured: true,
@@ -49,6 +51,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     {
       apiBaseUrl: 'https://api-env.example.com',
       loginEndpoint: '/api/auth/login',
+      sessionEndpoint: '/api/auth/session',
       credentialsMode: 'include',
       source: 'env:VITE_API_BASE_URL',
       isConfigured: true,
@@ -60,6 +63,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     {
       apiBaseUrl: '',
       loginEndpoint: '/api/auth/login',
+      sessionEndpoint: '/api/auth/session',
       credentialsMode: 'include',
       source: 'default',
       isConfigured: false,
@@ -67,22 +71,25 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
   )
 })
 
-test('resolveAuthConfig carries login endpoint and credential mode overrides for backend wiring', () => {
+test('resolveAuthConfig carries login/session endpoint and credential mode overrides for backend wiring', () => {
   assert.deepEqual(
     resolveAuthConfig({
       env: {
         VITE_AUTH_LOGIN_ENDPOINT: 'v1/session/login',
+        VITE_AUTH_SESSION_ENDPOINT: 'v1/session/me',
         VITE_AUTH_CREDENTIALS: 'same-origin',
       },
       runtimeConfig: {
         loginEndpoint: '/internal/auth/login',
+        sessionEndpoint: '/internal/auth/session',
         credentialsMode: 'omit',
       },
-      locationSearch: '?authLoginEndpoint=%2Fquery-login&authCredentials=include',
+      locationSearch: '?authLoginEndpoint=%2Fquery-login&authSessionEndpoint=%2Fquery-session&authCredentials=include',
     }),
     {
       apiBaseUrl: '',
       loginEndpoint: '/internal/auth/login',
+      sessionEndpoint: '/internal/auth/session',
       credentialsMode: 'omit',
       source: 'default',
       isConfigured: false,
