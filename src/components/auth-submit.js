@@ -1,3 +1,5 @@
+import { buildAuthScaffoldResponse } from './auth-backend-scaffold.js'
+
 function trimTrailingSlash(value = '') {
   return value.endsWith('/') ? value.slice(0, -1) : value
 }
@@ -9,6 +11,21 @@ export function resolveAuthEndpoint(endpoint, { apiBaseUrl } = {}) {
   if (!normalizedBase) return endpoint
 
   return `${normalizedBase}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
+}
+
+function shouldUseLocalAuthScaffold(plan, { apiBaseUrl } = {}) {
+  const resolvedUrl = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
+  return !/^https?:\/\//.test(resolvedUrl) && plan.endpoint.startsWith('/api/auth/')
+}
+
+function buildScaffoldLoginResult(plan) {
+  const scaffoldResponse = buildAuthScaffoldResponse(plan.request)
+
+  return {
+    ok: scaffoldResponse.status >= 200 && scaffoldResponse.status < 300,
+    status: scaffoldResponse.status,
+    data: scaffoldResponse.data,
+  }
 }
 
 async function parseAuthResponse(response) {
@@ -31,19 +48,33 @@ async function parseAuthResponse(response) {
 }
 
 export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl } = {}) {
-  const response = await fetchImpl(resolveAuthEndpoint(plan.endpoint, { apiBaseUrl }), {
+  const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
+  const requestInit = {
     method: plan.method,
     headers: {
       'content-type': 'application/json',
     },
     body: JSON.stringify(plan.request),
-  })
+  }
 
-  const data = await parseAuthResponse(response)
+  try {
+    const response = await fetchImpl(endpoint, requestInit)
+    const data = await parseAuthResponse(response)
 
-  return {
-    ok: response.ok,
-    status: response.status,
-    data,
+    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl }) && [404, 405, 501].includes(response.status)) {
+      return buildScaffoldLoginResult(plan)
+    }
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+    }
+  } catch {
+    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl })) {
+      return buildScaffoldLoginResult(plan)
+    }
+
+    throw new Error('Auth request failed')
   }
 }

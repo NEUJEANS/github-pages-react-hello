@@ -67,3 +67,62 @@ test('submitAuthLoginPlan captures text errors from non-json auth scaffolds', as
     data: { message: 'Auth service unavailable' },
   })
 })
+
+test('submitAuthLoginPlan falls back to the local scaffold when the same-origin auth route is missing', async () => {
+  const result = await submitAuthLoginPlan({
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    request: {
+      email: 'user@example.com',
+      password: 'password123',
+      guestDraftSnapshot: {
+        recommendationDraft: { room: '거실' },
+        continuity: {
+          wishlistIds: ['wish-1'],
+          cartItems: [{ id: 'cart-1', qty: 1 }],
+          layoutItems: [{ id: 'layout-1' }],
+        },
+      },
+    },
+  }, {
+    fetchImpl: async () => ({
+      ok: false,
+      status: 404,
+      headers: new Headers({ 'content-type': 'text/plain' }),
+      text: async () => 'Not found',
+    }),
+  })
+
+  assert.equal(result.ok, true)
+  assert.equal(result.status, 200)
+  assert.equal(result.data.sessionId, 'demo-user-example-com')
+  assert.equal(result.data.mergedGuestDraft.layoutItemCount, 1)
+  assert.equal(result.data.mergedGuestDraft.recommendationDraftRestored, true)
+})
+
+test('submitAuthLoginPlan falls back to the local scaffold when same-origin auth fetch throws', async () => {
+  const result = await submitAuthLoginPlan({
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    request: {
+      email: 'user@example.com',
+      password: 'merge-conflict',
+      guestDraftSnapshot: {
+        continuity: {
+          wishlistIds: ['wish-1'],
+          cartItems: [],
+          layoutItems: [{ id: 'layout-1' }],
+        },
+      },
+    },
+  }, {
+    fetchImpl: async () => {
+      throw new TypeError('fetch failed')
+    },
+  })
+
+  assert.equal(result.ok, false)
+  assert.equal(result.status, 409)
+  assert.equal(result.data.message, 'Guest draft merge confirmation required')
+  assert.equal(result.data.mergedGuestDraft.layoutItemCount, 1)
+})
