@@ -67,7 +67,15 @@ export function buildGuestDraftSnapshot({
   }
 }
 
-export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot, mergeResolution = null, handoffId = null }) {
+export function buildAuthSubmitPlan({
+  email,
+  password,
+  guestDraftSnapshot,
+  mergeResolution = null,
+  handoffId = null,
+  endpoint = '/api/auth/login',
+  intent = null,
+} = {}) {
   const normalizedEmail = sanitizeEmail(email)
   const normalizedHandoffId = sanitizeAuthHandoffId(handoffId)
   const hasPassword = password.trim().length >= 8
@@ -75,7 +83,7 @@ export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot, merge
 
   return {
     canSubmit: normalizedEmail.includes('@') && hasPassword,
-    endpoint: '/api/auth/login',
+    endpoint,
     method: 'POST',
     handoffId: normalizedHandoffId || null,
     request: {
@@ -84,6 +92,7 @@ export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot, merge
       guestDraftSnapshot: hasGuestDraft ? guestDraftSnapshot : null,
       mergeResolution,
       handoffId: normalizedHandoffId || null,
+      intent,
     },
     summary: {
       email: normalizedEmail,
@@ -93,6 +102,7 @@ export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot, merge
       layoutItemCount: guestDraftSnapshot?.continuity?.layoutItems?.length ?? 0,
       hasRecommendationDraft: Boolean(guestDraftSnapshot?.recommendationDraft),
       mergeResolution,
+      intent,
     },
   }
 }

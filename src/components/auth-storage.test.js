@@ -7,6 +7,7 @@ import {
   buildAuthConnectionSummary,
   buildAuthResumeState,
   buildGuestDraftSessionSummary,
+  buildSerializableAuthIntent,
   buildPersistedAuthHandoff,
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
@@ -44,6 +45,7 @@ test('buildAuthConnectionSummary resolves same-origin and external auth targets'
       targetLabel: 'same-origin /api auth scaffold',
       isExternal: false,
       isSameOriginScaffold: true,
+      credentialsMode: 'include',
       source: 'default',
     },
   )
@@ -72,6 +74,12 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
       layoutItemCount: 3,
       hasRecommendationDraft: true,
       mergeResolution: 'keep-guest',
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        draftLabel: '서울 성동구 성수이로 123 HAVENLY Apartments',
+      },
     },
   }, {
     continuity: {
@@ -84,6 +92,13 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
   assert.equal(persistAuthHandoff(storage, handoff), true)
   assert.equal(storage.getItem(AUTH_HANDOFF_STORAGE_KEY) !== null, true)
   assert.deepEqual(readPersistedAuthHandoff(storage), handoff)
+  assert.deepEqual(handoff.summary.intent, {
+    source: 'layout-editor',
+    action: 'save-layout-draft',
+    label: '로그인 후 보드 저장',
+    returnScreen: null,
+    draftLabel: '서울 성동구 성수이로 123 HAVENLY Apartments',
+  })
 })
 
 test('buildAuthResumeState revives an interrupted login attempt from persisted handoff data', () => {
@@ -91,7 +106,15 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
     submittedAt: '2026-04-06T06:59:00.000Z',
     handoffId: 'auth-20260406123000-2n9c',
     email: 'user@example.com',
-    summary: { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 1, cartCount: 2, layoutItemCount: 3, hasRecommendationDraft: true, mergeResolution: 'keep-guest' },
+    summary: {
+      handoffId: 'auth-20260406123000-2n9c',
+      wishlistCount: 1,
+      cartCount: 2,
+      layoutItemCount: 3,
+      hasRecommendationDraft: true,
+      mergeResolution: 'keep-guest',
+      intent: { source: 'cart-drawer', action: 'checkout-cart', label: '로그인 후 주문 이어가기', draftLabel: '장바구니 2개' },
+    },
   }
   const session = { accountLabel: 'user@example.com' }
   const resumeState = buildAuthResumeState(handoff, session)
@@ -102,6 +125,13 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
   assert.equal(resumeState.handoff, handoff)
   assert.equal(resumeState.session, session)
   assert.equal(resumeState.mergeResolution, 'keep-guest')
+  assert.deepEqual(resumeState.intent, {
+    source: 'cart-drawer',
+    action: 'checkout-cart',
+    label: '로그인 후 주문 이어가기',
+    returnScreen: null,
+    draftLabel: '장바구니 2개',
+  })
 })
 
 test('buildGuestDraftSessionSummary keeps the persisted post-login restore details serializable', () => {
@@ -145,6 +175,13 @@ test('persistAuthSession stores the latest successful auth summary for the front
     authTransport: 'same-origin-middleware',
   }, {
     savedAt: '2026-04-06T07:01:00.000Z',
+    intent: {
+      source: 'layout-editor',
+      action: 'save-layout-draft',
+      label: '로그인 후 보드 저장',
+      returnScreen: 'layout',
+      draftLabel: '거실 84A',
+    },
     guestDraftSnapshot: {
       recommendationDraft: { room: '거실' },
       continuity: {
@@ -162,6 +199,30 @@ test('persistAuthSession stores the latest successful auth summary for the front
   assert.deepEqual(readPersistedAuthSession(storage), session)
   assert.equal(session.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(session.authMode, 'scaffold')
+  assert.deepEqual(session.intent, {
+    source: 'layout-editor',
+    action: 'save-layout-draft',
+    label: '로그인 후 보드 저장',
+    returnScreen: 'layout',
+    draftLabel: '거실 84A',
+  })
+})
+
+test('buildSerializableAuthIntent trims the guarded login handoff context down to serializable UI fields', () => {
+  assert.deepEqual(buildSerializableAuthIntent({
+    source: ' layout-editor ',
+    action: ' save-layout-draft ',
+    label: ' 로그인 후 보드 저장 ',
+    returnScreen: ' layout ',
+    draftLabel: ' 거실 84A ',
+    ignored: { nested: true },
+  }), {
+    source: 'layout-editor',
+    action: 'save-layout-draft',
+    label: '로그인 후 보드 저장',
+    returnScreen: 'layout',
+    draftLabel: '거실 84A',
+  })
 })
 
 test('clearPersistedAuthHandoff and clearPersistedAuthSession remove saved auth state', () => {

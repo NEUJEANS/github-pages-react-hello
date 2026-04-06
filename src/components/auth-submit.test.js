@@ -21,9 +21,11 @@ test('submitAuthLoginPlan sends the backend-ready payload as json with handoff c
       guestDraftSnapshot: { continuity: { wishlistIds: ['a'] } },
       mergeResolution: 'keep-guest',
       handoffId: 'auth-20260406123000-2n9c',
+      intent: { action: 'save-layout-draft', label: '로그인 후 보드 저장' },
     },
   }, {
     apiBaseUrl: 'https://api.example.com',
+    credentialsMode: 'same-origin',
     fetchImpl: async (url, options) => {
       calls.push({ url, options })
       return {
@@ -37,6 +39,7 @@ test('submitAuthLoginPlan sends the backend-ready payload as json with handoff c
 
   assert.equal(calls[0].url, 'https://api.example.com/api/auth/login')
   assert.equal(calls[0].options.method, 'POST')
+  assert.equal(calls[0].options.credentials, 'same-origin')
   assert.equal(calls[0].options.headers['content-type'], 'application/json')
   assert.equal(calls[0].options.headers[AUTH_HANDOFF_HEADER], 'auth-20260406123000-2n9c')
   assert.deepEqual(JSON.parse(calls[0].options.body), {
@@ -45,6 +48,7 @@ test('submitAuthLoginPlan sends the backend-ready payload as json with handoff c
     guestDraftSnapshot: { continuity: { wishlistIds: ['a'] } },
     mergeResolution: 'keep-guest',
     handoffId: 'auth-20260406123000-2n9c',
+    intent: { action: 'save-layout-draft', label: '로그인 후 보드 저장' },
   })
   assert.deepEqual(result, {
     ok: true,

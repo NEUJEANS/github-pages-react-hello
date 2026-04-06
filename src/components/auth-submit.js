@@ -69,10 +69,11 @@ function buildResponseMeta(response) {
   }
 }
 
-export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl } = {}) {
+export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl, credentialsMode = 'include' } = {}) {
   const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
   const requestInit = {
     method: plan.method,
+    credentials: credentialsMode,
     headers: {
       'content-type': 'application/json',
       ...(plan.handoffId ? { [AUTH_HANDOFF_HEADER]: plan.handoffId } : {}),

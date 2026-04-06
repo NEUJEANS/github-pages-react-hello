@@ -25,6 +25,7 @@ import {
   buildAuthConnectionSummary,
   buildAuthResumeState,
   buildPersistedAuthHandoff,
+  buildSerializableAuthIntent,
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
   clearPersistedAuthSession,
@@ -598,6 +599,7 @@ function App() {
       status: 'idle',
       result: null,
       mergeResolution: null,
+      intent: null,
     }
   ))
   const [authSession, setAuthSession] = React.useState(() => persistedAuthSession)
@@ -671,18 +673,20 @@ function App() {
     editorItems: editor.items,
   }), [aiForm, cart.items, editor.items, engagement, selectedApartment, selectedSpaceSummary, spaceProfile, wishlistedIds])
 
+  const authConfig = React.useMemo(
+    () => resolveAuthConfig({ env: import.meta.env }),
+    [],
+  )
+
   const authSubmitPlan = React.useMemo(() => buildAuthSubmitPlan({
     email: loginForm.email,
     password: loginForm.password,
     guestDraftSnapshot,
     mergeResolution: loginForm.mergeResolution ?? null,
     handoffId: loginForm.handoffId ?? null,
-  }), [guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.mergeResolution, loginForm.password])
-
-  const authConfig = React.useMemo(
-    () => resolveAuthConfig({ env: import.meta.env }),
-    [],
-  )
+    endpoint: authConfig.loginEndpoint,
+    intent: buildSerializableAuthIntent(loginForm.intent),
+  }), [authConfig.loginEndpoint, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password])
 
   const authConnectionSummary = React.useMemo(
     () => buildAuthConnectionSummary(authSubmitPlan, authConfig),
@@ -715,13 +719,14 @@ function App() {
 
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 
-  const openLogin = React.useCallback(() => {
+  const openLogin = React.useCallback((intent = null) => {
     setLoginForm((current) => ({
       ...current,
       handoffId: current.handoffId ?? createAuthHandoffId(),
-      status: 'idle',
+      status: current.status === 'resume-ready' ? 'resume-ready' : 'idle',
       result: null,
       mergeResolution: null,
+      intent: buildSerializableAuthIntent(intent) ?? current.intent ?? null,
     }))
     setLoginModalState(hasLoginGuard ? 'guard' : 'form')
   }, [hasLoginGuard])
@@ -739,6 +744,7 @@ function App() {
       status: 'idle',
       result: null,
       mergeResolution: null,
+      intent: null,
     })
   }, [])
 
@@ -751,6 +757,8 @@ function App() {
       guestDraftSnapshot,
       mergeResolution: nextMergeResolution,
       handoffId: nextHandoffId,
+      endpoint: authConfig.loginEndpoint,
+      intent: buildSerializableAuthIntent(loginForm.intent),
     })
 
     if (!submitPlan.canSubmit) return
@@ -773,7 +781,10 @@ function App() {
       const nextResultSummary = result.ok ? buildAuthResultSummary(result, submitPlan.summary) : null
 
       if (nextResultSummary) {
-        const nextSession = buildPersistedAuthSession(nextResultSummary, { guestDraftSnapshot })
+        const nextSession = buildPersistedAuthSession(nextResultSummary, {
+          guestDraftSnapshot,
+          intent: submitPlan.summary.intent,
+        })
         persistAuthSession(globalThis.localStorage, nextSession)
         clearPersistedAuthHandoff(globalThis.sessionStorage)
         setAuthSession(nextSession)
@@ -920,6 +931,8 @@ function App() {
         {cart.isOpen && (
           <CartDrawer
             cart={cart}
+            authSession={authSession}
+            onOpenLogin={openLogin}
             onClose={() => cart.setIsOpen(false)}
           />
         )}
@@ -1380,6 +1393,20 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
           <div className="propBlock"><label>배치 메모</label><p>{propertyPanelState.selectionSnapshot.selectedBlurb}</p></div>
           <div className="propBlock"><label>이동 방식</label><p>{propertyPanelState.movementNote}</p></div>
           <div className="propBlock actionBlock">
+            {!authSession && (
+              <button
+                className="ghost"
+                onClick={() => onOpenLogin({
+                  source: 'layout-editor',
+                  action: 'save-layout-draft',
+                  label: '로그인 후 보드 저장',
+                  draftLabel: addressSummary,
+                  returnScreen: 'layout',
+                })}
+              >
+                로그인 후 보드 저장
+              </button>
+            )}
             {propertyPanelState.actionButtons.map((button) => (
               <button
                 key={button.id}
@@ -1477,7 +1504,7 @@ function FurnitureHomeScreen({ navigate, openOverlay, openCart, cartCount, onSea
   )
 }
 
-function CartDrawer({ cart, onClose }) {
+function CartDrawer({ cart, authSession, onOpenLogin, onClose }) {
   return (
     <div className="drawerLayer" role="dialog" aria-modal="true">
       <div className="overlayScrim" onClick={onClose} />
@@ -1497,7 +1524,24 @@ function CartDrawer({ cart, onClose }) {
                 ))}
               </div>
               <div className="cartSummary"><span>소계</span><strong>{formatPrice(cart.subtotal)}</strong></div>
-              <div className="footerButtons stackOnMobile"><button className="ghost" onClick={cart.clear}>비우기</button><button className="cta">주문하기 (데모)</button></div>
+              <div className="footerButtons stackOnMobile">
+                <button className="ghost" onClick={cart.clear}>비우기</button>
+                <button
+                  className="cta"
+                  onClick={() => {
+                    if (authSession) return
+                    onOpenLogin({
+                      source: 'cart-drawer',
+                      action: 'checkout-cart',
+                      label: '로그인 후 주문 이어가기',
+                      draftLabel: `장바구니 ${cart.count}개`,
+                      returnScreen: 'home',
+                    })
+                  }}
+                >
+                  {authSession ? '주문하기 (데모)' : '로그인 후 주문 이어가기'}
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -1587,9 +1631,10 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
               <div className="loginBenefits">
                 <div><strong>AI 이력 저장</strong><span>공간별 추천 결과를 다시 불러올 수 있어요.</span></div>
                 <div><strong>보드 이어서 작업</strong><span>배치 중인 가구와 평면도 초안을 계정에 연결합니다.</span></div>
-                <div><strong>백엔드 전달 준비</strong><span>{authSubmitPlan.endpoint} 요청에 게스트 초안까지 같이 묶도록 구조를 맞췄어요.</span></div>
+                {form.intent?.label && <div><strong>이번 로그인 목적</strong><span>{form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</span></div>}
+                <div><strong>백엔드 전달 준비</strong><span>{authSubmitPlan.endpoint} 요청에 게스트 초안과 intent handoff를 같이 묶도록 구조를 맞췄어요.</span></div>
                 <div><strong>연결 대상</strong><span>{authConnectionSummary.targetLabel} · {authConnectionSummary.method} {authConnectionSummary.endpoint}</span></div>
-                <div><strong>설정 소스</strong><span>{authConnectionSummary.source === 'default' ? '기본 same-origin scaffold' : authConnectionSummary.source}</span></div>
+                <div><strong>인증 전송</strong><span>{authConnectionSummary.credentialsMode} credentials · {authConnectionSummary.source === 'default' ? '기본 same-origin scaffold' : authConnectionSummary.source}</span></div>
               </div>
               <div className="loginForm">
                 <label>이메일</label>
@@ -1607,6 +1652,9 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                   )}
                   {form.mergeResolution && (
                     <p className="muted">병합 확정: {form.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하며 계속 진행' : form.mergeResolution}</p>
+                  )}
+                  {form.intent?.label && (
+                    <p className="muted">로그인 후 이어갈 작업: {form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</p>
                   )}
                   <div className="guardSummary compact">
                     <div><label>handoff</label><b>{authSubmitPlan.summary.handoffId ?? '미생성'}</b></div>

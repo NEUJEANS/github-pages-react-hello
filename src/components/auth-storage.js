@@ -3,6 +3,26 @@ import { resolveAuthEndpoint } from './auth-submit.js'
 export const AUTH_HANDOFF_STORAGE_KEY = 'havenly.auth.handoff'
 export const AUTH_SESSION_STORAGE_KEY = 'havenly.auth.session'
 
+export function buildSerializableAuthIntent(intent = null) {
+  if (!intent || typeof intent !== 'object') return null
+
+  const source = typeof intent.source === 'string' ? intent.source.trim() : ''
+  const action = typeof intent.action === 'string' ? intent.action.trim() : ''
+  const label = typeof intent.label === 'string' ? intent.label.trim() : ''
+  const returnScreen = typeof intent.returnScreen === 'string' ? intent.returnScreen.trim() : ''
+  const draftLabel = typeof intent.draftLabel === 'string' ? intent.draftLabel.trim() : ''
+
+  if (!source && !action && !label && !returnScreen && !draftLabel) return null
+
+  return {
+    source: source || null,
+    action: action || null,
+    label: label || null,
+    returnScreen: returnScreen || null,
+    draftLabel: draftLabel || null,
+  }
+}
+
 function safeHostLabel(url) {
   try {
     return new URL(url).host
@@ -11,7 +31,7 @@ function safeHostLabel(url) {
   }
 }
 
-export function buildAuthConnectionSummary(plan, { apiBaseUrl, source = 'default' } = {}) {
+export function buildAuthConnectionSummary(plan, { apiBaseUrl, source = 'default', credentialsMode = 'include' } = {}) {
   const resolvedUrl = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
   const hostLabel = safeHostLabel(resolvedUrl)
   const isSameOriginScaffold = !hostLabel && plan.endpoint.startsWith('/api/auth')
@@ -23,6 +43,7 @@ export function buildAuthConnectionSummary(plan, { apiBaseUrl, source = 'default
     targetLabel: hostLabel ?? 'same-origin /api auth scaffold',
     isExternal: Boolean(hostLabel),
     isSameOriginScaffold,
+    credentialsMode,
     source,
   }
 }
@@ -40,7 +61,10 @@ export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedA
     endpoint: plan.endpoint,
     method: plan.method,
     email: plan.summary.email,
-    summary: { ...plan.summary },
+    summary: {
+      ...plan.summary,
+      intent: buildSerializableAuthIntent(plan.summary?.intent),
+    },
     guestDraftSnapshot,
   }
 }
@@ -62,7 +86,7 @@ export function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
   }
 }
 
-export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString() } = {}) {
+export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null } = {}) {
   return {
     savedAt,
     sessionId: resultSummary?.sessionId ?? null,
@@ -80,6 +104,7 @@ export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = 
     hasRecommendationDraft: Boolean(resultSummary?.hasRecommendationDraft),
     authMode: resultSummary?.authMode ?? 'remote',
     authTransport: resultSummary?.authTransport ?? 'network',
+    intent: buildSerializableAuthIntent(intent ?? resultSummary?.intent ?? null),
     guestDraftSummary: buildGuestDraftSessionSummary(guestDraftSnapshot),
   }
 }
@@ -96,6 +121,7 @@ export function buildAuthResumeState(handoff, session = null) {
     handoff,
     session,
     mergeResolution: handoff.summary?.mergeResolution ?? null,
+    intent: buildSerializableAuthIntent(handoff.summary?.intent ?? session?.intent ?? null),
   }
 }
 

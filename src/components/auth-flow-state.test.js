@@ -62,6 +62,8 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request with handoff
     email: ' USER@Example.com ',
     password: 'password123',
     handoffId: 'auth-20260406123000-2n9c',
+    endpoint: '/internal/auth/login',
+    intent: { action: 'save-layout-draft', label: '로그인 후 보드 저장' },
     guestDraftSnapshot: {
       recommendationDraft: { room: '거실' },
       continuity: {
@@ -73,17 +75,19 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request with handoff
   })
 
   assert.equal(plan.canSubmit, true)
-  assert.equal(plan.endpoint, '/api/auth/login')
+  assert.equal(plan.endpoint, '/internal/auth/login')
   assert.equal(plan.method, 'POST')
   assert.equal(plan.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(plan.request.email, 'user@example.com')
   assert.equal(plan.request.handoffId, 'auth-20260406123000-2n9c')
+  assert.deepEqual(plan.request.intent, { action: 'save-layout-draft', label: '로그인 후 보드 저장' })
   assert.equal(plan.summary.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(plan.summary.wishlistCount, 2)
   assert.equal(plan.summary.cartCount, 1)
   assert.equal(plan.summary.layoutItemCount, 1)
   assert.equal(plan.summary.hasRecommendationDraft, true)
   assert.equal(plan.summary.mergeResolution, null)
+  assert.deepEqual(plan.summary.intent, { action: 'save-layout-draft', label: '로그인 후 보드 저장' })
 })
 
 test('buildAuthResultSummary extracts backend auth response details without widening the login flow contract', () => {

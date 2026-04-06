@@ -15,6 +15,8 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     }),
     {
       apiBaseUrl: 'https://runtime.example.com',
+      loginEndpoint: '/api/auth/login',
+      credentialsMode: 'include',
       source: 'runtime',
       isConfigured: true,
     },
@@ -31,6 +33,8 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     }),
     {
       apiBaseUrl: 'https://query.example.com',
+      loginEndpoint: '/api/auth/login',
+      credentialsMode: 'include',
       source: 'query',
       isConfigured: true,
     },
@@ -44,6 +48,8 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     }),
     {
       apiBaseUrl: 'https://api-env.example.com',
+      loginEndpoint: '/api/auth/login',
+      credentialsMode: 'include',
       source: 'env:VITE_API_BASE_URL',
       isConfigured: true,
     },
@@ -53,6 +59,31 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     resolveAuthConfig({ env: {}, runtimeConfig: null, locationSearch: '' }),
     {
       apiBaseUrl: '',
+      loginEndpoint: '/api/auth/login',
+      credentialsMode: 'include',
+      source: 'default',
+      isConfigured: false,
+    },
+  )
+})
+
+test('resolveAuthConfig carries login endpoint and credential mode overrides for backend wiring', () => {
+  assert.deepEqual(
+    resolveAuthConfig({
+      env: {
+        VITE_AUTH_LOGIN_ENDPOINT: 'v1/session/login',
+        VITE_AUTH_CREDENTIALS: 'same-origin',
+      },
+      runtimeConfig: {
+        loginEndpoint: '/internal/auth/login',
+        credentialsMode: 'omit',
+      },
+      locationSearch: '?authLoginEndpoint=%2Fquery-login&authCredentials=include',
+    }),
+    {
+      apiBaseUrl: '',
+      loginEndpoint: '/internal/auth/login',
+      credentialsMode: 'omit',
       source: 'default',
       isConfigured: false,
     },
