@@ -11,9 +11,10 @@ function safeHostLabel(url) {
   }
 }
 
-export function buildAuthConnectionSummary(plan, { apiBaseUrl } = {}) {
+export function buildAuthConnectionSummary(plan, { apiBaseUrl, source = 'default' } = {}) {
   const resolvedUrl = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
   const hostLabel = safeHostLabel(resolvedUrl)
+  const isSameOriginScaffold = !hostLabel && plan.endpoint.startsWith('/api/auth')
 
   return {
     method: plan.method,
@@ -21,6 +22,8 @@ export function buildAuthConnectionSummary(plan, { apiBaseUrl } = {}) {
     resolvedUrl,
     targetLabel: hostLabel ?? 'same-origin /api auth scaffold',
     isExternal: Boolean(hostLabel),
+    isSameOriginScaffold,
+    source,
   }
 }
 

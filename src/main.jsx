@@ -20,6 +20,7 @@ import {
   buildGuestDraftSnapshot,
 } from './components/auth-flow-state.js'
 import { submitAuthLoginPlan } from './components/auth-submit.js'
+import { resolveAuthConfig } from './components/auth-config.js'
 import {
   buildAuthConnectionSummary,
   buildAuthResumeState,
@@ -671,9 +672,14 @@ function App() {
     guestDraftSnapshot,
   }), [guestDraftSnapshot, loginForm.email, loginForm.password])
 
+  const authConfig = React.useMemo(
+    () => resolveAuthConfig({ env: import.meta.env }),
+    [],
+  )
+
   const authConnectionSummary = React.useMemo(
-    () => buildAuthConnectionSummary(authSubmitPlan, { apiBaseUrl: import.meta.env.VITE_API_BASE_URL }),
-    [authSubmitPlan],
+    () => buildAuthConnectionSummary(authSubmitPlan, authConfig),
+    [authConfig, authSubmitPlan],
   )
 
   const authResultSummary = React.useMemo(
@@ -687,8 +693,8 @@ function App() {
   )
 
   const authStatusMessage = React.useMemo(
-    () => buildAuthStatusCopy(loginForm.status, authSubmitPlan.summary, authResultSummary, authErrorSummary),
-    [authErrorSummary, authResultSummary, authSubmitPlan.summary, loginForm.status],
+    () => buildAuthStatusCopy(loginForm.status, authSubmitPlan.summary, authResultSummary, authErrorSummary, authConnectionSummary),
+    [authConnectionSummary, authErrorSummary, authResultSummary, authSubmitPlan.summary, loginForm.status],
   )
 
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
@@ -709,9 +715,7 @@ function App() {
     setLoginForm((current) => ({ ...current, status: 'submitting', result: null }))
 
     try {
-      const result = await submitAuthLoginPlan(authSubmitPlan, {
-        apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
-      })
+      const result = await submitAuthLoginPlan(authSubmitPlan, authConfig)
       const nextResultSummary = result.ok ? buildAuthResultSummary(result, authSubmitPlan.summary) : null
 
       if (nextResultSummary) {
@@ -737,7 +741,7 @@ function App() {
         },
       }))
     }
-  }, [authSubmitPlan, guestDraftSnapshot])
+  }, [authConfig, authSubmitPlan, guestDraftSnapshot])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),
@@ -1516,6 +1520,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 <div><strong>보드 이어서 작업</strong><span>배치 중인 가구와 평면도 초안을 계정에 연결합니다.</span></div>
                 <div><strong>백엔드 전달 준비</strong><span>{authSubmitPlan.endpoint} 요청에 게스트 초안까지 같이 묶도록 구조를 맞췄어요.</span></div>
                 <div><strong>연결 대상</strong><span>{authConnectionSummary.targetLabel} · {authConnectionSummary.method} {authConnectionSummary.endpoint}</span></div>
+                <div><strong>설정 소스</strong><span>{authConnectionSummary.source === 'default' ? '기본 same-origin scaffold' : authConnectionSummary.source}</span></div>
               </div>
               <div className="loginForm">
                 <label>이메일</label>

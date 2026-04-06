@@ -157,7 +157,7 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
   }
 }
 
-export function buildAuthStatusCopy(status, summary, resultSummary = null, errorSummary = null) {
+export function buildAuthStatusCopy(status, summary, resultSummary = null, errorSummary = null, connectionSummary = null) {
   if (status === 'resume-ready') return '이전 로그인 시도가 남아 있어요. 입력한 이메일과 게스트 초안을 그대로 이어서 다시 연결할 수 있어요.'
   if (status === 'submitting') return '계정 연결 준비 중… 게스트 초안을 함께 묶고 있어요.'
   if (status === 'ready') {
@@ -171,7 +171,12 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
   if (status === 'error') {
     if (errorSummary?.tone === 'credentials') return `${errorSummary.message} · 게스트 초안은 유지되어 다시 시도할 수 있어요.`
     if (errorSummary?.tone === 'merge') return `${errorSummary.message} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개 handoff 기록을 유지합니다.`
-    if (errorSummary?.tone === 'service') return `${errorSummary.message} · 인증 API가 준비되면 같은 초안으로 다시 연결할 수 있어요.`
+    if (errorSummary?.tone === 'service') {
+      if (connectionSummary?.isSameOriginScaffold) {
+        return `${errorSummary.message} · 현재는 ${connectionSummary.targetLabel} 대상만 준비되어 있어서, auth base URL 또는 백엔드 라우트가 연결되면 같은 초안으로 다시 이어갈 수 있어요.`
+      }
+      return `${errorSummary.message} · 인증 API가 준비되면 같은 초안으로 다시 연결할 수 있어요.`
+    }
     return `${errorSummary?.message ?? '로그인 연결에 실패했어요.'} 잠시 후 다시 시도하거나 백엔드 인증 설정을 확인해주세요.`
   }
   return '로그인하면 게스트 상태의 추천, 보드, 찜, 장바구니를 계정에 이어붙일 준비를 시작합니다.'

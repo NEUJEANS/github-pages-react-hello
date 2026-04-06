@@ -40,17 +40,21 @@ test('buildAuthConnectionSummary resolves same-origin and external auth targets'
       resolvedUrl: '/api/auth/login',
       targetLabel: 'same-origin /api auth scaffold',
       isExternal: false,
+      isSameOriginScaffold: true,
+      source: 'default',
     },
   )
 
   assert.deepEqual(
-    buildAuthConnectionSummary({ endpoint: '/api/auth/login', method: 'POST' }, { apiBaseUrl: 'https://api.example.com/' }),
+    buildAuthConnectionSummary({ endpoint: '/api/auth/login', method: 'POST' }, { apiBaseUrl: 'https://api.example.com/', source: 'env:VITE_API_BASE_URL' }),
     {
       method: 'POST',
       endpoint: '/api/auth/login',
       resolvedUrl: 'https://api.example.com/api/auth/login',
       targetLabel: 'api.example.com',
       isExternal: true,
+      isSameOriginScaffold: false,
+      source: 'env:VITE_API_BASE_URL',
     },
   )
 })

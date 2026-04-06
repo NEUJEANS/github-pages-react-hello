@@ -178,5 +178,15 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
     ),
     /Invalid credentials.*게스트 초안은 유지/,
   )
+  assert.match(
+    buildAuthStatusCopy(
+      'error',
+      { wishlistCount: 0, cartCount: 0, layoutItemCount: 1 },
+      null,
+      { tone: 'service', message: 'Network request failed' },
+      { isSameOriginScaffold: true, targetLabel: 'same-origin \/api auth scaffold' },
+    ),
+    /same-origin \/api auth scaffold.*auth base URL 또는 백엔드 라우트/,
+  )
   assert.match(buildAuthStatusCopy('idle', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /게스트 상태/)
 })
