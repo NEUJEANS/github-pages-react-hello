@@ -32,6 +32,7 @@ import {
   readPersistedAuthHandoff,
   readPersistedAuthSession,
 } from './components/auth-storage.js'
+import { buildAuthSessionNotice } from './components/auth-session-view-state.js'
 import { buildFilteredBedProducts } from './components/bed-filter-state.js'
 import { toggleWishlistId } from './components/wishlist-state.js'
 import {
@@ -597,6 +598,7 @@ function App() {
     }
   ))
   const [authSession, setAuthSession] = React.useState(() => persistedAuthSession)
+  const [authNoticeDismissed, setAuthNoticeDismissed] = React.useState(false)
   const [engagement, setEngagement] = React.useState(initialEngagement)
 
   const selectedApartment = React.useMemo(
@@ -697,6 +699,15 @@ function App() {
     [authConnectionSummary, authErrorSummary, authResultSummary, authSubmitPlan.summary, loginForm.status],
   )
 
+  const authSessionNotice = React.useMemo(
+    () => buildAuthSessionNotice(authSession),
+    [authSession],
+  )
+
+  React.useEffect(() => {
+    setAuthNoticeDismissed(false)
+  }, [authSession?.savedAt])
+
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 
   const openLogin = React.useCallback(() => {
@@ -723,6 +734,7 @@ function App() {
         persistAuthSession(globalThis.localStorage, nextSession)
         clearPersistedAuthHandoff(globalThis.sessionStorage)
         setAuthSession(nextSession)
+        setAuthNoticeDismissed(false)
       }
 
       setLoginForm((current) => ({
@@ -824,6 +836,15 @@ function App() {
 
   return (
     <main className="appShell">
+      {authSessionNotice && !authNoticeDismissed && (
+        <div className="authSessionNotice" role="status" aria-live="polite">
+          <div>
+            <strong>{authSessionNotice.title}</strong>
+            <p>{authSessionNotice.body}</p>
+          </div>
+          <button className="ghost minor" onClick={() => setAuthNoticeDismissed(true)}>닫기</button>
+        </div>
+      )}
       <section className={`screenStage ${overlay ? 'overlayOpen' : ''}`}>
         <StageTransition screen={screen} direction={direction}>
           {(visibleScreen) => renderScreen(visibleScreen, { ...shared, ...screenProps[visibleScreen] })}
@@ -1102,7 +1123,7 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
 function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, selectedSpaces, setSelectedSpaces, onOpenLogin, authSession }) {
   return (
     <div className="screenCanvas sandBg">
-      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
+      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
       <section className="cardStage">
         <div className="cardSurface">
           <div className="progressBar"><span className="fill wide" /></div>
@@ -1204,7 +1225,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
 
   return (
     <div className="screenCanvas editorBg">
-      <Header dark active="내가 배치하기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
+      <Header dark active="내가 배치하기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
       <section className="editorLayout">
         <aside className="editorSide left">
           <div className="sideHead"><h3>가구 라이브러리</h3><input value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="가구 검색" /></div>
@@ -1338,7 +1359,7 @@ function BedsCategoryScreen({ navigate, openOverlay, openCart, cartCount, onSear
 
   return (
     <div className="screenCanvas plainBg">
-      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
+      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
       <div className="subnav">전체 · 소파 · 테이블 · 수납 · <b>침대</b> · 조명 · 패브릭</div>
       <section className="catalogWrap">
         <aside className="filterCol">
@@ -1551,8 +1572,8 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                   </div>
                 </div>
                 <div className="footerButtons stackOnMobile">
-                  <button className="ghost" onClick={onClose}>회원가입</button>
-                  <button className="cta" disabled={!authSubmitPlan.canSubmit} onClick={onSubmit}>{form.status === 'submitting' ? '준비 중…' : form.status === 'ready' ? '연결 준비 완료' : '로그인'}</button>
+                  <button className="ghost" onClick={form.status === 'ready' ? onClose : onClose}>{form.status === 'ready' ? '계속 둘러보기' : '회원가입'}</button>
+                  <button className="cta" disabled={form.status === 'ready' ? false : !authSubmitPlan.canSubmit} onClick={form.status === 'ready' ? onClose : onSubmit}>{form.status === 'submitting' ? '준비 중…' : form.status === 'ready' ? '연결 완료' : '로그인'}</button>
                 </div>
               </div>
             </>
