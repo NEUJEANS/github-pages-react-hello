@@ -7,6 +7,7 @@ import {
   buildAuthConnectionSummary,
   buildAuthResumeState,
   buildGuestDraftSessionSummary,
+  buildSerializableAuthConnection,
   buildSerializableAuthIntent,
   buildPersistedAuthHandoff,
   buildPersistedAuthSession,
@@ -60,6 +61,29 @@ test('createAuthHandoffId creates a compact serializable correlation id for logi
   assert.equal(handoffId, 'auth-20260406123000-2n9c')
 })
 
+test('buildSerializableAuthConnection trims auth target metadata down to serializable backend wiring fields', () => {
+  assert.deepEqual(buildSerializableAuthConnection({
+    method: ' POST ',
+    endpoint: ' /api/auth/login ',
+    resolvedUrl: ' https://api.example.com/api/auth/login ',
+    targetLabel: ' api.example.com ',
+    isExternal: true,
+    isSameOriginScaffold: false,
+    credentialsMode: ' include ',
+    source: ' runtime ',
+    ignored: { nested: true },
+  }), {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: 'https://api.example.com/api/auth/login',
+    targetLabel: 'api.example.com',
+    isExternal: true,
+    isSameOriginScaffold: false,
+    credentialsMode: 'include',
+    source: 'runtime',
+  })
+})
+
 test('persistAuthHandoff stores the serializable guest draft payload for follow-up auth wiring', () => {
   const storage = createMemoryStorage()
   const handoff = buildPersistedAuthHandoff({
@@ -87,7 +111,19 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
       cartItems: [{ id: 'sku-1', qty: 2 }],
       layoutItems: [{ id: 'layout-1', x: 12, y: 16 }],
     },
-  }, { submittedAt: '2026-04-06T06:59:00.000Z' })
+  }, {
+    submittedAt: '2026-04-06T06:59:00.000Z',
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: 'https://api.example.com/api/auth/login',
+      targetLabel: 'api.example.com',
+      isExternal: true,
+      isSameOriginScaffold: false,
+      credentialsMode: 'include',
+      source: 'runtime',
+    },
+  })
 
   assert.equal(persistAuthHandoff(storage, handoff), true)
   assert.equal(storage.getItem(AUTH_HANDOFF_STORAGE_KEY) !== null, true)
@@ -98,6 +134,16 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
     label: '로그인 후 보드 저장',
     returnScreen: null,
     draftLabel: '서울 성동구 성수이로 123 HAVENLY Apartments',
+  })
+  assert.deepEqual(handoff.connection, {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: 'https://api.example.com/api/auth/login',
+    targetLabel: 'api.example.com',
+    isExternal: true,
+    isSameOriginScaffold: false,
+    credentialsMode: 'include',
+    source: 'runtime',
   })
 })
 
@@ -182,6 +228,16 @@ test('persistAuthSession stores the latest successful auth summary for the front
       returnScreen: 'layout',
       draftLabel: '거실 84A',
     },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
     guestDraftSnapshot: {
       recommendationDraft: { room: '거실' },
       continuity: {
@@ -205,6 +261,16 @@ test('persistAuthSession stores the latest successful auth summary for the front
     label: '로그인 후 보드 저장',
     returnScreen: 'layout',
     draftLabel: '거실 84A',
+  })
+  assert.deepEqual(session.connection, {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: '/api/auth/login',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode: 'include',
+    source: 'default',
   })
 })
 

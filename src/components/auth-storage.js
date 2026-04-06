@@ -23,6 +23,30 @@ export function buildSerializableAuthIntent(intent = null) {
   }
 }
 
+export function buildSerializableAuthConnection(connection = null) {
+  if (!connection || typeof connection !== 'object') return null
+
+  const method = typeof connection.method === 'string' ? connection.method.trim() : ''
+  const endpoint = typeof connection.endpoint === 'string' ? connection.endpoint.trim() : ''
+  const resolvedUrl = typeof connection.resolvedUrl === 'string' ? connection.resolvedUrl.trim() : ''
+  const targetLabel = typeof connection.targetLabel === 'string' ? connection.targetLabel.trim() : ''
+  const credentialsMode = typeof connection.credentialsMode === 'string' ? connection.credentialsMode.trim() : ''
+  const source = typeof connection.source === 'string' ? connection.source.trim() : ''
+
+  if (!method && !endpoint && !resolvedUrl && !targetLabel && !credentialsMode && !source) return null
+
+  return {
+    method: method || null,
+    endpoint: endpoint || null,
+    resolvedUrl: resolvedUrl || null,
+    targetLabel: targetLabel || null,
+    isExternal: Boolean(connection.isExternal),
+    isSameOriginScaffold: Boolean(connection.isSameOriginScaffold),
+    credentialsMode: credentialsMode || null,
+    source: source || null,
+  }
+}
+
 function safeHostLabel(url) {
   try {
     return new URL(url).host
@@ -54,7 +78,7 @@ export function createAuthHandoffId({ now = new Date(), random = Math.random } =
   return `auth-${timestamp}-${entropy}`
 }
 
-export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedAt = new Date().toISOString() } = {}) {
+export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedAt = new Date().toISOString(), connection = null } = {}) {
   return {
     submittedAt,
     handoffId: plan.handoffId ?? plan.summary?.handoffId ?? null,
@@ -65,6 +89,7 @@ export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedA
       ...plan.summary,
       intent: buildSerializableAuthIntent(plan.summary?.intent),
     },
+    connection: buildSerializableAuthConnection(connection),
     guestDraftSnapshot,
   }
 }
@@ -86,7 +111,7 @@ export function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
   }
 }
 
-export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null } = {}) {
+export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null, connection = null } = {}) {
   return {
     savedAt,
     sessionId: resultSummary?.sessionId ?? null,
@@ -105,6 +130,7 @@ export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = 
     authMode: resultSummary?.authMode ?? 'remote',
     authTransport: resultSummary?.authTransport ?? 'network',
     intent: buildSerializableAuthIntent(intent ?? resultSummary?.intent ?? null),
+    connection: buildSerializableAuthConnection(connection),
     guestDraftSummary: buildGuestDraftSessionSummary(guestDraftSnapshot),
   }
 }

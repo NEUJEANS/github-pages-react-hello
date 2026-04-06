@@ -764,7 +764,9 @@ function App() {
 
     persistAuthHandoff(
       globalThis.sessionStorage,
-      buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot),
+      buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
+        connection: authConnectionSummary,
+      }),
     )
 
     setLoginForm((current) => ({
@@ -783,6 +785,7 @@ function App() {
         const nextSession = buildPersistedAuthSession(nextResultSummary, {
           guestDraftSnapshot,
           intent: submitPlan.summary.intent,
+          connection: authConnectionSummary,
         })
         const continuityPatch = buildPostAuthContinuityPatch(result)
 
@@ -828,7 +831,7 @@ function App() {
         mergeResolution: nextMergeResolution,
       }))
     }
-  }, [authConfig, cart, editor, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password])
+  }, [authConfig, authConnectionSummary, cart, editor, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),
