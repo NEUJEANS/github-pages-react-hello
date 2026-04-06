@@ -37,7 +37,7 @@ import {
   readPersistedAuthSession,
 } from './components/auth-storage.js'
 import { buildAuthSessionNotice } from './components/auth-session-view-state.js'
-import { buildPostAuthSessionRestorePatch } from './components/auth-session-restore.js'
+import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
 import {
   resolvePostAuthScreen,
   shouldCloseLoginModalAfterAuth,
@@ -648,6 +648,7 @@ function App() {
   const [authSession, setAuthSession] = React.useState(() => persistedAuthSession)
   const [authNoticeDismissed, setAuthNoticeDismissed] = React.useState(false)
   const [engagement, setEngagement] = React.useState(initialEngagement)
+  const appliedAuthSessionRestoreRef = React.useRef(persistedAuthSession?.savedAt ?? null)
 
   const selectedApartment = React.useMemo(
     () => buildSelectedApartment(apartmentSearchResults, spaceProfile.apartmentSelectionId),
@@ -798,6 +799,48 @@ function App() {
   React.useEffect(() => {
     setAuthNoticeDismissed(false)
   }, [authSession?.savedAt])
+
+  React.useEffect(() => {
+    if (!authSession?.savedAt) {
+      appliedAuthSessionRestoreRef.current = null
+      return
+    }
+
+    if (!shouldApplyPostAuthSessionRestore(authSession, appliedAuthSessionRestoreRef.current)) return
+
+    const nextRestorePatch = buildPostAuthSessionRestorePatch(authSession, {
+      spaceZones: baseZones,
+      roomOptions,
+      fallbackRoom: initialAiForm.room,
+    })
+
+    if (!nextRestorePatch) {
+      appliedAuthSessionRestoreRef.current = authSession.savedAt
+      return
+    }
+
+    if (nextRestorePatch.recommendationRoom) {
+      setAiForm((current) => (
+        current.room === nextRestorePatch.recommendationRoom
+          ? current
+          : { ...current, room: nextRestorePatch.recommendationRoom }
+      ))
+    }
+
+    if (nextRestorePatch.selectedSpaceIds?.length) {
+      setSpaceProfile((current) => {
+        const currentIds = Array.isArray(current.spaces) ? current.spaces : []
+        const nextIds = nextRestorePatch.selectedSpaceIds
+        const unchanged = currentIds.length === nextIds.length && currentIds.every((value, index) => value === nextIds[index])
+
+        return unchanged
+          ? current
+          : { ...current, spaces: nextIds }
+      })
+    }
+
+    appliedAuthSessionRestoreRef.current = authSession.savedAt
+  }, [authSession])
 
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 

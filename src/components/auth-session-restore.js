@@ -33,6 +33,11 @@ function buildRoomAliasMap(spaceZones = [], roomOptions = []) {
   return aliases
 }
 
+export function shouldApplyPostAuthSessionRestore(session, lastAppliedSavedAt = null) {
+  if (!session?.savedAt) return false
+  return session.savedAt !== lastAppliedSavedAt
+}
+
 export function buildPostAuthSessionRestorePatch(session, { spaceZones = [], roomOptions = [], fallbackRoom = '거실' } = {}) {
   const summary = session?.guestDraftSummary ?? null
   if (!summary) return null
