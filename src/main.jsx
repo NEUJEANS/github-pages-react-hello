@@ -13,6 +13,7 @@ import { buildSelectedSpaceSummary } from './components/space-summary.js'
 import { buildLoginGuardSnapshot } from './components/login-guard.js'
 import { buildSearchDrawerState } from './components/search-drawer.js'
 import {
+  buildAuthResultSummary,
   buildAuthStatusCopy,
   buildAuthSubmitPlan,
   buildGuestDraftSnapshot,
@@ -566,6 +567,7 @@ function App() {
     email: '',
     password: '',
     status: 'idle',
+    result: null,
   })
   const [engagement, setEngagement] = React.useState(initialEngagement)
 
@@ -642,22 +644,27 @@ function App() {
     guestDraftSnapshot,
   }), [guestDraftSnapshot, loginForm.email, loginForm.password])
 
+  const authResultSummary = React.useMemo(
+    () => loginForm.result ? buildAuthResultSummary(loginForm.result, authSubmitPlan.summary) : null,
+    [authSubmitPlan.summary, loginForm.result],
+  )
+
   const authStatusMessage = React.useMemo(
-    () => buildAuthStatusCopy(loginForm.status, authSubmitPlan.summary),
-    [authSubmitPlan.summary, loginForm.status],
+    () => buildAuthStatusCopy(loginForm.status, authSubmitPlan.summary, authResultSummary),
+    [authResultSummary, authSubmitPlan.summary, loginForm.status],
   )
 
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 
   const openLogin = React.useCallback(() => {
-    setLoginForm((current) => ({ ...current, status: 'idle' }))
+    setLoginForm((current) => ({ ...current, status: 'idle', result: null }))
     setLoginModalState(hasLoginGuard ? 'guard' : 'form')
   }, [hasLoginGuard])
 
   const handleLoginSubmit = React.useCallback(async () => {
     if (!authSubmitPlan.canSubmit) return
 
-    setLoginForm((current) => ({ ...current, status: 'submitting' }))
+    setLoginForm((current) => ({ ...current, status: 'submitting', result: null }))
 
     try {
       const result = await submitAuthLoginPlan(authSubmitPlan, {
@@ -667,9 +674,10 @@ function App() {
       setLoginForm((current) => ({
         ...current,
         status: result.ok ? 'ready' : 'error',
+        result,
       }))
     } catch {
-      setLoginForm((current) => ({ ...current, status: 'error' }))
+      setLoginForm((current) => ({ ...current, status: 'error', result: null }))
     }
   }, [authSubmitPlan])
 
@@ -808,8 +816,9 @@ function App() {
             form={loginForm}
             authSubmitPlan={authSubmitPlan}
             authStatusMessage={authStatusMessage}
+            authResultSummary={authResultSummary}
             guestDraftSnapshot={guestDraftSnapshot}
-            onChangeForm={(field, value) => setLoginForm((current) => ({ ...current, [field]: value, status: 'idle' }))}
+            onChangeForm={(field, value) => setLoginForm((current) => ({ ...current, [field]: value, status: 'idle', result: null }))}
             onClose={() => setLoginModalState('closed')}
             onProceed={() => setLoginModalState('form')}
             onSubmit={handleLoginSubmit}
@@ -1395,7 +1404,7 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
 }
 
 
-function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, guestDraftSnapshot, onChangeForm, onClose, onProceed, onSubmit }) {
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, authResultSummary, guestDraftSnapshot, onChangeForm, onClose, onProceed, onSubmit }) {
   const guarded = state === 'guard'
 
   return (
@@ -1458,6 +1467,8 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                     <div><label>찜</label><b>{authSubmitPlan.summary.wishlistCount}개</b></div>
                     <div><label>장바구니</label><b>{authSubmitPlan.summary.cartCount}개</b></div>
                     <div><label>배치</label><b>{authSubmitPlan.summary.layoutItemCount}개</b></div>
+                    {authResultSummary?.accountLabel && <div><label>계정</label><b>{authResultSummary.accountLabel}</b></div>}
+                    {authResultSummary?.sessionId && <div><label>세션</label><b>{authResultSummary.sessionId}</b></div>}
                   </div>
                 </div>
                 <div className="footerButtons stackOnMobile">

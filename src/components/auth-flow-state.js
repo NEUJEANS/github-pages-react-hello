@@ -77,10 +77,29 @@ export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot }) {
   }
 }
 
-export function buildAuthStatusCopy(status, summary) {
+export function buildAuthResultSummary(result, fallbackSummary = {}) {
+  const data = result?.data ?? {}
+  const mergedDraft = data.mergedGuestDraft ?? data.guestDraftMerged ?? null
+
+  return {
+    sessionId: data.sessionId ?? data.session?.id ?? null,
+    accountLabel: data.user?.name ?? data.user?.email ?? data.account?.email ?? null,
+    mergedDraftCount: typeof mergedDraft?.count === 'number'
+      ? mergedDraft.count
+      : fallbackSummary.layoutItemCount ?? 0,
+    wishlistCount: fallbackSummary.wishlistCount ?? 0,
+    cartCount: fallbackSummary.cartCount ?? 0,
+    layoutItemCount: fallbackSummary.layoutItemCount ?? 0,
+    hasRecommendationDraft: fallbackSummary.hasRecommendationDraft ?? false,
+  }
+}
+
+export function buildAuthStatusCopy(status, summary, resultSummary = null) {
   if (status === 'submitting') return '계정 연결 준비 중… 게스트 초안을 함께 묶고 있어요.'
   if (status === 'ready') {
-    return `백엔드 연결 준비 완료 · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
+    const accountCopy = resultSummary?.accountLabel ? ` · ${resultSummary.accountLabel} 계정과 연결 준비됨` : ''
+    const sessionCopy = resultSummary?.sessionId ? ` · 세션 ${resultSummary.sessionId}` : ''
+    return `백엔드 연결 준비 완료${accountCopy}${sessionCopy} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
   }
   if (status === 'error') {
     return '로그인 연결에 실패했어요. 잠시 후 다시 시도하거나 백엔드 인증 설정을 확인해주세요.'

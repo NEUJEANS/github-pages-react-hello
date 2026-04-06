@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  buildAuthResultSummary,
   buildAuthStatusCopy,
   buildAuthSubmitPlan,
   buildGuestDraftSnapshot,
@@ -79,9 +80,41 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request', () => {
   assert.equal(plan.summary.hasRecommendationDraft, true)
 })
 
+test('buildAuthResultSummary extracts backend auth response details without widening the login flow contract', () => {
+  const summary = buildAuthResultSummary({
+    data: {
+      sessionId: 'session-1',
+      user: { email: 'user@example.com' },
+      mergedGuestDraft: { count: 3 },
+    },
+  }, {
+    wishlistCount: 2,
+    cartCount: 1,
+    layoutItemCount: 3,
+    hasRecommendationDraft: true,
+  })
+
+  assert.deepEqual(summary, {
+    sessionId: 'session-1',
+    accountLabel: 'user@example.com',
+    mergedDraftCount: 3,
+    wishlistCount: 2,
+    cartCount: 1,
+    layoutItemCount: 3,
+    hasRecommendationDraft: true,
+  })
+})
+
 test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
   assert.match(buildAuthStatusCopy('submitting', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /준비 중/)
-  assert.match(buildAuthStatusCopy('ready', { wishlistCount: 2, cartCount: 1, layoutItemCount: 3 }), /찜 2개/)
+  assert.match(
+    buildAuthStatusCopy(
+      'ready',
+      { wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
+      { sessionId: 'session-1', accountLabel: 'user@example.com' },
+    ),
+    /user@example.com 계정과 연결 준비됨.*session-1|session-1.*user@example.com 계정과 연결 준비됨/,
+  )
   assert.match(buildAuthStatusCopy('error', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /실패/)
   assert.match(buildAuthStatusCopy('idle', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /게스트 상태/)
 })
