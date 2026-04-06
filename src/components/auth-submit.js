@@ -4,6 +4,10 @@ export const AUTH_SCAFFOLD_HEADER = 'x-havenly-auth-scaffold'
 export const AUTH_HANDOFF_HEADER = 'x-havenly-auth-handoff-id'
 export const AUTH_RESUME_TOKEN_HEADER = 'x-havenly-auth-resume-token'
 export const AUTH_NEXT_ACTION_HEADER = 'x-havenly-auth-next-action'
+export const AUTH_CONNECTION_ENDPOINT_HEADER = 'x-havenly-auth-connection-endpoint'
+export const AUTH_CONNECTION_TARGET_HEADER = 'x-havenly-auth-connection-target'
+export const AUTH_CONNECTION_CREDENTIALS_HEADER = 'x-havenly-auth-connection-credentials'
+export const AUTH_CONNECTION_SOURCE_HEADER = 'x-havenly-auth-connection-source'
 
 function trimTrailingSlash(value = '') {
   return value.endsWith('/') ? value.slice(0, -1) : value
@@ -115,14 +119,27 @@ async function requestAuthJson(endpoint, requestInit, { fetchImpl = fetch } = {}
   }
 }
 
-export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl, credentialsMode = 'include' } = {}) {
+export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl, credentialsMode = 'include', source = 'default' } = {}) {
   const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
+  const targetLabel = /^https?:\/\//.test(endpoint)
+    ? (() => {
+        try {
+          return new URL(endpoint).host
+        } catch {
+          return endpoint
+        }
+      })()
+    : 'same-origin /api auth scaffold'
   const requestInit = {
     method: plan.method,
     credentials: credentialsMode,
     headers: {
       'content-type': 'application/json',
       ...(plan.handoffId ? { [AUTH_HANDOFF_HEADER]: plan.handoffId } : {}),
+      [AUTH_CONNECTION_ENDPOINT_HEADER]: plan.endpoint,
+      [AUTH_CONNECTION_TARGET_HEADER]: targetLabel,
+      [AUTH_CONNECTION_CREDENTIALS_HEADER]: credentialsMode,
+      [AUTH_CONNECTION_SOURCE_HEADER]: source,
     },
     body: JSON.stringify(plan.request),
   }

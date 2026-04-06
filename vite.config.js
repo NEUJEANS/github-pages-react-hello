@@ -1,5 +1,11 @@
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
+import {
+  AUTH_CONNECTION_CREDENTIALS_HEADER,
+  AUTH_CONNECTION_ENDPOINT_HEADER,
+  AUTH_CONNECTION_SOURCE_HEADER,
+  AUTH_CONNECTION_TARGET_HEADER,
+} from "./src/components/auth-submit.js"
 import { buildAuthScaffoldResponse, buildAuthScaffoldSessionResponse } from "./src/components/auth-backend-scaffold.js"
 
 function readRequestBody(req) {
@@ -28,6 +34,27 @@ function writeJson(res, status, data, headers = {}) {
   res.end(JSON.stringify(data))
 }
 
+function readAuthConnection(req) {
+  const endpoint = req.headers[AUTH_CONNECTION_ENDPOINT_HEADER] ?? "/api/auth/login"
+  const targetLabel = req.headers[AUTH_CONNECTION_TARGET_HEADER] ?? "same-origin /api auth scaffold"
+  const credentialsMode = req.headers[AUTH_CONNECTION_CREDENTIALS_HEADER] ?? "include"
+  const source = req.headers[AUTH_CONNECTION_SOURCE_HEADER] ?? "default"
+  const resolvedUrl = targetLabel === "same-origin /api auth scaffold"
+    ? endpoint
+    : `https://${targetLabel}${endpoint}`
+
+  return {
+    method: req.method ?? "POST",
+    endpoint,
+    resolvedUrl,
+    targetLabel,
+    isExternal: targetLabel !== "same-origin /api auth scaffold",
+    isSameOriginScaffold: targetLabel === "same-origin /api auth scaffold",
+    credentialsMode,
+    source,
+  }
+}
+
 function havenlyAuthScaffoldPlugin() {
   let latestSession = null
 
@@ -53,9 +80,12 @@ function havenlyAuthScaffoldPlugin() {
       const request = await readRequestBody(req)
       const response = buildAuthScaffoldResponse(request)
       if (response.status >= 200 && response.status < 300) {
-        latestSession = response.data
+        latestSession = {
+          ...response.data,
+          connection: readAuthConnection(req),
+        }
       }
-      writeJson(res, response.status, response.data, { "x-havenly-auth-scaffold": "true" })
+      writeJson(res, response.status, latestSession && response.status >= 200 && response.status < 300 ? latestSession : response.data, { "x-havenly-auth-scaffold": "true" })
     } catch {
       writeJson(res, 400, { message: "Invalid auth scaffold request" }, { "x-havenly-auth-scaffold": "true" })
     }

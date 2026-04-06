@@ -154,6 +154,16 @@ test('buildAuthScaffoldSessionResponse exposes the latest scaffold auth session 
       email: 'user@example.com',
       name: 'user@example.com',
     },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
     resumeToken: 'auth-user-1234:resume',
     nextAction: 'checkout-cart',
   })
@@ -161,6 +171,16 @@ test('buildAuthScaffoldSessionResponse exposes the latest scaffold auth session 
   assert.equal(response.status, 200)
   assert.equal(response.data.sessionId, 'demo-user-example-com')
   assert.equal(response.data.user.email, 'user@example.com')
+  assert.deepEqual(response.data.connection, {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: '/api/auth/login',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode: 'include',
+    source: 'default',
+  })
   assert.equal(response.data.resumeToken, 'auth-user-1234:resume')
   assert.equal(response.data.nextAction, 'checkout-cart')
 })

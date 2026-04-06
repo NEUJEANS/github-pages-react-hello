@@ -784,7 +784,7 @@ function App() {
       }, authConfig)
       const resultSummary = buildAuthResultSummary(result)
       const nextSession = buildPersistedAuthSession(resultSummary, {
-        connection: sessionConnection,
+        connection: resultSummary?.connection ?? sessionConnection,
       })
 
       persistAuthSession(globalThis.localStorage, nextSession)
@@ -915,7 +915,7 @@ function App() {
         const nextSession = buildPersistedAuthSession(nextResultSummary, {
           guestDraftSnapshot,
           intent: submitPlan.summary.intent,
-          connection: authConnectionSummary,
+          connection: nextResultSummary.connection ?? authConnectionSummary,
           continuation: nextContinuation,
         })
         const continuityPatch = buildPostAuthContinuityPatch(result)

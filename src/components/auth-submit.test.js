@@ -2,6 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  AUTH_CONNECTION_CREDENTIALS_HEADER,
+  AUTH_CONNECTION_ENDPOINT_HEADER,
+  AUTH_CONNECTION_SOURCE_HEADER,
+  AUTH_CONNECTION_TARGET_HEADER,
   AUTH_HANDOFF_HEADER,
   AUTH_NEXT_ACTION_HEADER,
   AUTH_RESUME_TOKEN_HEADER,
@@ -51,6 +55,10 @@ test('submitAuthLoginPlan sends the backend-ready payload as json with handoff c
   assert.equal(calls[0].options.credentials, 'same-origin')
   assert.equal(calls[0].options.headers['content-type'], 'application/json')
   assert.equal(calls[0].options.headers[AUTH_HANDOFF_HEADER], 'auth-20260406123000-2n9c')
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_ENDPOINT_HEADER], '/api/auth/login')
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_TARGET_HEADER], 'api.example.com')
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_CREDENTIALS_HEADER], 'same-origin')
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_SOURCE_HEADER], 'default')
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     email: 'user@example.com',
     password: 'password123',
@@ -146,6 +154,16 @@ test('readAuthSession reads scaffold session state for frontend bootstrap wiring
           ok: true,
           sessionId: 'demo-user-example-com',
           user: { email: 'user@example.com', name: 'user@example.com' },
+          connection: {
+            method: 'POST',
+            endpoint: '/api/auth/login',
+            resolvedUrl: '/api/auth/login',
+            targetLabel: 'same-origin /api auth scaffold',
+            isExternal: false,
+            isSameOriginScaffold: true,
+            credentialsMode: 'include',
+            source: 'default',
+          },
           resumeToken: 'resume-session-123',
           nextAction: 'resume-layout-checkout',
         }),
@@ -160,6 +178,16 @@ test('readAuthSession reads scaffold session state for frontend bootstrap wiring
       ok: true,
       sessionId: 'demo-user-example-com',
       user: { email: 'user@example.com', name: 'user@example.com' },
+      connection: {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: '/api/auth/login',
+        targetLabel: 'same-origin /api auth scaffold',
+        isExternal: false,
+        isSameOriginScaffold: true,
+        credentialsMode: 'include',
+        source: 'default',
+      },
       resumeToken: 'resume-session-123',
       nextAction: 'resume-layout-checkout',
     },

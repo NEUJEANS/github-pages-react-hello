@@ -151,6 +151,7 @@ export function buildAuthResultSummary(result, fallbackSummary = {}) {
     hasRecommendationDraft: fallbackSummary.hasRecommendationDraft ?? false,
     guestDraftSummary: data.guestDraftSummary ?? null,
     intent: data.intent ?? fallbackSummary.intent ?? null,
+    connection: data.connection ?? data.authConnection ?? null,
     resumeToken: data.resumeToken ?? null,
     nextAction: data.nextAction ?? null,
     authMode: meta.authMode ?? 'remote',
