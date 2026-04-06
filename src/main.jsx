@@ -490,6 +490,18 @@ function useEditorState() {
 
 const LOGIN_BUTTON_LABEL = '로그인'
 
+function buildEmptyLoginForm(intent = null) {
+  return {
+    email: '',
+    password: '',
+    handoffId: null,
+    status: 'idle',
+    result: null,
+    mergeResolution: null,
+    intent: buildSerializableAuthIntent(intent),
+  }
+}
+
 function resolveLoginButtonLabel(authSession) {
   return authSession?.accountLabel ?? LOGIN_BUTTON_LABEL
 }
@@ -592,14 +604,7 @@ function App() {
   )
   const [loginModalState, setLoginModalState] = React.useState(() => (persistedAuthHandoff ? 'form' : 'closed'))
   const [loginForm, setLoginForm] = React.useState(() => (
-    buildAuthResumeState(persistedAuthHandoff, persistedAuthSession) ?? {
-      email: '',
-      password: '',
-      status: 'idle',
-      result: null,
-      mergeResolution: null,
-      intent: null,
-    }
+    buildAuthResumeState(persistedAuthHandoff, persistedAuthSession) ?? buildEmptyLoginForm()
   ))
   const [authSession, setAuthSession] = React.useState(() => persistedAuthSession)
   const [authNoticeDismissed, setAuthNoticeDismissed] = React.useState(false)
@@ -730,21 +735,18 @@ function App() {
     setLoginModalState(hasLoginGuard ? 'guard' : 'form')
   }, [hasLoginGuard])
 
+  const handleDismissAuthResume = React.useCallback(() => {
+    clearPersistedAuthHandoff(globalThis.sessionStorage)
+    setLoginForm((current) => buildEmptyLoginForm(current.intent))
+  }, [])
+
   const handleLogout = React.useCallback(() => {
     clearPersistedAuthSession(globalThis.localStorage)
     clearPersistedAuthHandoff(globalThis.sessionStorage)
     setAuthSession(null)
     setAuthNoticeDismissed(false)
     setLoginModalState('closed')
-    setLoginForm({
-      email: '',
-      password: '',
-      handoffId: null,
-      status: 'idle',
-      result: null,
-      mergeResolution: null,
-      intent: null,
-    })
+    setLoginForm(buildEmptyLoginForm())
   }, [])
 
   const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
@@ -990,6 +992,7 @@ function App() {
             onChangeForm={(field, value) => setLoginForm((current) => ({ ...current, [field]: value, status: 'idle', result: null, mergeResolution: null }))}
             onClose={() => setLoginModalState('closed')}
             onProceed={() => setLoginModalState('form')}
+            onDismissResume={handleDismissAuthResume}
             onSubmit={handleLoginSubmit}
           />
         )}
@@ -1604,7 +1607,7 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
 }
 
 
-function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, guestDraftSnapshot, onChangeForm, onClose, onProceed, onSubmit }) {
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, guestDraftSnapshot, onChangeForm, onClose, onProceed, onDismissResume, onSubmit }) {
   const guarded = state === 'guard'
   const allowedMergeResolutions = authErrorSummary?.allowedMergeResolutions ?? []
   const mergeResolutionLabels = {
@@ -1700,6 +1703,9 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 </div>
                 <div className="footerButtons stackOnMobile">
                   <button className="ghost" onClick={form.status === 'ready' ? onClose : onClose}>{form.status === 'ready' ? '계속 둘러보기' : '회원가입'}</button>
+                  {form.status === 'resume-ready' && (
+                    <button className="ghost" onClick={onDismissResume}>이전 로그인 시도 지우기</button>
+                  )}
                   {authErrorSummary?.tone === 'merge' && form.status !== 'ready' && allowedMergeResolutions.map((resolution) => (
                     <button key={resolution} className="ghost" onClick={() => onSubmit(resolution)}>
                       {mergeResolutionLabels[resolution] ?? resolution}
