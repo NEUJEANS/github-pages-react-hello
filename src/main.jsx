@@ -28,6 +28,7 @@ import {
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
   clearPersistedAuthSession,
+  createAuthHandoffId,
   persistAuthHandoff,
   persistAuthSession,
   readPersistedAuthHandoff,
@@ -675,7 +676,8 @@ function App() {
     password: loginForm.password,
     guestDraftSnapshot,
     mergeResolution: loginForm.mergeResolution ?? null,
-  }), [guestDraftSnapshot, loginForm.email, loginForm.password, loginForm.mergeResolution])
+    handoffId: loginForm.handoffId ?? null,
+  }), [guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.mergeResolution, loginForm.password])
 
   const authConfig = React.useMemo(
     () => resolveAuthConfig({ env: import.meta.env }),
@@ -714,18 +716,26 @@ function App() {
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 
   const openLogin = React.useCallback(() => {
-    setLoginForm((current) => ({ ...current, status: 'idle', result: null, mergeResolution: null }))
+    setLoginForm((current) => ({
+      ...current,
+      handoffId: current.handoffId ?? createAuthHandoffId(),
+      status: 'idle',
+      result: null,
+      mergeResolution: null,
+    }))
     setLoginModalState(hasLoginGuard ? 'guard' : 'form')
   }, [hasLoginGuard])
 
   const handleLogout = React.useCallback(() => {
     clearPersistedAuthSession(globalThis.localStorage)
+    clearPersistedAuthHandoff(globalThis.sessionStorage)
     setAuthSession(null)
     setAuthNoticeDismissed(false)
     setLoginModalState('closed')
     setLoginForm({
       email: '',
       password: '',
+      handoffId: null,
       status: 'idle',
       result: null,
       mergeResolution: null,
@@ -734,11 +744,13 @@ function App() {
 
   const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
     const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null
+    const nextHandoffId = loginForm.handoffId ?? createAuthHandoffId()
     const submitPlan = buildAuthSubmitPlan({
       email: loginForm.email,
       password: loginForm.password,
       guestDraftSnapshot,
       mergeResolution: nextMergeResolution,
+      handoffId: nextHandoffId,
     })
 
     if (!submitPlan.canSubmit) return
@@ -750,6 +762,7 @@ function App() {
 
     setLoginForm((current) => ({
       ...current,
+      handoffId: nextHandoffId,
       status: 'submitting',
       result: null,
       mergeResolution: nextMergeResolution,
