@@ -56,6 +56,10 @@ import {
 } from './components/layout-editor-view-state.js'
 import { runLayoutEditorCommands } from './components/layout-editor-command-runner.js'
 import {
+  createLayoutEditorActionHandlers,
+  createLayoutEditorToolbarHandlers,
+} from './components/layout-editor-command-handlers.js'
+import {
   buildLibraryEmptyState,
   buildVisibleLibrary,
   layoutLibraryCategoryTabs,
@@ -1048,25 +1052,22 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
     editor.moveSelectedTo(target.x, target.y)
   }, [editor])
 
+  const toolbarCommandHandlers = React.useMemo(
+    () => createLayoutEditorToolbarHandlers(editor),
+    [editor],
+  )
+  const actionCommandHandlers = React.useMemo(
+    () => createLayoutEditorActionHandlers({ navigate, openOverlay, addToCart, editor, selectedMeta }),
+    [addToCart, editor, navigate, openOverlay, selectedMeta],
+  )
+
   const handleToolbarAction = React.useCallback((toolId) => {
-    runLayoutEditorCommands(buildLayoutEditorToolbarCommands(toolId), {
-      undo: () => editor.undo(),
-      'cycle-color': () => editor.cycleColor(),
-      'rotate-selected': () => editor.rotateSelected(),
-      'set-active-tool': (command) => editor.setActiveTool(command.value),
-    })
-  }, [editor])
+    runLayoutEditorCommands(buildLayoutEditorToolbarCommands(toolId), toolbarCommandHandlers)
+  }, [toolbarCommandHandlers])
 
   const handleActionButton = React.useCallback((action) => {
-    runLayoutEditorCommands(buildLayoutEditorActionCommands(action), {
-      navigate: (command) => navigate(command.value),
-      'open-overlay': (command) => openOverlay(command.value),
-      'add-selected-to-cart': () => {
-        if (selectedMeta) addToCart(selectedMeta)
-      },
-      'reset-layout': () => editor.reset(),
-    })
-  }, [addToCart, editor, navigate, openOverlay, selectedMeta])
+    runLayoutEditorCommands(buildLayoutEditorActionCommands(action), actionCommandHandlers)
+  }, [actionCommandHandlers])
 
   return (
     <div className="screenCanvas editorBg">
