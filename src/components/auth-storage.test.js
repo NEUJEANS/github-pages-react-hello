@@ -108,7 +108,12 @@ test('persistAuthSession stores the latest successful auth summary for the front
   const session = buildPersistedAuthSession({
     sessionId: 'sess_123',
     accountLabel: 'user@example.com',
+    mergeMode: 'merged',
     mergedDraftCount: 3,
+    restoredWishlistCount: 1,
+    restoredCartCount: 2,
+    restoredLayoutItemCount: 3,
+    restoredRecommendationDraft: true,
     wishlistCount: 1,
     cartCount: 2,
     layoutItemCount: 3,

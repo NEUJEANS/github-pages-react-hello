@@ -86,7 +86,14 @@ test('buildAuthResultSummary extracts backend auth response details without wide
     data: {
       sessionId: 'session-1',
       user: { email: 'user@example.com' },
-      mergedGuestDraft: { count: 3 },
+      mergedGuestDraft: {
+        count: 3,
+        mode: 'merged',
+        wishlistCount: 2,
+        cartCount: 1,
+        layoutItemCount: 3,
+        recommendationDraftRestored: true,
+      },
     },
   }, {
     wishlistCount: 2,
@@ -98,7 +105,12 @@ test('buildAuthResultSummary extracts backend auth response details without wide
   assert.deepEqual(summary, {
     sessionId: 'session-1',
     accountLabel: 'user@example.com',
+    mergeMode: 'merged',
     mergedDraftCount: 3,
+    restoredWishlistCount: 2,
+    restoredCartCount: 1,
+    restoredLayoutItemCount: 3,
+    restoredRecommendationDraft: true,
     wishlistCount: 2,
     cartCount: 1,
     layoutItemCount: 3,
@@ -153,9 +165,9 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
     buildAuthStatusCopy(
       'ready',
       { wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
-      { sessionId: 'session-1', accountLabel: 'user@example.com' },
+      { sessionId: 'session-1', accountLabel: 'user@example.com', mergeMode: 'merged' },
     ),
-    /user@example.com 계정과 연결 준비됨.*session-1|session-1.*user@example.com 계정과 연결 준비됨/,
+    /user@example.com 계정과 연결 준비됨.*session-1.*게스트 초안 병합 완료|게스트 초안 병합 완료.*user@example.com 계정과 연결 준비됨/,
   )
   assert.match(
     buildAuthStatusCopy(

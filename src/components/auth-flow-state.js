@@ -86,19 +86,35 @@ export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot }) {
   }
 }
 
+function readMergeCount(value, fallback = 0) {
+  return typeof value === 'number' ? value : fallback
+}
+
+function readMergeDraft(data = {}) {
+  return data.mergedGuestDraft ?? data.guestDraftMerged ?? data.handoff ?? null
+}
+
 export function buildAuthResultSummary(result, fallbackSummary = {}) {
   const data = result?.data ?? {}
-  const mergedDraft = data.mergedGuestDraft ?? data.guestDraftMerged ?? null
+  const mergedDraft = readMergeDraft(data)
+  const fallbackLayoutCount = fallbackSummary.layoutItemCount ?? 0
+  const fallbackWishlistCount = fallbackSummary.wishlistCount ?? 0
+  const fallbackCartCount = fallbackSummary.cartCount ?? 0
 
   return {
     sessionId: data.sessionId ?? data.session?.id ?? null,
     accountLabel: data.user?.name ?? data.user?.email ?? data.account?.email ?? null,
-    mergedDraftCount: typeof mergedDraft?.count === 'number'
-      ? mergedDraft.count
-      : fallbackSummary.layoutItemCount ?? 0,
-    wishlistCount: fallbackSummary.wishlistCount ?? 0,
-    cartCount: fallbackSummary.cartCount ?? 0,
-    layoutItemCount: fallbackSummary.layoutItemCount ?? 0,
+    mergeMode: mergedDraft?.mode ?? mergedDraft?.status ?? data.mergeMode ?? null,
+    mergedDraftCount: readMergeCount(mergedDraft?.count, fallbackLayoutCount),
+    restoredWishlistCount: readMergeCount(mergedDraft?.wishlistCount, fallbackWishlistCount),
+    restoredCartCount: readMergeCount(mergedDraft?.cartCount, fallbackCartCount),
+    restoredLayoutItemCount: readMergeCount(mergedDraft?.layoutItemCount, fallbackLayoutCount),
+    restoredRecommendationDraft: typeof mergedDraft?.recommendationDraftRestored === 'boolean'
+      ? mergedDraft.recommendationDraftRestored
+      : (fallbackSummary.hasRecommendationDraft ?? false),
+    wishlistCount: fallbackWishlistCount,
+    cartCount: fallbackCartCount,
+    layoutItemCount: fallbackLayoutCount,
     hasRecommendationDraft: fallbackSummary.hasRecommendationDraft ?? false,
   }
 }
@@ -147,7 +163,10 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
   if (status === 'ready') {
     const accountCopy = resultSummary?.accountLabel ? ` · ${resultSummary.accountLabel} 계정과 연결 준비됨` : ''
     const sessionCopy = resultSummary?.sessionId ? ` · 세션 ${resultSummary.sessionId}` : ''
-    return `백엔드 연결 준비 완료${accountCopy}${sessionCopy} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
+    const mergeCopy = resultSummary?.mergeMode
+      ? ` · ${resultSummary.mergeMode === 'merged' ? '게스트 초안 병합 완료' : resultSummary.mergeMode === 'replaced' ? '계정 상태로 전환됨' : `병합 상태 ${resultSummary.mergeMode}`}`
+      : ''
+    return `백엔드 연결 준비 완료${accountCopy}${sessionCopy}${mergeCopy} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
   }
   if (status === 'error') {
     if (errorSummary?.tone === 'credentials') return `${errorSummary.message} · 게스트 초안은 유지되어 다시 시도할 수 있어요.`

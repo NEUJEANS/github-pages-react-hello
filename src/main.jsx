@@ -1538,6 +1538,11 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                     <div><label>대상</label><b>{authConnectionSummary.targetLabel}</b></div>
                     {authResultSummary?.accountLabel && <div><label>계정</label><b>{authResultSummary.accountLabel}</b></div>}
                     {authResultSummary?.sessionId && <div><label>세션</label><b>{authResultSummary.sessionId}</b></div>}
+                    {authResultSummary?.mergeMode && <div><label>병합 상태</label><b>{authResultSummary.mergeMode}</b></div>}
+                    {authResultSummary?.restoredWishlistCount !== null && authResultSummary?.mergeMode && <div><label>복원 찜</label><b>{authResultSummary.restoredWishlistCount}개</b></div>}
+                    {authResultSummary?.restoredCartCount !== null && authResultSummary?.mergeMode && <div><label>복원 장바구니</label><b>{authResultSummary.restoredCartCount}개</b></div>}
+                    {authResultSummary?.restoredLayoutItemCount !== null && authResultSummary?.mergeMode && <div><label>복원 배치</label><b>{authResultSummary.restoredLayoutItemCount}개</b></div>}
+                    {authResultSummary?.mergeMode && <div><label>추천 초안</label><b>{authResultSummary.restoredRecommendationDraft ? '복원됨' : '없음'}</b></div>}
                   </div>
                 </div>
                 <div className="footerButtons stackOnMobile">
