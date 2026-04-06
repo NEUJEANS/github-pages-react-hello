@@ -31,7 +31,29 @@ function buildAccountState({ mergeResolution } = {}) {
   }
 }
 
-function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null } = {}) {
+function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
+  if (!guestDraftSnapshot) return null
+
+  const continuity = guestDraftSnapshot.continuity ?? {}
+  const selectedRooms = Array.isArray(continuity.selectedRooms)
+    ? [...continuity.selectedRooms]
+    : []
+
+  return {
+    apartmentLabel: continuity.apartmentLabel ?? null,
+    selectedRoomCount: selectedRooms.length,
+    selectedRooms,
+    selectedSpaceIds: Array.isArray(guestDraftSnapshot.spaceProfile?.spaces)
+      ? [...guestDraftSnapshot.spaceProfile.spaces]
+      : [],
+    recommendationRoom: guestDraftSnapshot.recommendationDraft?.room ?? null,
+    wishlistCount: countItems(continuity.wishlistIds),
+    cartCount: countItems(continuity.cartItems),
+    layoutItemCount: countItems(continuity.layoutItems),
+  }
+}
+
+function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null } = {}) {
   const safeSessionId = email.replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'guest'
 
   return {
@@ -50,6 +72,8 @@ function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, 
           : 'merged',
       resolution: mergeResolution,
     }),
+    guestDraftSummary: buildGuestDraftSessionSummary(guestDraftSnapshot),
+    intent: intent && typeof intent === 'object' ? { ...intent } : null,
     accountState: buildAccountState({ mergeResolution }),
   }
 }
@@ -107,6 +131,7 @@ export function buildAuthScaffoldResponse(request = {}) {
       handoffId,
       guestDraftSnapshot,
       mergeResolution,
+      intent: request.intent ?? null,
     }),
   }
 }

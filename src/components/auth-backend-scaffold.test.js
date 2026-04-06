@@ -7,9 +7,18 @@ test('buildAuthScaffoldResponse returns a merged session payload for valid crede
   const response = buildAuthScaffoldResponse({
     email: 'User@Example.com ',
     password: 'password123',
+    intent: {
+      source: 'layout-editor',
+      action: 'save-layout-draft',
+      label: '로그인 후 보드 저장',
+      returnScreen: 'layout',
+    },
     guestDraftSnapshot: {
       recommendationDraft: { room: '거실' },
+      spaceProfile: { spaces: ['living', 'bed1'] },
       continuity: {
+        apartmentLabel: '래미안 포레스트 84A',
+        selectedRooms: ['거실', '침실'],
         wishlistIds: ['wish-1', 'wish-2'],
         cartItems: [{ id: 'cart-1', qty: 1 }],
         layoutItems: [{ id: 'layout-1' }, { id: 'layout-2' }],
@@ -28,6 +37,22 @@ test('buildAuthScaffoldResponse returns a merged session payload for valid crede
     cartCount: 1,
     layoutItemCount: 2,
     recommendationDraftRestored: true,
+  })
+  assert.deepEqual(response.data.guestDraftSummary, {
+    apartmentLabel: '래미안 포레스트 84A',
+    selectedRoomCount: 2,
+    selectedRooms: ['거실', '침실'],
+    selectedSpaceIds: ['living', 'bed1'],
+    recommendationRoom: '거실',
+    wishlistCount: 2,
+    cartCount: 1,
+    layoutItemCount: 2,
+  })
+  assert.deepEqual(response.data.intent, {
+    source: 'layout-editor',
+    action: 'save-layout-draft',
+    label: '로그인 후 보드 저장',
+    returnScreen: 'layout',
   })
 })
 

@@ -115,6 +115,10 @@ export function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
 }
 
 export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null, connection = null } = {}) {
+  const derivedGuestDraftSummary = guestDraftSnapshot
+    ? buildGuestDraftSessionSummary(guestDraftSnapshot)
+    : (resultSummary?.guestDraftSummary ?? null)
+
   return {
     savedAt,
     sessionId: resultSummary?.sessionId ?? null,
@@ -134,7 +138,7 @@ export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = 
     authTransport: resultSummary?.authTransport ?? 'network',
     intent: buildSerializableAuthIntent(intent ?? resultSummary?.intent ?? null),
     connection: buildSerializableAuthConnection(connection),
-    guestDraftSummary: buildGuestDraftSessionSummary(guestDraftSnapshot),
+    guestDraftSummary: derivedGuestDraftSummary,
   }
 }
 

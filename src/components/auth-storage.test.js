@@ -239,6 +239,22 @@ test('persistAuthSession stores the latest successful auth summary for the front
     cartCount: 2,
     layoutItemCount: 3,
     hasRecommendationDraft: true,
+    guestDraftSummary: {
+      apartmentLabel: '무시될 서버 요약',
+      selectedRoomCount: 1,
+      selectedRooms: ['거실'],
+      selectedSpaceIds: ['living'],
+      recommendationRoom: '거실',
+      wishlistCount: 9,
+      cartCount: 9,
+      layoutItemCount: 9,
+    },
+    intent: {
+      source: 'server',
+      action: 'server-intent',
+      label: '서버 intent',
+      returnScreen: 'home',
+    },
     authMode: 'scaffold',
     authTransport: 'same-origin-middleware',
   }, {
@@ -294,6 +310,47 @@ test('persistAuthSession stores the latest successful auth summary for the front
     isSameOriginScaffold: true,
     credentialsMode: 'include',
     source: 'default',
+  })
+})
+
+test('buildPersistedAuthSession falls back to backend session context when no guest draft snapshot is provided', () => {
+  const session = buildPersistedAuthSession({
+    sessionId: 'sess_backend',
+    accountLabel: 'user@example.com',
+    guestDraftSummary: {
+      apartmentLabel: '래미안 포레스트 84A',
+      selectedRoomCount: 2,
+      selectedRooms: ['거실', '침실'],
+      selectedSpaceIds: ['living', 'bed1'],
+      recommendationRoom: '거실',
+      wishlistCount: 1,
+      cartCount: 2,
+      layoutItemCount: 3,
+    },
+    intent: {
+      source: 'layout-editor',
+      action: 'save-layout-draft',
+      label: '로그인 후 보드 저장',
+      returnScreen: 'layout',
+    },
+  })
+
+  assert.deepEqual(session.guestDraftSummary, {
+    apartmentLabel: '래미안 포레스트 84A',
+    selectedRoomCount: 2,
+    selectedRooms: ['거실', '침실'],
+    selectedSpaceIds: ['living', 'bed1'],
+    recommendationRoom: '거실',
+    wishlistCount: 1,
+    cartCount: 2,
+    layoutItemCount: 3,
+  })
+  assert.deepEqual(session.intent, {
+    source: 'layout-editor',
+    action: 'save-layout-draft',
+    label: '로그인 후 보드 저장',
+    returnScreen: 'layout',
+    draftLabel: null,
   })
 })
 

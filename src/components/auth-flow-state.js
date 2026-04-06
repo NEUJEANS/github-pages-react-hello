@@ -149,6 +149,8 @@ export function buildAuthResultSummary(result, fallbackSummary = {}) {
     cartCount: fallbackCartCount,
     layoutItemCount: fallbackLayoutCount,
     hasRecommendationDraft: fallbackSummary.hasRecommendationDraft ?? false,
+    guestDraftSummary: data.guestDraftSummary ?? null,
+    intent: data.intent ?? fallbackSummary.intent ?? null,
     authMode: meta.authMode ?? 'remote',
     authTransport: meta.authTransport ?? 'network',
   }
