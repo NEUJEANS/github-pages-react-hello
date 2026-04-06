@@ -248,10 +248,16 @@ function useCart() {
     setItems((current) => updateCartItemQty(current, id, delta))
   }, [])
 
+  const replaceItems = React.useCallback((nextItems = []) => {
+    setItems(Array.isArray(nextItems)
+      ? nextItems.map((item) => ({ id: item.id, qty: item.qty ?? 1 }))
+      : [])
+  }, [])
+
   const clear = React.useCallback(() => setItems([]), [])
   const { count, subtotal } = buildCartTotals(items)
 
-  return { isOpen, setIsOpen, items, addItem, updateQty, clear, count, subtotal }
+  return { isOpen, setIsOpen, items, addItem, updateQty, replaceItems, clear, count, subtotal }
 }
 
 function useQuickView() {
@@ -461,6 +467,21 @@ function useEditorState() {
     historyCommittedRef.current = false
     setDragState(null)
   }, [items, stopClickMoveAnimation])
+
+  const replaceItems = React.useCallback((nextItems = []) => {
+    stopClickMoveAnimation()
+    const hydratedItems = Array.isArray(nextItems)
+      ? nextItems.map((item) => ({ ...item }))
+      : []
+    setHistory([])
+    setItems(hydratedItems)
+    setSelectedId(hydratedItems[0]?.id ?? null)
+    setNotice(hydratedItems.length
+      ? '계정에 저장된 배치안으로 전환했어요.'
+      : '계정에 저장된 배치안이 없어 비어 있는 상태로 전환했어요.')
+    historyCommittedRef.current = false
+    setDragState(null)
+  }, [stopClickMoveAnimation])
 
   return {
     items,
