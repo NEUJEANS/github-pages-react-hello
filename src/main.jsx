@@ -12,6 +12,11 @@ import {
 import { buildSelectedSpaceSummary } from './components/space-summary.js'
 import { buildLoginGuardSnapshot } from './components/login-guard.js'
 import { buildSearchDrawerState } from './components/search-drawer.js'
+import {
+  buildAuthStatusCopy,
+  buildAuthSubmitPlan,
+  buildGuestDraftSnapshot,
+} from './components/auth-flow-state.js'
 import { buildFilteredBedProducts } from './components/bed-filter-state.js'
 import { toggleWishlistId } from './components/wishlist-state.js'
 import {
@@ -556,6 +561,11 @@ function App() {
   })
   const [wishlistedIds, setWishlistedIds] = React.useState([])
   const [loginModalState, setLoginModalState] = React.useState('closed')
+  const [loginForm, setLoginForm] = React.useState({
+    email: '',
+    password: '',
+    status: 'idle',
+  })
   const [engagement, setEngagement] = React.useState(initialEngagement)
 
   const selectedApartment = React.useMemo(
@@ -614,11 +624,43 @@ function App() {
     cartCount: cart.count,
   }), [cart.count, engagement, wishlistedIds.length])
 
+  const guestDraftSnapshot = React.useMemo(() => buildGuestDraftSnapshot({
+    engagement,
+    aiForm,
+    spaceProfile,
+    selectedApartment,
+    selectedSpaceSummary,
+    wishlistedIds,
+    cartItems: cart.items,
+    editorItems: editor.items,
+  }), [aiForm, cart.items, editor.items, engagement, selectedApartment, selectedSpaceSummary, spaceProfile, wishlistedIds])
+
+  const authSubmitPlan = React.useMemo(() => buildAuthSubmitPlan({
+    email: loginForm.email,
+    password: loginForm.password,
+    guestDraftSnapshot,
+  }), [guestDraftSnapshot, loginForm.email, loginForm.password])
+
+  const authStatusMessage = React.useMemo(
+    () => buildAuthStatusCopy(loginForm.status, authSubmitPlan.summary),
+    [authSubmitPlan.summary, loginForm.status],
+  )
+
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 
   const openLogin = React.useCallback(() => {
+    setLoginForm((current) => ({ ...current, status: 'idle' }))
     setLoginModalState(hasLoginGuard ? 'guard' : 'form')
   }, [hasLoginGuard])
+
+  const handleLoginSubmit = React.useCallback(() => {
+    if (!authSubmitPlan.canSubmit) return
+
+    setLoginForm((current) => ({ ...current, status: 'submitting' }))
+    window.setTimeout(() => {
+      setLoginForm((current) => ({ ...current, status: 'ready' }))
+    }, 450)
+  }, [authSubmitPlan.canSubmit])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),
@@ -752,8 +794,14 @@ function App() {
             state={loginModalState}
             engagement={loginGuardMetrics}
             reasons={loginGuardReasons}
+            form={loginForm}
+            authSubmitPlan={authSubmitPlan}
+            authStatusMessage={authStatusMessage}
+            guestDraftSnapshot={guestDraftSnapshot}
+            onChangeForm={(field, value) => setLoginForm((current) => ({ ...current, [field]: value, status: 'idle' }))}
             onClose={() => setLoginModalState('closed')}
             onProceed={() => setLoginModalState('form')}
+            onSubmit={handleLoginSubmit}
           />
         )}
 
@@ -1336,7 +1384,7 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
 }
 
 
-function LoginModal({ state, engagement, reasons, onClose, onProceed }) {
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, guestDraftSnapshot, onChangeForm, onClose, onProceed, onSubmit }) {
   const guarded = state === 'guard'
 
   return (
@@ -1367,6 +1415,14 @@ function LoginModal({ state, engagement, reasons, onClose, onProceed }) {
                   <div><label>장바구니</label><b>{engagement.cartCount}개</b></div>
                 </div>
               </div>
+              <div className="loginGuardCard">
+                <strong>로그인 시 함께 넘길 초안</strong>
+                <div className="guardSummary compact">
+                  <div><label>선택 공간</label><b>{guestDraftSnapshot.spaceProfile?.spaces.length ?? 0}개</b></div>
+                  <div><label>추천 초안</label><b>{guestDraftSnapshot.recommendationDraft?.room ?? '없음'}</b></div>
+                  <div><label>배치 아이템</label><b>{authSubmitPlan.summary.layoutItemCount}개</b></div>
+                </div>
+              </div>
               <div className="footerButtons stackOnMobile">
                 <button className="ghost" onClick={onClose}>계속 둘러보기</button>
                 <button className="cta" onClick={onProceed}>그래도 로그인하기</button>
@@ -1377,16 +1433,25 @@ function LoginModal({ state, engagement, reasons, onClose, onProceed }) {
               <div className="loginBenefits">
                 <div><strong>AI 이력 저장</strong><span>공간별 추천 결과를 다시 불러올 수 있어요.</span></div>
                 <div><strong>보드 이어서 작업</strong><span>배치 중인 가구와 평면도 초안을 계정에 연결합니다.</span></div>
-                <div><strong>찜 · 장바구니 동기화</strong><span>디바이스가 바뀌어도 선택을 이어갈 수 있어요.</span></div>
+                <div><strong>백엔드 전달 준비</strong><span>{authSubmitPlan.endpoint} 요청에 게스트 초안까지 같이 묶도록 구조를 맞췄어요.</span></div>
               </div>
               <div className="loginForm">
                 <label>이메일</label>
-                <div className="inputWrap big">✉️<input placeholder="name@example.com" /></div>
+                <div className="inputWrap big">✉️<input value={form.email} onChange={(event) => onChangeForm('email', event.target.value)} placeholder="name@example.com" /></div>
                 <label>비밀번호</label>
-                <div className="inputWrap big">🔒<input type="password" placeholder="8자 이상 입력" /></div>
+                <div className="inputWrap big">🔒<input type="password" value={form.password} onChange={(event) => onChangeForm('password', event.target.value)} placeholder="8자 이상 입력" /></div>
+                <div className="loginGuardCard authPrepCard">
+                  <strong>연결 준비 상태</strong>
+                  <p className="muted">{authStatusMessage}</p>
+                  <div className="guardSummary compact">
+                    <div><label>찜</label><b>{authSubmitPlan.summary.wishlistCount}개</b></div>
+                    <div><label>장바구니</label><b>{authSubmitPlan.summary.cartCount}개</b></div>
+                    <div><label>배치</label><b>{authSubmitPlan.summary.layoutItemCount}개</b></div>
+                  </div>
+                </div>
                 <div className="footerButtons stackOnMobile">
                   <button className="ghost" onClick={onClose}>회원가입</button>
-                  <button className="cta" onClick={onClose}>로그인</button>
+                  <button className="cta" disabled={!authSubmitPlan.canSubmit} onClick={onSubmit}>{form.status === 'submitting' ? '준비 중…' : form.status === 'ready' ? '연결 준비 완료' : '로그인'}</button>
                 </div>
               </div>
             </>
