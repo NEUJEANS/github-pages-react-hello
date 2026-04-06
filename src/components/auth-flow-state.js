@@ -16,6 +16,16 @@ function buildFallbackSummary(summary = {}) {
   }
 }
 
+function readAllowedMergeResolutions(data = {}) {
+  const values = Array.isArray(data.allowedMergeResolutions)
+    ? data.allowedMergeResolutions
+    : [data.allowedMergeResolution]
+
+  return values
+    .filter((value) => value === 'keep-guest' || value === 'replace-with-account')
+    .filter((value, index, array) => array.indexOf(value) === index)
+}
+
 export function buildGuestDraftSnapshot({
   engagement,
   aiForm,
@@ -164,6 +174,7 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
       tone: 'merge',
       message: message ?? '게스트 초안 병합 확인이 필요해요. 현재 초안은 그대로 보관되어 있어요.',
       summary: buildFallbackSummary(fallbackSummary),
+      allowedMergeResolutions: readAllowedMergeResolutions(data),
     }
   }
 

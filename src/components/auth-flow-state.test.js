@@ -157,6 +157,36 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
       },
     },
   )
+
+  assert.deepEqual(
+    buildAuthErrorSummary({
+      ok: false,
+      status: 409,
+      data: {
+        message: 'Guest draft merge confirmation required',
+        allowedMergeResolution: 'keep-guest',
+        allowedMergeResolutions: ['replace-with-account', 'keep-guest', 'replace-with-account'],
+      },
+    }, {
+      handoffId: 'auth-20260406123000-2n9c',
+      wishlistCount: 2,
+      cartCount: 1,
+      layoutItemCount: 3,
+      hasRecommendationDraft: true,
+    }),
+    {
+      tone: 'merge',
+      message: 'Guest draft merge confirmation required',
+      summary: {
+        handoffId: 'auth-20260406123000-2n9c',
+        wishlistCount: 2,
+        cartCount: 1,
+        layoutItemCount: 3,
+        hasRecommendationDraft: true,
+      },
+      allowedMergeResolutions: ['replace-with-account', 'keep-guest'],
+    },
+  )
 })
 
 test('buildAuthStatusCopy reflects the staged auth handoff state', () => {

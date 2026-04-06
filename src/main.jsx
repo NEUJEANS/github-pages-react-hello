@@ -1603,6 +1603,11 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
 
 function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, guestDraftSnapshot, onChangeForm, onClose, onProceed, onSubmit }) {
   const guarded = state === 'guard'
+  const allowedMergeResolutions = authErrorSummary?.allowedMergeResolutions ?? []
+  const mergeResolutionLabels = {
+    'replace-with-account': '계정 상태로 전환',
+    'keep-guest': '현재 초안으로 계속',
+  }
 
   return (
     <div className="overlayLayer" role="dialog" aria-modal="true" aria-labelledby="login-title">
@@ -1670,7 +1675,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                     <p className="muted">오류 분류: {authErrorSummary.tone === 'credentials' ? '자격 증명' : authErrorSummary.tone === 'merge' ? '초안 병합' : authErrorSummary.tone === 'service' ? '인증 서비스' : '기타'}</p>
                   )}
                   {form.mergeResolution && (
-                    <p className="muted">병합 확정: {form.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하며 계속 진행' : form.mergeResolution}</p>
+                    <p className="muted">병합 확정: {form.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하며 계속 진행' : form.mergeResolution === 'replace-with-account' ? '계정 상태를 우선 적용하며 계속 진행' : form.mergeResolution}</p>
                   )}
                   {form.intent?.label && (
                     <p className="muted">로그인 후 이어갈 작업: {form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</p>
@@ -1692,11 +1697,13 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 </div>
                 <div className="footerButtons stackOnMobile">
                   <button className="ghost" onClick={form.status === 'ready' ? onClose : onClose}>{form.status === 'ready' ? '계속 둘러보기' : '회원가입'}</button>
-                  {authErrorSummary?.tone === 'merge' && form.status !== 'ready' && (
-                    <>
-                      <button className="ghost" onClick={() => onSubmit('replace-with-account')}>계정 상태로 전환</button>
-                      <button className="ghost" onClick={() => onSubmit('keep-guest')}>현재 초안으로 계속</button>
-                    </>
+                  {authErrorSummary?.tone === 'merge' && form.status !== 'ready' && allowedMergeResolutions.map((resolution) => (
+                    <button key={resolution} className="ghost" onClick={() => onSubmit(resolution)}>
+                      {mergeResolutionLabels[resolution] ?? resolution}
+                    </button>
+                  ))}
+                  {authErrorSummary?.tone === 'merge' && form.status !== 'ready' && allowedMergeResolutions.length === 0 && (
+                    <span className="muted">이 auth scaffold는 아직 병합 선택지를 내려주지 않아 같은 handoff로 재시도만 준비된 상태예요.</span>
                   )}
                   <button className="cta" disabled={form.status === 'ready' ? false : !authSubmitPlan.canSubmit} onClick={form.status === 'ready' ? onClose : () => onSubmit()}>{form.status === 'submitting' ? '준비 중…' : form.status === 'ready' ? '연결 완료' : '로그인'}</button>
                 </div>
