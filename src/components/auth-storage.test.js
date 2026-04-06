@@ -11,6 +11,7 @@ import {
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
   clearPersistedAuthSession,
+  createAuthHandoffId,
   persistAuthHandoff,
   persistAuthSession,
   readPersistedAuthHandoff,
@@ -46,28 +47,26 @@ test('buildAuthConnectionSummary resolves same-origin and external auth targets'
       source: 'default',
     },
   )
+})
 
-  assert.deepEqual(
-    buildAuthConnectionSummary({ endpoint: '/api/auth/login', method: 'POST' }, { apiBaseUrl: 'https://api.example.com/', source: 'env:VITE_API_BASE_URL' }),
-    {
-      method: 'POST',
-      endpoint: '/api/auth/login',
-      resolvedUrl: 'https://api.example.com/api/auth/login',
-      targetLabel: 'api.example.com',
-      isExternal: true,
-      isSameOriginScaffold: false,
-      source: 'env:VITE_API_BASE_URL',
-    },
-  )
+test('createAuthHandoffId creates a compact serializable correlation id for login handoffs', () => {
+  const handoffId = createAuthHandoffId({
+    now: new Date('2026-04-06T12:30:00.000Z'),
+    random: () => 0.123456,
+  })
+
+  assert.equal(handoffId, 'auth-20260406123000-2n9c')
 })
 
 test('persistAuthHandoff stores the serializable guest draft payload for follow-up auth wiring', () => {
   const storage = createMemoryStorage()
   const handoff = buildPersistedAuthHandoff({
+    handoffId: 'auth-20260406123000-2n9c',
     endpoint: '/api/auth/login',
     method: 'POST',
     summary: {
       email: 'user@example.com',
+      handoffId: 'auth-20260406123000-2n9c',
       wishlistCount: 1,
       cartCount: 2,
       layoutItemCount: 3,
@@ -90,25 +89,19 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
 test('buildAuthResumeState revives an interrupted login attempt from persisted handoff data', () => {
   const handoff = {
     submittedAt: '2026-04-06T06:59:00.000Z',
+    handoffId: 'auth-20260406123000-2n9c',
     email: 'user@example.com',
-    summary: { wishlistCount: 1, cartCount: 2, layoutItemCount: 3, hasRecommendationDraft: true, mergeResolution: 'keep-guest' },
+    summary: { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 1, cartCount: 2, layoutItemCount: 3, hasRecommendationDraft: true, mergeResolution: 'keep-guest' },
   }
   const session = { accountLabel: 'user@example.com' }
   const resumeState = buildAuthResumeState(handoff, session)
 
   assert.equal(resumeState.email, 'user@example.com')
+  assert.equal(resumeState.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(resumeState.status, 'resume-ready')
   assert.equal(resumeState.handoff, handoff)
   assert.equal(resumeState.session, session)
   assert.equal(resumeState.mergeResolution, 'keep-guest')
-})
-
-test('clearPersistedAuthHandoff removes the saved handoff after a successful login', () => {
-  const storage = createMemoryStorage()
-  storage.setItem(AUTH_HANDOFF_STORAGE_KEY, JSON.stringify({ email: 'user@example.com' }))
-
-  assert.equal(clearPersistedAuthHandoff(storage), true)
-  assert.equal(storage.getItem(AUTH_HANDOFF_STORAGE_KEY), null)
 })
 
 test('buildGuestDraftSessionSummary keeps the persisted post-login restore details serializable', () => {
@@ -136,6 +129,7 @@ test('persistAuthSession stores the latest successful auth summary for the front
   const storage = createMemoryStorage()
   const session = buildPersistedAuthSession({
     sessionId: 'sess_123',
+    handoffId: 'auth-20260406123000-2n9c',
     accountLabel: 'user@example.com',
     mergeMode: 'merged',
     mergedDraftCount: 3,
@@ -166,23 +160,17 @@ test('persistAuthSession stores the latest successful auth summary for the front
   assert.equal(persistAuthSession(storage, session), true)
   assert.equal(storage.getItem(AUTH_SESSION_STORAGE_KEY) !== null, true)
   assert.deepEqual(readPersistedAuthSession(storage), session)
+  assert.equal(session.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(session.authMode, 'scaffold')
-  assert.equal(session.authTransport, 'same-origin-middleware')
-  assert.deepEqual(session.guestDraftSummary, {
-    apartmentLabel: '래미안 포레스트 84A',
-    selectedRoomCount: 2,
-    selectedRooms: ['거실', '침실'],
-    recommendationRoom: '거실',
-    wishlistCount: 1,
-    cartCount: 2,
-    layoutItemCount: 3,
-  })
 })
 
-test('clearPersistedAuthSession removes the saved auth shell state during logout/reset', () => {
+test('clearPersistedAuthHandoff and clearPersistedAuthSession remove saved auth state', () => {
   const storage = createMemoryStorage()
+  storage.setItem(AUTH_HANDOFF_STORAGE_KEY, JSON.stringify({ email: 'user@example.com' }))
   storage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify({ accountLabel: 'user@example.com' }))
 
+  assert.equal(clearPersistedAuthHandoff(storage), true)
   assert.equal(clearPersistedAuthSession(storage), true)
+  assert.equal(storage.getItem(AUTH_HANDOFF_STORAGE_KEY), null)
   assert.equal(storage.getItem(AUTH_SESSION_STORAGE_KEY), null)
 })

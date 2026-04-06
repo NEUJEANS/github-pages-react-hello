@@ -785,7 +785,7 @@ function App() {
         mergeResolution: nextMergeResolution,
       }))
     }
-  }, [authConfig, guestDraftSnapshot, loginForm.email, loginForm.mergeResolution, loginForm.password])
+  }, [authConfig, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.mergeResolution, loginForm.password])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),
@@ -1587,7 +1587,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                   <strong>연결 준비 상태</strong>
                   <p className="muted">{authStatusMessage}</p>
                   {form.handoff && (
-                    <p className="muted">이전 시도: {form.handoff.submittedAt} · 이메일 {form.handoff.email || '미입력'}</p>
+                    <p className="muted">이전 시도: {form.handoff.submittedAt} · handoff {form.handoff.handoffId || form.handoff.summary?.handoffId || '미생성'} · 이메일 {form.handoff.email || '미입력'}</p>
                   )}
                   {authErrorSummary && (
                     <p className="muted">오류 분류: {authErrorSummary.tone === 'credentials' ? '자격 증명' : authErrorSummary.tone === 'merge' ? '초안 병합' : authErrorSummary.tone === 'service' ? '인증 서비스' : '기타'}</p>
@@ -1596,6 +1596,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                     <p className="muted">병합 확정: {form.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하며 계속 진행' : form.mergeResolution}</p>
                   )}
                   <div className="guardSummary compact">
+                    <div><label>handoff</label><b>{authSubmitPlan.summary.handoffId ?? '미생성'}</b></div>
                     <div><label>찜</label><b>{authSubmitPlan.summary.wishlistCount}개</b></div>
                     <div><label>장바구니</label><b>{authSubmitPlan.summary.cartCount}개</b></div>
                     <div><label>배치</label><b>{authSubmitPlan.summary.layoutItemCount}개</b></div>

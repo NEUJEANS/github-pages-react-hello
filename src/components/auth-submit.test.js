@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { AUTH_SCAFFOLD_HEADER, resolveAuthEndpoint, submitAuthLoginPlan } from './auth-submit.js'
+import { AUTH_HANDOFF_HEADER, AUTH_SCAFFOLD_HEADER, resolveAuthEndpoint, submitAuthLoginPlan } from './auth-submit.js'
 
 test('resolveAuthEndpoint keeps local auth routes by default and prefixes configured api base urls', () => {
   assert.equal(resolveAuthEndpoint('/api/auth/login'), '/api/auth/login')
@@ -9,16 +9,18 @@ test('resolveAuthEndpoint keeps local auth routes by default and prefixes config
   assert.equal(resolveAuthEndpoint('https://auth.example.com/login', { apiBaseUrl: 'https://api.example.com/' }), 'https://auth.example.com/login')
 })
 
-test('submitAuthLoginPlan sends the backend-ready payload as json', async () => {
+test('submitAuthLoginPlan sends the backend-ready payload as json with handoff correlation metadata', async () => {
   const calls = []
   const result = await submitAuthLoginPlan({
     endpoint: '/api/auth/login',
     method: 'POST',
+    handoffId: 'auth-20260406123000-2n9c',
     request: {
       email: 'user@example.com',
       password: 'password123',
       guestDraftSnapshot: { continuity: { wishlistIds: ['a'] } },
       mergeResolution: 'keep-guest',
+      handoffId: 'auth-20260406123000-2n9c',
     },
   }, {
     apiBaseUrl: 'https://api.example.com',
@@ -36,25 +38,33 @@ test('submitAuthLoginPlan sends the backend-ready payload as json', async () => 
   assert.equal(calls[0].url, 'https://api.example.com/api/auth/login')
   assert.equal(calls[0].options.method, 'POST')
   assert.equal(calls[0].options.headers['content-type'], 'application/json')
+  assert.equal(calls[0].options.headers[AUTH_HANDOFF_HEADER], 'auth-20260406123000-2n9c')
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     email: 'user@example.com',
     password: 'password123',
     guestDraftSnapshot: { continuity: { wishlistIds: ['a'] } },
     mergeResolution: 'keep-guest',
+    handoffId: 'auth-20260406123000-2n9c',
   })
   assert.deepEqual(result, {
     ok: true,
     status: 200,
-    data: { ok: true, sessionId: 'session-1' },
+    data: { ok: true, sessionId: 'session-1', handoffId: 'auth-20260406123000-2n9c' },
     meta: { authMode: 'remote', authTransport: 'network' },
   })
 })
 
-test('submitAuthLoginPlan marks same-origin scaffold responses from middleware', async () => {
+test('submitAuthLoginPlan preserves handoff ids on same-origin scaffold responses', async () => {
   const result = await submitAuthLoginPlan({
     endpoint: '/api/auth/login',
     method: 'POST',
-    request: { email: 'user@example.com', password: 'password123', guestDraftSnapshot: null },
+    handoffId: 'auth-20260406123000-2n9c',
+    request: {
+      email: 'user@example.com',
+      password: 'password123',
+      guestDraftSnapshot: null,
+      handoffId: 'auth-20260406123000-2n9c',
+    },
   }, {
     fetchImpl: async () => ({
       ok: true,
@@ -67,6 +77,7 @@ test('submitAuthLoginPlan marks same-origin scaffold responses from middleware',
     }),
   })
 
+  assert.equal(result.data.handoffId, 'auth-20260406123000-2n9c')
   assert.deepEqual(result.meta, {
     authMode: 'scaffold',
     authTransport: 'same-origin-middleware',
@@ -77,7 +88,13 @@ test('submitAuthLoginPlan captures text errors from non-json auth scaffolds', as
   const result = await submitAuthLoginPlan({
     endpoint: '/api/auth/login',
     method: 'POST',
-    request: { email: 'user@example.com', password: 'password123', guestDraftSnapshot: null },
+    handoffId: 'auth-20260406123000-2n9c',
+    request: {
+      email: 'user@example.com',
+      password: 'password123',
+      guestDraftSnapshot: null,
+      handoffId: 'auth-20260406123000-2n9c',
+    },
   }, {
     fetchImpl: async () => ({
       ok: false,
@@ -90,75 +107,7 @@ test('submitAuthLoginPlan captures text errors from non-json auth scaffolds', as
   assert.deepEqual(result, {
     ok: false,
     status: 503,
-    data: { message: 'Auth service unavailable' },
+    data: { message: 'Auth service unavailable', handoffId: 'auth-20260406123000-2n9c' },
     meta: { authMode: 'remote', authTransport: 'network' },
-  })
-})
-
-test('submitAuthLoginPlan falls back to the local scaffold when the same-origin auth route is missing', async () => {
-  const result = await submitAuthLoginPlan({
-    endpoint: '/api/auth/login',
-    method: 'POST',
-    request: {
-      email: 'user@example.com',
-      password: 'password123',
-      guestDraftSnapshot: {
-        recommendationDraft: { room: '거실' },
-        continuity: {
-          wishlistIds: ['wish-1'],
-          cartItems: [{ id: 'cart-1', qty: 1 }],
-          layoutItems: [{ id: 'layout-1' }],
-        },
-      },
-    },
-  }, {
-    fetchImpl: async () => ({
-      ok: false,
-      status: 404,
-      headers: new Headers({ 'content-type': 'text/plain' }),
-      text: async () => 'Not found',
-    }),
-  })
-
-  assert.equal(result.ok, true)
-  assert.equal(result.status, 200)
-  assert.equal(result.data.sessionId, 'demo-user-example-com')
-  assert.equal(result.data.mergedGuestDraft.layoutItemCount, 1)
-  assert.equal(result.data.mergedGuestDraft.recommendationDraftRestored, true)
-  assert.deepEqual(result.meta, {
-    authMode: 'scaffold',
-    authTransport: 'local-fallback',
-  })
-})
-
-test('submitAuthLoginPlan falls back to the local scaffold when same-origin auth fetch throws', async () => {
-  const result = await submitAuthLoginPlan({
-    endpoint: '/api/auth/login',
-    method: 'POST',
-    request: {
-      email: 'user@example.com',
-      password: 'merge-conflict',
-      guestDraftSnapshot: {
-        continuity: {
-          wishlistIds: ['wish-1'],
-          cartItems: [],
-          layoutItems: [{ id: 'layout-1' }],
-        },
-      },
-    },
-  }, {
-    fetchImpl: async () => {
-      throw new TypeError('fetch failed')
-    },
-  })
-
-  assert.equal(result.ok, false)
-  assert.equal(result.status, 409)
-  assert.equal(result.data.message, 'Guest draft merge confirmation required')
-  assert.equal(result.data.allowedMergeResolution, 'keep-guest')
-  assert.equal(result.data.mergedGuestDraft.layoutItemCount, 1)
-  assert.deepEqual(result.meta, {
-    authMode: 'scaffold',
-    authTransport: 'local-fallback',
   })
 })

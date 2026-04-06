@@ -27,9 +27,16 @@ export function buildAuthConnectionSummary(plan, { apiBaseUrl, source = 'default
   }
 }
 
+export function createAuthHandoffId({ now = new Date(), random = Math.random } = {}) {
+  const timestamp = now.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)
+  const entropy = Math.floor(random() * 1e6).toString(36).padStart(4, '0').slice(0, 4)
+  return `auth-${timestamp}-${entropy}`
+}
+
 export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedAt = new Date().toISOString() } = {}) {
   return {
     submittedAt,
+    handoffId: plan.handoffId ?? plan.summary?.handoffId ?? null,
     endpoint: plan.endpoint,
     method: plan.method,
     email: plan.summary.email,
@@ -59,6 +66,7 @@ export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = 
   return {
     savedAt,
     sessionId: resultSummary?.sessionId ?? null,
+    handoffId: resultSummary?.handoffId ?? null,
     accountLabel: resultSummary?.accountLabel ?? null,
     mergeMode: resultSummary?.mergeMode ?? null,
     mergedDraftCount: resultSummary?.mergedDraftCount ?? 0,
@@ -81,6 +89,7 @@ export function buildAuthResumeState(handoff, session = null) {
 
   return {
     email: handoff.email ?? '',
+    handoffId: handoff.handoffId ?? handoff.summary?.handoffId ?? null,
     status: 'resume-ready',
     result: null,
     resumedAt: new Date().toISOString(),

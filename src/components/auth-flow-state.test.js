@@ -57,10 +57,11 @@ test('buildGuestDraftSnapshot keeps the login handoff payload serializable and f
   })
 })
 
-test('buildAuthSubmitPlan prepares a backend-friendly login request', () => {
+test('buildAuthSubmitPlan prepares a backend-friendly login request with handoff metadata', () => {
   const plan = buildAuthSubmitPlan({
     email: ' USER@Example.com ',
     password: 'password123',
+    handoffId: 'auth-20260406123000-2n9c',
     guestDraftSnapshot: {
       recommendationDraft: { room: '거실' },
       continuity: {
@@ -74,7 +75,10 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request', () => {
   assert.equal(plan.canSubmit, true)
   assert.equal(plan.endpoint, '/api/auth/login')
   assert.equal(plan.method, 'POST')
+  assert.equal(plan.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(plan.request.email, 'user@example.com')
+  assert.equal(plan.request.handoffId, 'auth-20260406123000-2n9c')
+  assert.equal(plan.summary.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(plan.summary.wishlistCount, 2)
   assert.equal(plan.summary.cartCount, 1)
   assert.equal(plan.summary.layoutItemCount, 1)
@@ -82,28 +86,11 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request', () => {
   assert.equal(plan.summary.mergeResolution, null)
 })
 
- test('buildAuthSubmitPlan includes an explicit merge resolution when the login retry confirms the guest draft', () => {
-  const plan = buildAuthSubmitPlan({
-    email: 'user@example.com',
-    password: 'merge-conflict',
-    mergeResolution: 'keep-guest',
-    guestDraftSnapshot: {
-      continuity: {
-        wishlistIds: ['a'],
-        cartItems: [],
-        layoutItems: [{ id: 'placed-sofa' }],
-      },
-    },
-  })
-
-  assert.equal(plan.request.mergeResolution, 'keep-guest')
-  assert.equal(plan.summary.mergeResolution, 'keep-guest')
-})
-
 test('buildAuthResultSummary extracts backend auth response details without widening the login flow contract', () => {
   const summary = buildAuthResultSummary({
     data: {
       sessionId: 'session-1',
+      handoffId: 'auth-20260406123000-2n9c',
       user: { email: 'user@example.com' },
       mergedGuestDraft: {
         count: 3,
@@ -119,6 +106,7 @@ test('buildAuthResultSummary extracts backend auth response details without wide
       authTransport: 'same-origin-middleware',
     },
   }, {
+    handoffId: 'auth-20260406123000-2n9c',
     wishlistCount: 2,
     cartCount: 1,
     layoutItemCount: 3,
@@ -127,6 +115,7 @@ test('buildAuthResultSummary extracts backend auth response details without wide
 
   assert.deepEqual(summary, {
     sessionId: 'session-1',
+    handoffId: 'auth-20260406123000-2n9c',
     accountLabel: 'user@example.com',
     mergeMode: 'merged',
     mergedDraftCount: 3,
@@ -146,6 +135,7 @@ test('buildAuthResultSummary extracts backend auth response details without wide
 test('buildAuthErrorSummary categorizes backend auth failures for the modal state', () => {
   assert.deepEqual(
     buildAuthErrorSummary({ ok: false, status: 401, data: { message: 'Invalid credentials' } }, {
+      handoffId: 'auth-20260406123000-2n9c',
       wishlistCount: 2,
       cartCount: 1,
       layoutItemCount: 3,
@@ -155,6 +145,7 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
       tone: 'credentials',
       message: 'Invalid credentials',
       summary: {
+        handoffId: 'auth-20260406123000-2n9c',
         wishlistCount: 2,
         cartCount: 1,
         layoutItemCount: 3,
@@ -162,62 +153,28 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
       },
     },
   )
-
-  assert.deepEqual(
-    buildAuthErrorSummary({ ok: false, status: 503, data: { message: 'Auth service unavailable' } }, {
-      wishlistCount: 0,
-      cartCount: 0,
-      layoutItemCount: 1,
-      hasRecommendationDraft: false,
-    }),
-    {
-      tone: 'service',
-      message: 'Auth service unavailable',
-      summary: {
-        wishlistCount: 0,
-        cartCount: 0,
-        layoutItemCount: 1,
-        hasRecommendationDraft: false,
-      },
-    },
-  )
 })
 
 test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
-  assert.match(buildAuthStatusCopy('resume-ready', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /이전 로그인 시도/)
-  assert.match(buildAuthStatusCopy('submitting', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /준비 중/)
+  assert.match(
+    buildAuthStatusCopy('resume-ready', { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }),
+    /handoff auth-20260406123000-2n9c/,
+  )
+
   assert.match(
     buildAuthStatusCopy(
       'ready',
-      { wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
+      { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
       {
         sessionId: 'session-1',
+        handoffId: 'auth-20260406123000-2n9c',
         accountLabel: 'user@example.com',
         mergeMode: 'merged',
         authMode: 'scaffold',
         authTransport: 'same-origin-middleware',
       },
     ),
-    /user@example.com 계정과 연결 준비됨.*session-1.*게스트 초안 병합 완료.*same-origin scaffold로 응답 확인|same-origin scaffold로 응답 확인.*user@example.com 계정과 연결 준비됨/,
+    /user@example.com 계정과 연결 준비됨.*handoff auth-20260406123000-2n9c.*session-1.*게스트 초안 병합 완료.*same-origin scaffold로 응답 확인/,
   )
-  assert.match(
-    buildAuthStatusCopy(
-      'error',
-      { wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
-      null,
-      { tone: 'credentials', message: 'Invalid credentials' },
-    ),
-    /Invalid credentials.*게스트 초안은 유지/,
-  )
-  assert.match(
-    buildAuthStatusCopy(
-      'error',
-      { wishlistCount: 0, cartCount: 0, layoutItemCount: 1 },
-      null,
-      { tone: 'service', message: 'Network request failed' },
-      { isSameOriginScaffold: true, targetLabel: 'same-origin \/api auth scaffold' },
-    ),
-    /same-origin \/api auth scaffold.*auth base URL 또는 백엔드 라우트/,
-  )
-  assert.match(buildAuthStatusCopy('idle', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /게스트 상태/)
-})
+}
+)

@@ -2,8 +2,13 @@ function sanitizeEmail(email = '') {
   return email.trim().toLowerCase()
 }
 
+function sanitizeAuthHandoffId(handoffId = '') {
+  return typeof handoffId === 'string' ? handoffId.trim() : ''
+}
+
 function buildFallbackSummary(summary = {}) {
   return {
+    handoffId: summary.handoffId ?? null,
     wishlistCount: summary.wishlistCount ?? 0,
     cartCount: summary.cartCount ?? 0,
     layoutItemCount: summary.layoutItemCount ?? 0,
@@ -62,8 +67,9 @@ export function buildGuestDraftSnapshot({
   }
 }
 
-export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot, mergeResolution = null }) {
+export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot, mergeResolution = null, handoffId = null }) {
   const normalizedEmail = sanitizeEmail(email)
+  const normalizedHandoffId = sanitizeAuthHandoffId(handoffId)
   const hasPassword = password.trim().length >= 8
   const hasGuestDraft = Boolean(guestDraftSnapshot)
 
@@ -71,14 +77,17 @@ export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot, merge
     canSubmit: normalizedEmail.includes('@') && hasPassword,
     endpoint: '/api/auth/login',
     method: 'POST',
+    handoffId: normalizedHandoffId || null,
     request: {
       email: normalizedEmail,
       password,
       guestDraftSnapshot: hasGuestDraft ? guestDraftSnapshot : null,
       mergeResolution,
+      handoffId: normalizedHandoffId || null,
     },
     summary: {
       email: normalizedEmail,
+      handoffId: normalizedHandoffId || null,
       wishlistCount: guestDraftSnapshot?.continuity?.wishlistIds?.length ?? 0,
       cartCount: guestDraftSnapshot?.continuity?.cartItems?.length ?? 0,
       layoutItemCount: guestDraftSnapshot?.continuity?.layoutItems?.length ?? 0,
@@ -106,6 +115,7 @@ export function buildAuthResultSummary(result, fallbackSummary = {}) {
 
   return {
     sessionId: data.sessionId ?? data.session?.id ?? null,
+    handoffId: data.handoffId ?? data.authHandoffId ?? fallbackSummary.handoffId ?? null,
     accountLabel: data.user?.name ?? data.user?.email ?? data.account?.email ?? null,
     mergeMode: mergedDraft?.mode ?? mergedDraft?.status ?? data.mergeMode ?? null,
     mergedDraftCount: readMergeCount(mergedDraft?.count, fallbackLayoutCount),
@@ -163,10 +173,15 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
 }
 
 export function buildAuthStatusCopy(status, summary, resultSummary = null, errorSummary = null, connectionSummary = null) {
-  if (status === 'resume-ready') return '이전 로그인 시도가 남아 있어요. 입력한 이메일과 게스트 초안을 그대로 이어서 다시 연결할 수 있어요.'
+  if (status === 'resume-ready') {
+    return summary.handoffId
+      ? `이전 로그인 시도가 남아 있어요. handoff ${summary.handoffId} 기준으로 입력한 이메일과 게스트 초안을 그대로 이어서 다시 연결할 수 있어요.`
+      : '이전 로그인 시도가 남아 있어요. 입력한 이메일과 게스트 초안을 그대로 이어서 다시 연결할 수 있어요.'
+  }
   if (status === 'submitting') return '계정 연결 준비 중… 게스트 초안을 함께 묶고 있어요.'
   if (status === 'ready') {
     const accountCopy = resultSummary?.accountLabel ? ` · ${resultSummary.accountLabel} 계정과 연결 준비됨` : ''
+    const handoffCopy = resultSummary?.handoffId ? ` · handoff ${resultSummary.handoffId}` : ''
     const sessionCopy = resultSummary?.sessionId ? ` · 세션 ${resultSummary.sessionId}` : ''
     const mergeCopy = resultSummary?.mergeMode
       ? ` · ${resultSummary.mergeMode === 'merged' ? '게스트 초안 병합 완료' : resultSummary.mergeMode === 'replaced' ? '계정 상태로 전환됨' : `병합 상태 ${resultSummary.mergeMode}`}`
@@ -174,7 +189,7 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
     const modeCopy = resultSummary?.authMode === 'scaffold'
       ? ` · ${resultSummary.authTransport === 'same-origin-middleware' ? 'same-origin scaffold로 응답 확인' : 'local scaffold로 연결 유지'}`
       : ''
-    return `백엔드 연결 준비 완료${accountCopy}${sessionCopy}${mergeCopy}${modeCopy} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
+    return `백엔드 연결 준비 완료${accountCopy}${handoffCopy}${sessionCopy}${mergeCopy}${modeCopy} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
   }
   if (status === 'error') {
     if (errorSummary?.tone === 'credentials') return `${errorSummary.message} · 게스트 초안은 유지되어 다시 시도할 수 있어요.`

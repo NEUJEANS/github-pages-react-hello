@@ -25,12 +25,14 @@ export function buildAuthScaffoldResponse(request = {}) {
   const password = typeof request.password === 'string' ? request.password : ''
   const guestDraftSnapshot = request.guestDraftSnapshot ?? null
   const mergeResolution = typeof request.mergeResolution === 'string' ? request.mergeResolution : null
+  const handoffId = typeof request.handoffId === 'string' ? request.handoffId.trim() : null
 
   if (!email || !email.includes('@') || password.trim().length < 8) {
     return {
       status: 401,
       data: {
         message: 'Invalid credentials',
+        ...(handoffId ? { handoffId } : {}),
       },
     }
   }
@@ -41,6 +43,7 @@ export function buildAuthScaffoldResponse(request = {}) {
       data: {
         message: 'Guest draft merge confirmation required',
         allowedMergeResolution: 'keep-guest',
+        ...(handoffId ? { handoffId } : {}),
         mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot),
       },
     }
@@ -53,6 +56,7 @@ export function buildAuthScaffoldResponse(request = {}) {
     data: {
       ok: true,
       sessionId: `demo-${safeSessionId}`,
+      ...(handoffId ? { handoffId } : {}),
       user: {
         email,
         name: email,

@@ -1,6 +1,7 @@
 import { buildAuthScaffoldResponse } from './auth-backend-scaffold.js'
 
 export const AUTH_SCAFFOLD_HEADER = 'x-havenly-auth-scaffold'
+export const AUTH_HANDOFF_HEADER = 'x-havenly-auth-handoff-id'
 
 function trimTrailingSlash(value = '') {
   return value.endsWith('/') ? value.slice(0, -1) : value
@@ -74,6 +75,7 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl 
     method: plan.method,
     headers: {
       'content-type': 'application/json',
+      ...(plan.handoffId ? { [AUTH_HANDOFF_HEADER]: plan.handoffId } : {}),
     },
     body: JSON.stringify(plan.request),
   }
@@ -89,7 +91,9 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl 
     return {
       ok: response.ok,
       status: response.status,
-      data,
+      data: data && typeof data === 'object' && !Array.isArray(data)
+        ? { ...data, handoffId: data.handoffId ?? plan.handoffId ?? null }
+        : data,
       meta: buildResponseMeta(response),
     }
   } catch {
