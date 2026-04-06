@@ -484,6 +484,7 @@ function useEditorState() {
     addLibraryItem,
     undo,
     reset,
+    replaceItems,
   }
 }
 
@@ -565,13 +566,7 @@ function App() {
   const editor = useEditorState()
   const [searchDrawerOpen, setSearchDrawerOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
-  const [aiForm, setAiForm] = React.useState({
-    room: '거실',
-    style: 'minimal',
-    priority: 'flow',
-    lifestyle: ['기본'],
-    extraRequest: '아이보리/우드 톤으로 따뜻하게, 반려식물과 패브릭 위주로 꾸미고 싶어요.',
-  })
+  const [aiForm, setAiForm] = React.useState(initialAiForm)
   const [spaceProfile, setSpaceProfile] = React.useState({
     query: '서울 성동구 성수이로 123 HAVENLY Apartments',
     apartmentType: apartmentSearchResults[0].unitLabel,
@@ -789,6 +784,20 @@ function App() {
           guestDraftSnapshot,
           intent: submitPlan.summary.intent,
         })
+        const continuityPatch = buildPostAuthContinuityPatch(result)
+
+        if (continuityPatch) {
+          setWishlistedIds(continuityPatch.wishlistIds)
+          cart.replaceItems(continuityPatch.cartItems)
+          editor.replaceItems(continuityPatch.layoutItems)
+          setAiForm(
+            continuityPatch.recommendationDraft
+              ? { ...initialAiForm, ...continuityPatch.recommendationDraft }
+              : initialAiForm,
+          )
+          setEngagement(initialEngagement)
+        }
+
         persistAuthSession(globalThis.localStorage, nextSession)
         clearPersistedAuthHandoff(globalThis.sessionStorage)
         setAuthSession(nextSession)
@@ -819,7 +828,7 @@ function App() {
         mergeResolution: nextMergeResolution,
       }))
     }
-  }, [authConfig, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.mergeResolution, loginForm.password])
+  }, [authConfig, cart, editor, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),

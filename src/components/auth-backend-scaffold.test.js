@@ -86,6 +86,12 @@ test('buildAuthScaffoldResponse can switch to the account state after a merge co
   assert.equal(response.status, 200)
   assert.equal(response.data.mergedGuestDraft.mode, 'replaced')
   assert.equal(response.data.mergedGuestDraft.resolution, 'replace-with-account')
+  assert.deepEqual(response.data.accountState, {
+    wishlistIds: [],
+    cartItems: [],
+    layoutItems: [],
+    recommendationDraft: null,
+  })
 })
 
 test('buildAuthScaffoldResponse rejects short passwords and malformed emails', () => {

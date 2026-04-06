@@ -20,6 +20,17 @@ function buildMergedGuestDraft(guestDraftSnapshot = null, { mode = 'merged', res
   }
 }
 
+function buildAccountState({ mergeResolution } = {}) {
+  if (mergeResolution !== 'replace-with-account') return null
+
+  return {
+    wishlistIds: [],
+    cartItems: [],
+    layoutItems: [],
+    recommendationDraft: null,
+  }
+}
+
 export function buildAuthScaffoldResponse(request = {}) {
   const email = normalizeEmail(request.email)
   const password = typeof request.password === 'string' ? request.password : ''
@@ -70,6 +81,7 @@ export function buildAuthScaffoldResponse(request = {}) {
             : 'merged',
         resolution: mergeResolution,
       }),
+      accountState: buildAccountState({ mergeResolution }),
     },
   }
 }
