@@ -6,6 +6,7 @@ import {
   AUTH_SESSION_STORAGE_KEY,
   buildAuthConnectionSummary,
   buildAuthResumeState,
+  buildGuestDraftSessionSummary,
   buildPersistedAuthHandoff,
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
@@ -107,6 +108,27 @@ test('clearPersistedAuthHandoff removes the saved handoff after a successful log
   assert.equal(storage.getItem(AUTH_HANDOFF_STORAGE_KEY), null)
 })
 
+test('buildGuestDraftSessionSummary keeps the persisted post-login restore details serializable', () => {
+  assert.deepEqual(buildGuestDraftSessionSummary({
+    recommendationDraft: { room: '거실' },
+    continuity: {
+      apartmentLabel: '래미안 포레스트 84A',
+      selectedRooms: ['거실', '침실'],
+      wishlistIds: ['wish-1'],
+      cartItems: [{ id: 'cart-1', qty: 1 }],
+      layoutItems: [{ id: 'layout-1' }, { id: 'layout-2' }],
+    },
+  }), {
+    apartmentLabel: '래미안 포레스트 84A',
+    selectedRoomCount: 2,
+    selectedRooms: ['거실', '침실'],
+    recommendationRoom: '거실',
+    wishlistCount: 1,
+    cartCount: 1,
+    layoutItemCount: 2,
+  })
+})
+
 test('persistAuthSession stores the latest successful auth summary for the frontend shell', () => {
   const storage = createMemoryStorage()
   const session = buildPersistedAuthSession({
@@ -122,9 +144,30 @@ test('persistAuthSession stores the latest successful auth summary for the front
     cartCount: 2,
     layoutItemCount: 3,
     hasRecommendationDraft: true,
-  }, { savedAt: '2026-04-06T07:01:00.000Z' })
+  }, {
+    savedAt: '2026-04-06T07:01:00.000Z',
+    guestDraftSnapshot: {
+      recommendationDraft: { room: '거실' },
+      continuity: {
+        apartmentLabel: '래미안 포레스트 84A',
+        selectedRooms: ['거실', '침실'],
+        wishlistIds: ['wish-1'],
+        cartItems: [{ id: 'cart-1', qty: 1 }, { id: 'cart-2', qty: 1 }],
+        layoutItems: [{ id: 'layout-1' }, { id: 'layout-2' }, { id: 'layout-3' }],
+      },
+    },
+  })
 
   assert.equal(persistAuthSession(storage, session), true)
   assert.equal(storage.getItem(AUTH_SESSION_STORAGE_KEY) !== null, true)
   assert.deepEqual(readPersistedAuthSession(storage), session)
+  assert.deepEqual(session.guestDraftSummary, {
+    apartmentLabel: '래미안 포레스트 84A',
+    selectedRoomCount: 2,
+    selectedRooms: ['거실', '침실'],
+    recommendationRoom: '거실',
+    wishlistCount: 1,
+    cartCount: 2,
+    layoutItemCount: 3,
+  })
 })

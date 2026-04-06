@@ -38,7 +38,24 @@ export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedA
   }
 }
 
-export function buildPersistedAuthSession(resultSummary, { savedAt = new Date().toISOString() } = {}) {
+export function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
+  if (!guestDraftSnapshot) return null
+
+  const continuity = guestDraftSnapshot.continuity ?? {}
+  const selectedRooms = [...(continuity.selectedRooms ?? [])]
+
+  return {
+    apartmentLabel: continuity.apartmentLabel ?? null,
+    selectedRoomCount: selectedRooms.length,
+    selectedRooms,
+    recommendationRoom: guestDraftSnapshot.recommendationDraft?.room ?? null,
+    wishlistCount: Array.isArray(continuity.wishlistIds) ? continuity.wishlistIds.length : 0,
+    cartCount: Array.isArray(continuity.cartItems) ? continuity.cartItems.length : 0,
+    layoutItemCount: Array.isArray(continuity.layoutItems) ? continuity.layoutItems.length : 0,
+  }
+}
+
+export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString() } = {}) {
   return {
     savedAt,
     sessionId: resultSummary?.sessionId ?? null,
@@ -53,6 +70,7 @@ export function buildPersistedAuthSession(resultSummary, { savedAt = new Date().
     cartCount: resultSummary?.cartCount ?? 0,
     layoutItemCount: resultSummary?.layoutItemCount ?? 0,
     hasRecommendationDraft: Boolean(resultSummary?.hasRecommendationDraft),
+    guestDraftSummary: buildGuestDraftSessionSummary(guestDraftSnapshot),
   }
 }
 

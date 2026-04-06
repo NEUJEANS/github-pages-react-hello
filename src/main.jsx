@@ -730,7 +730,7 @@ function App() {
       const nextResultSummary = result.ok ? buildAuthResultSummary(result, authSubmitPlan.summary) : null
 
       if (nextResultSummary) {
-        const nextSession = buildPersistedAuthSession(nextResultSummary)
+        const nextSession = buildPersistedAuthSession(nextResultSummary, { guestDraftSnapshot })
         persistAuthSession(globalThis.localStorage, nextSession)
         clearPersistedAuthHandoff(globalThis.sessionStorage)
         setAuthSession(nextSession)

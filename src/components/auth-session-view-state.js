@@ -1,3 +1,13 @@
+function buildDraftContextBits(summary = null) {
+  if (!summary) return []
+
+  const bits = []
+  if (summary.apartmentLabel) bits.push(summary.apartmentLabel)
+  if (summary.selectedRoomCount > 0) bits.push(`공간 ${summary.selectedRoomCount}개`)
+  if (summary.recommendationRoom) bits.push(`${summary.recommendationRoom} 추천`)
+  return bits
+}
+
 export function buildAuthSessionNotice(session) {
   if (!session?.accountLabel) return null
 
@@ -7,6 +17,8 @@ export function buildAuthSessionNotice(session) {
   if ((session.restoredLayoutItemCount ?? 0) > 0) restoredBits.push(`배치 ${session.restoredLayoutItemCount}개`)
   if (session.restoredRecommendationDraft) restoredBits.push('추천 초안')
 
+  const draftContextBits = buildDraftContextBits(session.guestDraftSummary)
+
   const mergeLabel = session.mergeMode === 'merged'
     ? '게스트 초안을 계정에 이어붙였어요.'
     : session.mergeMode === 'replaced'
@@ -15,11 +27,16 @@ export function buildAuthSessionNotice(session) {
         ? `병합 상태 ${session.mergeMode}로 연결했어요.`
         : '계정 연결이 준비됐어요.'
 
+  const draftContextCopy = draftContextBits.length
+    ? ` ${draftContextBits.join(' · ')} 기준으로 이어졌어요.`
+    : ''
+
   return {
     title: `${session.accountLabel} 계정 연결됨`,
     body: restoredBits.length
-      ? `${mergeLabel} ${restoredBits.join(' · ')} 복원 내용을 이번 세션에 반영했어요.`
-      : mergeLabel,
+      ? `${mergeLabel}${draftContextCopy} ${restoredBits.join(' · ')} 복원 내용을 이번 세션에 반영했어요.`.trim()
+      : `${mergeLabel}${draftContextCopy}`.trim(),
     restoredBits,
+    draftContextBits,
   }
 }
