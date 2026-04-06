@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { buildAuthSubmitPlan, buildAuthResultSummary, buildGuestDraftSnapshot, buildAuthErrorSummary } from '../src/components/auth-flow-state.js'
-import { readAuthSession, submitAuthLoginPlan } from '../src/components/auth-submit.js'
+import { readAuthSession, signOutAuthSession, submitAuthLoginPlan } from '../src/components/auth-submit.js'
 import { buildAuthConnectionSummary, buildPersistedAuthSession } from '../src/components/auth-storage.js'
 import { buildPostAuthContinuityPatch } from '../src/components/auth-session-merge.js'
 
@@ -130,6 +130,18 @@ async function runHttpSmoke() {
     credentialsMode: 'include',
     fetchImpl: fetch,
   })
+  const logoutResult = await signOutAuthSession({
+    endpoint: '/api/auth/logout',
+    apiBaseUrl,
+    credentialsMode: 'include',
+    fetchImpl: fetch,
+  })
+  const scaffoldSessionAfterLogout = await readAuthSession({
+    endpoint: '/api/auth/session',
+    apiBaseUrl,
+    credentialsMode: 'include',
+    fetchImpl: fetch,
+  })
 
   return {
     mode: 'http-fallback',
@@ -169,6 +181,12 @@ async function runHttpSmoke() {
         sessionId: scaffoldSession.data?.sessionId ?? null,
         accountLabel: scaffoldSession.data?.user?.email ?? null,
       },
+      logout: {
+        status: logoutResult.status,
+        authMode: logoutResult.meta?.authMode ?? null,
+        authTransport: logoutResult.meta?.authTransport ?? null,
+        postLogoutSessionStatus: scaffoldSessionAfterLogout.status,
+      },
     },
   }
 }
@@ -206,6 +224,14 @@ async function runBrowserSmoke(playwright) {
     const status = await page.locator('.authPrepCard .muted').first().innerText()
     const notice = await page.locator('.authSessionNotice p').innerText()
     const accountLabel = await page.locator('.accountTrigger span').last().innerText()
+    await page.getByRole('button', { name: '연결 완료' }).click()
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.locator('.authSessionNotice').waitFor()
+    const reloadedNotice = await page.locator('.authSessionNotice p').innerText()
+    const reloadedAccountLabel = await page.locator('.accountTrigger span').last().innerText()
+    await page.getByRole('button', { name: '로그아웃' }).click()
+    await page.getByRole('button', { name: '로그인 열기' }).waitFor()
+    const postLogoutLabel = await page.getByRole('button', { name: '로그인 열기' }).innerText()
     await capture(page, 'auth-login-direct-success.png')
     await page.close()
 
@@ -238,7 +264,14 @@ async function runBrowserSmoke(playwright) {
     return {
       mode: 'browser',
       baseUrl,
-      directSuccess: { status, notice, accountLabel },
+      directSuccess: {
+        status,
+        notice,
+        accountLabel,
+        reloadedNotice,
+        reloadedAccountLabel,
+        postLogoutLabel,
+      },
       guardedMerge: { guardReasons, mergeError, mergeOptions, mergeStatus },
     }
   } finally {
