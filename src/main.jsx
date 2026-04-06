@@ -36,6 +36,10 @@ import {
   readPersistedAuthSession,
 } from './components/auth-storage.js'
 import { buildAuthSessionNotice } from './components/auth-session-view-state.js'
+import {
+  resolvePostAuthScreen,
+  shouldCloseLoginModalAfterAuth,
+} from './components/auth-intent-state.js'
 import { buildFilteredBedProducts } from './components/bed-filter-state.js'
 import { toggleWishlistId } from './components/wishlist-state.js'
 import {
@@ -797,6 +801,12 @@ function App() {
         result,
         mergeResolution: result.ok ? null : nextMergeResolution,
       }))
+
+      if (shouldCloseLoginModalAfterAuth(result)) {
+        const nextScreen = resolvePostAuthScreen(submitPlan.summary.intent)
+        setLoginModalState('closed')
+        if (nextScreen) navigate(nextScreen)
+      }
     } catch {
       setLoginForm((current) => ({
         ...current,
