@@ -37,12 +37,13 @@ export function buildAuthScaffoldResponse(request = {}) {
     }
   }
 
-  if (password === 'merge-conflict' && mergeResolution !== 'keep-guest') {
+  if (password === 'merge-conflict' && !['keep-guest', 'replace-with-account'].includes(mergeResolution)) {
     return {
       status: 409,
       data: {
         message: 'Guest draft merge confirmation required',
         allowedMergeResolution: 'keep-guest',
+        allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
         ...(handoffId ? { handoffId } : {}),
         mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot),
       },
@@ -62,9 +63,14 @@ export function buildAuthScaffoldResponse(request = {}) {
         name: email,
       },
       mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot, {
-        mode: mergeResolution === 'keep-guest' ? 'merge-confirmed' : 'merged',
+        mode: mergeResolution === 'keep-guest'
+          ? 'merge-confirmed'
+          : mergeResolution === 'replace-with-account'
+            ? 'replaced'
+            : 'merged',
         resolution: mergeResolution,
       }),
     },
   }
 }
+

@@ -69,6 +69,25 @@ test('buildAuthScaffoldResponse accepts an explicit merge confirmation for the g
   assert.equal(response.data.mergedGuestDraft.resolution, 'keep-guest')
 })
 
+test('buildAuthScaffoldResponse can switch to the account state after a merge conflict confirmation', () => {
+  const response = buildAuthScaffoldResponse({
+    email: 'user@example.com',
+    password: 'merge-conflict',
+    mergeResolution: 'replace-with-account',
+    guestDraftSnapshot: {
+      continuity: {
+        wishlistIds: ['wish-1'],
+        cartItems: [],
+        layoutItems: [{ id: 'layout-1' }],
+      },
+    },
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal(response.data.mergedGuestDraft.mode, 'replaced')
+  assert.equal(response.data.mergedGuestDraft.resolution, 'replace-with-account')
+})
+
 test('buildAuthScaffoldResponse rejects short passwords and malformed emails', () => {
   const response = buildAuthScaffoldResponse({
     email: 'not-an-email',

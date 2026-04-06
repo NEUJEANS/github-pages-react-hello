@@ -1684,7 +1684,10 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 <div className="footerButtons stackOnMobile">
                   <button className="ghost" onClick={form.status === 'ready' ? onClose : onClose}>{form.status === 'ready' ? '계속 둘러보기' : '회원가입'}</button>
                   {authErrorSummary?.tone === 'merge' && form.status !== 'ready' && (
-                    <button className="ghost" onClick={() => onSubmit('keep-guest')}>현재 초안으로 계속</button>
+                    <>
+                      <button className="ghost" onClick={() => onSubmit('replace-with-account')}>계정 상태로 전환</button>
+                      <button className="ghost" onClick={() => onSubmit('keep-guest')}>현재 초안으로 계속</button>
+                    </>
                   )}
                   <button className="cta" disabled={form.status === 'ready' ? false : !authSubmitPlan.canSubmit} onClick={form.status === 'ready' ? onClose : () => onSubmit()}>{form.status === 'submitting' ? '준비 중…' : form.status === 'ready' ? '연결 완료' : '로그인'}</button>
                 </div>
