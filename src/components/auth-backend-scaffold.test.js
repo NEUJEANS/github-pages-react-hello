@@ -54,12 +54,15 @@ test('buildAuthScaffoldResponse returns a merged session payload for valid crede
     label: '로그인 후 보드 저장',
     returnScreen: 'layout',
   })
+  assert.equal(response.data.resumeToken, null)
+  assert.equal(response.data.nextAction, 'save-layout-draft')
 })
 
 test('buildAuthScaffoldResponse returns 409 for the merge-conflict demo password', () => {
   const response = buildAuthScaffoldResponse({
     email: 'user@example.com',
     password: 'merge-conflict',
+    handoffId: 'auth-merge-1234',
     guestDraftSnapshot: {
       continuity: {
         wishlistIds: ['wish-1'],
@@ -72,6 +75,8 @@ test('buildAuthScaffoldResponse returns 409 for the merge-conflict demo password
   assert.equal(response.status, 409)
   assert.equal(response.data.message, 'Guest draft merge confirmation required')
   assert.equal(response.data.allowedMergeResolution, 'keep-guest')
+  assert.equal(response.data.resumeToken, 'auth-merge-1234:merge')
+  assert.equal(response.data.nextAction, 'confirm-merge-resolution')
   assert.equal(response.data.mergedGuestDraft.layoutItemCount, 1)
 })
 
@@ -79,6 +84,7 @@ test('buildAuthScaffoldResponse accepts an explicit merge confirmation for the g
   const response = buildAuthScaffoldResponse({
     email: 'user@example.com',
     password: 'merge-conflict',
+    handoffId: 'auth-merge-1234',
     mergeResolution: 'keep-guest',
     guestDraftSnapshot: {
       continuity: {
@@ -92,12 +98,15 @@ test('buildAuthScaffoldResponse accepts an explicit merge confirmation for the g
   assert.equal(response.status, 200)
   assert.equal(response.data.mergedGuestDraft.mode, 'merge-confirmed')
   assert.equal(response.data.mergedGuestDraft.resolution, 'keep-guest')
+  assert.equal(response.data.resumeToken, 'auth-merge-1234:resume')
+  assert.equal(response.data.nextAction, 'resume-guest-draft')
 })
 
 test('buildAuthScaffoldResponse can switch to the account state after a merge conflict confirmation', () => {
   const response = buildAuthScaffoldResponse({
     email: 'user@example.com',
     password: 'merge-conflict',
+    handoffId: 'auth-merge-1234',
     mergeResolution: 'replace-with-account',
     guestDraftSnapshot: {
       continuity: {
@@ -111,6 +120,8 @@ test('buildAuthScaffoldResponse can switch to the account state after a merge co
   assert.equal(response.status, 200)
   assert.equal(response.data.mergedGuestDraft.mode, 'replaced')
   assert.equal(response.data.mergedGuestDraft.resolution, 'replace-with-account')
+  assert.equal(response.data.resumeToken, 'auth-merge-1234:resume')
+  assert.equal(response.data.nextAction, 'resume-account-state')
   assert.deepEqual(response.data.accountState, {
     wishlistIds: [],
     cartItems: [],
@@ -123,10 +134,16 @@ test('buildAuthScaffoldResponse rejects short passwords and malformed emails', (
   const response = buildAuthScaffoldResponse({
     email: 'not-an-email',
     password: 'short',
+    handoffId: 'auth-invalid-1234',
   })
 
   assert.equal(response.status, 401)
-  assert.deepEqual(response.data, { message: 'Invalid credentials' })
+  assert.deepEqual(response.data, {
+    message: 'Invalid credentials',
+    handoffId: 'auth-invalid-1234',
+    resumeToken: 'auth-invalid-1234:retry',
+    nextAction: 'retry-login',
+  })
 })
 
 test('buildAuthScaffoldSessionResponse exposes the latest scaffold auth session payload', () => {
@@ -137,16 +154,23 @@ test('buildAuthScaffoldSessionResponse exposes the latest scaffold auth session 
       email: 'user@example.com',
       name: 'user@example.com',
     },
+    resumeToken: 'auth-user-1234:resume',
+    nextAction: 'checkout-cart',
   })
 
   assert.equal(response.status, 200)
   assert.equal(response.data.sessionId, 'demo-user-example-com')
   assert.equal(response.data.user.email, 'user@example.com')
+  assert.equal(response.data.resumeToken, 'auth-user-1234:resume')
+  assert.equal(response.data.nextAction, 'checkout-cart')
 })
 
 test('buildAuthScaffoldSessionResponse returns 401 when no scaffold auth session exists', () => {
   const response = buildAuthScaffoldSessionResponse(null)
 
   assert.equal(response.status, 401)
-  assert.deepEqual(response.data, { message: 'No scaffold auth session' })
+  assert.deepEqual(response.data, {
+    message: 'No scaffold auth session',
+    nextAction: 'login-required',
+  })
 })

@@ -53,8 +53,23 @@ function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
   }
 }
 
+function buildScaffoldContinuation({ intent = null, mergeResolution = null, handoffId = null } = {}) {
+  const normalizedAction = typeof intent?.action === 'string' ? intent.action.trim() : ''
+  const fallbackAction = mergeResolution === 'replace-with-account'
+    ? 'resume-account-state'
+    : mergeResolution === 'keep-guest'
+      ? 'resume-guest-draft'
+      : 'resume-authenticated-flow'
+
+  return {
+    resumeToken: handoffId ? `${handoffId}:resume` : null,
+    nextAction: normalizedAction || fallbackAction,
+  }
+}
+
 function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null } = {}) {
   const safeSessionId = email.replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'guest'
+  const continuation = buildScaffoldContinuation({ intent, mergeResolution, handoffId })
 
   return {
     ok: true,
@@ -75,6 +90,7 @@ function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, 
     guestDraftSummary: buildGuestDraftSessionSummary(guestDraftSnapshot),
     intent: intent && typeof intent === 'object' ? { ...intent } : null,
     accountState: buildAccountState({ mergeResolution }),
+    ...continuation,
   }
 }
 
@@ -84,6 +100,7 @@ export function buildAuthScaffoldSessionResponse(session = null) {
       status: 401,
       data: {
         message: 'No scaffold auth session',
+        nextAction: 'login-required',
       },
     }
   }
@@ -107,6 +124,8 @@ export function buildAuthScaffoldResponse(request = {}) {
       data: {
         message: 'Invalid credentials',
         ...(handoffId ? { handoffId } : {}),
+        resumeToken: handoffId ? `${handoffId}:retry` : null,
+        nextAction: 'retry-login',
       },
     }
   }
@@ -119,6 +138,8 @@ export function buildAuthScaffoldResponse(request = {}) {
         allowedMergeResolution: 'keep-guest',
         allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
         ...(handoffId ? { handoffId } : {}),
+        resumeToken: handoffId ? `${handoffId}:merge` : null,
+        nextAction: 'confirm-merge-resolution',
         mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot),
       },
     }
