@@ -19,9 +19,12 @@ function readRequestBody(req) {
   })
 }
 
-function writeJson(res, status, data) {
+function writeJson(res, status, data, headers = {}) {
   res.statusCode = status
   res.setHeader("content-type", "application/json")
+  Object.entries(headers).forEach(([key, value]) => {
+    res.setHeader(key, value)
+  })
   res.end(JSON.stringify(data))
 }
 
@@ -35,9 +38,9 @@ function havenlyAuthScaffoldPlugin() {
     try {
       const request = await readRequestBody(req)
       const response = buildAuthScaffoldResponse(request)
-      writeJson(res, response.status, response.data)
+      writeJson(res, response.status, response.data, { "x-havenly-auth-scaffold": "true" })
     } catch {
-      writeJson(res, 400, { message: "Invalid auth scaffold request" })
+      writeJson(res, 400, { message: "Invalid auth scaffold request" }, { "x-havenly-auth-scaffold": "true" })
     }
   }
 

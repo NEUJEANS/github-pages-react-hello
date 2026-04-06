@@ -98,6 +98,7 @@ function readMergeDraft(data = {}) {
 
 export function buildAuthResultSummary(result, fallbackSummary = {}) {
   const data = result?.data ?? {}
+  const meta = result?.meta ?? {}
   const mergedDraft = readMergeDraft(data)
   const fallbackLayoutCount = fallbackSummary.layoutItemCount ?? 0
   const fallbackWishlistCount = fallbackSummary.wishlistCount ?? 0
@@ -118,6 +119,8 @@ export function buildAuthResultSummary(result, fallbackSummary = {}) {
     cartCount: fallbackCartCount,
     layoutItemCount: fallbackLayoutCount,
     hasRecommendationDraft: fallbackSummary.hasRecommendationDraft ?? false,
+    authMode: meta.authMode ?? 'remote',
+    authTransport: meta.authTransport ?? 'network',
   }
 }
 
@@ -168,7 +171,10 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
     const mergeCopy = resultSummary?.mergeMode
       ? ` · ${resultSummary.mergeMode === 'merged' ? '게스트 초안 병합 완료' : resultSummary.mergeMode === 'replaced' ? '계정 상태로 전환됨' : `병합 상태 ${resultSummary.mergeMode}`}`
       : ''
-    return `백엔드 연결 준비 완료${accountCopy}${sessionCopy}${mergeCopy} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
+    const modeCopy = resultSummary?.authMode === 'scaffold'
+      ? ` · ${resultSummary.authTransport === 'same-origin-middleware' ? 'same-origin scaffold로 응답 확인' : 'local scaffold로 연결 유지'}`
+      : ''
+    return `백엔드 연결 준비 완료${accountCopy}${sessionCopy}${mergeCopy}${modeCopy} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
   }
   if (status === 'error') {
     if (errorSummary?.tone === 'credentials') return `${errorSummary.message} · 게스트 초안은 유지되어 다시 시도할 수 있어요.`

@@ -30,12 +30,15 @@ export function buildAuthSessionNotice(session) {
   const draftContextCopy = draftContextBits.length
     ? ` ${draftContextBits.join(' · ')} 기준으로 이어졌어요.`
     : ''
+  const transportCopy = session.authMode === 'scaffold'
+    ? ` ${session.authTransport === 'same-origin-middleware' ? '현재는 same-origin scaffold 응답으로 연결 상태를 확인 중이에요.' : '현재는 local scaffold로 연결 흐름을 유지하고 있어요.'}`
+    : ''
 
   return {
     title: `${session.accountLabel} 계정 연결됨`,
     body: restoredBits.length
-      ? `${mergeLabel}${draftContextCopy} ${restoredBits.join(' · ')} 복원 내용을 이번 세션에 반영했어요.`.trim()
-      : `${mergeLabel}${draftContextCopy}`.trim(),
+      ? `${mergeLabel}${draftContextCopy}${transportCopy} ${restoredBits.join(' · ')} 복원 내용을 이번 세션에 반영했어요.`.trim()
+      : `${mergeLabel}${draftContextCopy}${transportCopy}`.trim(),
     restoredBits,
     draftContextBits,
   }

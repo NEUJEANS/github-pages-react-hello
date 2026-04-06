@@ -70,6 +70,8 @@ export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = 
     cartCount: resultSummary?.cartCount ?? 0,
     layoutItemCount: resultSummary?.layoutItemCount ?? 0,
     hasRecommendationDraft: Boolean(resultSummary?.hasRecommendationDraft),
+    authMode: resultSummary?.authMode ?? 'remote',
+    authTransport: resultSummary?.authTransport ?? 'network',
     guestDraftSummary: buildGuestDraftSessionSummary(guestDraftSnapshot),
   }
 }

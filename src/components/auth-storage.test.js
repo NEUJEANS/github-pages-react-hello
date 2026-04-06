@@ -147,6 +147,8 @@ test('persistAuthSession stores the latest successful auth summary for the front
     cartCount: 2,
     layoutItemCount: 3,
     hasRecommendationDraft: true,
+    authMode: 'scaffold',
+    authTransport: 'same-origin-middleware',
   }, {
     savedAt: '2026-04-06T07:01:00.000Z',
     guestDraftSnapshot: {
@@ -164,6 +166,8 @@ test('persistAuthSession stores the latest successful auth summary for the front
   assert.equal(persistAuthSession(storage, session), true)
   assert.equal(storage.getItem(AUTH_SESSION_STORAGE_KEY) !== null, true)
   assert.deepEqual(readPersistedAuthSession(storage), session)
+  assert.equal(session.authMode, 'scaffold')
+  assert.equal(session.authTransport, 'same-origin-middleware')
   assert.deepEqual(session.guestDraftSummary, {
     apartmentLabel: '래미안 포레스트 84A',
     selectedRoomCount: 2,

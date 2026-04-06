@@ -1,5 +1,7 @@
 import { buildAuthScaffoldResponse } from './auth-backend-scaffold.js'
 
+export const AUTH_SCAFFOLD_HEADER = 'x-havenly-auth-scaffold'
+
 function trimTrailingSlash(value = '') {
   return value.endsWith('/') ? value.slice(0, -1) : value
 }
@@ -18,13 +20,21 @@ function shouldUseLocalAuthScaffold(plan, { apiBaseUrl } = {}) {
   return !/^https?:\/\//.test(resolvedUrl) && plan.endpoint.startsWith('/api/auth/')
 }
 
-function buildScaffoldLoginResult(plan) {
+function buildScaffoldMeta({ via }) {
+  return {
+    authMode: 'scaffold',
+    authTransport: via,
+  }
+}
+
+function buildScaffoldLoginResult(plan, { via = 'local-fallback' } = {}) {
   const scaffoldResponse = buildAuthScaffoldResponse(plan.request)
 
   return {
     ok: scaffoldResponse.status >= 200 && scaffoldResponse.status < 300,
     status: scaffoldResponse.status,
     data: scaffoldResponse.data,
+    meta: buildScaffoldMeta({ via }),
   }
 }
 
@@ -44,6 +54,17 @@ async function parseAuthResponse(response) {
     return text ? { message: text } : null
   } catch {
     return null
+  }
+}
+
+function buildResponseMeta(response) {
+  if (response?.headers?.get?.(AUTH_SCAFFOLD_HEADER) === 'true') {
+    return buildScaffoldMeta({ via: 'same-origin-middleware' })
+  }
+
+  return {
+    authMode: 'remote',
+    authTransport: 'network',
   }
 }
 
@@ -69,6 +90,7 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl 
       ok: response.ok,
       status: response.status,
       data,
+      meta: buildResponseMeta(response),
     }
   } catch {
     if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl })) {

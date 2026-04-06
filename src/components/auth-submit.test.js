@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { resolveAuthEndpoint, submitAuthLoginPlan } from './auth-submit.js'
+import { AUTH_SCAFFOLD_HEADER, resolveAuthEndpoint, submitAuthLoginPlan } from './auth-submit.js'
 
 test('resolveAuthEndpoint keeps local auth routes by default and prefixes configured api base urls', () => {
   assert.equal(resolveAuthEndpoint('/api/auth/login'), '/api/auth/login')
@@ -46,6 +46,30 @@ test('submitAuthLoginPlan sends the backend-ready payload as json', async () => 
     ok: true,
     status: 200,
     data: { ok: true, sessionId: 'session-1' },
+    meta: { authMode: 'remote', authTransport: 'network' },
+  })
+})
+
+test('submitAuthLoginPlan marks same-origin scaffold responses from middleware', async () => {
+  const result = await submitAuthLoginPlan({
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    request: { email: 'user@example.com', password: 'password123', guestDraftSnapshot: null },
+  }, {
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        'content-type': 'application/json',
+        [AUTH_SCAFFOLD_HEADER]: 'true',
+      }),
+      json: async () => ({ ok: true, sessionId: 'demo-user-example-com' }),
+    }),
+  })
+
+  assert.deepEqual(result.meta, {
+    authMode: 'scaffold',
+    authTransport: 'same-origin-middleware',
   })
 })
 
@@ -67,6 +91,7 @@ test('submitAuthLoginPlan captures text errors from non-json auth scaffolds', as
     ok: false,
     status: 503,
     data: { message: 'Auth service unavailable' },
+    meta: { authMode: 'remote', authTransport: 'network' },
   })
 })
 
@@ -100,6 +125,10 @@ test('submitAuthLoginPlan falls back to the local scaffold when the same-origin 
   assert.equal(result.data.sessionId, 'demo-user-example-com')
   assert.equal(result.data.mergedGuestDraft.layoutItemCount, 1)
   assert.equal(result.data.mergedGuestDraft.recommendationDraftRestored, true)
+  assert.deepEqual(result.meta, {
+    authMode: 'scaffold',
+    authTransport: 'local-fallback',
+  })
 })
 
 test('submitAuthLoginPlan falls back to the local scaffold when same-origin auth fetch throws', async () => {
@@ -128,4 +157,8 @@ test('submitAuthLoginPlan falls back to the local scaffold when same-origin auth
   assert.equal(result.data.message, 'Guest draft merge confirmation required')
   assert.equal(result.data.allowedMergeResolution, 'keep-guest')
   assert.equal(result.data.mergedGuestDraft.layoutItemCount, 1)
+  assert.deepEqual(result.meta, {
+    authMode: 'scaffold',
+    authTransport: 'local-fallback',
+  })
 })

@@ -114,6 +114,10 @@ test('buildAuthResultSummary extracts backend auth response details without wide
         recommendationDraftRestored: true,
       },
     },
+    meta: {
+      authMode: 'scaffold',
+      authTransport: 'same-origin-middleware',
+    },
   }, {
     wishlistCount: 2,
     cartCount: 1,
@@ -134,6 +138,8 @@ test('buildAuthResultSummary extracts backend auth response details without wide
     cartCount: 1,
     layoutItemCount: 3,
     hasRecommendationDraft: true,
+    authMode: 'scaffold',
+    authTransport: 'same-origin-middleware',
   })
 })
 
@@ -184,9 +190,15 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
     buildAuthStatusCopy(
       'ready',
       { wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
-      { sessionId: 'session-1', accountLabel: 'user@example.com', mergeMode: 'merged' },
+      {
+        sessionId: 'session-1',
+        accountLabel: 'user@example.com',
+        mergeMode: 'merged',
+        authMode: 'scaffold',
+        authTransport: 'same-origin-middleware',
+      },
     ),
-    /user@example.com 계정과 연결 준비됨.*session-1.*게스트 초안 병합 완료|게스트 초안 병합 완료.*user@example.com 계정과 연결 준비됨/,
+    /user@example.com 계정과 연결 준비됨.*session-1.*게스트 초안 병합 완료.*same-origin scaffold로 응답 확인|same-origin scaffold로 응답 확인.*user@example.com 계정과 연결 준비됨/,
   )
   assert.match(
     buildAuthStatusCopy(
