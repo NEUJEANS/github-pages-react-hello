@@ -79,6 +79,25 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request', () => {
   assert.equal(plan.summary.cartCount, 1)
   assert.equal(plan.summary.layoutItemCount, 1)
   assert.equal(plan.summary.hasRecommendationDraft, true)
+  assert.equal(plan.summary.mergeResolution, null)
+})
+
+ test('buildAuthSubmitPlan includes an explicit merge resolution when the login retry confirms the guest draft', () => {
+  const plan = buildAuthSubmitPlan({
+    email: 'user@example.com',
+    password: 'merge-conflict',
+    mergeResolution: 'keep-guest',
+    guestDraftSnapshot: {
+      continuity: {
+        wishlistIds: ['a'],
+        cartItems: [],
+        layoutItems: [{ id: 'placed-sofa' }],
+      },
+    },
+  })
+
+  assert.equal(plan.request.mergeResolution, 'keep-guest')
+  assert.equal(plan.summary.mergeResolution, 'keep-guest')
 })
 
 test('buildAuthResultSummary extracts backend auth response details without widening the login flow contract', () => {

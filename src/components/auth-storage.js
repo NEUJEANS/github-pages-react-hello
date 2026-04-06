@@ -84,6 +84,7 @@ export function buildAuthResumeState(handoff, session = null) {
     resumedAt: new Date().toISOString(),
     handoff,
     session,
+    mergeResolution: handoff.summary?.mergeResolution ?? null,
   }
 }
 

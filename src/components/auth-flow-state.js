@@ -62,7 +62,7 @@ export function buildGuestDraftSnapshot({
   }
 }
 
-export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot }) {
+export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot, mergeResolution = null }) {
   const normalizedEmail = sanitizeEmail(email)
   const hasPassword = password.trim().length >= 8
   const hasGuestDraft = Boolean(guestDraftSnapshot)
@@ -75,6 +75,7 @@ export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot }) {
       email: normalizedEmail,
       password,
       guestDraftSnapshot: hasGuestDraft ? guestDraftSnapshot : null,
+      mergeResolution,
     },
     summary: {
       email: normalizedEmail,
@@ -82,6 +83,7 @@ export function buildAuthSubmitPlan({ email, password, guestDraftSnapshot }) {
       cartCount: guestDraftSnapshot?.continuity?.cartItems?.length ?? 0,
       layoutItemCount: guestDraftSnapshot?.continuity?.layoutItems?.length ?? 0,
       hasRecommendationDraft: Boolean(guestDraftSnapshot?.recommendationDraft),
+      mergeResolution,
     },
   }
 }
@@ -170,7 +172,7 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
   }
   if (status === 'error') {
     if (errorSummary?.tone === 'credentials') return `${errorSummary.message} · 게스트 초안은 유지되어 다시 시도할 수 있어요.`
-    if (errorSummary?.tone === 'merge') return `${errorSummary.message} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개 handoff 기록을 유지합니다.`
+    if (errorSummary?.tone === 'merge') return `${errorSummary.message} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개 handoff 기록을 유지합니다. 계속 진행하면 같은 초안으로 병합 방향을 확정할 수 있어요.`
     if (errorSummary?.tone === 'service') {
       if (connectionSummary?.isSameOriginScaffold) {
         return `${errorSummary.message} · 현재는 ${connectionSummary.targetLabel} 대상만 준비되어 있어서, auth base URL 또는 백엔드 라우트가 연결되면 같은 초안으로 다시 이어갈 수 있어요.`

@@ -18,6 +18,7 @@ test('submitAuthLoginPlan sends the backend-ready payload as json', async () => 
       email: 'user@example.com',
       password: 'password123',
       guestDraftSnapshot: { continuity: { wishlistIds: ['a'] } },
+      mergeResolution: 'keep-guest',
     },
   }, {
     apiBaseUrl: 'https://api.example.com',
@@ -39,6 +40,7 @@ test('submitAuthLoginPlan sends the backend-ready payload as json', async () => 
     email: 'user@example.com',
     password: 'password123',
     guestDraftSnapshot: { continuity: { wishlistIds: ['a'] } },
+    mergeResolution: 'keep-guest',
   })
   assert.deepEqual(result, {
     ok: true,
@@ -124,5 +126,6 @@ test('submitAuthLoginPlan falls back to the local scaffold when same-origin auth
   assert.equal(result.ok, false)
   assert.equal(result.status, 409)
   assert.equal(result.data.message, 'Guest draft merge confirmation required')
+  assert.equal(result.data.allowedMergeResolution, 'keep-guest')
   assert.equal(result.data.mergedGuestDraft.layoutItemCount, 1)
 })

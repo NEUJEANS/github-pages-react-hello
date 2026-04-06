@@ -596,6 +596,7 @@ function App() {
       password: '',
       status: 'idle',
       result: null,
+      mergeResolution: null,
     }
   ))
   const [authSession, setAuthSession] = React.useState(() => persistedAuthSession)
@@ -673,7 +674,8 @@ function App() {
     email: loginForm.email,
     password: loginForm.password,
     guestDraftSnapshot,
-  }), [guestDraftSnapshot, loginForm.email, loginForm.password])
+    mergeResolution: loginForm.mergeResolution ?? null,
+  }), [guestDraftSnapshot, loginForm.email, loginForm.password, loginForm.mergeResolution])
 
   const authConfig = React.useMemo(
     () => resolveAuthConfig({ env: import.meta.env }),
@@ -712,7 +714,7 @@ function App() {
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 
   const openLogin = React.useCallback(() => {
-    setLoginForm((current) => ({ ...current, status: 'idle', result: null }))
+    setLoginForm((current) => ({ ...current, status: 'idle', result: null, mergeResolution: null }))
     setLoginModalState(hasLoginGuard ? 'guard' : 'form')
   }, [hasLoginGuard])
 
@@ -726,22 +728,36 @@ function App() {
       password: '',
       status: 'idle',
       result: null,
+      mergeResolution: null,
     })
   }, [])
 
-  const handleLoginSubmit = React.useCallback(async () => {
-    if (!authSubmitPlan.canSubmit) return
+  const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
+    const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null
+    const submitPlan = buildAuthSubmitPlan({
+      email: loginForm.email,
+      password: loginForm.password,
+      guestDraftSnapshot,
+      mergeResolution: nextMergeResolution,
+    })
+
+    if (!submitPlan.canSubmit) return
 
     persistAuthHandoff(
       globalThis.sessionStorage,
-      buildPersistedAuthHandoff(authSubmitPlan, guestDraftSnapshot),
+      buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot),
     )
 
-    setLoginForm((current) => ({ ...current, status: 'submitting', result: null }))
+    setLoginForm((current) => ({
+      ...current,
+      status: 'submitting',
+      result: null,
+      mergeResolution: nextMergeResolution,
+    }))
 
     try {
-      const result = await submitAuthLoginPlan(authSubmitPlan, authConfig)
-      const nextResultSummary = result.ok ? buildAuthResultSummary(result, authSubmitPlan.summary) : null
+      const result = await submitAuthLoginPlan(submitPlan, authConfig)
+      const nextResultSummary = result.ok ? buildAuthResultSummary(result, submitPlan.summary) : null
 
       if (nextResultSummary) {
         const nextSession = buildPersistedAuthSession(nextResultSummary, { guestDraftSnapshot })
@@ -755,6 +771,7 @@ function App() {
         ...current,
         status: result.ok ? 'ready' : 'error',
         result,
+        mergeResolution: result.ok ? null : nextMergeResolution,
       }))
     } catch {
       setLoginForm((current) => ({
@@ -765,9 +782,10 @@ function App() {
           status: 0,
           data: { message: 'Network request failed' },
         },
+        mergeResolution: nextMergeResolution,
       }))
     }
-  }, [authConfig, authSubmitPlan, guestDraftSnapshot])
+  }, [authConfig, guestDraftSnapshot, loginForm.email, loginForm.mergeResolution, loginForm.password])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),
@@ -921,7 +939,7 @@ function App() {
             authErrorSummary={authErrorSummary}
             authConnectionSummary={authConnectionSummary}
             guestDraftSnapshot={guestDraftSnapshot}
-            onChangeForm={(field, value) => setLoginForm((current) => ({ ...current, [field]: value, status: 'idle', result: null }))}
+            onChangeForm={(field, value) => setLoginForm((current) => ({ ...current, [field]: value, status: 'idle', result: null, mergeResolution: null }))}
             onClose={() => setLoginModalState('closed')}
             onProceed={() => setLoginModalState('form')}
             onSubmit={handleLoginSubmit}
@@ -1574,6 +1592,9 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                   {authErrorSummary && (
                     <p className="muted">오류 분류: {authErrorSummary.tone === 'credentials' ? '자격 증명' : authErrorSummary.tone === 'merge' ? '초안 병합' : authErrorSummary.tone === 'service' ? '인증 서비스' : '기타'}</p>
                   )}
+                  {form.mergeResolution && (
+                    <p className="muted">병합 확정: {form.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하며 계속 진행' : form.mergeResolution}</p>
+                  )}
                   <div className="guardSummary compact">
                     <div><label>찜</label><b>{authSubmitPlan.summary.wishlistCount}개</b></div>
                     <div><label>장바구니</label><b>{authSubmitPlan.summary.cartCount}개</b></div>
@@ -1590,7 +1611,10 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 </div>
                 <div className="footerButtons stackOnMobile">
                   <button className="ghost" onClick={form.status === 'ready' ? onClose : onClose}>{form.status === 'ready' ? '계속 둘러보기' : '회원가입'}</button>
-                  <button className="cta" disabled={form.status === 'ready' ? false : !authSubmitPlan.canSubmit} onClick={form.status === 'ready' ? onClose : onSubmit}>{form.status === 'submitting' ? '준비 중…' : form.status === 'ready' ? '연결 완료' : '로그인'}</button>
+                  {authErrorSummary?.tone === 'merge' && form.status !== 'ready' && (
+                    <button className="ghost" onClick={() => onSubmit('keep-guest')}>현재 초안으로 계속</button>
+                  )}
+                  <button className="cta" disabled={form.status === 'ready' ? false : !authSubmitPlan.canSubmit} onClick={form.status === 'ready' ? onClose : () => onSubmit()}>{form.status === 'submitting' ? '준비 중…' : form.status === 'ready' ? '연결 완료' : '로그인'}</button>
                 </div>
               </div>
             </>

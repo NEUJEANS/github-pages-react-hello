@@ -72,6 +72,7 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
       cartCount: 2,
       layoutItemCount: 3,
       hasRecommendationDraft: true,
+      mergeResolution: 'keep-guest',
     },
   }, {
     continuity: {
@@ -90,7 +91,7 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
   const handoff = {
     submittedAt: '2026-04-06T06:59:00.000Z',
     email: 'user@example.com',
-    summary: { wishlistCount: 1, cartCount: 2, layoutItemCount: 3, hasRecommendationDraft: true },
+    summary: { wishlistCount: 1, cartCount: 2, layoutItemCount: 3, hasRecommendationDraft: true, mergeResolution: 'keep-guest' },
   }
   const session = { accountLabel: 'user@example.com' }
   const resumeState = buildAuthResumeState(handoff, session)
@@ -99,6 +100,7 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
   assert.equal(resumeState.status, 'resume-ready')
   assert.equal(resumeState.handoff, handoff)
   assert.equal(resumeState.session, session)
+  assert.equal(resumeState.mergeResolution, 'keep-guest')
 })
 
 test('clearPersistedAuthHandoff removes the saved handoff after a successful login', () => {

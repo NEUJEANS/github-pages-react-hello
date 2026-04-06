@@ -22,6 +22,7 @@ test('buildAuthScaffoldResponse returns a merged session payload for valid crede
   assert.equal(response.data.user.email, 'user@example.com')
   assert.deepEqual(response.data.mergedGuestDraft, {
     mode: 'merged',
+    resolution: null,
     count: 2,
     wishlistCount: 2,
     cartCount: 1,
@@ -45,7 +46,27 @@ test('buildAuthScaffoldResponse returns 409 for the merge-conflict demo password
 
   assert.equal(response.status, 409)
   assert.equal(response.data.message, 'Guest draft merge confirmation required')
+  assert.equal(response.data.allowedMergeResolution, 'keep-guest')
   assert.equal(response.data.mergedGuestDraft.layoutItemCount, 1)
+})
+
+test('buildAuthScaffoldResponse accepts an explicit merge confirmation for the guest draft retry', () => {
+  const response = buildAuthScaffoldResponse({
+    email: 'user@example.com',
+    password: 'merge-conflict',
+    mergeResolution: 'keep-guest',
+    guestDraftSnapshot: {
+      continuity: {
+        wishlistIds: ['wish-1'],
+        cartItems: [],
+        layoutItems: [{ id: 'layout-1' }],
+      },
+    },
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal(response.data.mergedGuestDraft.mode, 'merge-confirmed')
+  assert.equal(response.data.mergedGuestDraft.resolution, 'keep-guest')
 })
 
 test('buildAuthScaffoldResponse rejects short passwords and malformed emails', () => {

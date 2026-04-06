@@ -6,11 +6,12 @@ function countItems(items) {
   return Array.isArray(items) ? items.length : 0
 }
 
-function buildMergedGuestDraft(guestDraftSnapshot = null) {
+function buildMergedGuestDraft(guestDraftSnapshot = null, { mode = 'merged', resolution = null } = {}) {
   const continuity = guestDraftSnapshot?.continuity ?? {}
 
   return {
-    mode: 'merged',
+    mode,
+    resolution,
     count: countItems(continuity.layoutItems),
     wishlistCount: countItems(continuity.wishlistIds),
     cartCount: countItems(continuity.cartItems),
@@ -23,6 +24,7 @@ export function buildAuthScaffoldResponse(request = {}) {
   const email = normalizeEmail(request.email)
   const password = typeof request.password === 'string' ? request.password : ''
   const guestDraftSnapshot = request.guestDraftSnapshot ?? null
+  const mergeResolution = typeof request.mergeResolution === 'string' ? request.mergeResolution : null
 
   if (!email || !email.includes('@') || password.trim().length < 8) {
     return {
@@ -33,11 +35,12 @@ export function buildAuthScaffoldResponse(request = {}) {
     }
   }
 
-  if (password === 'merge-conflict') {
+  if (password === 'merge-conflict' && mergeResolution !== 'keep-guest') {
     return {
       status: 409,
       data: {
         message: 'Guest draft merge confirmation required',
+        allowedMergeResolution: 'keep-guest',
         mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot),
       },
     }
@@ -54,7 +57,10 @@ export function buildAuthScaffoldResponse(request = {}) {
         email,
         name: email,
       },
-      mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot),
+      mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot, {
+        mode: mergeResolution === 'keep-guest' ? 'merge-confirmed' : 'merged',
+        resolution: mergeResolution,
+      }),
     },
   }
 }
