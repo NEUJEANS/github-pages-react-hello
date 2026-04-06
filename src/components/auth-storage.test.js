@@ -5,8 +5,10 @@ import {
   AUTH_HANDOFF_STORAGE_KEY,
   AUTH_SESSION_STORAGE_KEY,
   buildAuthConnectionSummary,
+  buildAuthResumeState,
   buildPersistedAuthHandoff,
   buildPersistedAuthSession,
+  clearPersistedAuthHandoff,
   persistAuthHandoff,
   persistAuthSession,
   readPersistedAuthHandoff,
@@ -22,6 +24,9 @@ function createMemoryStorage() {
     },
     setItem(key, value) {
       map.set(key, value)
+    },
+    removeItem(key) {
+      map.delete(key)
     },
   }
 }
@@ -73,6 +78,29 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
   assert.equal(persistAuthHandoff(storage, handoff), true)
   assert.equal(storage.getItem(AUTH_HANDOFF_STORAGE_KEY) !== null, true)
   assert.deepEqual(readPersistedAuthHandoff(storage), handoff)
+})
+
+test('buildAuthResumeState revives an interrupted login attempt from persisted handoff data', () => {
+  const handoff = {
+    submittedAt: '2026-04-06T06:59:00.000Z',
+    email: 'user@example.com',
+    summary: { wishlistCount: 1, cartCount: 2, layoutItemCount: 3, hasRecommendationDraft: true },
+  }
+  const session = { accountLabel: 'user@example.com' }
+  const resumeState = buildAuthResumeState(handoff, session)
+
+  assert.equal(resumeState.email, 'user@example.com')
+  assert.equal(resumeState.status, 'resume-ready')
+  assert.equal(resumeState.handoff, handoff)
+  assert.equal(resumeState.session, session)
+})
+
+test('clearPersistedAuthHandoff removes the saved handoff after a successful login', () => {
+  const storage = createMemoryStorage()
+  storage.setItem(AUTH_HANDOFF_STORAGE_KEY, JSON.stringify({ email: 'user@example.com' }))
+
+  assert.equal(clearPersistedAuthHandoff(storage), true)
+  assert.equal(storage.getItem(AUTH_HANDOFF_STORAGE_KEY), null)
 })
 
 test('persistAuthSession stores the latest successful auth summary for the frontend shell', () => {

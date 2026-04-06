@@ -13,6 +13,7 @@ import { buildSelectedSpaceSummary } from './components/space-summary.js'
 import { buildLoginGuardSnapshot } from './components/login-guard.js'
 import { buildSearchDrawerState } from './components/search-drawer.js'
 import {
+  buildAuthErrorSummary,
   buildAuthResultSummary,
   buildAuthStatusCopy,
   buildAuthSubmitPlan,
@@ -21,10 +22,13 @@ import {
 import { submitAuthLoginPlan } from './components/auth-submit.js'
 import {
   buildAuthConnectionSummary,
+  buildAuthResumeState,
   buildPersistedAuthHandoff,
   buildPersistedAuthSession,
+  clearPersistedAuthHandoff,
   persistAuthHandoff,
   persistAuthSession,
+  readPersistedAuthHandoff,
   readPersistedAuthSession,
 } from './components/auth-storage.js'
 import { buildFilteredBedProducts } from './components/bed-filter-state.js'
@@ -574,14 +578,24 @@ function App() {
     fit: '전체',
   })
   const [wishlistedIds, setWishlistedIds] = React.useState([])
-  const [loginModalState, setLoginModalState] = React.useState('closed')
-  const [loginForm, setLoginForm] = React.useState({
-    email: '',
-    password: '',
-    status: 'idle',
-    result: null,
-  })
-  const [authSession, setAuthSession] = React.useState(() => readPersistedAuthSession(globalThis.localStorage))
+  const persistedAuthHandoff = React.useMemo(
+    () => readPersistedAuthHandoff(globalThis.sessionStorage),
+    [],
+  )
+  const persistedAuthSession = React.useMemo(
+    () => readPersistedAuthSession(globalThis.localStorage),
+    [],
+  )
+  const [loginModalState, setLoginModalState] = React.useState(() => (persistedAuthHandoff ? 'form' : 'closed'))
+  const [loginForm, setLoginForm] = React.useState(() => (
+    buildAuthResumeState(persistedAuthHandoff, persistedAuthSession) ?? {
+      email: '',
+      password: '',
+      status: 'idle',
+      result: null,
+    }
+  ))
+  const [authSession, setAuthSession] = React.useState(() => persistedAuthSession)
   const [engagement, setEngagement] = React.useState(initialEngagement)
 
   const selectedApartment = React.useMemo(
@@ -667,9 +681,14 @@ function App() {
     [authSubmitPlan.summary, loginForm.result],
   )
 
+  const authErrorSummary = React.useMemo(
+    () => buildAuthErrorSummary(loginForm.result, authSubmitPlan.summary),
+    [authSubmitPlan.summary, loginForm.result],
+  )
+
   const authStatusMessage = React.useMemo(
-    () => buildAuthStatusCopy(loginForm.status, authSubmitPlan.summary, authResultSummary),
-    [authResultSummary, authSubmitPlan.summary, loginForm.status],
+    () => buildAuthStatusCopy(loginForm.status, authSubmitPlan.summary, authResultSummary, authErrorSummary),
+    [authErrorSummary, authResultSummary, authSubmitPlan.summary, loginForm.status],
   )
 
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
@@ -698,6 +717,7 @@ function App() {
       if (nextResultSummary) {
         const nextSession = buildPersistedAuthSession(nextResultSummary)
         persistAuthSession(globalThis.localStorage, nextSession)
+        clearPersistedAuthHandoff(globalThis.sessionStorage)
         setAuthSession(nextSession)
       }
 
@@ -707,7 +727,15 @@ function App() {
         result,
       }))
     } catch {
-      setLoginForm((current) => ({ ...current, status: 'error', result: null }))
+      setLoginForm((current) => ({
+        ...current,
+        status: 'error',
+        result: {
+          ok: false,
+          status: 0,
+          data: { message: 'Network request failed' },
+        },
+      }))
     }
   }, [authSubmitPlan, guestDraftSnapshot])
 
@@ -848,6 +876,7 @@ function App() {
             authSubmitPlan={authSubmitPlan}
             authStatusMessage={authStatusMessage}
             authResultSummary={authResultSummary}
+            authErrorSummary={authErrorSummary}
             authConnectionSummary={authConnectionSummary}
             guestDraftSnapshot={guestDraftSnapshot}
             onChangeForm={(field, value) => setLoginForm((current) => ({ ...current, [field]: value, status: 'idle', result: null }))}
@@ -1436,7 +1465,7 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
 }
 
 
-function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, authResultSummary, authConnectionSummary, guestDraftSnapshot, onChangeForm, onClose, onProceed, onSubmit }) {
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, guestDraftSnapshot, onChangeForm, onClose, onProceed, onSubmit }) {
   const guarded = state === 'guard'
 
   return (
@@ -1496,6 +1525,12 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 <div className="loginGuardCard authPrepCard">
                   <strong>연결 준비 상태</strong>
                   <p className="muted">{authStatusMessage}</p>
+                  {form.handoff && (
+                    <p className="muted">이전 시도: {form.handoff.submittedAt} · 이메일 {form.handoff.email || '미입력'}</p>
+                  )}
+                  {authErrorSummary && (
+                    <p className="muted">오류 분류: {authErrorSummary.tone === 'credentials' ? '자격 증명' : authErrorSummary.tone === 'merge' ? '초안 병합' : authErrorSummary.tone === 'service' ? '인증 서비스' : '기타'}</p>
+                  )}
                   <div className="guardSummary compact">
                     <div><label>찜</label><b>{authSubmitPlan.summary.wishlistCount}개</b></div>
                     <div><label>장바구니</label><b>{authSubmitPlan.summary.cartCount}개</b></div>

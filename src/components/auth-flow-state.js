@@ -2,6 +2,15 @@ function sanitizeEmail(email = '') {
   return email.trim().toLowerCase()
 }
 
+function buildFallbackSummary(summary = {}) {
+  return {
+    wishlistCount: summary.wishlistCount ?? 0,
+    cartCount: summary.cartCount ?? 0,
+    layoutItemCount: summary.layoutItemCount ?? 0,
+    hasRecommendationDraft: Boolean(summary.hasRecommendationDraft),
+  }
+}
+
 export function buildGuestDraftSnapshot({
   engagement,
   aiForm,
@@ -94,7 +103,46 @@ export function buildAuthResultSummary(result, fallbackSummary = {}) {
   }
 }
 
-export function buildAuthStatusCopy(status, summary, resultSummary = null) {
+export function buildAuthErrorSummary(result, fallbackSummary = {}) {
+  if (!result || result.ok) return null
+
+  const data = result.data ?? {}
+  const message = data.error ?? data.message ?? data.detail ?? null
+  const status = result.status ?? 0
+
+  if (status === 401) {
+    return {
+      tone: 'credentials',
+      message: message ?? '이메일 또는 비밀번호를 다시 확인해주세요.',
+      summary: buildFallbackSummary(fallbackSummary),
+    }
+  }
+
+  if (status === 409) {
+    return {
+      tone: 'merge',
+      message: message ?? '게스트 초안 병합 확인이 필요해요. 현재 초안은 그대로 보관되어 있어요.',
+      summary: buildFallbackSummary(fallbackSummary),
+    }
+  }
+
+  if (status >= 500 || status === 0) {
+    return {
+      tone: 'service',
+      message: message ?? '인증 서비스 연결을 아직 준비 중이에요. 잠시 후 다시 시도해주세요.',
+      summary: buildFallbackSummary(fallbackSummary),
+    }
+  }
+
+  return {
+    tone: 'unknown',
+    message: message ?? '로그인 연결을 완료하지 못했어요. 입력값과 인증 설정을 다시 확인해주세요.',
+    summary: buildFallbackSummary(fallbackSummary),
+  }
+}
+
+export function buildAuthStatusCopy(status, summary, resultSummary = null, errorSummary = null) {
+  if (status === 'resume-ready') return '이전 로그인 시도가 남아 있어요. 입력한 이메일과 게스트 초안을 그대로 이어서 다시 연결할 수 있어요.'
   if (status === 'submitting') return '계정 연결 준비 중… 게스트 초안을 함께 묶고 있어요.'
   if (status === 'ready') {
     const accountCopy = resultSummary?.accountLabel ? ` · ${resultSummary.accountLabel} 계정과 연결 준비됨` : ''
@@ -102,7 +150,10 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null) {
     return `백엔드 연결 준비 완료${accountCopy}${sessionCopy} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
   }
   if (status === 'error') {
-    return '로그인 연결에 실패했어요. 잠시 후 다시 시도하거나 백엔드 인증 설정을 확인해주세요.'
+    if (errorSummary?.tone === 'credentials') return `${errorSummary.message} · 게스트 초안은 유지되어 다시 시도할 수 있어요.`
+    if (errorSummary?.tone === 'merge') return `${errorSummary.message} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개 handoff 기록을 유지합니다.`
+    if (errorSummary?.tone === 'service') return `${errorSummary.message} · 인증 API가 준비되면 같은 초안으로 다시 연결할 수 있어요.`
+    return `${errorSummary?.message ?? '로그인 연결에 실패했어요.'} 잠시 후 다시 시도하거나 백엔드 인증 설정을 확인해주세요.`
   }
   return '로그인하면 게스트 상태의 추천, 보드, 찜, 장바구니를 계정에 이어붙일 준비를 시작합니다.'
 }

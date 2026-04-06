@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  buildAuthErrorSummary,
   buildAuthResultSummary,
   buildAuthStatusCopy,
   buildAuthSubmitPlan,
@@ -105,7 +106,48 @@ test('buildAuthResultSummary extracts backend auth response details without wide
   })
 })
 
+test('buildAuthErrorSummary categorizes backend auth failures for the modal state', () => {
+  assert.deepEqual(
+    buildAuthErrorSummary({ ok: false, status: 401, data: { message: 'Invalid credentials' } }, {
+      wishlistCount: 2,
+      cartCount: 1,
+      layoutItemCount: 3,
+      hasRecommendationDraft: true,
+    }),
+    {
+      tone: 'credentials',
+      message: 'Invalid credentials',
+      summary: {
+        wishlistCount: 2,
+        cartCount: 1,
+        layoutItemCount: 3,
+        hasRecommendationDraft: true,
+      },
+    },
+  )
+
+  assert.deepEqual(
+    buildAuthErrorSummary({ ok: false, status: 503, data: { message: 'Auth service unavailable' } }, {
+      wishlistCount: 0,
+      cartCount: 0,
+      layoutItemCount: 1,
+      hasRecommendationDraft: false,
+    }),
+    {
+      tone: 'service',
+      message: 'Auth service unavailable',
+      summary: {
+        wishlistCount: 0,
+        cartCount: 0,
+        layoutItemCount: 1,
+        hasRecommendationDraft: false,
+      },
+    },
+  )
+})
+
 test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
+  assert.match(buildAuthStatusCopy('resume-ready', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /이전 로그인 시도/)
   assert.match(buildAuthStatusCopy('submitting', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /준비 중/)
   assert.match(
     buildAuthStatusCopy(
@@ -115,6 +157,14 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
     ),
     /user@example.com 계정과 연결 준비됨.*session-1|session-1.*user@example.com 계정과 연결 준비됨/,
   )
-  assert.match(buildAuthStatusCopy('error', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /실패/)
+  assert.match(
+    buildAuthStatusCopy(
+      'error',
+      { wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
+      null,
+      { tone: 'credentials', message: 'Invalid credentials' },
+    ),
+    /Invalid credentials.*게스트 초안은 유지/,
+  )
   assert.match(buildAuthStatusCopy('idle', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /게스트 상태/)
 })

@@ -48,6 +48,19 @@ export function buildPersistedAuthSession(resultSummary, { savedAt = new Date().
   }
 }
 
+export function buildAuthResumeState(handoff, session = null) {
+  if (!handoff) return null
+
+  return {
+    email: handoff.email ?? '',
+    status: 'resume-ready',
+    result: null,
+    resumedAt: new Date().toISOString(),
+    handoff,
+    session,
+  }
+}
+
 function safeSetItem(storage, key, value) {
   if (!storage?.setItem) return false
 
@@ -70,12 +83,27 @@ function safeGetItem(storage, key) {
   }
 }
 
+function safeRemoveItem(storage, key) {
+  if (!storage?.removeItem) return false
+
+  try {
+    storage.removeItem(key)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function persistAuthHandoff(storage, handoff) {
   return safeSetItem(storage, AUTH_HANDOFF_STORAGE_KEY, handoff)
 }
 
 export function readPersistedAuthHandoff(storage) {
   return safeGetItem(storage, AUTH_HANDOFF_STORAGE_KEY)
+}
+
+export function clearPersistedAuthHandoff(storage) {
+  return safeRemoveItem(storage, AUTH_HANDOFF_STORAGE_KEY)
 }
 
 export function persistAuthSession(storage, session) {
