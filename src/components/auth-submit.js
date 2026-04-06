@@ -69,6 +69,19 @@ function buildResponseMeta(response) {
   }
 }
 
+async function requestAuthJson(endpoint, requestInit, { fetchImpl = fetch } = {}) {
+  const response = await fetchImpl(endpoint, requestInit)
+  const data = await parseAuthResponse(response)
+
+  return {
+    response,
+    data: data && typeof data === 'object' && !Array.isArray(data)
+      ? data
+      : null,
+    meta: buildResponseMeta(response),
+  }
+}
+
 export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl, credentialsMode = 'include' } = {}) {
   const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
   const requestInit = {
@@ -82,8 +95,7 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
   }
 
   try {
-    const response = await fetchImpl(endpoint, requestInit)
-    const data = await parseAuthResponse(response)
+    const { response, data, meta } = await requestAuthJson(endpoint, requestInit, { fetchImpl })
 
     if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl }) && [404, 405, 501].includes(response.status)) {
       return buildScaffoldLoginResult(plan)
@@ -92,10 +104,10 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
     return {
       ok: response.ok,
       status: response.status,
-      data: data && typeof data === 'object' && !Array.isArray(data)
+      data: data
         ? { ...data, handoffId: data.handoffId ?? plan.handoffId ?? null }
         : data,
-      meta: buildResponseMeta(response),
+      meta,
     }
   } catch {
     if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl })) {
@@ -103,5 +115,38 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
     }
 
     throw new Error('Auth request failed')
+  }
+}
+
+export async function readAuthSession({
+  endpoint = '/api/auth/session',
+  fetchImpl = fetch,
+  apiBaseUrl,
+  credentialsMode = 'include',
+} = {}) {
+  const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
+
+  try {
+    const { response, data, meta } = await requestAuthJson(resolvedEndpoint, {
+      method: 'GET',
+      credentials: credentialsMode,
+    }, { fetchImpl })
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+      meta,
+    }
+  } catch {
+    return {
+      ok: false,
+      status: 0,
+      data: { message: 'Auth session request failed' },
+      meta: {
+        authMode: 'remote',
+        authTransport: 'network',
+      },
+    }
   }
 }

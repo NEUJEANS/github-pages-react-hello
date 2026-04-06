@@ -31,6 +31,45 @@ function buildAccountState({ mergeResolution } = {}) {
   }
 }
 
+function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null } = {}) {
+  const safeSessionId = email.replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'guest'
+
+  return {
+    ok: true,
+    sessionId: `demo-${safeSessionId}`,
+    ...(handoffId ? { handoffId } : {}),
+    user: {
+      email,
+      name: email,
+    },
+    mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot, {
+      mode: mergeResolution === 'keep-guest'
+        ? 'merge-confirmed'
+        : mergeResolution === 'replace-with-account'
+          ? 'replaced'
+          : 'merged',
+      resolution: mergeResolution,
+    }),
+    accountState: buildAccountState({ mergeResolution }),
+  }
+}
+
+export function buildAuthScaffoldSessionResponse(session = null) {
+  if (!session) {
+    return {
+      status: 401,
+      data: {
+        message: 'No scaffold auth session',
+      },
+    }
+  }
+
+  return {
+    status: 200,
+    data: session,
+  }
+}
+
 export function buildAuthScaffoldResponse(request = {}) {
   const email = normalizeEmail(request.email)
   const password = typeof request.password === 'string' ? request.password : ''
@@ -61,28 +100,14 @@ export function buildAuthScaffoldResponse(request = {}) {
     }
   }
 
-  const safeSessionId = email.replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'guest'
-
   return {
     status: 200,
-    data: {
-      ok: true,
-      sessionId: `demo-${safeSessionId}`,
-      ...(handoffId ? { handoffId } : {}),
-      user: {
-        email,
-        name: email,
-      },
-      mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot, {
-        mode: mergeResolution === 'keep-guest'
-          ? 'merge-confirmed'
-          : mergeResolution === 'replace-with-account'
-            ? 'replaced'
-            : 'merged',
-        resolution: mergeResolution,
-      }),
-      accountState: buildAccountState({ mergeResolution }),
-    },
+    data: buildSessionData({
+      email,
+      handoffId,
+      guestDraftSnapshot,
+      mergeResolution,
+    }),
   }
 }
 

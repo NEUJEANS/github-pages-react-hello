@@ -19,7 +19,7 @@ import {
   buildAuthSubmitPlan,
   buildGuestDraftSnapshot,
 } from './components/auth-flow-state.js'
-import { submitAuthLoginPlan } from './components/auth-submit.js'
+import { readAuthSession, submitAuthLoginPlan } from './components/auth-submit.js'
 import { resolveAuthConfig } from './components/auth-config.js'
 import {
   buildAuthConnectionSummary,
@@ -758,6 +758,37 @@ function App() {
     () => buildAuthSessionNotice(authSession),
     [authSession],
   )
+
+  React.useEffect(() => {
+    if (authSession) return undefined
+
+    let cancelled = false
+
+    ;(async () => {
+      const result = await readAuthSession({
+        endpoint: '/api/auth/session',
+        ...authConfig,
+      })
+
+      if (!result.ok || cancelled) return
+
+      const sessionConnection = buildAuthConnectionSummary({
+        endpoint: '/api/auth/session',
+        method: 'GET',
+      }, authConfig)
+      const resultSummary = buildAuthResultSummary(result)
+      const nextSession = buildPersistedAuthSession(resultSummary, {
+        connection: sessionConnection,
+      })
+
+      persistAuthSession(globalThis.localStorage, nextSession)
+      setAuthSession(nextSession)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authConfig, authSession])
 
   React.useEffect(() => {
     setAuthNoticeDismissed(false)

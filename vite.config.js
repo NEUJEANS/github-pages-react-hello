@@ -1,6 +1,6 @@
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
-import { buildAuthScaffoldResponse } from "./src/components/auth-backend-scaffold.js"
+import { buildAuthScaffoldResponse, buildAuthScaffoldSessionResponse } from "./src/components/auth-backend-scaffold.js"
 
 function readRequestBody(req) {
   return new Promise((resolve, reject) => {
@@ -29,7 +29,15 @@ function writeJson(res, status, data, headers = {}) {
 }
 
 function havenlyAuthScaffoldPlugin() {
+  let latestSession = null
+
   const handler = async (req, res, next) => {
+    if (req.method === "GET" && req.url === "/api/auth/session") {
+      const response = buildAuthScaffoldSessionResponse(latestSession)
+      writeJson(res, response.status, response.data, { "x-havenly-auth-scaffold": "true" })
+      return
+    }
+
     if (req.method !== "POST" || req.url !== "/api/auth/login") {
       next()
       return
@@ -38,6 +46,9 @@ function havenlyAuthScaffoldPlugin() {
     try {
       const request = await readRequestBody(req)
       const response = buildAuthScaffoldResponse(request)
+      if (response.status >= 200 && response.status < 300) {
+        latestSession = response.data
+      }
       writeJson(res, response.status, response.data, { "x-havenly-auth-scaffold": "true" })
     } catch {
       writeJson(res, 400, { message: "Invalid auth scaffold request" }, { "x-havenly-auth-scaffold": "true" })

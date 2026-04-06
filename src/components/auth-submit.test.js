@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { AUTH_HANDOFF_HEADER, AUTH_SCAFFOLD_HEADER, resolveAuthEndpoint, submitAuthLoginPlan } from './auth-submit.js'
+import { AUTH_HANDOFF_HEADER, AUTH_SCAFFOLD_HEADER, readAuthSession, resolveAuthEndpoint, submitAuthLoginPlan } from './auth-submit.js'
 
 test('resolveAuthEndpoint keeps local auth routes by default and prefixes configured api base urls', () => {
   assert.equal(resolveAuthEndpoint('/api/auth/login'), '/api/auth/login')
@@ -113,5 +113,42 @@ test('submitAuthLoginPlan captures text errors from non-json auth scaffolds', as
     status: 503,
     data: { message: 'Auth service unavailable', handoffId: 'auth-20260406123000-2n9c' },
     meta: { authMode: 'remote', authTransport: 'network' },
+  })
+})
+
+test('readAuthSession reads scaffold session state for frontend bootstrap wiring', async () => {
+  const result = await readAuthSession({
+    fetchImpl: async (url, options) => {
+      assert.equal(url, '/api/auth/session')
+      assert.equal(options.method, 'GET')
+      assert.equal(options.credentials, 'include')
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          'content-type': 'application/json',
+          [AUTH_SCAFFOLD_HEADER]: 'true',
+        }),
+        json: async () => ({
+          ok: true,
+          sessionId: 'demo-user-example-com',
+          user: { email: 'user@example.com', name: 'user@example.com' },
+        }),
+      }
+    },
+  })
+
+  assert.deepEqual(result, {
+    ok: true,
+    status: 200,
+    data: {
+      ok: true,
+      sessionId: 'demo-user-example-com',
+      user: { email: 'user@example.com', name: 'user@example.com' },
+    },
+    meta: {
+      authMode: 'scaffold',
+      authTransport: 'same-origin-middleware',
+    },
   })
 })

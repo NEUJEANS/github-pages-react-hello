@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { buildAuthSubmitPlan, buildAuthResultSummary, buildGuestDraftSnapshot, buildAuthErrorSummary } from '../src/components/auth-flow-state.js'
-import { submitAuthLoginPlan } from '../src/components/auth-submit.js'
+import { readAuthSession, submitAuthLoginPlan } from '../src/components/auth-submit.js'
 import { buildAuthConnectionSummary, buildPersistedAuthSession } from '../src/components/auth-storage.js'
 import { buildPostAuthContinuityPatch } from '../src/components/auth-session-merge.js'
 
@@ -124,6 +124,12 @@ async function runHttpSmoke() {
     intent: mergeResolvePlan.summary.intent,
     connection: mergeResolved.connection,
   })
+  const scaffoldSession = await readAuthSession({
+    endpoint: '/api/auth/session',
+    apiBaseUrl,
+    credentialsMode: 'include',
+    fetchImpl: fetch,
+  })
 
   return {
     mode: 'http-fallback',
@@ -155,6 +161,13 @@ async function runHttpSmoke() {
         intent: persistedSession.intent,
         connection: persistedSession.connection,
         guestDraftSummary: persistedSession.guestDraftSummary,
+      },
+      scaffoldSession: {
+        status: scaffoldSession.status,
+        authMode: scaffoldSession.meta?.authMode ?? null,
+        authTransport: scaffoldSession.meta?.authTransport ?? null,
+        sessionId: scaffoldSession.data?.sessionId ?? null,
+        accountLabel: scaffoldSession.data?.user?.email ?? null,
       },
     },
   }

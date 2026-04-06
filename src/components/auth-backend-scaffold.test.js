@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildAuthScaffoldResponse } from './auth-backend-scaffold.js'
+import { buildAuthScaffoldResponse, buildAuthScaffoldSessionResponse } from './auth-backend-scaffold.js'
 
 test('buildAuthScaffoldResponse returns a merged session payload for valid credentials', () => {
   const response = buildAuthScaffoldResponse({
@@ -102,4 +102,26 @@ test('buildAuthScaffoldResponse rejects short passwords and malformed emails', (
 
   assert.equal(response.status, 401)
   assert.deepEqual(response.data, { message: 'Invalid credentials' })
+})
+
+test('buildAuthScaffoldSessionResponse exposes the latest scaffold auth session payload', () => {
+  const response = buildAuthScaffoldSessionResponse({
+    ok: true,
+    sessionId: 'demo-user-example-com',
+    user: {
+      email: 'user@example.com',
+      name: 'user@example.com',
+    },
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal(response.data.sessionId, 'demo-user-example-com')
+  assert.equal(response.data.user.email, 'user@example.com')
+})
+
+test('buildAuthScaffoldSessionResponse returns 401 when no scaffold auth session exists', () => {
+  const response = buildAuthScaffoldSessionResponse(null)
+
+  assert.equal(response.status, 401)
+  assert.deepEqual(response.data, { message: 'No scaffold auth session' })
 })
