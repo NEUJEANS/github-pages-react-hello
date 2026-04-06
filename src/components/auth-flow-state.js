@@ -82,5 +82,8 @@ export function buildAuthStatusCopy(status, summary) {
   if (status === 'ready') {
     return `백엔드 연결 준비 완료 · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
   }
+  if (status === 'error') {
+    return '로그인 연결에 실패했어요. 잠시 후 다시 시도하거나 백엔드 인증 설정을 확인해주세요.'
+  }
   return '로그인하면 게스트 상태의 추천, 보드, 찜, 장바구니를 계정에 이어붙일 준비를 시작합니다.'
 }

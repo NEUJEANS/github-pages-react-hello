@@ -17,6 +17,7 @@ import {
   buildAuthSubmitPlan,
   buildGuestDraftSnapshot,
 } from './components/auth-flow-state.js'
+import { submitAuthLoginPlan } from './components/auth-submit.js'
 import { buildFilteredBedProducts } from './components/bed-filter-state.js'
 import { toggleWishlistId } from './components/wishlist-state.js'
 import {
@@ -653,14 +654,24 @@ function App() {
     setLoginModalState(hasLoginGuard ? 'guard' : 'form')
   }, [hasLoginGuard])
 
-  const handleLoginSubmit = React.useCallback(() => {
+  const handleLoginSubmit = React.useCallback(async () => {
     if (!authSubmitPlan.canSubmit) return
 
     setLoginForm((current) => ({ ...current, status: 'submitting' }))
-    window.setTimeout(() => {
-      setLoginForm((current) => ({ ...current, status: 'ready' }))
-    }, 450)
-  }, [authSubmitPlan.canSubmit])
+
+    try {
+      const result = await submitAuthLoginPlan(authSubmitPlan, {
+        apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
+      })
+
+      setLoginForm((current) => ({
+        ...current,
+        status: result.ok ? 'ready' : 'error',
+      }))
+    } catch {
+      setLoginForm((current) => ({ ...current, status: 'error' }))
+    }
+  }, [authSubmitPlan])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),

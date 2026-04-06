@@ -82,5 +82,6 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request', () => {
 test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
   assert.match(buildAuthStatusCopy('submitting', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /준비 중/)
   assert.match(buildAuthStatusCopy('ready', { wishlistCount: 2, cartCount: 1, layoutItemCount: 3 }), /찜 2개/)
+  assert.match(buildAuthStatusCopy('error', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /실패/)
   assert.match(buildAuthStatusCopy('idle', { wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }), /게스트 상태/)
 })
