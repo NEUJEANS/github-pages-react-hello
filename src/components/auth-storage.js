@@ -47,6 +47,20 @@ export function buildSerializableAuthConnection(connection = null) {
   }
 }
 
+export function buildSerializableAuthContinuation(continuation = null) {
+  if (!continuation || typeof continuation !== 'object') return null
+
+  const resumeToken = typeof continuation.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
+  const nextAction = typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : ''
+
+  if (!resumeToken && !nextAction) return null
+
+  return {
+    resumeToken: resumeToken || null,
+    nextAction: nextAction || null,
+  }
+}
+
 function safeHostLabel(url) {
   try {
     return new URL(url).host
@@ -78,7 +92,7 @@ export function createAuthHandoffId({ now = new Date(), random = Math.random } =
   return `auth-${timestamp}-${entropy}`
 }
 
-export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedAt = new Date().toISOString(), connection = null } = {}) {
+export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedAt = new Date().toISOString(), connection = null, continuation = null } = {}) {
   return {
     submittedAt,
     handoffId: plan.handoffId ?? plan.summary?.handoffId ?? null,
@@ -90,6 +104,7 @@ export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedA
       intent: buildSerializableAuthIntent(plan.summary?.intent),
     },
     connection: buildSerializableAuthConnection(connection),
+    continuation: buildSerializableAuthContinuation(continuation),
     guestDraftSnapshot,
   }
 }
@@ -114,7 +129,7 @@ export function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
   }
 }
 
-export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null, connection = null } = {}) {
+export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null, connection = null, continuation = null } = {}) {
   const derivedGuestDraftSummary = guestDraftSnapshot
     ? buildGuestDraftSessionSummary(guestDraftSnapshot)
     : (resultSummary?.guestDraftSummary ?? null)
@@ -138,6 +153,7 @@ export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = 
     authTransport: resultSummary?.authTransport ?? 'network',
     intent: buildSerializableAuthIntent(intent ?? resultSummary?.intent ?? null),
     connection: buildSerializableAuthConnection(connection),
+    continuation: buildSerializableAuthContinuation(continuation ?? resultSummary),
     guestDraftSummary: derivedGuestDraftSummary,
   }
 }
@@ -156,6 +172,7 @@ export function buildAuthResumeState(handoff, session = null) {
     mergeResolution: handoff.summary?.mergeResolution ?? null,
     intent: buildSerializableAuthIntent(handoff.summary?.intent ?? session?.intent ?? null),
     connection: buildSerializableAuthConnection(handoff.connection ?? session?.connection ?? null),
+    continuation: buildSerializableAuthContinuation(handoff.continuation ?? session?.continuation ?? null),
   }
 }
 

@@ -25,6 +25,7 @@ import {
   buildAuthConnectionSummary,
   buildAuthResumeState,
   buildPersistedAuthHandoff,
+  buildSerializableAuthContinuation,
   buildSerializableAuthIntent,
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
@@ -749,9 +750,13 @@ function App() {
     ? (loginForm.connection ?? authConnectionSummary)
     : authConnectionSummary
 
+  const activeAuthStatusSummary = loginForm.status === 'resume-ready' && loginForm.continuation
+    ? { ...loginForm.continuation }
+    : authResultSummary
+
   const authStatusMessage = React.useMemo(
-    () => buildAuthStatusCopy(loginForm.status, authSubmitPlan.summary, authResultSummary, authErrorSummary, activeAuthStatusConnection),
-    [activeAuthStatusConnection, authErrorSummary, authResultSummary, authSubmitPlan.summary, loginForm.status],
+    () => buildAuthStatusCopy(loginForm.status, authSubmitPlan.summary, activeAuthStatusSummary, authErrorSummary, activeAuthStatusConnection),
+    [activeAuthStatusConnection, activeAuthStatusSummary, authErrorSummary, authSubmitPlan.summary, loginForm.status],
   )
 
   const authSessionNotice = React.useMemo(
@@ -860,6 +865,7 @@ function App() {
 
     try {
       const result = await submitAuthLoginPlan(submitPlan, authConfig)
+      const nextContinuation = buildSerializableAuthContinuation(result?.data)
       const nextResultSummary = result.ok ? buildAuthResultSummary(result, submitPlan.summary) : null
 
       if (nextResultSummary) {
@@ -867,6 +873,7 @@ function App() {
           guestDraftSnapshot,
           intent: submitPlan.summary.intent,
           connection: authConnectionSummary,
+          continuation: nextContinuation,
         })
         const continuityPatch = buildPostAuthContinuityPatch(result)
 
@@ -888,10 +895,21 @@ function App() {
         setAuthNoticeDismissed(false)
       }
 
+      if (!result.ok) {
+        persistAuthHandoff(
+          globalThis.sessionStorage,
+          buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
+            connection: authConnectionSummary,
+            continuation: nextContinuation,
+          }),
+        )
+      }
+
       setLoginForm((current) => ({
         ...current,
         status: result.ok ? 'ready' : 'error',
         result,
+        continuation: nextContinuation,
         mergeResolution: result.ok ? null : nextMergeResolution,
       }))
 
@@ -1756,6 +1774,9 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                   {form.handoff && (
                     <p className="muted">이전 시도: {form.handoff.submittedAt} · handoff {form.handoff.handoffId || form.handoff.summary?.handoffId || '미생성'} · 이메일 {form.handoff.email || '미입력'}{form.connection?.targetLabel ? ` · 대상 ${form.connection.targetLabel}${form.connection.endpoint ? ` (${form.connection.endpoint})` : ''}` : ''}</p>
                   )}
+                  {form.continuation && (
+                    <p className="muted">백엔드 재개 계약: {form.continuation.nextAction ?? 'next-action 미정'}{form.continuation.resumeToken ? ` · token ${form.continuation.resumeToken}` : ''}</p>
+                  )}
                   {form.status === 'resume-ready' && form.connection?.resolvedUrl && form.connection.resolvedUrl !== authConnectionSummary.resolvedUrl && (
                     <p className="muted">현재 auth 설정은 {authConnectionSummary.targetLabel}{authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''}로 바뀌어 있어요. 재시도하면 새 대상에 맞춰 다시 연결합니다.</p>
                   )}
@@ -1777,6 +1798,8 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                     {authResultSummary?.accountLabel && <div><label>계정</label><b>{authResultSummary.accountLabel}</b></div>}
                     {authResultSummary?.sessionId && <div><label>세션</label><b>{authResultSummary.sessionId}</b></div>}
                     {authResultSummary?.mergeMode && <div><label>병합 상태</label><b>{authResultSummary.mergeMode}</b></div>}
+                    {form.continuation?.nextAction && <div><label>다음 액션</label><b>{form.continuation.nextAction}</b></div>}
+                    {form.continuation?.resumeToken && <div><label>재개 토큰</label><b>{form.continuation.resumeToken}</b></div>}
                     {authResultSummary?.restoredWishlistCount !== null && authResultSummary?.mergeMode && <div><label>복원 찜</label><b>{authResultSummary.restoredWishlistCount}개</b></div>}
                     {authResultSummary?.restoredCartCount !== null && authResultSummary?.mergeMode && <div><label>복원 장바구니</label><b>{authResultSummary.restoredCartCount}개</b></div>}
                     {authResultSummary?.restoredLayoutItemCount !== null && authResultSummary?.mergeMode && <div><label>복원 배치</label><b>{authResultSummary.restoredLayoutItemCount}개</b></div>}

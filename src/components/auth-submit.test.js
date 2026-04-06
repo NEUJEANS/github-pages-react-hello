@@ -1,7 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { AUTH_HANDOFF_HEADER, AUTH_SCAFFOLD_HEADER, readAuthSession, resolveAuthEndpoint, signOutAuthSession, submitAuthLoginPlan } from './auth-submit.js'
+import {
+  AUTH_HANDOFF_HEADER,
+  AUTH_NEXT_ACTION_HEADER,
+  AUTH_RESUME_TOKEN_HEADER,
+  AUTH_SCAFFOLD_HEADER,
+  readAuthSession,
+  resolveAuthEndpoint,
+  signOutAuthSession,
+  submitAuthLoginPlan,
+} from './auth-submit.js'
 
 test('resolveAuthEndpoint keeps local auth routes by default and prefixes configured api base urls', () => {
   assert.equal(resolveAuthEndpoint('/api/auth/login'), '/api/auth/login')
@@ -58,7 +67,7 @@ test('submitAuthLoginPlan sends the backend-ready payload as json with handoff c
   })
 })
 
-test('submitAuthLoginPlan preserves handoff ids on same-origin scaffold responses', async () => {
+test('submitAuthLoginPlan preserves handoff ids and backend continuation headers on same-origin scaffold responses', async () => {
   const result = await submitAuthLoginPlan({
     endpoint: '/api/auth/login',
     method: 'POST',
@@ -76,12 +85,16 @@ test('submitAuthLoginPlan preserves handoff ids on same-origin scaffold response
       headers: new Headers({
         'content-type': 'application/json',
         [AUTH_SCAFFOLD_HEADER]: 'true',
+        [AUTH_RESUME_TOKEN_HEADER]: 'resume-123',
+        [AUTH_NEXT_ACTION_HEADER]: 'complete-profile',
       }),
       json: async () => ({ ok: true, sessionId: 'demo-user-example-com' }),
     }),
   })
 
   assert.equal(result.data.handoffId, 'auth-20260406123000-2n9c')
+  assert.equal(result.data.resumeToken, 'resume-123')
+  assert.equal(result.data.nextAction, 'complete-profile')
   assert.deepEqual(result.meta, {
     authMode: 'scaffold',
     authTransport: 'same-origin-middleware',
@@ -133,6 +146,8 @@ test('readAuthSession reads scaffold session state for frontend bootstrap wiring
           ok: true,
           sessionId: 'demo-user-example-com',
           user: { email: 'user@example.com', name: 'user@example.com' },
+          resumeToken: 'resume-session-123',
+          nextAction: 'resume-layout-checkout',
         }),
       }
     },
@@ -145,6 +160,8 @@ test('readAuthSession reads scaffold session state for frontend bootstrap wiring
       ok: true,
       sessionId: 'demo-user-example-com',
       user: { email: 'user@example.com', name: 'user@example.com' },
+      resumeToken: 'resume-session-123',
+      nextAction: 'resume-layout-checkout',
     },
     meta: {
       authMode: 'scaffold',

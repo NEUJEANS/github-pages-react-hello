@@ -151,6 +151,8 @@ export function buildAuthResultSummary(result, fallbackSummary = {}) {
     hasRecommendationDraft: fallbackSummary.hasRecommendationDraft ?? false,
     guestDraftSummary: data.guestDraftSummary ?? null,
     intent: data.intent ?? fallbackSummary.intent ?? null,
+    resumeToken: data.resumeToken ?? null,
+    nextAction: data.nextAction ?? null,
     authMode: meta.authMode ?? 'remote',
     authTransport: meta.authTransport ?? 'network',
   }
@@ -168,6 +170,8 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
       tone: 'credentials',
       message: message ?? '이메일 또는 비밀번호를 다시 확인해주세요.',
       summary: buildFallbackSummary(fallbackSummary),
+      resumeToken: data.resumeToken ?? null,
+      nextAction: data.nextAction ?? null,
     }
   }
 
@@ -177,6 +181,8 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
       message: message ?? '게스트 초안 병합 확인이 필요해요. 현재 초안은 그대로 보관되어 있어요.',
       summary: buildFallbackSummary(fallbackSummary),
       allowedMergeResolutions: readAllowedMergeResolutions(data),
+      resumeToken: data.resumeToken ?? null,
+      nextAction: data.nextAction ?? null,
     }
   }
 
@@ -185,6 +191,8 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
       tone: 'service',
       message: message ?? '인증 서비스 연결을 아직 준비 중이에요. 잠시 후 다시 시도해주세요.',
       summary: buildFallbackSummary(fallbackSummary),
+      resumeToken: data.resumeToken ?? null,
+      nextAction: data.nextAction ?? null,
     }
   }
 
@@ -203,7 +211,10 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
     const connectionCopy = connectionSummary?.targetLabel
       ? ` 이전 연결 대상은 ${connectionSummary.targetLabel}${connectionSummary.endpoint ? ` (${connectionSummary.endpoint})` : ''}로 기록돼 있어요.`
       : ''
-    return `${baseCopy}${connectionCopy}`
+    const continuationCopy = resultSummary?.resumeToken || resultSummary?.nextAction
+      ? ` 백엔드 재개 계약은${resultSummary?.nextAction ? ` ${resultSummary.nextAction}` : ' 미정'}${resultSummary?.resumeToken ? ` · token ${resultSummary.resumeToken}` : ''} 상태예요.`
+      : ''
+    return `${baseCopy}${connectionCopy}${continuationCopy}`
   }
   if (status === 'submitting') return '계정 연결 준비 중… 게스트 초안을 함께 묶고 있어요.'
   if (status === 'ready') {
@@ -216,7 +227,10 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
     const modeCopy = resultSummary?.authMode === 'scaffold'
       ? ` · ${resultSummary.authTransport === 'same-origin-middleware' ? 'same-origin scaffold로 응답 확인' : 'local scaffold로 연결 유지'}`
       : ''
-    return `백엔드 연결 준비 완료${accountCopy}${handoffCopy}${sessionCopy}${mergeCopy}${modeCopy} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
+    const continuationCopy = resultSummary?.nextAction || resultSummary?.resumeToken
+      ? ` · backend ${resultSummary?.nextAction ?? 'next-action 없음'}${resultSummary?.resumeToken ? ` (${resultSummary.resumeToken})` : ''}`
+      : ''
+    return `백엔드 연결 준비 완료${accountCopy}${handoffCopy}${sessionCopy}${mergeCopy}${modeCopy}${continuationCopy} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
   }
   if (status === 'error') {
     if (errorSummary?.tone === 'credentials') return `${errorSummary.message} · 게스트 초안은 유지되어 다시 시도할 수 있어요.`

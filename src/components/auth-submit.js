@@ -2,6 +2,8 @@ import { buildAuthScaffoldResponse } from './auth-backend-scaffold.js'
 
 export const AUTH_SCAFFOLD_HEADER = 'x-havenly-auth-scaffold'
 export const AUTH_HANDOFF_HEADER = 'x-havenly-auth-handoff-id'
+export const AUTH_RESUME_TOKEN_HEADER = 'x-havenly-auth-resume-token'
+export const AUTH_NEXT_ACTION_HEADER = 'x-havenly-auth-next-action'
 
 function trimTrailingSlash(value = '') {
   return value.endsWith('/') ? value.slice(0, -1) : value
@@ -58,6 +60,37 @@ async function parseAuthResponse(response) {
   }
 }
 
+function readAuthContinuation(data = {}, response = null) {
+  const bodyResumeToken = typeof data?.resumeToken === 'string' ? data.resumeToken.trim() : ''
+  const headerResumeToken = typeof response?.headers?.get === 'function'
+    ? (response.headers.get(AUTH_RESUME_TOKEN_HEADER) ?? '').trim()
+    : ''
+  const bodyNextAction = typeof data?.nextAction === 'string' ? data.nextAction.trim() : ''
+  const headerNextAction = typeof response?.headers?.get === 'function'
+    ? (response.headers.get(AUTH_NEXT_ACTION_HEADER) ?? '').trim()
+    : ''
+
+  const resumeToken = bodyResumeToken || headerResumeToken || null
+  const nextAction = bodyNextAction || headerNextAction || null
+
+  if (!resumeToken && !nextAction) return null
+
+  return {
+    resumeToken,
+    nextAction,
+  }
+}
+
+function applyAuthContinuation(data, response) {
+  const continuation = readAuthContinuation(data, response)
+  if (!continuation) return data
+
+  return {
+    ...(data ?? {}),
+    ...continuation,
+  }
+}
+
 function buildResponseMeta(response) {
   if (response?.headers?.get?.(AUTH_SCAFFOLD_HEADER) === 'true') {
     return buildScaffoldMeta({ via: 'same-origin-middleware' })
@@ -104,9 +137,12 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
     return {
       ok: response.ok,
       status: response.status,
-      data: data
-        ? { ...data, handoffId: data.handoffId ?? plan.handoffId ?? null }
-        : data,
+      data: applyAuthContinuation(
+        data
+          ? { ...data, handoffId: data.handoffId ?? plan.handoffId ?? null }
+          : data,
+        response,
+      ),
       meta,
     }
   } catch {
@@ -135,7 +171,7 @@ export async function readAuthSession({
     return {
       ok: response.ok,
       status: response.status,
-      data,
+      data: applyAuthContinuation(data, response),
       meta,
     }
   } catch {
@@ -168,7 +204,7 @@ export async function signOutAuthSession({
     return {
       ok: response.ok,
       status: response.status,
-      data,
+      data: applyAuthContinuation(data, response),
       meta,
     }
   } catch {

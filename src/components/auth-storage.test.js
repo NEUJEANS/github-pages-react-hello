@@ -8,6 +8,7 @@ import {
   buildAuthResumeState,
   buildGuestDraftSessionSummary,
   buildSerializableAuthConnection,
+  buildSerializableAuthContinuation,
   buildSerializableAuthIntent,
   buildPersistedAuthHandoff,
   buildPersistedAuthSession,
@@ -84,6 +85,17 @@ test('buildSerializableAuthConnection trims auth target metadata down to seriali
   })
 })
 
+test('buildSerializableAuthContinuation keeps backend resume contract fields compact and serializable', () => {
+  assert.deepEqual(buildSerializableAuthContinuation({
+    resumeToken: ' resume-123 ',
+    nextAction: ' confirm-merge-resolution ',
+    ignored: { nested: true },
+  }), {
+    resumeToken: 'resume-123',
+    nextAction: 'confirm-merge-resolution',
+  })
+})
+
 test('persistAuthHandoff stores the serializable guest draft payload for follow-up auth wiring', () => {
   const storage = createMemoryStorage()
   const handoff = buildPersistedAuthHandoff({
@@ -123,6 +135,10 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
       credentialsMode: 'include',
       source: 'runtime',
     },
+    continuation: {
+      resumeToken: 'resume-123',
+      nextAction: 'confirm-merge-resolution',
+    },
   })
 
   assert.equal(persistAuthHandoff(storage, handoff), true)
@@ -144,6 +160,10 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
     isSameOriginScaffold: false,
     credentialsMode: 'include',
     source: 'runtime',
+  })
+  assert.deepEqual(handoff.continuation, {
+    resumeToken: 'resume-123',
+    nextAction: 'confirm-merge-resolution',
   })
 })
 
@@ -171,6 +191,10 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
       isExternal: true,
       isSameOriginScaffold: false,
     },
+    continuation: {
+      resumeToken: 'resume-123',
+      nextAction: 'confirm-merge-resolution',
+    },
   }
   const session = { accountLabel: 'user@example.com' }
   const resumeState = buildAuthResumeState(handoff, session)
@@ -197,6 +221,10 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
     label: '로그인 후 주문 이어가기',
     returnScreen: null,
     draftLabel: '장바구니 2개',
+  })
+  assert.deepEqual(resumeState.continuation, {
+    resumeToken: 'resume-123',
+    nextAction: 'confirm-merge-resolution',
   })
 })
 
@@ -257,6 +285,8 @@ test('persistAuthSession stores the latest successful auth summary for the front
     },
     authMode: 'scaffold',
     authTransport: 'same-origin-middleware',
+    resumeToken: 'resume-session-123',
+    nextAction: 'resume-layout-checkout',
   }, {
     savedAt: '2026-04-06T07:01:00.000Z',
     intent: {
@@ -310,6 +340,10 @@ test('persistAuthSession stores the latest successful auth summary for the front
     isSameOriginScaffold: true,
     credentialsMode: 'include',
     source: 'default',
+  })
+  assert.deepEqual(session.continuation, {
+    resumeToken: 'resume-session-123',
+    nextAction: 'resume-layout-checkout',
   })
 })
 

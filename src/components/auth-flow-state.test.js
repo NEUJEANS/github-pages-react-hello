@@ -120,6 +120,8 @@ test('buildAuthResultSummary extracts backend auth response details without wide
         layoutItemCount: 3,
         recommendationDraftRestored: true,
       },
+      resumeToken: 'resume-123',
+      nextAction: 'resume-layout-checkout',
     },
     meta: {
       authMode: 'scaffold',
@@ -163,6 +165,8 @@ test('buildAuthResultSummary extracts backend auth response details without wide
       label: '로그인 후 보드 저장',
       returnScreen: 'layout',
     },
+    resumeToken: 'resume-123',
+    nextAction: 'resume-layout-checkout',
     authMode: 'scaffold',
     authTransport: 'same-origin-middleware',
   })
@@ -170,7 +174,7 @@ test('buildAuthResultSummary extracts backend auth response details without wide
 
 test('buildAuthErrorSummary categorizes backend auth failures for the modal state', () => {
   assert.deepEqual(
-    buildAuthErrorSummary({ ok: false, status: 401, data: { message: 'Invalid credentials' } }, {
+    buildAuthErrorSummary({ ok: false, status: 401, data: { message: 'Invalid credentials', resumeToken: 'resume-invalid', nextAction: 'retry-login' } }, {
       handoffId: 'auth-20260406123000-2n9c',
       wishlistCount: 2,
       cartCount: 1,
@@ -187,6 +191,8 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
         layoutItemCount: 3,
         hasRecommendationDraft: true,
       },
+      resumeToken: 'resume-invalid',
+      nextAction: 'retry-login',
     },
   )
 
@@ -198,6 +204,8 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
         message: 'Guest draft merge confirmation required',
         allowedMergeResolution: 'keep-guest',
         allowedMergeResolutions: ['replace-with-account', 'keep-guest', 'replace-with-account'],
+        resumeToken: 'resume-merge',
+        nextAction: 'confirm-merge-resolution',
       },
     }, {
       handoffId: 'auth-20260406123000-2n9c',
@@ -217,6 +225,8 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
         hasRecommendationDraft: true,
       },
       allowedMergeResolutions: ['replace-with-account', 'keep-guest'],
+      resumeToken: 'resume-merge',
+      nextAction: 'confirm-merge-resolution',
     },
   )
 })
@@ -226,11 +236,11 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
     buildAuthStatusCopy(
       'resume-ready',
       { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 0, cartCount: 0, layoutItemCount: 0 },
-      null,
+      { resumeToken: 'resume-123', nextAction: 'resume-layout-checkout' },
       null,
       { targetLabel: 'api.example.com', endpoint: '/api/auth/login' },
     ),
-    /handoff auth-20260406123000-2n9c.*api\.example\.com.*\/api\/auth\/login/,
+    /handoff auth-20260406123000-2n9c.*api\.example\.com.*\/api\/auth\/login.*resume-layout-checkout.*resume-123/,
   )
 
   assert.match(
@@ -242,11 +252,13 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
         handoffId: 'auth-20260406123000-2n9c',
         accountLabel: 'user@example.com',
         mergeMode: 'merged',
+        resumeToken: 'resume-123',
+        nextAction: 'resume-layout-checkout',
         authMode: 'scaffold',
         authTransport: 'same-origin-middleware',
       },
     ),
-    /user@example.com 계정과 연결 준비됨.*handoff auth-20260406123000-2n9c.*session-1.*게스트 초안 병합 완료.*same-origin scaffold로 응답 확인/,
+    /user@example.com 계정과 연결 준비됨.*handoff auth-20260406123000-2n9c.*session-1.*게스트 초안 병합 완료.*same-origin scaffold로 응답 확인.*resume-layout-checkout.*resume-123/,
   )
 }
 )
