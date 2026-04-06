@@ -104,6 +104,9 @@ export function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
     apartmentLabel: continuity.apartmentLabel ?? null,
     selectedRoomCount: selectedRooms.length,
     selectedRooms,
+    selectedSpaceIds: Array.isArray(guestDraftSnapshot.spaceProfile?.spaces)
+      ? [...guestDraftSnapshot.spaceProfile.spaces]
+      : [],
     recommendationRoom: guestDraftSnapshot.recommendationDraft?.room ?? null,
     wishlistCount: Array.isArray(continuity.wishlistIds) ? continuity.wishlistIds.length : 0,
     cartCount: Array.isArray(continuity.cartItems) ? continuity.cartItems.length : 0,

@@ -36,6 +36,7 @@ import {
   readPersistedAuthSession,
 } from './components/auth-storage.js'
 import { buildAuthSessionNotice } from './components/auth-session-view-state.js'
+import { buildPostAuthSessionRestorePatch } from './components/auth-session-restore.js'
 import {
   resolvePostAuthScreen,
   shouldCloseLoginModalAfterAuth,
@@ -598,15 +599,38 @@ function App() {
   const cart = useCart()
   const quickView = useQuickView()
   const editor = useEditorState()
+  const persistedAuthHandoff = React.useMemo(
+    () => readPersistedAuthHandoff(globalThis.sessionStorage),
+    [],
+  )
+  const persistedAuthSession = React.useMemo(
+    () => readPersistedAuthSession(globalThis.localStorage),
+    [],
+  )
+  const persistedAuthUiRestore = React.useMemo(
+    () => buildPostAuthSessionRestorePatch(persistedAuthSession, {
+      spaceZones: baseZones,
+      roomOptions,
+      fallbackRoom: initialAiForm.room,
+    }),
+    [persistedAuthSession],
+  )
   const [searchDrawerOpen, setSearchDrawerOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
-  const [aiForm, setAiForm] = React.useState(initialAiForm)
-  const [spaceProfile, setSpaceProfile] = React.useState({
+  const [aiForm, setAiForm] = React.useState(() => ({
+    ...initialAiForm,
+    ...(persistedAuthUiRestore?.recommendationRoom
+      ? { room: persistedAuthUiRestore.recommendationRoom }
+      : {}),
+  }))
+  const [spaceProfile, setSpaceProfile] = React.useState(() => ({
     query: '서울 성동구 성수이로 123 HAVENLY Apartments',
     apartmentType: apartmentSearchResults[0].unitLabel,
     apartmentSelectionId: apartmentSearchResults[0].id,
-    spaces: baseZones.filter((zone) => zone.selected).map((zone) => zone.id),
-  })
+    spaces: persistedAuthUiRestore?.selectedSpaceIds?.length
+      ? persistedAuthUiRestore.selectedSpaceIds
+      : baseZones.filter((zone) => zone.selected).map((zone) => zone.id),
+  }))
   const [bedFilters, setBedFilters] = React.useState({
     search: '',
     sorts: 'recommended',
@@ -616,14 +640,6 @@ function App() {
     fit: '전체',
   })
   const [wishlistedIds, setWishlistedIds] = React.useState([])
-  const persistedAuthHandoff = React.useMemo(
-    () => readPersistedAuthHandoff(globalThis.sessionStorage),
-    [],
-  )
-  const persistedAuthSession = React.useMemo(
-    () => readPersistedAuthSession(globalThis.localStorage),
-    [],
-  )
   const [loginModalState, setLoginModalState] = React.useState(() => (persistedAuthHandoff ? 'form' : 'closed'))
   const [loginForm, setLoginForm] = React.useState(() => (
     buildAuthResumeState(persistedAuthHandoff, persistedAuthSession) ?? buildEmptyLoginForm()

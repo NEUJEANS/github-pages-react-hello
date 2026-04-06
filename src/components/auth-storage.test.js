@@ -203,6 +203,7 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
 test('buildGuestDraftSessionSummary keeps the persisted post-login restore details serializable', () => {
   assert.deepEqual(buildGuestDraftSessionSummary({
     recommendationDraft: { room: '거실' },
+    spaceProfile: { spaces: ['living', 'bed1'] },
     continuity: {
       apartmentLabel: '래미안 포레스트 84A',
       selectedRooms: ['거실', '침실'],
@@ -214,6 +215,7 @@ test('buildGuestDraftSessionSummary keeps the persisted post-login restore detai
     apartmentLabel: '래미안 포레스트 84A',
     selectedRoomCount: 2,
     selectedRooms: ['거실', '침실'],
+    selectedSpaceIds: ['living', 'bed1'],
     recommendationRoom: '거실',
     wishlistCount: 1,
     cartCount: 1,
@@ -260,6 +262,7 @@ test('persistAuthSession stores the latest successful auth summary for the front
     },
     guestDraftSnapshot: {
       recommendationDraft: { room: '거실' },
+      spaceProfile: { spaces: ['living', 'bed1'] },
       continuity: {
         apartmentLabel: '래미안 포레스트 84A',
         selectedRooms: ['거실', '침실'],
