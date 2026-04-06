@@ -19,6 +19,14 @@ import {
   buildGuestDraftSnapshot,
 } from './components/auth-flow-state.js'
 import { submitAuthLoginPlan } from './components/auth-submit.js'
+import {
+  buildAuthConnectionSummary,
+  buildPersistedAuthHandoff,
+  buildPersistedAuthSession,
+  persistAuthHandoff,
+  persistAuthSession,
+  readPersistedAuthSession,
+} from './components/auth-storage.js'
 import { buildFilteredBedProducts } from './components/bed-filter-state.js'
 import { toggleWishlistId } from './components/wishlist-state.js'
 import {
@@ -468,7 +476,11 @@ function useEditorState() {
 
 const LOGIN_BUTTON_LABEL = '로그인'
 
-function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay, onOpenCart, cartCount, onSearchOpen, onOpenLogin }) {
+function resolveLoginButtonLabel(authSession) {
+  return authSession?.accountLabel ?? LOGIN_BUTTON_LABEL
+}
+
+function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay, onOpenCart, cartCount, onSearchOpen, onOpenLogin, authSession }) {
   return (
     <header className={`topbar ${dark ? 'dark' : ''}`}>
       <button className="logo logoBtn" onClick={() => onNavigate('home')}>HAVENLY</button>
@@ -491,7 +503,7 @@ function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay,
               <path d="M5.5 18.2c1.8-3.1 4.4-4.7 6.5-4.7s4.7 1.6 6.5 4.7" />
             </svg>
           </span>
-          <span>{LOGIN_BUTTON_LABEL}</span>
+          <span>{resolveLoginButtonLabel(authSession)}</span>
         </button>
         <button className="cart utilityButton utilityIconButton" onClick={onOpenCart} aria-label="장바구니 열기">🛒<span>{cartCount}</span></button>
       </div>
@@ -569,6 +581,7 @@ function App() {
     status: 'idle',
     result: null,
   })
+  const [authSession, setAuthSession] = React.useState(() => readPersistedAuthSession(globalThis.localStorage))
   const [engagement, setEngagement] = React.useState(initialEngagement)
 
   const selectedApartment = React.useMemo(
@@ -644,6 +657,11 @@ function App() {
     guestDraftSnapshot,
   }), [guestDraftSnapshot, loginForm.email, loginForm.password])
 
+  const authConnectionSummary = React.useMemo(
+    () => buildAuthConnectionSummary(authSubmitPlan, { apiBaseUrl: import.meta.env.VITE_API_BASE_URL }),
+    [authSubmitPlan],
+  )
+
   const authResultSummary = React.useMemo(
     () => loginForm.result ? buildAuthResultSummary(loginForm.result, authSubmitPlan.summary) : null,
     [authSubmitPlan.summary, loginForm.result],
@@ -664,12 +682,24 @@ function App() {
   const handleLoginSubmit = React.useCallback(async () => {
     if (!authSubmitPlan.canSubmit) return
 
+    persistAuthHandoff(
+      globalThis.sessionStorage,
+      buildPersistedAuthHandoff(authSubmitPlan, guestDraftSnapshot),
+    )
+
     setLoginForm((current) => ({ ...current, status: 'submitting', result: null }))
 
     try {
       const result = await submitAuthLoginPlan(authSubmitPlan, {
         apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
       })
+      const nextResultSummary = result.ok ? buildAuthResultSummary(result, authSubmitPlan.summary) : null
+
+      if (nextResultSummary) {
+        const nextSession = buildPersistedAuthSession(nextResultSummary)
+        persistAuthSession(globalThis.localStorage, nextSession)
+        setAuthSession(nextSession)
+      }
 
       setLoginForm((current) => ({
         ...current,
@@ -679,7 +709,7 @@ function App() {
     } catch {
       setLoginForm((current) => ({ ...current, status: 'error', result: null }))
     }
-  }, [authSubmitPlan])
+  }, [authSubmitPlan, guestDraftSnapshot])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),
@@ -717,6 +747,7 @@ function App() {
     onAddProductToLayout: addProductToLayout,
     trackBoardProgress,
     trackFurniturePlacement,
+    authSession,
     ...cartActions,
   }
 
@@ -817,6 +848,7 @@ function App() {
             authSubmitPlan={authSubmitPlan}
             authStatusMessage={authStatusMessage}
             authResultSummary={authResultSummary}
+            authConnectionSummary={authConnectionSummary}
             guestDraftSnapshot={guestDraftSnapshot}
             onChangeForm={(field, value) => setLoginForm((current) => ({ ...current, [field]: value, status: 'idle', result: null }))}
             onClose={() => setLoginModalState('closed')}
@@ -861,7 +893,7 @@ function renderScreen(screen, props) {
   }
 }
 
-function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, brief, summary, selectedSpaceSummary, onRecommend, onApplyToLayout, onOpenLogin }) {
+function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, brief, summary, selectedSpaceSummary, onRecommend, onApplyToLayout, onOpenLogin, authSession }) {
   const availableRooms = selectedSpaceSummary.availableRooms ?? roomOptions
   const unavailableRoomCount = roomOptions.length - availableRooms.length
   const roomHint = unavailableRoomCount > 0
@@ -874,7 +906,7 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
 
   return (
     <div className="screenCanvas warmBg">
-      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
+      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
       <div className="twoCol">
         <aside className="panel leftPanel">
           <div className="stepDots"><b className="on">1</b><span /><b className="done">2</b><span /><b>3</b></div>
@@ -1034,7 +1066,7 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
   )
 }
 
-function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, selectedSpaces, setSelectedSpaces, onOpenLogin }) {
+function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, selectedSpaces, setSelectedSpaces, onOpenLogin, authSession }) {
   return (
     <div className="screenCanvas sandBg">
       <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
@@ -1059,7 +1091,7 @@ function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearc
   )
 }
 
-function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary, onOpenLogin, onAddProductToLayout }) {
+function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary, onOpenLogin, onAddProductToLayout, authSession }) {
   const selectedMeta = React.useMemo(
     () => findLibraryItemMeta(libraryItems, editor.selected?.sourceId),
     [editor.selected?.sourceId],
@@ -1263,7 +1295,7 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
   )
 }
 
-function BedsCategoryScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, quickViewOpen, addToCart, filters, setFilters, items, wishlistedIds, toggleWishlist, onOpenLogin }) {
+function BedsCategoryScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, quickViewOpen, addToCart, filters, setFilters, items, wishlistedIds, toggleWishlist, onOpenLogin, authSession }) {
   const filterGroups = {
     size: ['전체', '슈퍼싱글', '퀸', '킹'],
     color: ['전체', '아이보리', '베이지', '우드', '그레이'],
@@ -1310,10 +1342,10 @@ function BedsCategoryScreen({ navigate, openOverlay, openCart, cartCount, onSear
   )
 }
 
-function FurnitureHomeScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, onOpenLogin, trackBoardProgress }) {
+function FurnitureHomeScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, onOpenLogin, trackBoardProgress, authSession }) {
   return (
     <div className="screenCanvas plainBg">
-      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
+      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
       <section className="heroBanner">
         <div>
           <div className="eyebrow darkEyebrow">FURNITURE FIRST</div>
@@ -1404,7 +1436,7 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
 }
 
 
-function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, authResultSummary, guestDraftSnapshot, onChangeForm, onClose, onProceed, onSubmit }) {
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, authResultSummary, authConnectionSummary, guestDraftSnapshot, onChangeForm, onClose, onProceed, onSubmit }) {
   const guarded = state === 'guard'
 
   return (
@@ -1454,6 +1486,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 <div><strong>AI 이력 저장</strong><span>공간별 추천 결과를 다시 불러올 수 있어요.</span></div>
                 <div><strong>보드 이어서 작업</strong><span>배치 중인 가구와 평면도 초안을 계정에 연결합니다.</span></div>
                 <div><strong>백엔드 전달 준비</strong><span>{authSubmitPlan.endpoint} 요청에 게스트 초안까지 같이 묶도록 구조를 맞췄어요.</span></div>
+                <div><strong>연결 대상</strong><span>{authConnectionSummary.targetLabel} · {authConnectionSummary.method} {authConnectionSummary.endpoint}</span></div>
               </div>
               <div className="loginForm">
                 <label>이메일</label>
@@ -1467,6 +1500,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                     <div><label>찜</label><b>{authSubmitPlan.summary.wishlistCount}개</b></div>
                     <div><label>장바구니</label><b>{authSubmitPlan.summary.cartCount}개</b></div>
                     <div><label>배치</label><b>{authSubmitPlan.summary.layoutItemCount}개</b></div>
+                    <div><label>대상</label><b>{authConnectionSummary.targetLabel}</b></div>
                     {authResultSummary?.accountLabel && <div><label>계정</label><b>{authResultSummary.accountLabel}</b></div>}
                     {authResultSummary?.sessionId && <div><label>세션</label><b>{authResultSummary.sessionId}</b></div>}
                   </div>
