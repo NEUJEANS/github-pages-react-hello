@@ -150,3 +150,36 @@ export async function readAuthSession({
     }
   }
 }
+
+export async function signOutAuthSession({
+  endpoint = '/api/auth/logout',
+  fetchImpl = fetch,
+  apiBaseUrl,
+  credentialsMode = 'include',
+} = {}) {
+  const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
+
+  try {
+    const { response, data, meta } = await requestAuthJson(resolvedEndpoint, {
+      method: 'POST',
+      credentials: credentialsMode,
+    }, { fetchImpl })
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+      meta,
+    }
+  } catch {
+    return {
+      ok: false,
+      status: 0,
+      data: { message: 'Auth logout request failed' },
+      meta: {
+        authMode: 'remote',
+        authTransport: 'network',
+      },
+    }
+  }
+}

@@ -19,7 +19,7 @@ import {
   buildAuthSubmitPlan,
   buildGuestDraftSnapshot,
 } from './components/auth-flow-state.js'
-import { readAuthSession, submitAuthLoginPlan } from './components/auth-submit.js'
+import { readAuthSession, signOutAuthSession, submitAuthLoginPlan } from './components/auth-submit.js'
 import { resolveAuthConfig } from './components/auth-config.js'
 import {
   buildAuthConnectionSummary,
@@ -773,7 +773,7 @@ function App() {
       if (!result.ok || cancelled) return
 
       const sessionConnection = buildAuthConnectionSummary({
-        endpoint: '/api/auth/session',
+        endpoint: authConfig.sessionEndpoint,
         method: 'GET',
       }, authConfig)
       const resultSummary = buildAuthResultSummary(result)
@@ -814,14 +814,19 @@ function App() {
     setLoginForm((current) => buildEmptyLoginForm(current.intent))
   }, [])
 
-  const handleLogout = React.useCallback(() => {
+  const handleLogout = React.useCallback(async () => {
+    await signOutAuthSession({
+      endpoint: authConfig.logoutEndpoint,
+      ...authConfig,
+    })
+
     clearPersistedAuthSession(globalThis.localStorage)
     clearPersistedAuthHandoff(globalThis.sessionStorage)
     setAuthSession(null)
     setAuthNoticeDismissed(false)
     setLoginModalState('closed')
     setLoginForm(buildEmptyLoginForm())
-  }, [])
+  }, [authConfig])
 
   const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
     const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { AUTH_HANDOFF_HEADER, AUTH_SCAFFOLD_HEADER, readAuthSession, resolveAuthEndpoint, submitAuthLoginPlan } from './auth-submit.js'
+import { AUTH_HANDOFF_HEADER, AUTH_SCAFFOLD_HEADER, readAuthSession, resolveAuthEndpoint, signOutAuthSession, submitAuthLoginPlan } from './auth-submit.js'
 
 test('resolveAuthEndpoint keeps local auth routes by default and prefixes configured api base urls', () => {
   assert.equal(resolveAuthEndpoint('/api/auth/login'), '/api/auth/login')
@@ -146,6 +146,44 @@ test('readAuthSession reads scaffold session state for frontend bootstrap wiring
       sessionId: 'demo-user-example-com',
       user: { email: 'user@example.com', name: 'user@example.com' },
     },
+    meta: {
+      authMode: 'scaffold',
+      authTransport: 'same-origin-middleware',
+    },
+  })
+})
+
+test('signOutAuthSession posts to the configured logout endpoint with credentials for scaffold teardown', async () => {
+  const calls = []
+  const result = await signOutAuthSession({
+    endpoint: '/api/auth/logout',
+    apiBaseUrl: 'https://api.example.com',
+    credentialsMode: 'same-origin',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options })
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          'content-type': 'application/json',
+          [AUTH_SCAFFOLD_HEADER]: 'true',
+        }),
+        json: async () => ({ ok: true }),
+      }
+    },
+  })
+
+  assert.deepEqual(calls, [{
+    url: 'https://api.example.com/api/auth/logout',
+    options: {
+      method: 'POST',
+      credentials: 'same-origin',
+    },
+  }])
+  assert.deepEqual(result, {
+    ok: true,
+    status: 200,
+    data: { ok: true },
     meta: {
       authMode: 'scaffold',
       authTransport: 'same-origin-middleware',

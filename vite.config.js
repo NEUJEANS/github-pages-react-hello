@@ -38,6 +38,12 @@ function havenlyAuthScaffoldPlugin() {
       return
     }
 
+    if (req.method === "POST" && req.url === "/api/auth/logout") {
+      latestSession = null
+      writeJson(res, 200, { ok: true }, { "x-havenly-auth-scaffold": "true" })
+      return
+    }
+
     if (req.method !== "POST" || req.url !== "/api/auth/login") {
       next()
       return

@@ -35,6 +35,9 @@ export function resolveAuthConfig({
   const querySessionEndpoint = readString(params.get('authSessionEndpoint'))
   const runtimeSessionEndpoint = readString(runtimeConfig?.sessionEndpoint)
   const envSessionEndpoint = readString(env?.VITE_AUTH_SESSION_ENDPOINT)
+  const queryLogoutEndpoint = readString(params.get('authLogoutEndpoint'))
+  const runtimeLogoutEndpoint = readString(runtimeConfig?.logoutEndpoint)
+  const envLogoutEndpoint = readString(env?.VITE_AUTH_LOGOUT_ENDPOINT)
   const queryCredentialMode = readCredentialMode(params.get('authCredentials'))
   const runtimeCredentialMode = readCredentialMode(runtimeConfig?.credentialsMode)
   const envCredentialMode = readCredentialMode(env?.VITE_AUTH_CREDENTIALS)
@@ -58,6 +61,12 @@ export function resolveAuthConfig({
         || querySessionEndpoint
         || envSessionEndpoint,
       '/api/auth/session',
+    ),
+    logoutEndpoint: readEndpoint(
+      runtimeLogoutEndpoint
+        || queryLogoutEndpoint
+        || envLogoutEndpoint,
+      '/api/auth/logout',
     ),
     credentialsMode: runtimeCredentialMode
       || queryCredentialMode
