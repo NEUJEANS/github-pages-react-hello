@@ -161,6 +161,16 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
       mergeResolution: 'keep-guest',
       intent: { source: 'cart-drawer', action: 'checkout-cart', label: '로그인 후 주문 이어가기', draftLabel: '장바구니 2개' },
     },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: 'https://api.example.com/api/auth/login',
+      targetLabel: 'api.example.com',
+      credentialsMode: 'include',
+      source: 'runtime',
+      isExternal: true,
+      isSameOriginScaffold: false,
+    },
   }
   const session = { accountLabel: 'user@example.com' }
   const resumeState = buildAuthResumeState(handoff, session)
@@ -171,6 +181,16 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
   assert.equal(resumeState.handoff, handoff)
   assert.equal(resumeState.session, session)
   assert.equal(resumeState.mergeResolution, 'keep-guest')
+  assert.deepEqual(resumeState.connection, {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: 'https://api.example.com/api/auth/login',
+    targetLabel: 'api.example.com',
+    credentialsMode: 'include',
+    source: 'runtime',
+    isExternal: true,
+    isSameOriginScaffold: false,
+  })
   assert.deepEqual(resumeState.intent, {
     source: 'cart-drawer',
     action: 'checkout-cart',

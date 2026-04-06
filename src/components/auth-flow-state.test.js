@@ -191,8 +191,14 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
 
 test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
   assert.match(
-    buildAuthStatusCopy('resume-ready', { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 0, cartCount: 0, layoutItemCount: 0 }),
-    /handoff auth-20260406123000-2n9c/,
+    buildAuthStatusCopy(
+      'resume-ready',
+      { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 0, cartCount: 0, layoutItemCount: 0 },
+      null,
+      null,
+      { targetLabel: 'api.example.com', endpoint: '/api/auth/login' },
+    ),
+    /handoff auth-20260406123000-2n9c.*api\.example\.com.*\/api\/auth\/login/,
   )
 
   assert.match(

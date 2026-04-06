@@ -195,9 +195,13 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
 
 export function buildAuthStatusCopy(status, summary, resultSummary = null, errorSummary = null, connectionSummary = null) {
   if (status === 'resume-ready') {
-    return summary.handoffId
+    const baseCopy = summary.handoffId
       ? `이전 로그인 시도가 남아 있어요. handoff ${summary.handoffId} 기준으로 입력한 이메일과 게스트 초안을 그대로 이어서 다시 연결할 수 있어요.`
       : '이전 로그인 시도가 남아 있어요. 입력한 이메일과 게스트 초안을 그대로 이어서 다시 연결할 수 있어요.'
+    const connectionCopy = connectionSummary?.targetLabel
+      ? ` 이전 연결 대상은 ${connectionSummary.targetLabel}${connectionSummary.endpoint ? ` (${connectionSummary.endpoint})` : ''}로 기록돼 있어요.`
+      : ''
+    return `${baseCopy}${connectionCopy}`
   }
   if (status === 'submitting') return '계정 연결 준비 중… 게스트 초안을 함께 묶고 있어요.'
   if (status === 'ready') {

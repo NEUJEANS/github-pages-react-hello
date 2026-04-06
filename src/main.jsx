@@ -499,6 +499,7 @@ function buildEmptyLoginForm(intent = null) {
     result: null,
     mergeResolution: null,
     intent: buildSerializableAuthIntent(intent),
+    connection: null,
   }
 }
 
@@ -707,9 +708,13 @@ function App() {
     [authSubmitPlan.summary, loginForm.result],
   )
 
+  const activeAuthStatusConnection = loginForm.status === 'resume-ready'
+    ? (loginForm.connection ?? authConnectionSummary)
+    : authConnectionSummary
+
   const authStatusMessage = React.useMemo(
-    () => buildAuthStatusCopy(loginForm.status, authSubmitPlan.summary, authResultSummary, authErrorSummary, authConnectionSummary),
-    [authConnectionSummary, authErrorSummary, authResultSummary, authSubmitPlan.summary, loginForm.status],
+    () => buildAuthStatusCopy(loginForm.status, authSubmitPlan.summary, authResultSummary, authErrorSummary, activeAuthStatusConnection),
+    [activeAuthStatusConnection, authErrorSummary, authResultSummary, authSubmitPlan.summary, loginForm.status],
   )
 
   const authSessionNotice = React.useMemo(
@@ -731,6 +736,7 @@ function App() {
       result: null,
       mergeResolution: null,
       intent: buildSerializableAuthIntent(intent) ?? current.intent ?? null,
+      connection: current.status === 'resume-ready' ? current.connection : null,
     }))
     setLoginModalState(hasLoginGuard ? 'guard' : 'form')
   }, [hasLoginGuard])
@@ -1675,7 +1681,10 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                   <strong>연결 준비 상태</strong>
                   <p className="muted">{authStatusMessage}</p>
                   {form.handoff && (
-                    <p className="muted">이전 시도: {form.handoff.submittedAt} · handoff {form.handoff.handoffId || form.handoff.summary?.handoffId || '미생성'} · 이메일 {form.handoff.email || '미입력'}</p>
+                    <p className="muted">이전 시도: {form.handoff.submittedAt} · handoff {form.handoff.handoffId || form.handoff.summary?.handoffId || '미생성'} · 이메일 {form.handoff.email || '미입력'}{form.connection?.targetLabel ? ` · 대상 ${form.connection.targetLabel}${form.connection.endpoint ? ` (${form.connection.endpoint})` : ''}` : ''}</p>
+                  )}
+                  {form.status === 'resume-ready' && form.connection?.resolvedUrl && form.connection.resolvedUrl !== authConnectionSummary.resolvedUrl && (
+                    <p className="muted">현재 auth 설정은 {authConnectionSummary.targetLabel}{authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''}로 바뀌어 있어요. 재시도하면 새 대상에 맞춰 다시 연결합니다.</p>
                   )}
                   {authErrorSummary && (
                     <p className="muted">오류 분류: {authErrorSummary.tone === 'credentials' ? '자격 증명' : authErrorSummary.tone === 'merge' ? '초안 병합' : authErrorSummary.tone === 'service' ? '인증 서비스' : '기타'}</p>

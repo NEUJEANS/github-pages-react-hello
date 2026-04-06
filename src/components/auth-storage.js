@@ -148,6 +148,7 @@ export function buildAuthResumeState(handoff, session = null) {
     session,
     mergeResolution: handoff.summary?.mergeResolution ?? null,
     intent: buildSerializableAuthIntent(handoff.summary?.intent ?? session?.intent ?? null),
+    connection: buildSerializableAuthConnection(handoff.connection ?? session?.connection ?? null),
   }
 }
 
