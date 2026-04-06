@@ -10,6 +10,7 @@ import {
   buildPersistedAuthHandoff,
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
+  clearPersistedAuthSession,
   persistAuthHandoff,
   persistAuthSession,
   readPersistedAuthHandoff,
@@ -170,4 +171,12 @@ test('persistAuthSession stores the latest successful auth summary for the front
     cartCount: 2,
     layoutItemCount: 3,
   })
+})
+
+test('clearPersistedAuthSession removes the saved auth shell state during logout/reset', () => {
+  const storage = createMemoryStorage()
+  storage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify({ accountLabel: 'user@example.com' }))
+
+  assert.equal(clearPersistedAuthSession(storage), true)
+  assert.equal(storage.getItem(AUTH_SESSION_STORAGE_KEY), null)
 })

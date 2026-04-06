@@ -27,6 +27,7 @@ import {
   buildPersistedAuthHandoff,
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
+  clearPersistedAuthSession,
   persistAuthHandoff,
   persistAuthSession,
   readPersistedAuthHandoff,
@@ -715,6 +716,19 @@ function App() {
     setLoginModalState(hasLoginGuard ? 'guard' : 'form')
   }, [hasLoginGuard])
 
+  const handleLogout = React.useCallback(() => {
+    clearPersistedAuthSession(globalThis.localStorage)
+    setAuthSession(null)
+    setAuthNoticeDismissed(false)
+    setLoginModalState('closed')
+    setLoginForm({
+      email: '',
+      password: '',
+      status: 'idle',
+      result: null,
+    })
+  }, [])
+
   const handleLoginSubmit = React.useCallback(async () => {
     if (!authSubmitPlan.canSubmit) return
 
@@ -842,7 +856,10 @@ function App() {
             <strong>{authSessionNotice.title}</strong>
             <p>{authSessionNotice.body}</p>
           </div>
-          <button className="ghost minor" onClick={() => setAuthNoticeDismissed(true)}>닫기</button>
+          <div className="authSessionNoticeActions">
+            <button className="ghost minor" onClick={handleLogout}>로그아웃</button>
+            <button className="ghost minor" onClick={() => setAuthNoticeDismissed(true)}>닫기</button>
+          </div>
         </div>
       )}
       <section className={`screenStage ${overlay ? 'overlayOpen' : ''}`}>

@@ -33,6 +33,7 @@ button:active { transform: translateY(0); }
 .authSessionNotice { max-width: var(--stage-max); margin: 0 auto 12px; padding: 14px 18px; border-radius: 22px; border: 1px solid rgba(139,115,85,.16); background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(248,243,236,.95)); box-shadow: 0 10px 28px rgba(36, 29, 20, 0.06); display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .authSessionNotice strong { display: block; margin-bottom: 4px; color: #5c4e40; }
 .authSessionNotice p { margin: 0; color: #75685b; line-height: 1.5; }
+.authSessionNoticeActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .screenStage { max-width: var(--stage-max); margin: 0 auto; position: relative; background: rgba(255,255,255,.52); border: 1px solid rgba(139,115,85,.12); border-radius: 32px; overflow: hidden; box-shadow: var(--shadow); }
 .eyebrow { margin: 0 0 10px; color: var(--accent); font-weight: 800; letter-spacing: .11em; text-transform: uppercase; font-size: 11px; }
 .subcopy { margin: 0; max-width: 56ch; color: #595959; font-size: 17px; line-height: 1.72; }

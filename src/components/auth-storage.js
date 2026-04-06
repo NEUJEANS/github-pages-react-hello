@@ -139,3 +139,7 @@ export function persistAuthSession(storage, session) {
 export function readPersistedAuthSession(storage) {
   return safeGetItem(storage, AUTH_SESSION_STORAGE_KEY)
 }
+
+export function clearPersistedAuthSession(storage) {
+  return safeRemoveItem(storage, AUTH_SESSION_STORAGE_KEY)
+}
