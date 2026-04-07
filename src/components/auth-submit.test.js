@@ -37,6 +37,7 @@ test('submitAuthLoginPlan sends the backend-ready payload as json with handoff c
       mergeResolution: 'keep-guest',
       handoffId: 'auth-20260406123000-2n9c',
       intent: { action: 'save-layout-draft', label: '로그인 후 보드 저장' },
+      continuation: { resumeToken: 'resume-123', nextAction: 'confirm-merge-resolution' },
     },
   }, {
     apiBaseUrl: 'https://api.example.com',
@@ -69,6 +70,7 @@ test('submitAuthLoginPlan sends the backend-ready payload as json with handoff c
     mergeResolution: 'keep-guest',
     handoffId: 'auth-20260406123000-2n9c',
     intent: { action: 'save-layout-draft', label: '로그인 후 보드 저장' },
+    continuation: { resumeToken: 'resume-123', nextAction: 'confirm-merge-resolution' },
   })
   assert.deepEqual(result, {
     ok: true,

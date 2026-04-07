@@ -77,6 +77,20 @@ export function buildGuestDraftSnapshot({
   }
 }
 
+function buildSerializableContinuation(continuation = null) {
+  if (!continuation || typeof continuation !== 'object') return null
+
+  const resumeToken = typeof continuation.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
+  const nextAction = typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : ''
+
+  if (!resumeToken && !nextAction) return null
+
+  return {
+    resumeToken: resumeToken || null,
+    nextAction: nextAction || null,
+  }
+}
+
 export function buildAuthSubmitPlan({
   email,
   password,
@@ -85,11 +99,13 @@ export function buildAuthSubmitPlan({
   handoffId = null,
   endpoint = '/api/auth/login',
   intent = null,
+  continuation = null,
 } = {}) {
   const normalizedEmail = sanitizeEmail(email)
   const normalizedHandoffId = sanitizeAuthHandoffId(handoffId)
   const hasPassword = password.trim().length >= 8
   const hasGuestDraft = Boolean(guestDraftSnapshot)
+  const serializableContinuation = buildSerializableContinuation(continuation)
 
   return {
     canSubmit: normalizedEmail.includes('@') && hasPassword,
@@ -103,6 +119,7 @@ export function buildAuthSubmitPlan({
       mergeResolution,
       handoffId: normalizedHandoffId || null,
       intent,
+      continuation: serializableContinuation,
     },
     summary: {
       email: normalizedEmail,
@@ -113,6 +130,7 @@ export function buildAuthSubmitPlan({
       hasRecommendationDraft: Boolean(guestDraftSnapshot?.recommendationDraft),
       mergeResolution,
       intent,
+      continuation: serializableContinuation,
     },
   }
 }

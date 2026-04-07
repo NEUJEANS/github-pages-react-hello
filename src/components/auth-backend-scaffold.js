@@ -170,6 +170,7 @@ export function buildAuthScaffoldResponse(request = {}) {
       guestDraftSnapshot,
       mergeResolution,
       intent: request.intent ?? null,
+      continuation: request.continuation ?? null,
     }),
   }
 }

@@ -210,12 +210,20 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
     credentialsMode,
     source,
   })
+  const continuation = plan.request?.continuation && typeof plan.request.continuation === 'object'
+    ? {
+        resumeToken: typeof plan.request.continuation.resumeToken === 'string' ? plan.request.continuation.resumeToken.trim() : '',
+        nextAction: typeof plan.request.continuation.nextAction === 'string' ? plan.request.continuation.nextAction.trim() : '',
+      }
+    : null
   const requestInit = {
     method: plan.method,
     credentials: credentialsMode,
     headers: {
       'content-type': 'application/json',
       ...(plan.handoffId ? { [AUTH_HANDOFF_HEADER]: plan.handoffId } : {}),
+      ...(continuation?.resumeToken ? { [AUTH_RESUME_TOKEN_HEADER]: continuation.resumeToken } : {}),
+      ...(continuation?.nextAction ? { [AUTH_NEXT_ACTION_HEADER]: continuation.nextAction } : {}),
       ...connectionHeaders,
     },
     body: JSON.stringify(plan.request),

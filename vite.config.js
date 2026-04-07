@@ -151,8 +151,8 @@ function havenlyAuthScaffoldPlugin() {
           },
           connection,
           continuation: {
-            resumeToken: response.data?.resumeToken ?? null,
-            nextAction: response.data?.nextAction ?? null,
+            resumeToken: response.data?.resumeToken ?? req.headers[AUTH_RESUME_TOKEN_HEADER] ?? request.continuation?.resumeToken ?? null,
+            nextAction: response.data?.nextAction ?? req.headers[AUTH_NEXT_ACTION_HEADER] ?? request.continuation?.nextAction ?? null,
           },
           guestDraftSnapshot: request.guestDraftSnapshot ?? null,
           allowedMergeResolutions: response.data?.allowedMergeResolutions ?? null,

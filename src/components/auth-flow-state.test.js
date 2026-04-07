@@ -64,6 +64,7 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request with handoff
     handoffId: 'auth-20260406123000-2n9c',
     endpoint: '/internal/auth/login',
     intent: { action: 'save-layout-draft', label: '로그인 후 보드 저장' },
+    continuation: { resumeToken: 'resume-123', nextAction: 'confirm-merge-resolution' },
     guestDraftSnapshot: {
       recommendationDraft: { room: '거실' },
       continuity: {
@@ -88,6 +89,7 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request with handoff
   assert.equal(plan.summary.hasRecommendationDraft, true)
   assert.equal(plan.summary.mergeResolution, null)
   assert.deepEqual(plan.summary.intent, { action: 'save-layout-draft', label: '로그인 후 보드 저장' })
+  assert.deepEqual(plan.summary.continuation, { resumeToken: 'resume-123', nextAction: 'confirm-merge-resolution' })
 })
 
 test('buildAuthResultSummary extracts backend auth response details without widening the login flow contract', () => {

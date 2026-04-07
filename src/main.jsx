@@ -1005,6 +1005,7 @@ function App() {
       handoffId: nextHandoffId,
       endpoint: authConfig.loginEndpoint,
       intent: buildSerializableAuthIntent(loginForm.intent),
+      continuation: buildSerializableAuthContinuation(loginForm.continuation),
     })
 
     if (!submitPlan.canSubmit) return
