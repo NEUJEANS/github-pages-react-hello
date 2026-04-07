@@ -12,11 +12,21 @@ function resolveNextActionScreen(nextAction) {
   }
 }
 
+function readContinuationNextAction(continuation = null) {
+  return typeof continuation?.nextAction === 'string' ? continuation.nextAction.trim() : ''
+}
+
+function readReturnScreen(intent = null) {
+  return typeof intent?.returnScreen === 'string' ? intent.returnScreen.trim() : ''
+}
+
+export function canResumePostAuthIntent(intent, fallbackScreen = null, continuation = null) {
+  return Boolean(readReturnScreen(intent) || resolveNextActionScreen(readContinuationNextAction(continuation)) || fallbackScreen)
+}
+
 export function resolvePostAuthScreen(intent, fallbackScreen = null, continuation = null) {
-  const returnScreen = typeof intent?.returnScreen === 'string' ? intent.returnScreen.trim() : ''
-  const continuationScreen = resolveNextActionScreen(
-    typeof continuation?.nextAction === 'string' ? continuation.nextAction.trim() : '',
-  )
+  const returnScreen = readReturnScreen(intent)
+  const continuationScreen = resolveNextActionScreen(readContinuationNextAction(continuation))
 
   return returnScreen || continuationScreen || fallbackScreen || null
 }

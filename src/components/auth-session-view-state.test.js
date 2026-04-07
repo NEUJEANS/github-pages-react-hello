@@ -51,6 +51,7 @@ test('buildAuthReadyPanelState summarizes the authenticated resume panel for boo
     connectionEndpoint: '/api/auth/login',
     primaryActionLabel: '보드 저장 이어가기',
     primaryActionHint: '로그인 후 저장하려던 배치 초안을 그대로 이어갈 수 있어요.',
+    primaryActionDisabled: false,
   })
 
   assert.equal(buildAuthReadyPanelState(null), null)
@@ -88,6 +89,7 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     connectionEndpoint: null,
     primaryActionLabel: '주문 흐름 이어가기',
     primaryActionHint: '계정 장바구니 기준으로 다음 주문 단계를 이어갈 수 있어요.',
+    primaryActionDisabled: false,
   })
 
   assert.deepEqual(buildAuthReadyPanelState({
@@ -121,6 +123,7 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     connectionEndpoint: null,
     primaryActionLabel: '계정 상태로 이어가기',
     primaryActionHint: '계정 기준으로 복원된 보드와 저장 상태를 레이아웃 화면에서 확인할 수 있어요.',
+    primaryActionDisabled: false,
   })
 
   assert.deepEqual(buildAuthReadyPanelState({
@@ -154,6 +157,42 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     connectionEndpoint: null,
     primaryActionLabel: '게스트 초안 이어가기',
     primaryActionHint: '병합된 게스트 초안을 레이아웃 흐름에서 바로 이어 확인할 수 있어요.',
+    primaryActionDisabled: false,
+  })
+
+  assert.deepEqual(buildAuthReadyPanelState({
+    accountLabel: 'user@example.com',
+    intent: {
+      label: '로그인 후 프로필 마무리',
+      returnScreen: 'layout',
+    },
+    continuation: {
+      nextAction: 'complete-profile',
+      resumeToken: 'auth-user-1234:profile',
+      status: 'action-required',
+      statusLabel: '프로필 보완 필요',
+    },
+  }), {
+    title: 'user@example.com 계정 연결됨',
+    subtitle: '현재 로그인 연결이 유지되고 있어요.',
+    restoredBits: [],
+    draftContextBits: [],
+    accountLabel: 'user@example.com',
+    handoffId: null,
+    sessionId: null,
+    mergeMode: null,
+    intentLabel: '로그인 후 프로필 마무리',
+    intentDraftLabel: null,
+    nextAction: 'complete-profile',
+    resumeToken: 'auth-user-1234:profile',
+    continuationStatus: 'action-required',
+    continuationStatusLabel: '프로필 보완 필요',
+    returnScreen: 'layout',
+    connectionLabel: null,
+    connectionEndpoint: null,
+    primaryActionLabel: '프로필 연동 준비 중',
+    primaryActionHint: '백엔드 인증은 연결됐지만, 프로필 보완 화면 연결은 아직 scaffold 단계예요.',
+    primaryActionDisabled: true,
   })
 })
 

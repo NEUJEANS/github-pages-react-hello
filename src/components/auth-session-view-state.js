@@ -22,31 +22,43 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
       return {
         primaryActionLabel: '보드 저장 이어가기',
         primaryActionHint: '로그인 후 저장하려던 배치 초안을 그대로 이어갈 수 있어요.',
+        primaryActionDisabled: false,
       }
     case 'resume-layout-checkout':
       return {
         primaryActionLabel: '레이아웃 점검 이어가기',
         primaryActionHint: '백엔드가 요구한 다음 단계에 맞춰 레이아웃 화면으로 복귀할 수 있어요.',
+        primaryActionDisabled: false,
       }
     case 'resume-guest-draft':
       return {
         primaryActionLabel: '게스트 초안 이어가기',
         primaryActionHint: '병합된 게스트 초안을 레이아웃 흐름에서 바로 이어 확인할 수 있어요.',
+        primaryActionDisabled: false,
       }
     case 'resume-account-state':
       return {
         primaryActionLabel: '계정 상태로 이어가기',
         primaryActionHint: '계정 기준으로 복원된 보드와 저장 상태를 레이아웃 화면에서 확인할 수 있어요.',
+        primaryActionDisabled: false,
       }
     case 'checkout-cart':
       return {
         primaryActionLabel: '주문 흐름 이어가기',
         primaryActionHint: '계정 장바구니 기준으로 다음 주문 단계를 이어갈 수 있어요.',
+        primaryActionDisabled: false,
       }
     case 'complete-profile':
       return {
-        primaryActionLabel: '프로필 준비 상태 확인',
-        primaryActionHint: '백엔드 인증은 연결됐지만, 프로필 보완 단계가 아직 남아 있어요.',
+        primaryActionLabel: '프로필 연동 준비 중',
+        primaryActionHint: '백엔드 인증은 연결됐지만, 프로필 보완 화면 연결은 아직 scaffold 단계예요.',
+        primaryActionDisabled: true,
+      }
+    case 'verify-email':
+      return {
+        primaryActionLabel: '이메일 인증 대기 중',
+        primaryActionHint: '백엔드가 이메일 인증 단계를 요구하고 있어요. 프론트 연결은 다음 checkpoint에서 붙이면 돼요.',
+        primaryActionDisabled: true,
       }
     default:
       return {
@@ -54,6 +66,7 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
         primaryActionHint: returnScreen
           ? '저장된 복귀 화면으로 돌아가 다음 작업을 이어갈 수 있어요.'
           : '현재 인증 연결 상태와 복원된 작업 정보를 확인할 수 있어요.',
+        primaryActionDisabled: false,
       }
   }
 }
@@ -83,7 +96,7 @@ export function buildAuthReadyPanelState(session = null) {
       ? '계정 상태로 전환된 상태예요.'
       : '현재 로그인 연결이 유지되고 있어요.'
 
-  const { primaryActionLabel, primaryActionHint } = resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen)
+  const { primaryActionLabel, primaryActionHint, primaryActionDisabled } = resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen)
 
   return {
     title,
@@ -105,6 +118,7 @@ export function buildAuthReadyPanelState(session = null) {
     connectionEndpoint: session.connection?.endpoint ?? null,
     primaryActionLabel,
     primaryActionHint,
+    primaryActionDisabled,
   }
 }
 

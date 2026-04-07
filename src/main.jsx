@@ -41,6 +41,7 @@ import { buildAuthReadyPanelState, buildAuthSessionNotice } from './components/a
 import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
 import {
+  canResumePostAuthIntent,
   resolvePostAuthScreen,
   shouldCloseLoginModalAfterAuth,
 } from './components/auth-intent-state.js'
@@ -1009,11 +1010,12 @@ function App() {
   }, [authConfig])
 
   const handleResumeAuthenticatedIntent = React.useCallback(() => {
-    const nextScreen = resolvePostAuthScreen(
-      loginForm.intent ?? authSession?.intent ?? null,
-      null,
-      authSession?.continuation ?? loginForm.continuation ?? null,
-    )
+    const nextIntent = loginForm.intent ?? authSession?.intent ?? null
+    const nextContinuation = authSession?.continuation ?? loginForm.continuation ?? null
+
+    if (!canResumePostAuthIntent(nextIntent, null, nextContinuation)) return
+
+    const nextScreen = resolvePostAuthScreen(nextIntent, null, nextContinuation)
     setLoginModalState('closed')
     if (nextScreen) navigate(nextScreen)
   }, [authSession?.continuation, authSession?.intent, loginForm.continuation, loginForm.intent, navigate])
@@ -1953,6 +1955,9 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 <p className="muted">{authReadyPanelState.subtitle}</p>
                 <p className="muted">이어갈 작업: {authReadyPanelState.intentLabel}{authReadyPanelState.intentDraftLabel ? ` · ${authReadyPanelState.intentDraftLabel}` : ''}</p>
                 {authReadyPanelState.primaryActionHint && <p className="muted">{authReadyPanelState.primaryActionHint}</p>}
+                {authReadyPanelState.primaryActionDisabled && (
+                  <p className="muted">이 단계는 백엔드 scaffold 계약만 살아 있고, 실제 프론트 화면 연결은 아직 준비 중이에요.</p>
+                )}
                 {(authReadyPanelState.nextAction || authReadyPanelState.continuationStatusLabel || authReadyPanelState.continuationStatus) && (
                   <p className="muted">백엔드 다음 액션: {authReadyPanelState.nextAction ?? 'next-action 미정'}{authReadyPanelState.resumeToken ? ` · token ${authReadyPanelState.resumeToken}` : ''}{authReadyPanelState.continuationStatusLabel ? ` · ${authReadyPanelState.continuationStatusLabel}` : authReadyPanelState.continuationStatus ? ` · ${authReadyPanelState.continuationStatus}` : ''}</p>
                 )}
@@ -1971,7 +1976,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
               </div>
               <div className="footerButtons stackOnMobile">
                 <button className="ghost" onClick={onClose}>닫기</button>
-                <button className="cta" onClick={onResumeAuthenticatedIntent}>{authReadyPanelState.primaryActionLabel}</button>
+                <button className="cta" disabled={authReadyPanelState.primaryActionDisabled} onClick={onResumeAuthenticatedIntent}>{authReadyPanelState.primaryActionLabel}</button>
               </div>
             </div>
           ) : (
