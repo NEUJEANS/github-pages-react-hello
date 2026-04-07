@@ -203,22 +203,22 @@ test('buildAuthResultSummary extracts backend auth response details without wide
   })
 })
 
-test('buildAuthResultSummary can preserve a serialized auth intent from fallback bootstrap state when the backend session is sparse', () => {
+test('buildAuthResultSummary can preserve serialized auth handoff context from fallback bootstrap state when the backend session is sparse', () => {
+  const fallbackConnection = {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: '/api/auth/login',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode: 'include',
+    source: 'default',
+  }
+
   const summary = buildAuthResultSummary({
     data: {
       sessionId: 'session-bootstrap-1',
       user: { email: 'user@example.com' },
-      connection: {
-        method: 'POST',
-        endpoint: '/api/auth/login',
-        resolvedUrl: '/api/auth/login',
-        targetLabel: 'same-origin /api auth scaffold',
-        isExternal: false,
-        isSameOriginScaffold: true,
-        credentialsMode: 'include',
-        source: 'default',
-      },
-      nextAction: 'save-layout-draft',
     },
     meta: {
       authMode: 'scaffold',
@@ -230,12 +230,29 @@ test('buildAuthResultSummary can preserve a serialized auth intent from fallback
     cartCount: 1,
     layoutItemCount: 3,
     hasRecommendationDraft: true,
+    guestDraftSummary: {
+      apartmentLabel: '래미안 포레스트 84A',
+      selectedRoomCount: 2,
+      selectedRooms: ['거실', '침실'],
+      selectedSpaceIds: ['living', 'bed1'],
+      recommendationRoom: '거실',
+      wishlistCount: 2,
+      cartCount: 1,
+      layoutItemCount: 3,
+    },
     intent: {
       source: 'layout-editor',
       action: 'save-layout-draft',
       label: '로그인 후 보드 저장',
       returnScreen: 'layout',
       draftLabel: '거실 84A',
+    },
+    connection: fallbackConnection,
+    continuation: {
+      resumeToken: 'resume-bootstrap-123',
+      nextAction: 'save-layout-draft',
+      status: 'action-required',
+      statusLabel: '보드 저장 준비',
     },
   })
 
@@ -247,11 +264,25 @@ test('buildAuthResultSummary can preserve a serialized auth intent from fallback
     returnScreen: 'layout',
     draftLabel: '거실 84A',
   })
+  assert.deepEqual(summary.connection, fallbackConnection)
+  assert.deepEqual(summary.guestDraftSummary, {
+    apartmentLabel: '래미안 포레스트 84A',
+    selectedRoomCount: 2,
+    selectedRooms: ['거실', '침실'],
+    selectedSpaceIds: ['living', 'bed1'],
+    recommendationRoom: '거실',
+    wishlistCount: 2,
+    cartCount: 1,
+    layoutItemCount: 3,
+  })
   assert.equal(summary.wishlistCount, 2)
   assert.equal(summary.cartCount, 1)
   assert.equal(summary.layoutItemCount, 3)
   assert.equal(summary.hasRecommendationDraft, true)
+  assert.equal(summary.resumeToken, 'resume-bootstrap-123')
   assert.equal(summary.nextAction, 'save-layout-draft')
+  assert.equal(summary.continuationStatus, 'action-required')
+  assert.equal(summary.continuationStatusLabel, '보드 저장 준비')
 })
 
 test('buildAuthErrorSummary categorizes backend auth failures for the modal state', () => {

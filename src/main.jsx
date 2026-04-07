@@ -550,6 +550,8 @@ function buildAuthSessionResultSummary(session = null) {
     connection: session.connection ?? null,
     resumeToken: session.continuation?.resumeToken ?? null,
     nextAction: session.continuation?.nextAction ?? null,
+    continuationStatus: session.continuation?.status ?? null,
+    continuationStatusLabel: session.continuation?.statusLabel ?? null,
     authMode: session.authMode ?? 'remote',
     authTransport: session.authTransport ?? 'network',
   }
@@ -836,7 +838,12 @@ function App() {
           cartCount: persistedAuthSession?.cartCount ?? persistedAuthHandoff?.summary?.cartCount ?? 0,
           layoutItemCount: persistedAuthSession?.layoutItemCount ?? persistedAuthHandoff?.summary?.layoutItemCount ?? 0,
           hasRecommendationDraft: persistedAuthSession?.hasRecommendationDraft ?? persistedAuthHandoff?.summary?.hasRecommendationDraft ?? false,
+          guestDraftSummary: persistedAuthSession?.guestDraftSummary ?? null,
           intent: persistedAuthSession?.intent ?? persistedAuthHandoff?.summary?.intent ?? null,
+          connection: persistedAuthSession?.connection ?? persistedAuthHandoff?.connection ?? authLoginConnectionSummary ?? sessionConnection,
+          continuation: persistedAuthSession?.continuation ?? persistedAuthHandoff?.continuation ?? null,
+          authMode: persistedAuthSession?.authMode ?? null,
+          authTransport: persistedAuthSession?.authTransport ?? null,
         }
         const resultSummary = buildAuthResultSummary(result, bootstrapFallbackSummary)
         const nextSession = buildPersistedAuthSession(resultSummary, {

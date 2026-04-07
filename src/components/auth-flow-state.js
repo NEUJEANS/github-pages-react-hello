@@ -154,6 +154,7 @@ export function buildAuthResultSummary(result, fallbackSummary = {}) {
   const fallbackLayoutCount = fallbackSummary.layoutItemCount ?? 0
   const fallbackWishlistCount = fallbackSummary.wishlistCount ?? 0
   const fallbackCartCount = fallbackSummary.cartCount ?? 0
+  const fallbackContinuation = fallbackSummary.continuation ?? null
 
   return {
     sessionId: data.sessionId ?? data.session?.id ?? null,
@@ -171,15 +172,15 @@ export function buildAuthResultSummary(result, fallbackSummary = {}) {
     cartCount: fallbackCartCount,
     layoutItemCount: fallbackLayoutCount,
     hasRecommendationDraft: fallbackSummary.hasRecommendationDraft ?? false,
-    guestDraftSummary: data.guestDraftSummary ?? null,
+    guestDraftSummary: data.guestDraftSummary ?? fallbackSummary.guestDraftSummary ?? null,
     intent: data.intent ?? fallbackSummary.intent ?? null,
-    connection: data.connection ?? data.authConnection ?? null,
-    resumeToken: data.resumeToken ?? null,
-    nextAction: data.nextAction ?? null,
-    continuationStatus: data.status ?? null,
-    continuationStatusLabel: data.statusLabel ?? null,
-    authMode: meta.authMode ?? 'remote',
-    authTransport: meta.authTransport ?? 'network',
+    connection: data.connection ?? data.authConnection ?? fallbackSummary.connection ?? null,
+    resumeToken: data.resumeToken ?? fallbackContinuation?.resumeToken ?? null,
+    nextAction: data.nextAction ?? fallbackContinuation?.nextAction ?? null,
+    continuationStatus: data.status ?? fallbackContinuation?.status ?? null,
+    continuationStatusLabel: data.statusLabel ?? fallbackContinuation?.statusLabel ?? null,
+    authMode: meta.authMode ?? fallbackSummary.authMode ?? 'remote',
+    authTransport: meta.authTransport ?? fallbackSummary.authTransport ?? 'network',
   }
 }
 
