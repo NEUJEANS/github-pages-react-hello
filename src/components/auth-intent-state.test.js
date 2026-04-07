@@ -13,6 +13,8 @@ test('resolvePostAuthScreen prefers the serialized return screen from auth inten
 test('resolvePostAuthScreen can fall back to backend continuation actions when no return screen is present', () => {
   assert.equal(resolvePostAuthScreen(null, null, { nextAction: 'save-layout-draft' }), 'layout')
   assert.equal(resolvePostAuthScreen(null, null, { nextAction: 'resume-layout-checkout' }), 'layout')
+  assert.equal(resolvePostAuthScreen(null, null, { nextAction: 'resume-guest-draft' }), 'layout')
+  assert.equal(resolvePostAuthScreen(null, null, { nextAction: 'resume-account-state' }), 'layout')
   assert.equal(resolvePostAuthScreen(null, null, { nextAction: 'checkout-cart' }), 'home')
   assert.equal(resolvePostAuthScreen(null, 'beds', { nextAction: 'complete-profile' }), 'beds')
 })

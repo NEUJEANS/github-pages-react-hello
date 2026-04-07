@@ -2,6 +2,8 @@ function resolveNextActionScreen(nextAction) {
   switch (nextAction) {
     case 'save-layout-draft':
     case 'resume-layout-checkout':
+    case 'resume-guest-draft':
+    case 'resume-account-state':
       return 'layout'
     case 'checkout-cart':
       return 'home'

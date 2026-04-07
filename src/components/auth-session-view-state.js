@@ -28,6 +28,16 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
         primaryActionLabel: '레이아웃 점검 이어가기',
         primaryActionHint: '백엔드가 요구한 다음 단계에 맞춰 레이아웃 화면으로 복귀할 수 있어요.',
       }
+    case 'resume-guest-draft':
+      return {
+        primaryActionLabel: '게스트 초안 이어가기',
+        primaryActionHint: '병합된 게스트 초안을 레이아웃 흐름에서 바로 이어 확인할 수 있어요.',
+      }
+    case 'resume-account-state':
+      return {
+        primaryActionLabel: '계정 상태로 이어가기',
+        primaryActionHint: '계정 기준으로 복원된 보드와 저장 상태를 레이아웃 화면에서 확인할 수 있어요.',
+      }
     case 'checkout-cart':
       return {
         primaryActionLabel: '주문 흐름 이어가기',

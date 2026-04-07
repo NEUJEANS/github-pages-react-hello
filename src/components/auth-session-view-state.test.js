@@ -85,6 +85,68 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionLabel: '주문 흐름 이어가기',
     primaryActionHint: '계정 장바구니 기준으로 다음 주문 단계를 이어갈 수 있어요.',
   })
+
+  assert.deepEqual(buildAuthReadyPanelState({
+    accountLabel: 'user@example.com',
+    intent: {
+      label: '로그인 후 보드 저장',
+      draftLabel: '거실 84A',
+      returnScreen: null,
+    },
+    continuation: {
+      nextAction: 'resume-account-state',
+      resumeToken: 'auth-user-1234:resume',
+    },
+  }), {
+    title: 'user@example.com 계정 연결됨',
+    subtitle: '현재 로그인 연결이 유지되고 있어요.',
+    restoredBits: [],
+    draftContextBits: [],
+    accountLabel: 'user@example.com',
+    handoffId: null,
+    sessionId: null,
+    mergeMode: null,
+    intentLabel: '로그인 후 보드 저장',
+    intentDraftLabel: '거실 84A',
+    nextAction: 'resume-account-state',
+    resumeToken: 'auth-user-1234:resume',
+    returnScreen: null,
+    connectionLabel: null,
+    connectionEndpoint: null,
+    primaryActionLabel: '계정 상태로 이어가기',
+    primaryActionHint: '계정 기준으로 복원된 보드와 저장 상태를 레이아웃 화면에서 확인할 수 있어요.',
+  })
+
+  assert.deepEqual(buildAuthReadyPanelState({
+    accountLabel: 'user@example.com',
+    intent: {
+      label: '로그인 후 보드 저장',
+      draftLabel: '거실 84A',
+      returnScreen: null,
+    },
+    continuation: {
+      nextAction: 'resume-guest-draft',
+      resumeToken: 'auth-user-1234:resume',
+    },
+  }), {
+    title: 'user@example.com 계정 연결됨',
+    subtitle: '현재 로그인 연결이 유지되고 있어요.',
+    restoredBits: [],
+    draftContextBits: [],
+    accountLabel: 'user@example.com',
+    handoffId: null,
+    sessionId: null,
+    mergeMode: null,
+    intentLabel: '로그인 후 보드 저장',
+    intentDraftLabel: '거실 84A',
+    nextAction: 'resume-guest-draft',
+    resumeToken: 'auth-user-1234:resume',
+    returnScreen: null,
+    connectionLabel: null,
+    connectionEndpoint: null,
+    primaryActionLabel: '게스트 초안 이어가기',
+    primaryActionHint: '병합된 게스트 초안을 레이아웃 흐름에서 바로 이어 확인할 수 있어요.',
+  })
 })
 
 test('buildAuthSessionNotice summarizes restored guest draft details after login', () => {
