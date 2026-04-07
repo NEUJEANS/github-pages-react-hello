@@ -19,8 +19,12 @@ test('resolvePostAuthScreen can fall back to backend continuation actions when n
   assert.equal(resolvePostAuthScreen(null, 'beds', { nextAction: 'complete-profile' }), 'beds')
 })
 
-test('shouldCloseLoginModalAfterAuth closes only after successful auth results', () => {
+test('shouldCloseLoginModalAfterAuth closes only after successful auth results without backend blockers', () => {
   assert.equal(shouldCloseLoginModalAfterAuth({ ok: true }), true)
+  assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'resume-layout-checkout' } }), true)
+  assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'complete-profile' } }), false)
+  assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'verify-email' } }), false)
+  assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { status: 'action-required' } }), false)
   assert.equal(shouldCloseLoginModalAfterAuth({ ok: false }), false)
   assert.equal(shouldCloseLoginModalAfterAuth(null), false)
 })

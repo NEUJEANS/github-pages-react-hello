@@ -21,6 +21,22 @@ export function resolvePostAuthScreen(intent, fallbackScreen = null, continuatio
   return returnScreen || continuationScreen || fallbackScreen || null
 }
 
+function readContinuationAction(result) {
+  return typeof result?.data?.nextAction === 'string' ? result.data.nextAction.trim() : ''
+}
+
+function readContinuationStatus(result) {
+  return typeof result?.data?.status === 'string' ? result.data.status.trim() : ''
+}
+
 export function shouldCloseLoginModalAfterAuth(result) {
-  return Boolean(result?.ok)
+  if (!result?.ok) return false
+
+  const nextAction = readContinuationAction(result)
+  const status = readContinuationStatus(result)
+
+  if (status === 'action-required') return false
+  if (nextAction === 'complete-profile' || nextAction === 'verify-email') return false
+
+  return true
 }

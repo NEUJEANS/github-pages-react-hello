@@ -1085,7 +1085,11 @@ function App() {
       }))
 
       if (shouldCloseLoginModalAfterAuth(result)) {
-        const nextScreen = resolvePostAuthScreen(submitPlan.summary.intent)
+        const nextScreen = resolvePostAuthScreen(
+          submitPlan.summary.intent,
+          null,
+          nextContinuation,
+        )
         setLoginModalState('closed')
         if (nextScreen) navigate(nextScreen)
       }
