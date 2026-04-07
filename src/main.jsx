@@ -23,6 +23,7 @@ import { readAuthSession, signOutAuthSession, submitAuthLoginPlan } from './comp
 import { resolveAuthConfig } from './components/auth-config.js'
 import {
   buildAuthConnectionSummary,
+  buildAuthReadyState,
   buildAuthResumeState,
   buildPersistedAuthHandoff,
   buildSerializableAuthContinuation,
@@ -526,6 +527,33 @@ function buildEmptyLoginForm(intent = null) {
   }
 }
 
+function buildAuthSessionResultSummary(session = null) {
+  if (!session) return null
+
+  return {
+    accountLabel: session.accountLabel ?? null,
+    sessionId: session.sessionId ?? null,
+    handoffId: session.handoffId ?? null,
+    mergeMode: session.mergeMode ?? null,
+    mergedDraftCount: session.mergedDraftCount ?? 0,
+    restoredWishlistCount: session.restoredWishlistCount ?? 0,
+    restoredCartCount: session.restoredCartCount ?? 0,
+    restoredLayoutItemCount: session.restoredLayoutItemCount ?? 0,
+    restoredRecommendationDraft: Boolean(session.restoredRecommendationDraft),
+    wishlistCount: session.wishlistCount ?? 0,
+    cartCount: session.cartCount ?? 0,
+    layoutItemCount: session.layoutItemCount ?? 0,
+    hasRecommendationDraft: Boolean(session.hasRecommendationDraft),
+    guestDraftSummary: session.guestDraftSummary ?? null,
+    intent: session.intent ?? null,
+    connection: session.connection ?? null,
+    resumeToken: session.continuation?.resumeToken ?? null,
+    nextAction: session.continuation?.nextAction ?? null,
+    authMode: session.authMode ?? 'remote',
+    authTransport: session.authTransport ?? 'network',
+  }
+}
+
 function resolveLoginButtonLabel(authSession) {
   return authSession?.accountLabel ?? LOGIN_BUTTON_LABEL
 }
@@ -643,7 +671,9 @@ function App() {
   const [wishlistedIds, setWishlistedIds] = React.useState([])
   const [loginModalState, setLoginModalState] = React.useState(() => (persistedAuthHandoff ? 'form' : 'closed'))
   const [loginForm, setLoginForm] = React.useState(() => (
-    buildAuthResumeState(persistedAuthHandoff, persistedAuthSession) ?? buildEmptyLoginForm()
+    buildAuthResumeState(persistedAuthHandoff, persistedAuthSession)
+      ?? buildAuthReadyState(persistedAuthSession)
+      ?? buildEmptyLoginForm()
   ))
   const [authSession, setAuthSession] = React.useState(() => persistedAuthSession)
   const [authNoticeDismissed, setAuthNoticeDismissed] = React.useState(false)
@@ -738,8 +768,12 @@ function App() {
   )
 
   const authResultSummary = React.useMemo(
-    () => loginForm.result ? buildAuthResultSummary(loginForm.result, authSubmitPlan.summary) : null,
-    [authSubmitPlan.summary, loginForm.result],
+    () => {
+      if (loginForm.result) return buildAuthResultSummary(loginForm.result, authSubmitPlan.summary)
+      if (loginForm.status === 'ready') return buildAuthSessionResultSummary(authSession)
+      return null
+    },
+    [authSession, authSubmitPlan.summary, loginForm.result, loginForm.status],
   )
 
   const authErrorSummary = React.useMemo(
@@ -801,6 +835,21 @@ function App() {
   }, [authSession?.savedAt])
 
   React.useEffect(() => {
+    if (!authSession) return
+
+    setLoginForm((current) => {
+      if (current.status === 'submitting') return current
+      if (current.status === 'resume-ready' && current.handoff) return current
+
+      const nextReadyState = buildAuthReadyState(authSession, {
+        intent: current.intent ?? authSession.intent ?? null,
+      })
+
+      return nextReadyState ?? current
+    })
+  }, [authSession])
+
+  React.useEffect(() => {
     if (!authSession?.savedAt) {
       appliedAuthSessionRestoreRef.current = null
       return
@@ -845,17 +894,25 @@ function App() {
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 
   const openLogin = React.useCallback((intent = null) => {
-    setLoginForm((current) => ({
-      ...current,
-      handoffId: current.handoffId ?? createAuthHandoffId(),
-      status: current.status === 'resume-ready' ? 'resume-ready' : 'idle',
-      result: null,
-      mergeResolution: null,
-      intent: buildSerializableAuthIntent(intent) ?? current.intent ?? null,
-      connection: current.status === 'resume-ready' ? current.connection : null,
-    }))
-    setLoginModalState(hasLoginGuard ? 'guard' : 'form')
-  }, [hasLoginGuard])
+    setLoginForm((current) => {
+      const nextIntent = buildSerializableAuthIntent(intent) ?? current.intent ?? authSession?.intent ?? null
+
+      if (authSession && current.status !== 'resume-ready') {
+        return buildAuthReadyState(authSession, { intent: nextIntent }) ?? current
+      }
+
+      return {
+        ...current,
+        handoffId: current.handoffId ?? createAuthHandoffId(),
+        status: current.status === 'resume-ready' ? 'resume-ready' : 'idle',
+        result: null,
+        mergeResolution: null,
+        intent: nextIntent,
+        connection: current.status === 'resume-ready' ? current.connection : null,
+      }
+    })
+    setLoginModalState(authSession ? 'form' : hasLoginGuard ? 'guard' : 'form')
+  }, [authSession, hasLoginGuard])
 
   const handleDismissAuthResume = React.useCallback(() => {
     clearPersistedAuthHandoff(globalThis.sessionStorage)

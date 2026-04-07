@@ -176,6 +176,24 @@ export function buildAuthResumeState(handoff, session = null) {
   }
 }
 
+export function buildAuthReadyState(session = null, { intent = null } = {}) {
+  if (!session?.accountLabel && !session?.sessionId) return null
+
+  return {
+    email: session.accountLabel ?? '',
+    handoffId: session.handoffId ?? null,
+    status: 'ready',
+    result: null,
+    resumedAt: session.savedAt ?? new Date().toISOString(),
+    handoff: null,
+    session,
+    mergeResolution: null,
+    intent: buildSerializableAuthIntent(intent ?? session.intent ?? null),
+    connection: buildSerializableAuthConnection(session.connection ?? null),
+    continuation: buildSerializableAuthContinuation(session.continuation ?? null),
+  }
+}
+
 function safeSetItem(storage, key, value) {
   if (!storage?.setItem) return false
 

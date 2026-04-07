@@ -5,6 +5,7 @@ import {
   AUTH_HANDOFF_STORAGE_KEY,
   AUTH_SESSION_STORAGE_KEY,
   buildAuthConnectionSummary,
+  buildAuthReadyState,
   buildAuthResumeState,
   buildGuestDraftSessionSummary,
   buildSerializableAuthConnection,
@@ -248,6 +249,68 @@ test('buildGuestDraftSessionSummary keeps the persisted post-login restore detai
     wishlistCount: 1,
     cartCount: 1,
     layoutItemCount: 2,
+  })
+})
+
+
+test('buildAuthReadyState revives a bootstrapped scaffold session into the login modal state', () => {
+  const session = {
+    savedAt: '2026-04-06T07:01:00.000Z',
+    sessionId: 'sess_123',
+    handoffId: 'auth-20260406123000-2n9c',
+    accountLabel: 'user@example.com',
+    intent: {
+      source: 'layout-editor',
+      action: 'save-layout-draft',
+      label: '로그인 후 보드 저장',
+      returnScreen: 'layout',
+    },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
+    continuation: {
+      resumeToken: 'resume-session-123',
+      nextAction: 'resume-layout-checkout',
+    },
+  }
+
+  assert.deepEqual(buildAuthReadyState(session), {
+    email: 'user@example.com',
+    handoffId: 'auth-20260406123000-2n9c',
+    status: 'ready',
+    result: null,
+    resumedAt: '2026-04-06T07:01:00.000Z',
+    handoff: null,
+    session,
+    mergeResolution: null,
+    intent: {
+      source: 'layout-editor',
+      action: 'save-layout-draft',
+      label: '로그인 후 보드 저장',
+      returnScreen: 'layout',
+      draftLabel: null,
+    },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
+    continuation: {
+      resumeToken: 'resume-session-123',
+      nextAction: 'resume-layout-checkout',
+    },
   })
 })
 
