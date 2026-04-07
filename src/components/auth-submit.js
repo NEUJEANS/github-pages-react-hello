@@ -154,6 +154,40 @@ function buildResponseMeta(response) {
   }
 }
 
+function resolveAuthTargetLabel(endpoint) {
+  if (!/^https?:\/\//.test(endpoint)) return 'same-origin /api auth scaffold'
+
+  try {
+    return new URL(endpoint).host
+  } catch {
+    return endpoint
+  }
+}
+
+function buildAuthConnectionHeaders({ method, endpoint, resolvedEndpoint, credentialsMode, source }) {
+  const targetLabel = resolveAuthTargetLabel(resolvedEndpoint)
+
+  return {
+    headers: {
+      [AUTH_CONNECTION_METHOD_HEADER]: method,
+      [AUTH_CONNECTION_ENDPOINT_HEADER]: endpoint,
+      [AUTH_CONNECTION_TARGET_HEADER]: targetLabel,
+      [AUTH_CONNECTION_CREDENTIALS_HEADER]: credentialsMode,
+      [AUTH_CONNECTION_SOURCE_HEADER]: source,
+    },
+    connectionFallback: {
+      method,
+      endpoint,
+      resolvedUrl: resolvedEndpoint,
+      targetLabel,
+      isExternal: targetLabel !== 'same-origin /api auth scaffold',
+      isSameOriginScaffold: targetLabel === 'same-origin /api auth scaffold',
+      credentialsMode,
+      source,
+    },
+  }
+}
+
 async function requestAuthJson(endpoint, requestInit, { fetchImpl = fetch } = {}) {
   const response = await fetchImpl(endpoint, requestInit)
   const data = await parseAuthResponse(response)
@@ -169,26 +203,20 @@ async function requestAuthJson(endpoint, requestInit, { fetchImpl = fetch } = {}
 
 export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl, credentialsMode = 'include', source = 'default' } = {}) {
   const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
-  const targetLabel = /^https?:\/\//.test(endpoint)
-    ? (() => {
-        try {
-          return new URL(endpoint).host
-        } catch {
-          return endpoint
-        }
-      })()
-    : 'same-origin /api auth scaffold'
+  const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
+    method: plan.method,
+    endpoint: plan.endpoint,
+    resolvedEndpoint: endpoint,
+    credentialsMode,
+    source,
+  })
   const requestInit = {
     method: plan.method,
     credentials: credentialsMode,
     headers: {
       'content-type': 'application/json',
       ...(plan.handoffId ? { [AUTH_HANDOFF_HEADER]: plan.handoffId } : {}),
-      [AUTH_CONNECTION_METHOD_HEADER]: plan.method,
-      [AUTH_CONNECTION_ENDPOINT_HEADER]: plan.endpoint,
-      [AUTH_CONNECTION_TARGET_HEADER]: targetLabel,
-      [AUTH_CONNECTION_CREDENTIALS_HEADER]: credentialsMode,
-      [AUTH_CONNECTION_SOURCE_HEADER]: source,
+      ...connectionHeaders,
     },
     body: JSON.stringify(plan.request),
   }
@@ -209,16 +237,7 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
           : data,
         response,
         {
-          connectionFallback: {
-            method: plan.method,
-            endpoint: plan.endpoint,
-            resolvedUrl: endpoint,
-            targetLabel,
-            isExternal: targetLabel !== 'same-origin /api auth scaffold',
-            isSameOriginScaffold: targetLabel === 'same-origin /api auth scaffold',
-            credentialsMode,
-            source,
-          },
+          connectionFallback,
         },
       ),
       meta,
@@ -239,35 +258,27 @@ export async function readAuthSession({
   credentialsMode = 'include',
 } = {}) {
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
+  const source = apiBaseUrl ? 'env/runtime-configured' : 'default'
+  const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
+    method: 'GET',
+    endpoint,
+    resolvedEndpoint,
+    credentialsMode,
+    source,
+  })
 
   try {
     const { response, data, meta } = await requestAuthJson(resolvedEndpoint, {
       method: 'GET',
       credentials: credentialsMode,
+      headers: connectionHeaders,
     }, { fetchImpl })
 
     return {
       ok: response.ok,
       status: response.status,
       data: applyAuthResponseDecorators(data, response, {
-        connectionFallback: {
-          method: 'GET',
-          endpoint,
-          resolvedUrl: resolvedEndpoint,
-          targetLabel: /^https?:\/\//.test(resolvedEndpoint)
-            ? (() => {
-                try {
-                  return new URL(resolvedEndpoint).host
-                } catch {
-                  return resolvedEndpoint
-                }
-              })()
-            : 'same-origin /api auth scaffold',
-          isExternal: /^https?:\/\//.test(resolvedEndpoint),
-          isSameOriginScaffold: !/^https?:\/\//.test(resolvedEndpoint) && endpoint.startsWith('/api/auth'),
-          credentialsMode,
-          source: apiBaseUrl ? 'env/runtime-configured' : 'default',
-        },
+        connectionFallback,
       }),
       meta,
     }
@@ -291,35 +302,27 @@ export async function readAuthPending({
   credentialsMode = 'include',
 } = {}) {
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
+  const source = apiBaseUrl ? 'env/runtime-configured' : 'default'
+  const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
+    method: 'GET',
+    endpoint,
+    resolvedEndpoint,
+    credentialsMode,
+    source,
+  })
 
   try {
     const { response, data, meta } = await requestAuthJson(resolvedEndpoint, {
       method: 'GET',
       credentials: credentialsMode,
+      headers: connectionHeaders,
     }, { fetchImpl })
 
     return {
       ok: response.ok,
       status: response.status,
       data: applyAuthResponseDecorators(data, response, {
-        connectionFallback: {
-          method: 'GET',
-          endpoint,
-          resolvedUrl: resolvedEndpoint,
-          targetLabel: /^https?:\/\//.test(resolvedEndpoint)
-            ? (() => {
-                try {
-                  return new URL(resolvedEndpoint).host
-                } catch {
-                  return resolvedEndpoint
-                }
-              })()
-            : 'same-origin /api auth scaffold',
-          isExternal: /^https?:\/\//.test(resolvedEndpoint),
-          isSameOriginScaffold: !/^https?:\/\//.test(resolvedEndpoint) && endpoint.startsWith('/api/auth'),
-          credentialsMode,
-          source: apiBaseUrl ? 'env/runtime-configured' : 'default',
-        },
+        connectionFallback,
       }),
       meta,
     }
@@ -343,35 +346,27 @@ export async function signOutAuthSession({
   credentialsMode = 'include',
 } = {}) {
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
+  const source = apiBaseUrl ? 'env/runtime-configured' : 'default'
+  const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
+    method: 'POST',
+    endpoint,
+    resolvedEndpoint,
+    credentialsMode,
+    source,
+  })
 
   try {
     const { response, data, meta } = await requestAuthJson(resolvedEndpoint, {
       method: 'POST',
       credentials: credentialsMode,
+      headers: connectionHeaders,
     }, { fetchImpl })
 
     return {
       ok: response.ok,
       status: response.status,
       data: applyAuthResponseDecorators(data, response, {
-        connectionFallback: {
-          method: 'POST',
-          endpoint,
-          resolvedUrl: resolvedEndpoint,
-          targetLabel: /^https?:\/\//.test(resolvedEndpoint)
-            ? (() => {
-                try {
-                  return new URL(resolvedEndpoint).host
-                } catch {
-                  return resolvedEndpoint
-                }
-              })()
-            : 'same-origin /api auth scaffold',
-          isExternal: /^https?:\/\//.test(resolvedEndpoint),
-          isSameOriginScaffold: !/^https?:\/\//.test(resolvedEndpoint) && endpoint.startsWith('/api/auth'),
-          credentialsMode,
-          source: apiBaseUrl ? 'env/runtime-configured' : 'default',
-        },
+        connectionFallback,
       }),
       meta,
     }

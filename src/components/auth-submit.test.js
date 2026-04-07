@@ -173,6 +173,11 @@ test('readAuthSession reads scaffold session state for frontend bootstrap wiring
       assert.equal(url, '/api/auth/session')
       assert.equal(options.method, 'GET')
       assert.equal(options.credentials, 'include')
+      assert.equal(options.headers[AUTH_CONNECTION_METHOD_HEADER], 'GET')
+      assert.equal(options.headers[AUTH_CONNECTION_ENDPOINT_HEADER], '/api/auth/session')
+      assert.equal(options.headers[AUTH_CONNECTION_TARGET_HEADER], 'same-origin /api auth scaffold')
+      assert.equal(options.headers[AUTH_CONNECTION_CREDENTIALS_HEADER], 'include')
+      assert.equal(options.headers[AUTH_CONNECTION_SOURCE_HEADER], 'default')
       return {
         ok: true,
         status: 200,
@@ -234,6 +239,11 @@ test('readAuthPending reads interrupted scaffold handoff state for login resume 
       assert.equal(url, '/api/auth/pending')
       assert.equal(options.method, 'GET')
       assert.equal(options.credentials, 'include')
+      assert.equal(options.headers[AUTH_CONNECTION_METHOD_HEADER], 'GET')
+      assert.equal(options.headers[AUTH_CONNECTION_ENDPOINT_HEADER], '/api/auth/pending')
+      assert.equal(options.headers[AUTH_CONNECTION_TARGET_HEADER], 'same-origin /api auth scaffold')
+      assert.equal(options.headers[AUTH_CONNECTION_CREDENTIALS_HEADER], 'include')
+      assert.equal(options.headers[AUTH_CONNECTION_SOURCE_HEADER], 'default')
       return {
         ok: true,
         status: 200,
@@ -385,6 +395,13 @@ test('signOutAuthSession posts to the configured logout endpoint with credential
     options: {
       method: 'POST',
       credentials: 'same-origin',
+      headers: {
+        [AUTH_CONNECTION_METHOD_HEADER]: 'POST',
+        [AUTH_CONNECTION_ENDPOINT_HEADER]: '/api/auth/logout',
+        [AUTH_CONNECTION_TARGET_HEADER]: 'api.example.com',
+        [AUTH_CONNECTION_CREDENTIALS_HEADER]: 'same-origin',
+        [AUTH_CONNECTION_SOURCE_HEADER]: 'env/runtime-configured',
+      },
     },
   }])
   assert.deepEqual(result, {
