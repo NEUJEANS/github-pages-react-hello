@@ -289,10 +289,10 @@ export async function readAuthSession({
   apiBaseUrl,
   currentOrigin,
   credentialsMode = 'include',
+  source = apiBaseUrl ? 'env/runtime-configured' : 'default',
   connectionFallbackOverride = null,
 } = {}) {
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
-  const source = apiBaseUrl ? 'env/runtime-configured' : 'default'
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: 'GET',
     endpoint,
@@ -336,10 +336,10 @@ export async function readAuthPending({
   apiBaseUrl,
   currentOrigin,
   credentialsMode = 'include',
+  source = apiBaseUrl ? 'env/runtime-configured' : 'default',
   connectionFallbackOverride = null,
 } = {}) {
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
-  const source = apiBaseUrl ? 'env/runtime-configured' : 'default'
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: 'GET',
     endpoint,
@@ -383,9 +383,9 @@ export async function signOutAuthSession({
   apiBaseUrl,
   currentOrigin,
   credentialsMode = 'include',
+  source = apiBaseUrl ? 'env/runtime-configured' : 'default',
 } = {}) {
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
-  const source = apiBaseUrl ? 'env/runtime-configured' : 'default'
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: 'POST',
     endpoint,

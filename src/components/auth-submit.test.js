@@ -454,6 +454,28 @@ test('readAuthSession keeps absolute same-origin bootstrap targets canonical whe
   })
 })
 
+test('readAuthSession preserves the configured auth source label across bootstrap reads', async () => {
+  const calls = []
+  const result = await readAuthSession({
+    endpoint: '/api/auth/session',
+    apiBaseUrl: 'https://api.example.com',
+    credentialsMode: 'include',
+    source: 'env:VITE_AUTH_API_BASE_URL',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options })
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ ok: true }),
+      }
+    },
+  })
+
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_SOURCE_HEADER], 'env:VITE_AUTH_API_BASE_URL')
+  assert.equal(result.data.connection?.source, 'env:VITE_AUTH_API_BASE_URL')
+})
+
 test('readAuthSession can preserve the canonical login contract when bootstrap payloads omit connection metadata', async () => {
   const result = await readAuthSession({
     endpoint: '/api/auth/session',
@@ -600,6 +622,28 @@ test('readAuthPending keeps absolute same-origin bootstrap targets canonical whe
   })
 })
 
+test('readAuthPending preserves the configured auth source label across pending bootstrap reads', async () => {
+  const calls = []
+  const result = await readAuthPending({
+    endpoint: '/api/auth/pending',
+    apiBaseUrl: 'https://api.example.com',
+    credentialsMode: 'include',
+    source: 'query',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options })
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ handoffId: 'pending-1', status: 409 }),
+      }
+    },
+  })
+
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_SOURCE_HEADER], 'query')
+  assert.equal(result.data.connection?.source, 'query')
+})
+
 test('signOutAuthSession posts to the configured logout endpoint with credentials for scaffold teardown', async () => {
   const calls = []
   const result = await signOutAuthSession({
@@ -690,4 +734,26 @@ test('signOutAuthSession keeps absolute same-origin scaffold targets canonical w
     credentialsMode: 'include',
     source: 'env/runtime-configured',
   })
+})
+
+test('signOutAuthSession preserves the configured auth source label during logout wiring', async () => {
+  const calls = []
+  const result = await signOutAuthSession({
+    endpoint: '/api/auth/logout',
+    apiBaseUrl: 'https://api.example.com',
+    credentialsMode: 'include',
+    source: 'runtime',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options })
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ ok: true }),
+      }
+    },
+  })
+
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_SOURCE_HEADER], 'runtime')
+  assert.equal(result.data.connection?.source, 'runtime')
 })
