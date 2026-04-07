@@ -53,6 +53,36 @@ function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
   }
 }
 
+function buildContinuationStatus(nextAction, continuation = null) {
+  const explicitStatus = typeof continuation?.status === 'string' ? continuation.status.trim() : ''
+  const explicitStatusLabel = typeof continuation?.statusLabel === 'string' ? continuation.statusLabel.trim() : ''
+
+  if (explicitStatus || explicitStatusLabel) {
+    return {
+      status: explicitStatus || null,
+      statusLabel: explicitStatusLabel || null,
+    }
+  }
+
+  switch (nextAction) {
+    case 'complete-profile':
+      return {
+        status: 'action-required',
+        statusLabel: '프로필 보완 필요',
+      }
+    case 'verify-email':
+      return {
+        status: 'action-required',
+        statusLabel: '이메일 인증 필요',
+      }
+    default:
+      return {
+        status: null,
+        statusLabel: null,
+      }
+  }
+}
+
 function buildScaffoldContinuation({ intent = null, mergeResolution = null, handoffId = null, continuation = null } = {}) {
   const normalizedAction = typeof intent?.action === 'string' ? intent.action.trim() : ''
   const continuationAction = typeof continuation?.nextAction === 'string' ? continuation.nextAction.trim() : ''
@@ -62,10 +92,12 @@ function buildScaffoldContinuation({ intent = null, mergeResolution = null, hand
     : mergeResolution === 'keep-guest'
       ? 'resume-guest-draft'
       : 'resume-authenticated-flow'
+  const nextAction = normalizedAction || continuationAction || fallbackAction
 
   return {
     resumeToken: continuationToken || (handoffId ? `${handoffId}:resume` : null),
-    nextAction: normalizedAction || continuationAction || fallbackAction,
+    nextAction,
+    ...buildContinuationStatus(nextAction, continuation),
   }
 }
 

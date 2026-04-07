@@ -52,12 +52,16 @@ export function buildSerializableAuthContinuation(continuation = null) {
 
   const resumeToken = typeof continuation.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
   const nextAction = typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : ''
+  const status = typeof continuation.status === 'string' ? continuation.status.trim() : ''
+  const statusLabel = typeof continuation.statusLabel === 'string' ? continuation.statusLabel.trim() : ''
 
-  if (!resumeToken && !nextAction) return null
+  if (!resumeToken && !nextAction && !status && !statusLabel) return null
 
   return {
     resumeToken: resumeToken || null,
     nextAction: nextAction || null,
+    status: status || null,
+    statusLabel: statusLabel || null,
   }
 }
 
@@ -223,7 +227,14 @@ function buildAuthResumeResult(handoff = null) {
     status: status ?? 0,
     data: {
       ...(message ? { message } : {}),
-      ...(continuation ?? {}),
+      ...(continuation
+        ? {
+            ...(continuation.resumeToken ? { resumeToken: continuation.resumeToken } : {}),
+            ...(continuation.nextAction ? { nextAction: continuation.nextAction } : {}),
+            ...(continuation.status ? { status: continuation.status } : {}),
+            ...(continuation.statusLabel ? { statusLabel: continuation.statusLabel } : {}),
+          }
+        : {}),
       ...(allowedMergeResolutions !== undefined ? { allowedMergeResolutions } : {}),
     },
   }

@@ -124,10 +124,14 @@ test('buildSerializableAuthContinuation keeps backend resume contract fields com
   assert.deepEqual(buildSerializableAuthContinuation({
     resumeToken: ' resume-123 ',
     nextAction: ' confirm-merge-resolution ',
+    status: ' action-required ',
+    statusLabel: ' 프로필 보완 필요 ',
     ignored: { nested: true },
   }), {
     resumeToken: 'resume-123',
     nextAction: 'confirm-merge-resolution',
+    status: 'action-required',
+    statusLabel: '프로필 보완 필요',
   })
 })
 
@@ -199,6 +203,8 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
   assert.deepEqual(handoff.continuation, {
     resumeToken: 'resume-123',
     nextAction: 'confirm-merge-resolution',
+    status: null,
+    statusLabel: null,
   })
 })
 
@@ -273,6 +279,8 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
   assert.deepEqual(resumeState.continuation, {
     resumeToken: 'resume-123',
     nextAction: 'confirm-merge-resolution',
+    status: null,
+    statusLabel: null,
   })
 })
 
@@ -325,6 +333,8 @@ test('buildAuthReadyState revives a bootstrapped scaffold session into the login
     continuation: {
       resumeToken: 'resume-session-123',
       nextAction: 'resume-layout-checkout',
+      status: null,
+      statusLabel: null,
     },
     accountState: {
       wishlistIds: ['wish-account-1'],
@@ -369,6 +379,8 @@ test('buildAuthReadyState revives a bootstrapped scaffold session into the login
     continuation: {
       resumeToken: 'resume-session-123',
       nextAction: 'resume-layout-checkout',
+      status: null,
+      statusLabel: null,
     },
     accountState: {
       wishlistIds: ['wish-account-1'],
@@ -490,6 +502,8 @@ test('persistAuthSession stores the latest successful auth summary for the front
   assert.deepEqual(session.continuation, {
     resumeToken: 'resume-session-123',
     nextAction: 'resume-layout-checkout',
+    status: null,
+    statusLabel: null,
   })
   assert.deepEqual(session.accountState, {
     wishlistIds: ['wish-account-1'],

@@ -70,6 +70,8 @@ test('buildAuthScaffoldResponse preserves an upstream continuation contract when
     continuation: {
       resumeToken: 'resume-upstream-123',
       nextAction: 'resume-layout-checkout',
+      status: 'ready',
+      statusLabel: '이어서 진행 가능',
     },
     guestDraftSnapshot: {
       continuity: {
@@ -83,7 +85,26 @@ test('buildAuthScaffoldResponse preserves an upstream continuation contract when
   assert.equal(response.status, 200)
   assert.equal(response.data.resumeToken, 'resume-upstream-123')
   assert.equal(response.data.nextAction, 'resume-layout-checkout')
+  assert.equal(response.data.status, 'ready')
+  assert.equal(response.data.statusLabel, '이어서 진행 가능')
   assert.equal(response.data.handoffId, 'auth-continue-1234')
+})
+
+test('buildAuthScaffoldResponse derives an action-required blocker for complete-profile auth steps', () => {
+  const response = buildAuthScaffoldResponse({
+    email: 'user@example.com',
+    password: 'password123',
+    handoffId: 'auth-continue-1234',
+    continuation: {
+      resumeToken: 'resume-upstream-123',
+      nextAction: 'complete-profile',
+    },
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal(response.data.nextAction, 'complete-profile')
+  assert.equal(response.data.status, 'action-required')
+  assert.equal(response.data.statusLabel, '프로필 보완 필요')
 })
 
 test('buildAuthScaffoldResponse returns 409 for the merge-conflict demo password', () => {

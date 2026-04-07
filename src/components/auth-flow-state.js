@@ -82,12 +82,16 @@ function buildSerializableContinuation(continuation = null) {
 
   const resumeToken = typeof continuation.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
   const nextAction = typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : ''
+  const status = typeof continuation.status === 'string' ? continuation.status.trim() : ''
+  const statusLabel = typeof continuation.statusLabel === 'string' ? continuation.statusLabel.trim() : ''
 
-  if (!resumeToken && !nextAction) return null
+  if (!resumeToken && !nextAction && !status && !statusLabel) return null
 
   return {
     resumeToken: resumeToken || null,
     nextAction: nextAction || null,
+    status: status || null,
+    statusLabel: statusLabel || null,
   }
 }
 
@@ -172,6 +176,8 @@ export function buildAuthResultSummary(result, fallbackSummary = {}) {
     connection: data.connection ?? data.authConnection ?? null,
     resumeToken: data.resumeToken ?? null,
     nextAction: data.nextAction ?? null,
+    continuationStatus: data.status ?? null,
+    continuationStatusLabel: data.statusLabel ?? null,
     authMode: meta.authMode ?? 'remote',
     authTransport: meta.authTransport ?? 'network',
   }
@@ -230,8 +236,8 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
     const connectionCopy = connectionSummary?.targetLabel
       ? ` 이전 연결 대상은 ${connectionSummary.targetLabel}${connectionSummary.endpoint ? ` (${connectionSummary.endpoint})` : ''}로 기록돼 있어요.`
       : ''
-    const continuationCopy = resultSummary?.resumeToken || resultSummary?.nextAction
-      ? ` 백엔드 재개 계약은${resultSummary?.nextAction ? ` ${resultSummary.nextAction}` : ' 미정'}${resultSummary?.resumeToken ? ` · token ${resultSummary.resumeToken}` : ''} 상태예요.`
+    const continuationCopy = resultSummary?.resumeToken || resultSummary?.nextAction || resultSummary?.continuationStatusLabel
+      ? ` 백엔드 재개 계약은${resultSummary?.nextAction ? ` ${resultSummary.nextAction}` : ' 미정'}${resultSummary?.resumeToken ? ` · token ${resultSummary.resumeToken}` : ''}${resultSummary?.continuationStatusLabel ? ` · ${resultSummary.continuationStatusLabel}` : resultSummary?.continuationStatus ? ` · ${resultSummary.continuationStatus}` : ''} 상태예요.`
       : ''
     return `${baseCopy}${connectionCopy}${continuationCopy}`
   }
@@ -246,8 +252,8 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
     const modeCopy = resultSummary?.authMode === 'scaffold'
       ? ` · ${resultSummary.authTransport === 'same-origin-middleware' ? 'same-origin scaffold로 응답 확인' : 'local scaffold로 연결 유지'}`
       : ''
-    const continuationCopy = resultSummary?.nextAction || resultSummary?.resumeToken
-      ? ` · backend ${resultSummary?.nextAction ?? 'next-action 없음'}${resultSummary?.resumeToken ? ` (${resultSummary.resumeToken})` : ''}`
+    const continuationCopy = resultSummary?.nextAction || resultSummary?.resumeToken || resultSummary?.continuationStatusLabel
+      ? ` · backend ${resultSummary?.nextAction ?? 'next-action 없음'}${resultSummary?.resumeToken ? ` (${resultSummary.resumeToken})` : ''}${resultSummary?.continuationStatusLabel ? ` · ${resultSummary.continuationStatusLabel}` : resultSummary?.continuationStatus ? ` · ${resultSummary.continuationStatus}` : ''}`
       : ''
     return `백엔드 연결 준비 완료${accountCopy}${handoffCopy}${sessionCopy}${mergeCopy}${modeCopy}${continuationCopy} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
   }

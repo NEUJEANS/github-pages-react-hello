@@ -1933,8 +1933,8 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 <p className="muted">{authReadyPanelState.subtitle}</p>
                 <p className="muted">이어갈 작업: {authReadyPanelState.intentLabel}{authReadyPanelState.intentDraftLabel ? ` · ${authReadyPanelState.intentDraftLabel}` : ''}</p>
                 {authReadyPanelState.primaryActionHint && <p className="muted">{authReadyPanelState.primaryActionHint}</p>}
-                {authReadyPanelState.nextAction && (
-                  <p className="muted">백엔드 다음 액션: {authReadyPanelState.nextAction}{authReadyPanelState.resumeToken ? ` · token ${authReadyPanelState.resumeToken}` : ''}</p>
+                {(authReadyPanelState.nextAction || authReadyPanelState.continuationStatusLabel || authReadyPanelState.continuationStatus) && (
+                  <p className="muted">백엔드 다음 액션: {authReadyPanelState.nextAction ?? 'next-action 미정'}{authReadyPanelState.resumeToken ? ` · token ${authReadyPanelState.resumeToken}` : ''}{authReadyPanelState.continuationStatusLabel ? ` · ${authReadyPanelState.continuationStatusLabel}` : authReadyPanelState.continuationStatus ? ` · ${authReadyPanelState.continuationStatus}` : ''}</p>
                 )}
                 {authReadyPanelState.connectionLabel && (
                   <p className="muted">연결 대상: {authReadyPanelState.connectionLabel}{authReadyPanelState.connectionEndpoint ? ` (${authReadyPanelState.connectionEndpoint})` : ''}</p>

@@ -76,15 +76,21 @@ function readAuthContinuation(data = {}, response = null) {
   const headerResumeToken = readHeaderValue(response, AUTH_RESUME_TOKEN_HEADER)
   const bodyNextAction = typeof data?.nextAction === 'string' ? data.nextAction.trim() : ''
   const headerNextAction = readHeaderValue(response, AUTH_NEXT_ACTION_HEADER)
+  const bodyStatus = typeof data?.status === 'string' ? data.status.trim() : ''
+  const bodyStatusLabel = typeof data?.statusLabel === 'string' ? data.statusLabel.trim() : ''
 
   const resumeToken = bodyResumeToken || headerResumeToken || null
   const nextAction = bodyNextAction || headerNextAction || null
+  const status = bodyStatus || null
+  const statusLabel = bodyStatusLabel || null
 
-  if (!resumeToken && !nextAction) return null
+  if (!resumeToken && !nextAction && !status && !statusLabel) return null
 
   return {
     resumeToken,
     nextAction,
+    ...(status ? { status } : {}),
+    ...(statusLabel ? { statusLabel } : {}),
   }
 }
 

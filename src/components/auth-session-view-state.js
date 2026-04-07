@@ -72,6 +72,8 @@ export function buildAuthReadyPanelState(session = null) {
   const intentDraftLabel = session.intent?.draftLabel ?? null
   const nextAction = session.continuation?.nextAction ?? null
   const resumeToken = session.continuation?.resumeToken ?? null
+  const continuationStatus = session.continuation?.status ?? null
+  const continuationStatusLabel = session.continuation?.statusLabel ?? null
   const returnScreen = session.intent?.returnScreen ?? null
 
   const title = `${session.accountLabel} 계정 연결됨`
@@ -96,6 +98,8 @@ export function buildAuthReadyPanelState(session = null) {
     intentDraftLabel,
     nextAction,
     resumeToken,
+    continuationStatus,
+    continuationStatusLabel,
     returnScreen,
     connectionLabel: session.connection?.targetLabel ?? null,
     connectionEndpoint: session.connection?.endpoint ?? null,

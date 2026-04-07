@@ -89,7 +89,12 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request with handoff
   assert.equal(plan.summary.hasRecommendationDraft, true)
   assert.equal(plan.summary.mergeResolution, null)
   assert.deepEqual(plan.summary.intent, { action: 'save-layout-draft', label: '로그인 후 보드 저장' })
-  assert.deepEqual(plan.summary.continuation, { resumeToken: 'resume-123', nextAction: 'confirm-merge-resolution' })
+  assert.deepEqual(plan.summary.continuation, {
+    resumeToken: 'resume-123',
+    nextAction: 'confirm-merge-resolution',
+    status: null,
+    statusLabel: null,
+  })
 })
 
 test('buildAuthResultSummary extracts backend auth response details without widening the login flow contract', () => {
@@ -134,6 +139,8 @@ test('buildAuthResultSummary extracts backend auth response details without wide
       },
       resumeToken: 'resume-123',
       nextAction: 'resume-layout-checkout',
+      status: 'action-required',
+      statusLabel: '프로필 보완 필요',
     },
     meta: {
       authMode: 'scaffold',
@@ -189,6 +196,8 @@ test('buildAuthResultSummary extracts backend auth response details without wide
     },
     resumeToken: 'resume-123',
     nextAction: 'resume-layout-checkout',
+    continuationStatus: 'action-required',
+    continuationStatusLabel: '프로필 보완 필요',
     authMode: 'scaffold',
     authTransport: 'same-origin-middleware',
   })
@@ -309,11 +318,15 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
     buildAuthStatusCopy(
       'resume-ready',
       { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 0, cartCount: 0, layoutItemCount: 0 },
-      { resumeToken: 'resume-123', nextAction: 'resume-layout-checkout' },
+      {
+        resumeToken: 'resume-123',
+        nextAction: 'resume-layout-checkout',
+        continuationStatusLabel: '프로필 보완 필요',
+      },
       null,
       { targetLabel: 'api.example.com', endpoint: '/api/auth/login' },
     ),
-    /handoff auth-20260406123000-2n9c.*api\.example\.com.*\/api\/auth\/login.*resume-layout-checkout.*resume-123/,
+    /handoff auth-20260406123000-2n9c.*api\.example\.com.*\/api\/auth\/login.*resume-layout-checkout.*resume-123.*프로필 보완 필요/,
   )
 
   assert.match(
@@ -327,11 +340,11 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
         mergeMode: 'merged',
         resumeToken: 'resume-123',
         nextAction: 'resume-layout-checkout',
+        continuationStatusLabel: '프로필 보완 필요',
         authMode: 'scaffold',
         authTransport: 'same-origin-middleware',
       },
     ),
-    /user@example.com 계정과 연결 준비됨.*handoff auth-20260406123000-2n9c.*session-1.*게스트 초안 병합 완료.*same-origin scaffold로 응답 확인.*resume-layout-checkout.*resume-123/,
+    /user@example.com 계정과 연결 준비됨.*handoff auth-20260406123000-2n9c.*session-1.*게스트 초안 병합 완료.*same-origin scaffold로 응답 확인.*resume-layout-checkout.*resume-123.*프로필 보완 필요/,
   )
-}
-)
+})
