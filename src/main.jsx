@@ -985,10 +985,14 @@ function App() {
   }, [authConfig])
 
   const handleResumeAuthenticatedIntent = React.useCallback(() => {
-    const nextScreen = resolvePostAuthScreen(loginForm.intent ?? authSession?.intent ?? null)
+    const nextScreen = resolvePostAuthScreen(
+      loginForm.intent ?? authSession?.intent ?? null,
+      null,
+      authSession?.continuation ?? loginForm.continuation ?? null,
+    )
     setLoginModalState('closed')
     if (nextScreen) navigate(nextScreen)
-  }, [authSession?.intent, loginForm.intent, navigate])
+  }, [authSession?.continuation, authSession?.intent, loginForm.continuation, loginForm.intent, navigate])
 
   const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
     const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null
@@ -1919,6 +1923,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 <strong>{authReadyPanelState.title}</strong>
                 <p className="muted">{authReadyPanelState.subtitle}</p>
                 <p className="muted">이어갈 작업: {authReadyPanelState.intentLabel}{authReadyPanelState.intentDraftLabel ? ` · ${authReadyPanelState.intentDraftLabel}` : ''}</p>
+                {authReadyPanelState.primaryActionHint && <p className="muted">{authReadyPanelState.primaryActionHint}</p>}
                 {authReadyPanelState.nextAction && (
                   <p className="muted">백엔드 다음 액션: {authReadyPanelState.nextAction}{authReadyPanelState.resumeToken ? ` · token ${authReadyPanelState.resumeToken}` : ''}</p>
                 )}

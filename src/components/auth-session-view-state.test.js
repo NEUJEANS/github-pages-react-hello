@@ -47,10 +47,44 @@ test('buildAuthReadyPanelState summarizes the authenticated resume panel for boo
     returnScreen: 'layout',
     connectionLabel: 'same-origin /api auth scaffold',
     connectionEndpoint: '/api/auth/login',
-    primaryActionLabel: '로그인 후 보드 저장 이어가기',
+    primaryActionLabel: '보드 저장 이어가기',
+    primaryActionHint: '로그인 후 저장하려던 배치 초안을 그대로 이어갈 수 있어요.',
   })
 
   assert.equal(buildAuthReadyPanelState(null), null)
+})
+
+test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation actions', () => {
+  assert.deepEqual(buildAuthReadyPanelState({
+    accountLabel: 'user@example.com',
+    intent: {
+      label: '로그인 후 주문 이어가기',
+      draftLabel: '장바구니 2개',
+      returnScreen: null,
+    },
+    continuation: {
+      nextAction: 'checkout-cart',
+      resumeToken: 'auth-user-1234:resume',
+    },
+  }), {
+    title: 'user@example.com 계정 연결됨',
+    subtitle: '현재 로그인 연결이 유지되고 있어요.',
+    restoredBits: [],
+    draftContextBits: [],
+    accountLabel: 'user@example.com',
+    handoffId: null,
+    sessionId: null,
+    mergeMode: null,
+    intentLabel: '로그인 후 주문 이어가기',
+    intentDraftLabel: '장바구니 2개',
+    nextAction: 'checkout-cart',
+    resumeToken: 'auth-user-1234:resume',
+    returnScreen: null,
+    connectionLabel: null,
+    connectionEndpoint: null,
+    primaryActionLabel: '주문 흐름 이어가기',
+    primaryActionHint: '계정 장바구니 기준으로 다음 주문 단계를 이어갈 수 있어요.',
+  })
 })
 
 test('buildAuthSessionNotice summarizes restored guest draft details after login', () => {

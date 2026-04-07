@@ -16,6 +16,38 @@ function buildIntentCopy(intent) {
   return ` ${label}${draftCopy} 단계까지 이어서 진행할 수 있어요.`
 }
 
+function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
+  switch (nextAction) {
+    case 'save-layout-draft':
+      return {
+        primaryActionLabel: '보드 저장 이어가기',
+        primaryActionHint: '로그인 후 저장하려던 배치 초안을 그대로 이어갈 수 있어요.',
+      }
+    case 'resume-layout-checkout':
+      return {
+        primaryActionLabel: '레이아웃 점검 이어가기',
+        primaryActionHint: '백엔드가 요구한 다음 단계에 맞춰 레이아웃 화면으로 복귀할 수 있어요.',
+      }
+    case 'checkout-cart':
+      return {
+        primaryActionLabel: '주문 흐름 이어가기',
+        primaryActionHint: '계정 장바구니 기준으로 다음 주문 단계를 이어갈 수 있어요.',
+      }
+    case 'complete-profile':
+      return {
+        primaryActionLabel: '프로필 준비 상태 확인',
+        primaryActionHint: '백엔드 인증은 연결됐지만, 프로필 보완 단계가 아직 남아 있어요.',
+      }
+    default:
+      return {
+        primaryActionLabel: returnScreen ? `${intentLabel} 이어가기` : '계정 상태 확인',
+        primaryActionHint: returnScreen
+          ? '저장된 복귀 화면으로 돌아가 다음 작업을 이어갈 수 있어요.'
+          : '현재 인증 연결 상태와 복원된 작업 정보를 확인할 수 있어요.',
+      }
+  }
+}
+
 export function buildAuthReadyPanelState(session = null) {
   if (!session?.accountLabel) return null
 
@@ -39,9 +71,7 @@ export function buildAuthReadyPanelState(session = null) {
       ? '계정 상태로 전환된 상태예요.'
       : '현재 로그인 연결이 유지되고 있어요.'
 
-  const primaryActionLabel = returnScreen
-    ? `${intentLabel} 이어가기`
-    : '계정 상태 확인'
+  const { primaryActionLabel, primaryActionHint } = resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen)
 
   return {
     title,
@@ -60,6 +90,7 @@ export function buildAuthReadyPanelState(session = null) {
     connectionLabel: session.connection?.targetLabel ?? null,
     connectionEndpoint: session.connection?.endpoint ?? null,
     primaryActionLabel,
+    primaryActionHint,
   }
 }
 
