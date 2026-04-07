@@ -12,6 +12,7 @@ import {
   AUTH_STATUS_LABEL_HEADER,
 } from "./src/components/auth-submit.js"
 import {
+  buildAuthScaffoldPendingHandoff,
   buildAuthScaffoldPendingResponse,
   buildAuthScaffoldResponse,
   buildAuthScaffoldSessionResponse,
@@ -141,28 +142,20 @@ function havenlyAuthScaffoldPlugin() {
         }
         latestPendingHandoff = null
       } else if (request.handoffId || request.email) {
-        latestPendingHandoff = {
-          submittedAt: new Date().toISOString(),
-          handoffId: request.handoffId ?? null,
-          endpoint: connection.endpoint,
-          method: connection.method,
-          email: request.email ?? null,
-          summary: {
-            email: request.email ?? null,
-            handoffId: request.handoffId ?? null,
-            mergeResolution: request.mergeResolution ?? null,
-            intent: request.intent ?? null,
+        latestPendingHandoff = buildAuthScaffoldPendingHandoff({
+          request: {
+            ...request,
+            continuation: {
+              ...(request.continuation ?? {}),
+              resumeToken: response.data?.resumeToken ?? req.headers[AUTH_RESUME_TOKEN_HEADER] ?? request.continuation?.resumeToken ?? null,
+              nextAction: response.data?.nextAction ?? req.headers[AUTH_NEXT_ACTION_HEADER] ?? request.continuation?.nextAction ?? null,
+              status: response.data?.status ?? request.continuation?.status ?? null,
+              statusLabel: response.data?.statusLabel ?? request.continuation?.statusLabel ?? null,
+            },
           },
+          response,
           connection,
-          continuation: {
-            resumeToken: response.data?.resumeToken ?? req.headers[AUTH_RESUME_TOKEN_HEADER] ?? request.continuation?.resumeToken ?? null,
-            nextAction: response.data?.nextAction ?? req.headers[AUTH_NEXT_ACTION_HEADER] ?? request.continuation?.nextAction ?? null,
-          },
-          guestDraftSnapshot: request.guestDraftSnapshot ?? null,
-          allowedMergeResolutions: response.data?.allowedMergeResolutions ?? null,
-          error: response.data?.message ?? null,
-          status: response.status,
-        }
+        })
       }
 
       const responsePayload = latestSession && response.status >= 200 && response.status < 300 ? latestSession : response.data

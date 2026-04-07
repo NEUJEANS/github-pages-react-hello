@@ -151,6 +151,42 @@ export function buildAuthScaffoldSessionResponse(session = null) {
   }
 }
 
+export function buildAuthScaffoldPendingHandoff({ request = {}, response = {}, connection = null, submittedAt = new Date().toISOString() } = {}) {
+  const guestDraftSnapshot = request.guestDraftSnapshot ?? null
+  const summary = buildGuestDraftSessionSummary(guestDraftSnapshot)
+  const continuation = {
+    resumeToken: response.data?.resumeToken ?? request.continuation?.resumeToken ?? null,
+    nextAction: response.data?.nextAction ?? request.continuation?.nextAction ?? null,
+    status: response.data?.status ?? request.continuation?.status ?? null,
+    statusLabel: response.data?.statusLabel ?? request.continuation?.statusLabel ?? null,
+  }
+
+  return {
+    submittedAt,
+    handoffId: request.handoffId ?? null,
+    endpoint: connection?.endpoint ?? '/api/auth/login',
+    method: connection?.method ?? 'POST',
+    email: request.email ?? null,
+    summary: {
+      email: request.email ?? null,
+      handoffId: request.handoffId ?? null,
+      wishlistCount: summary?.wishlistCount ?? 0,
+      cartCount: summary?.cartCount ?? 0,
+      layoutItemCount: summary?.layoutItemCount ?? 0,
+      hasRecommendationDraft: Boolean(guestDraftSnapshot?.recommendationDraft),
+      mergeResolution: request.mergeResolution ?? null,
+      intent: request.intent ?? null,
+    },
+    connection,
+    continuation,
+    guestDraftSnapshot,
+    guestDraftSummary: summary,
+    allowedMergeResolutions: response.data?.allowedMergeResolutions ?? null,
+    error: response.data?.message ?? null,
+    status: response.status ?? null,
+  }
+}
+
 export function buildAuthScaffoldPendingResponse(pending = null) {
   if (!pending) {
     return {

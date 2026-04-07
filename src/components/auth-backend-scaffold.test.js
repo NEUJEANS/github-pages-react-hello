@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  buildAuthScaffoldPendingHandoff,
   buildAuthScaffoldPendingResponse,
   buildAuthScaffoldResponse,
   buildAuthScaffoldSessionResponse,
@@ -244,13 +245,150 @@ test('buildAuthScaffoldSessionResponse returns 401 when no scaffold auth session
   })
 })
 
+test('buildAuthScaffoldPendingHandoff keeps guest draft counts and continuation status for interrupted login retries', () => {
+  const pending = buildAuthScaffoldPendingHandoff({
+    submittedAt: '2026-04-07T00:20:00.000Z',
+    request: {
+      email: 'user@example.com',
+      handoffId: 'auth-20260407002000-abcd',
+      mergeResolution: null,
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        returnScreen: 'layout',
+      },
+      continuation: {
+        resumeToken: 'auth-20260407002000-abcd:merge',
+        nextAction: 'confirm-merge-resolution',
+        status: 'action-required',
+        statusLabel: '병합 확인 필요',
+      },
+      guestDraftSnapshot: {
+        recommendationDraft: { room: '거실' },
+        spaceProfile: { spaces: ['living', 'bed1'] },
+        continuity: {
+          apartmentLabel: '래미안 포레스트 84A',
+          selectedRooms: ['거실', '침실'],
+          wishlistIds: ['wish-1', 'wish-2'],
+          cartItems: [{ id: 'cart-1', qty: 1 }],
+          layoutItems: [{ id: 'layout-1' }, { id: 'layout-2' }],
+        },
+      },
+    },
+    response: {
+      status: 409,
+      data: {
+        message: 'Guest draft merge confirmation required',
+        allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
+        resumeToken: 'auth-20260407002000-abcd:merge',
+        nextAction: 'confirm-merge-resolution',
+        status: 'action-required',
+        statusLabel: '병합 확인 필요',
+      },
+    },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
+  })
+
+  assert.deepEqual(pending, {
+    submittedAt: '2026-04-07T00:20:00.000Z',
+    handoffId: 'auth-20260407002000-abcd',
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    email: 'user@example.com',
+    summary: {
+      email: 'user@example.com',
+      handoffId: 'auth-20260407002000-abcd',
+      wishlistCount: 2,
+      cartCount: 1,
+      layoutItemCount: 2,
+      hasRecommendationDraft: true,
+      mergeResolution: null,
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        returnScreen: 'layout',
+      },
+    },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
+    continuation: {
+      resumeToken: 'auth-20260407002000-abcd:merge',
+      nextAction: 'confirm-merge-resolution',
+      status: 'action-required',
+      statusLabel: '병합 확인 필요',
+    },
+    guestDraftSnapshot: {
+      recommendationDraft: { room: '거실' },
+      spaceProfile: { spaces: ['living', 'bed1'] },
+      continuity: {
+        apartmentLabel: '래미안 포레스트 84A',
+        selectedRooms: ['거실', '침실'],
+        wishlistIds: ['wish-1', 'wish-2'],
+        cartItems: [{ id: 'cart-1', qty: 1 }],
+        layoutItems: [{ id: 'layout-1' }, { id: 'layout-2' }],
+      },
+    },
+    guestDraftSummary: {
+      apartmentLabel: '래미안 포레스트 84A',
+      selectedRoomCount: 2,
+      selectedRooms: ['거실', '침실'],
+      selectedSpaceIds: ['living', 'bed1'],
+      recommendationRoom: '거실',
+      wishlistCount: 2,
+      cartCount: 1,
+      layoutItemCount: 2,
+    },
+    allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
+    error: 'Guest draft merge confirmation required',
+    status: 409,
+  })
+})
+
 test('buildAuthScaffoldPendingResponse exposes the latest interrupted auth handoff payload', () => {
   const response = buildAuthScaffoldPendingResponse({
     submittedAt: '2026-04-07T00:20:00.000Z',
     handoffId: 'auth-20260407002000-abcd',
     email: 'user@example.com',
-    resumeToken: 'auth-20260407002000-abcd:merge',
-    nextAction: 'confirm-merge-resolution',
+    continuation: {
+      resumeToken: 'auth-20260407002000-abcd:merge',
+      nextAction: 'confirm-merge-resolution',
+      status: 'action-required',
+      statusLabel: '병합 확인 필요',
+    },
+    summary: {
+      email: 'user@example.com',
+      handoffId: 'auth-20260407002000-abcd',
+      wishlistCount: 2,
+      cartCount: 1,
+      layoutItemCount: 2,
+      hasRecommendationDraft: true,
+      mergeResolution: null,
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        returnScreen: 'layout',
+      },
+    },
     status: 409,
   })
 
@@ -259,8 +397,27 @@ test('buildAuthScaffoldPendingResponse exposes the latest interrupted auth hando
     submittedAt: '2026-04-07T00:20:00.000Z',
     handoffId: 'auth-20260407002000-abcd',
     email: 'user@example.com',
-    resumeToken: 'auth-20260407002000-abcd:merge',
-    nextAction: 'confirm-merge-resolution',
+    continuation: {
+      resumeToken: 'auth-20260407002000-abcd:merge',
+      nextAction: 'confirm-merge-resolution',
+      status: 'action-required',
+      statusLabel: '병합 확인 필요',
+    },
+    summary: {
+      email: 'user@example.com',
+      handoffId: 'auth-20260407002000-abcd',
+      wishlistCount: 2,
+      cartCount: 1,
+      layoutItemCount: 2,
+      hasRecommendationDraft: true,
+      mergeResolution: null,
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        returnScreen: 'layout',
+      },
+    },
     status: 409,
   })
 })
