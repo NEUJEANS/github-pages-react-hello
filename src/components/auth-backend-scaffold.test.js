@@ -62,6 +62,30 @@ test('buildAuthScaffoldResponse returns a merged session payload for valid crede
   assert.equal(response.data.nextAction, 'save-layout-draft')
 })
 
+test('buildAuthScaffoldResponse preserves an upstream continuation contract when intent is not yet finalized', () => {
+  const response = buildAuthScaffoldResponse({
+    email: 'user@example.com',
+    password: 'password123',
+    handoffId: 'auth-continue-1234',
+    continuation: {
+      resumeToken: 'resume-upstream-123',
+      nextAction: 'resume-layout-checkout',
+    },
+    guestDraftSnapshot: {
+      continuity: {
+        wishlistIds: ['wish-1'],
+        cartItems: [{ id: 'cart-1', qty: 1 }],
+        layoutItems: [{ id: 'layout-1' }],
+      },
+    },
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal(response.data.resumeToken, 'resume-upstream-123')
+  assert.equal(response.data.nextAction, 'resume-layout-checkout')
+  assert.equal(response.data.handoffId, 'auth-continue-1234')
+})
+
 test('buildAuthScaffoldResponse returns 409 for the merge-conflict demo password', () => {
   const response = buildAuthScaffoldResponse({
     email: 'user@example.com',

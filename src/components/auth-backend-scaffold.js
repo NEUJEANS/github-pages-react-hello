@@ -53,8 +53,10 @@ function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
   }
 }
 
-function buildScaffoldContinuation({ intent = null, mergeResolution = null, handoffId = null } = {}) {
+function buildScaffoldContinuation({ intent = null, mergeResolution = null, handoffId = null, continuation = null } = {}) {
   const normalizedAction = typeof intent?.action === 'string' ? intent.action.trim() : ''
+  const continuationAction = typeof continuation?.nextAction === 'string' ? continuation.nextAction.trim() : ''
+  const continuationToken = typeof continuation?.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
   const fallbackAction = mergeResolution === 'replace-with-account'
     ? 'resume-account-state'
     : mergeResolution === 'keep-guest'
@@ -62,14 +64,20 @@ function buildScaffoldContinuation({ intent = null, mergeResolution = null, hand
       : 'resume-authenticated-flow'
 
   return {
-    resumeToken: handoffId ? `${handoffId}:resume` : null,
-    nextAction: normalizedAction || fallbackAction,
+    resumeToken: continuationToken || (handoffId ? `${handoffId}:resume` : null),
+    nextAction: normalizedAction || continuationAction || fallbackAction,
   }
 }
 
-function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null } = {}) {
+function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null, continuation = null } = {}) {
   const safeSessionId = email.replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'guest'
-  const continuation = buildScaffoldContinuation({ intent, mergeResolution, handoffId })
+  const continuationState = buildScaffoldContinuation({
+    intent,
+    mergeResolution,
+    handoffId,
+    continuation,
+  })
+
 
   return {
     ok: true,
@@ -90,7 +98,7 @@ function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, 
     guestDraftSummary: buildGuestDraftSessionSummary(guestDraftSnapshot),
     intent: intent && typeof intent === 'object' ? { ...intent } : null,
     accountState: buildAccountState({ mergeResolution }),
-    ...continuation,
+    ...continuationState,
   }
 }
 
