@@ -830,7 +830,15 @@ function App() {
           endpoint: authConfig.sessionEndpoint,
           method: 'GET',
         }, authConfig)
-        const resultSummary = buildAuthResultSummary(result)
+        const bootstrapFallbackSummary = {
+          handoffId: persistedAuthSession?.handoffId ?? persistedAuthHandoff?.handoffId ?? null,
+          wishlistCount: persistedAuthSession?.wishlistCount ?? persistedAuthHandoff?.summary?.wishlistCount ?? 0,
+          cartCount: persistedAuthSession?.cartCount ?? persistedAuthHandoff?.summary?.cartCount ?? 0,
+          layoutItemCount: persistedAuthSession?.layoutItemCount ?? persistedAuthHandoff?.summary?.layoutItemCount ?? 0,
+          hasRecommendationDraft: persistedAuthSession?.hasRecommendationDraft ?? persistedAuthHandoff?.summary?.hasRecommendationDraft ?? false,
+          intent: persistedAuthSession?.intent ?? persistedAuthHandoff?.summary?.intent ?? null,
+        }
+        const resultSummary = buildAuthResultSummary(result, bootstrapFallbackSummary)
         const nextSession = buildPersistedAuthSession(resultSummary, {
           connection: resultSummary?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary ?? sessionConnection,
           continuation: buildSerializableAuthContinuation(result?.data),

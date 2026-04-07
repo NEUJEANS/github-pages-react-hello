@@ -194,6 +194,57 @@ test('buildAuthResultSummary extracts backend auth response details without wide
   })
 })
 
+test('buildAuthResultSummary can preserve a serialized auth intent from fallback bootstrap state when the backend session is sparse', () => {
+  const summary = buildAuthResultSummary({
+    data: {
+      sessionId: 'session-bootstrap-1',
+      user: { email: 'user@example.com' },
+      connection: {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: '/api/auth/login',
+        targetLabel: 'same-origin /api auth scaffold',
+        isExternal: false,
+        isSameOriginScaffold: true,
+        credentialsMode: 'include',
+        source: 'default',
+      },
+      nextAction: 'save-layout-draft',
+    },
+    meta: {
+      authMode: 'scaffold',
+      authTransport: 'same-origin-middleware',
+    },
+  }, {
+    handoffId: 'auth-20260406123000-2n9c',
+    wishlistCount: 2,
+    cartCount: 1,
+    layoutItemCount: 3,
+    hasRecommendationDraft: true,
+    intent: {
+      source: 'layout-editor',
+      action: 'save-layout-draft',
+      label: '로그인 후 보드 저장',
+      returnScreen: 'layout',
+      draftLabel: '거실 84A',
+    },
+  })
+
+  assert.equal(summary.handoffId, 'auth-20260406123000-2n9c')
+  assert.deepEqual(summary.intent, {
+    source: 'layout-editor',
+    action: 'save-layout-draft',
+    label: '로그인 후 보드 저장',
+    returnScreen: 'layout',
+    draftLabel: '거실 84A',
+  })
+  assert.equal(summary.wishlistCount, 2)
+  assert.equal(summary.cartCount, 1)
+  assert.equal(summary.layoutItemCount, 3)
+  assert.equal(summary.hasRecommendationDraft, true)
+  assert.equal(summary.nextAction, 'save-layout-draft')
+})
+
 test('buildAuthErrorSummary categorizes backend auth failures for the modal state', () => {
   assert.deepEqual(
     buildAuthErrorSummary({ ok: false, status: 401, data: { message: 'Invalid credentials', resumeToken: 'resume-invalid', nextAction: 'retry-login' } }, {
