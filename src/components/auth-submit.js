@@ -4,6 +4,8 @@ export const AUTH_SCAFFOLD_HEADER = 'x-havenly-auth-scaffold'
 export const AUTH_HANDOFF_HEADER = 'x-havenly-auth-handoff-id'
 export const AUTH_RESUME_TOKEN_HEADER = 'x-havenly-auth-resume-token'
 export const AUTH_NEXT_ACTION_HEADER = 'x-havenly-auth-next-action'
+export const AUTH_STATUS_HEADER = 'x-havenly-auth-status'
+export const AUTH_STATUS_LABEL_HEADER = 'x-havenly-auth-status-label'
 export const AUTH_CONNECTION_METHOD_HEADER = 'x-havenly-auth-connection-method'
 export const AUTH_CONNECTION_ENDPOINT_HEADER = 'x-havenly-auth-connection-endpoint'
 export const AUTH_CONNECTION_TARGET_HEADER = 'x-havenly-auth-connection-target'
@@ -47,7 +49,9 @@ function buildScaffoldLoginResult(plan, { via = 'local-fallback' } = {}) {
 }
 
 async function parseAuthResponse(response) {
-  const contentType = response.headers?.get?.('content-type') ?? ''
+  const contentType = typeof response?.headers?.get === 'function'
+    ? (response.headers.get('content-type') ?? '')
+    : ''
 
   if (contentType.includes('application/json')) {
     try {
@@ -77,12 +81,14 @@ function readAuthContinuation(data = {}, response = null) {
   const bodyNextAction = typeof data?.nextAction === 'string' ? data.nextAction.trim() : ''
   const headerNextAction = readHeaderValue(response, AUTH_NEXT_ACTION_HEADER)
   const bodyStatus = typeof data?.status === 'string' ? data.status.trim() : ''
+  const headerStatus = readHeaderValue(response, AUTH_STATUS_HEADER)
   const bodyStatusLabel = typeof data?.statusLabel === 'string' ? data.statusLabel.trim() : ''
+  const headerStatusLabel = readHeaderValue(response, AUTH_STATUS_LABEL_HEADER)
 
   const resumeToken = bodyResumeToken || headerResumeToken || null
   const nextAction = bodyNextAction || headerNextAction || null
-  const status = bodyStatus || null
-  const statusLabel = bodyStatusLabel || null
+  const status = bodyStatus || headerStatus || null
+  const statusLabel = bodyStatusLabel || headerStatusLabel || null
 
   if (!resumeToken && !nextAction && !status && !statusLabel) return null
 
@@ -150,7 +156,7 @@ function applyAuthResponseDecorators(data, response, { connectionFallback = null
 }
 
 function buildResponseMeta(response) {
-  if (response?.headers?.get?.(AUTH_SCAFFOLD_HEADER) === 'true') {
+  if (typeof response?.headers?.get === 'function' && response.headers.get(AUTH_SCAFFOLD_HEADER) === 'true') {
     return buildScaffoldMeta({ via: 'same-origin-middleware' })
   }
 

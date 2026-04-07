@@ -11,6 +11,8 @@ import {
   AUTH_NEXT_ACTION_HEADER,
   AUTH_RESUME_TOKEN_HEADER,
   AUTH_SCAFFOLD_HEADER,
+  AUTH_STATUS_HEADER,
+  AUTH_STATUS_LABEL_HEADER,
   readAuthPending,
   readAuthSession,
   resolveAuthEndpoint,
@@ -135,7 +137,7 @@ test('submitAuthLoginPlan keeps absolute same-origin scaffold targets canonical 
   })
 })
 
-test('submitAuthLoginPlan preserves handoff ids and backend continuation headers on same-origin scaffold responses', async () => {
+test('submitAuthLoginPlan can recover backend continuation headers on same-origin scaffold responses when the payload stays sparse', async () => {
   const result = await submitAuthLoginPlan({
     endpoint: '/api/auth/login',
     method: 'POST',
@@ -147,22 +149,29 @@ test('submitAuthLoginPlan preserves handoff ids and backend continuation headers
       handoffId: 'auth-20260406123000-2n9c',
     },
   }, {
-    fetchImpl: async () => ({
-      ok: true,
-      status: 200,
-      headers: new Headers({
-        'content-type': 'application/json',
-        [AUTH_SCAFFOLD_HEADER]: 'true',
-        [AUTH_RESUME_TOKEN_HEADER]: 'resume-123',
-        [AUTH_NEXT_ACTION_HEADER]: 'complete-profile',
-      }),
-      json: async () => ({ ok: true, sessionId: 'demo-user-example-com' }),
-    }),
+    fetchImpl: async () => {
+      const headers = new Map([
+        ['content-type', 'application/json'],
+        [AUTH_SCAFFOLD_HEADER, 'true'],
+        [AUTH_RESUME_TOKEN_HEADER, 'resume-123'],
+        [AUTH_NEXT_ACTION_HEADER, 'complete-profile'],
+        [AUTH_STATUS_HEADER, 'action-required'],
+        [AUTH_STATUS_LABEL_HEADER, '프로필 보완 필요'],
+      ])
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: (name) => headers.get(name) ?? null },
+        json: async () => ({ ok: true, sessionId: 'demo-user-example-com' }),
+      }
+    },
   })
 
   assert.equal(result.data.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(result.data.resumeToken, 'resume-123')
   assert.equal(result.data.nextAction, 'complete-profile')
+  assert.equal(result.data.status, 'action-required')
+  assert.equal(result.data.statusLabel, '프로필 보완 필요')
   assert.deepEqual(result.meta, {
     authMode: 'scaffold',
     authTransport: 'same-origin-middleware',
@@ -457,25 +466,32 @@ test('readAuthSession can preserve the canonical login contract when bootstrap p
 test('readAuthSession can recover continuation metadata from scaffold headers when the payload omits it', async () => {
   const result = await readAuthSession({
     endpoint: '/api/auth/session',
-    fetchImpl: async () => ({
-      ok: true,
-      status: 200,
-      headers: new Headers({
-        'content-type': 'application/json',
-        [AUTH_SCAFFOLD_HEADER]: 'true',
-        [AUTH_RESUME_TOKEN_HEADER]: 'resume-session-123',
-        [AUTH_NEXT_ACTION_HEADER]: 'resume-layout-checkout',
-      }),
-      json: async () => ({
+    fetchImpl: async () => {
+      const headers = new Map([
+        ['content-type', 'application/json'],
+        [AUTH_SCAFFOLD_HEADER, 'true'],
+        [AUTH_RESUME_TOKEN_HEADER, 'resume-session-123'],
+        [AUTH_NEXT_ACTION_HEADER, 'resume-layout-checkout'],
+        [AUTH_STATUS_HEADER, 'action-required'],
+        [AUTH_STATUS_LABEL_HEADER, '프로필 보완 필요'],
+      ])
+      return {
         ok: true,
-        sessionId: 'demo-user-example-com',
-        user: { email: 'user@example.com', name: 'user@example.com' },
-      }),
-    }),
+        status: 200,
+        headers: { get: (name) => headers.get(name) ?? null },
+        json: async () => ({
+          ok: true,
+          sessionId: 'demo-user-example-com',
+          user: { email: 'user@example.com', name: 'user@example.com' },
+        }),
+      }
+    },
   })
 
   assert.equal(result.data.resumeToken, 'resume-session-123')
   assert.equal(result.data.nextAction, 'resume-layout-checkout')
+  assert.equal(result.data.status, 'action-required')
+  assert.equal(result.data.statusLabel, '프로필 보완 필요')
 })
 
 test('readAuthPending can preserve the canonical login contract when pending bootstrap payloads omit connection metadata', async () => {

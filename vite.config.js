@@ -8,6 +8,8 @@ import {
   AUTH_CONNECTION_TARGET_HEADER,
   AUTH_NEXT_ACTION_HEADER,
   AUTH_RESUME_TOKEN_HEADER,
+  AUTH_STATUS_HEADER,
+  AUTH_STATUS_LABEL_HEADER,
 } from "./src/components/auth-submit.js"
 import {
   buildAuthScaffoldPendingResponse,
@@ -80,6 +82,8 @@ function buildAuthContinuationHeaders(payload = null) {
   return {
     [AUTH_RESUME_TOKEN_HEADER]: payload.resumeToken ?? payload.continuation?.resumeToken ?? "",
     [AUTH_NEXT_ACTION_HEADER]: payload.nextAction ?? payload.continuation?.nextAction ?? "",
+    [AUTH_STATUS_HEADER]: payload.status ?? payload.continuation?.status ?? "",
+    [AUTH_STATUS_LABEL_HEADER]: payload.statusLabel ?? payload.continuation?.statusLabel ?? "",
   }
 }
 
