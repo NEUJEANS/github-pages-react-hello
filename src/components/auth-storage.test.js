@@ -196,6 +196,9 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
       resumeToken: 'resume-123',
       nextAction: 'confirm-merge-resolution',
     },
+    allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
+    error: 'Guest draft merge confirmation required',
+    status: 409,
   }
   const session = { accountLabel: 'user@example.com' }
   const resumeState = buildAuthResumeState(handoff, session)
@@ -203,6 +206,16 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
   assert.equal(resumeState.email, 'user@example.com')
   assert.equal(resumeState.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(resumeState.status, 'resume-ready')
+  assert.deepEqual(resumeState.result, {
+    ok: false,
+    status: 409,
+    data: {
+      message: 'Guest draft merge confirmation required',
+      resumeToken: 'resume-123',
+      nextAction: 'confirm-merge-resolution',
+      allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
+    },
+  })
   assert.equal(resumeState.handoff, handoff)
   assert.equal(resumeState.session, session)
   assert.equal(resumeState.mergeResolution, 'keep-guest')

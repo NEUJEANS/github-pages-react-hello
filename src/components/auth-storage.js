@@ -191,6 +191,31 @@ export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = 
   }
 }
 
+function buildAuthResumeResult(handoff = null) {
+  if (!handoff || typeof handoff !== 'object') return null
+
+  const status = typeof handoff.status === 'number' ? handoff.status : null
+  const message = typeof handoff.error === 'string' && handoff.error.trim()
+    ? handoff.error.trim()
+    : null
+  const allowedMergeResolutions = Array.isArray(handoff.allowedMergeResolutions)
+    ? [...handoff.allowedMergeResolutions]
+    : (handoff.allowedMergeResolutions === null ? [] : undefined)
+  const continuation = buildSerializableAuthContinuation(handoff.continuation)
+
+  if (status === null && !message && !continuation && allowedMergeResolutions === undefined) return null
+
+  return {
+    ok: false,
+    status: status ?? 0,
+    data: {
+      ...(message ? { message } : {}),
+      ...(continuation ?? {}),
+      ...(allowedMergeResolutions !== undefined ? { allowedMergeResolutions } : {}),
+    },
+  }
+}
+
 export function buildAuthResumeState(handoff, session = null) {
   if (!handoff) return null
 
@@ -198,7 +223,7 @@ export function buildAuthResumeState(handoff, session = null) {
     email: handoff.email ?? '',
     handoffId: handoff.handoffId ?? handoff.summary?.handoffId ?? null,
     status: 'resume-ready',
-    result: null,
+    result: buildAuthResumeResult(handoff),
     resumedAt: new Date().toISOString(),
     handoff,
     session,
