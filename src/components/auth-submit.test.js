@@ -411,6 +411,29 @@ test('readAuthSession can preserve the canonical login contract when bootstrap p
   })
 })
 
+test('readAuthSession can recover continuation metadata from scaffold headers when the payload omits it', async () => {
+  const result = await readAuthSession({
+    endpoint: '/api/auth/session',
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        'content-type': 'application/json',
+        [AUTH_SCAFFOLD_HEADER]: 'true',
+        [AUTH_RESUME_TOKEN_HEADER]: 'resume-session-123',
+        [AUTH_NEXT_ACTION_HEADER]: 'resume-layout-checkout',
+      }),
+      json: async () => ({
+        ok: true,
+        sessionId: 'demo-user-example-com',
+        user: { email: 'user@example.com', name: 'user@example.com' },
+      }),
+    }),
+  })
+
+  assert.equal(result.data.resumeToken, 'resume-session-123')
+  assert.equal(result.data.nextAction, 'resume-layout-checkout')
+})
 
 test('readAuthPending can preserve the canonical login contract when pending bootstrap payloads omit connection metadata', async () => {
   const result = await readAuthPending({
@@ -468,6 +491,7 @@ test('signOutAuthSession posts to the configured logout endpoint with credential
         headers: new Headers({
           'content-type': 'application/json',
           [AUTH_SCAFFOLD_HEADER]: 'true',
+          [AUTH_NEXT_ACTION_HEADER]: 'login-required',
         }),
         json: async () => ({ ok: true }),
       }
@@ -493,6 +517,8 @@ test('signOutAuthSession posts to the configured logout endpoint with credential
     status: 200,
     data: {
       ok: true,
+      resumeToken: null,
+      nextAction: 'login-required',
       connection: {
         method: 'POST',
         endpoint: '/api/auth/logout',

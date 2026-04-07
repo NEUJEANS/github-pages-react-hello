@@ -6,6 +6,8 @@ import {
   AUTH_CONNECTION_METHOD_HEADER,
   AUTH_CONNECTION_SOURCE_HEADER,
   AUTH_CONNECTION_TARGET_HEADER,
+  AUTH_NEXT_ACTION_HEADER,
+  AUTH_RESUME_TOKEN_HEADER,
 } from "./src/components/auth-submit.js"
 import {
   buildAuthScaffoldPendingResponse,
@@ -72,6 +74,15 @@ function buildAuthConnectionHeaders(connection = null) {
   }
 }
 
+function buildAuthContinuationHeaders(payload = null) {
+  if (!payload || typeof payload !== "object") return {}
+
+  return {
+    [AUTH_RESUME_TOKEN_HEADER]: payload.resumeToken ?? payload.continuation?.resumeToken ?? "",
+    [AUTH_NEXT_ACTION_HEADER]: payload.nextAction ?? payload.continuation?.nextAction ?? "",
+  }
+}
+
 function havenlyAuthScaffoldPlugin() {
   let latestSession = null
   let latestPendingHandoff = null
@@ -82,6 +93,7 @@ function havenlyAuthScaffoldPlugin() {
       writeJson(res, response.status, response.data, {
         "x-havenly-auth-scaffold": "true",
         ...buildAuthConnectionHeaders(latestSession?.connection),
+        ...buildAuthContinuationHeaders(latestSession),
       })
       return
     }
@@ -91,6 +103,7 @@ function havenlyAuthScaffoldPlugin() {
       writeJson(res, response.status, response.data, {
         "x-havenly-auth-scaffold": "true",
         ...buildAuthConnectionHeaders(latestPendingHandoff?.connection),
+        ...buildAuthContinuationHeaders(latestPendingHandoff),
       })
       return
     }
@@ -102,6 +115,7 @@ function havenlyAuthScaffoldPlugin() {
       writeJson(res, 200, { ok: true }, {
         "x-havenly-auth-scaffold": "true",
         ...buildAuthConnectionHeaders(logoutConnection),
+        ...buildAuthContinuationHeaders({ nextAction: "login-required" }),
       })
       return
     }
@@ -147,9 +161,12 @@ function havenlyAuthScaffoldPlugin() {
         }
       }
 
-      writeJson(res, response.status, latestSession && response.status >= 200 && response.status < 300 ? latestSession : response.data, {
+      const responsePayload = latestSession && response.status >= 200 && response.status < 300 ? latestSession : response.data
+
+      writeJson(res, response.status, responsePayload, {
         "x-havenly-auth-scaffold": "true",
         ...buildAuthConnectionHeaders(connection),
+        ...buildAuthContinuationHeaders(responsePayload),
       })
     } catch {
       writeJson(res, 400, { message: "Invalid auth scaffold request" }, { "x-havenly-auth-scaffold": "true" })
