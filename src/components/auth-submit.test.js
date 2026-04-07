@@ -370,6 +370,90 @@ test('readAuthSession reconstructs backend connection metadata from auth headers
   })
 })
 
+test('readAuthSession can preserve the canonical login contract when bootstrap payloads omit connection metadata', async () => {
+  const result = await readAuthSession({
+    endpoint: '/api/auth/session',
+    apiBaseUrl: 'https://api.example.com',
+    credentialsMode: 'include',
+    connectionFallbackOverride: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: 'https://api.example.com/api/auth/login',
+      targetLabel: 'api.example.com',
+      isExternal: true,
+      isSameOriginScaffold: false,
+      credentialsMode: 'include',
+      source: 'runtime',
+    },
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        'content-type': 'application/json',
+      }),
+      json: async () => ({
+        ok: true,
+        sessionId: 'demo-user-example-com',
+        user: { email: 'user@example.com', name: 'user@example.com' },
+      }),
+    }),
+  })
+
+  assert.deepEqual(result.data.connection, {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: 'https://api.example.com/api/auth/login',
+    targetLabel: 'api.example.com',
+    isExternal: true,
+    isSameOriginScaffold: false,
+    credentialsMode: 'include',
+    source: 'runtime',
+  })
+})
+
+
+test('readAuthPending can preserve the canonical login contract when pending bootstrap payloads omit connection metadata', async () => {
+  const result = await readAuthPending({
+    endpoint: '/api/auth/pending',
+    apiBaseUrl: 'https://api.example.com',
+    credentialsMode: 'include',
+    connectionFallbackOverride: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: 'https://api.example.com/api/auth/login',
+      targetLabel: 'api.example.com',
+      isExternal: true,
+      isSameOriginScaffold: false,
+      credentialsMode: 'include',
+      source: 'runtime',
+    },
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        'content-type': 'application/json',
+      }),
+      json: async () => ({
+        submittedAt: '2026-04-07T00:20:00.000Z',
+        handoffId: 'auth-20260407002000-abcd',
+        email: 'user@example.com',
+        status: 409,
+      }),
+    }),
+  })
+
+  assert.deepEqual(result.data.connection, {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: 'https://api.example.com/api/auth/login',
+    targetLabel: 'api.example.com',
+    isExternal: true,
+    isSameOriginScaffold: false,
+    credentialsMode: 'include',
+    source: 'runtime',
+  })
+})
+
 test('signOutAuthSession posts to the configured logout endpoint with credentials for scaffold teardown', async () => {
   const calls = []
   const result = await signOutAuthSession({

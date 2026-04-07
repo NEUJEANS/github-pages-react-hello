@@ -768,6 +768,14 @@ function App() {
     [authConfig, authSubmitPlan],
   )
 
+  const authLoginConnectionSummary = React.useMemo(
+    () => buildAuthConnectionSummary({
+      endpoint: authConfig.loginEndpoint,
+      method: 'POST',
+    }, authConfig),
+    [authConfig],
+  )
+
   const authResultSummary = React.useMemo(
     () => {
       if (loginForm.result) return buildAuthResultSummary(loginForm.result, authSubmitPlan.summary)
@@ -808,6 +816,7 @@ function App() {
     ;(async () => {
       const result = await readAuthSession({
         endpoint: authConfig.sessionEndpoint,
+        connectionFallbackOverride: persistedAuthSession?.connection ?? authLoginConnectionSummary,
         ...authConfig,
       })
 
@@ -818,7 +827,7 @@ function App() {
         }, authConfig)
         const resultSummary = buildAuthResultSummary(result)
         const nextSession = buildPersistedAuthSession(resultSummary, {
-          connection: resultSummary?.connection ?? sessionConnection,
+          connection: resultSummary?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary ?? sessionConnection,
           continuation: buildSerializableAuthContinuation(result?.data),
           accountState: result?.data?.accountState ?? null,
         })
@@ -832,6 +841,7 @@ function App() {
 
       const pendingResult = await readAuthPending({
         endpoint: authConfig.pendingEndpoint,
+        connectionFallbackOverride: persistedAuthHandoff?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary,
         ...authConfig,
       })
 
@@ -849,7 +859,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [authConfig, authSession, persistedAuthHandoff, persistedAuthSession])
+  }, [authConfig, authLoginConnectionSummary, authSession, persistedAuthHandoff, persistedAuthSession])
 
   React.useEffect(() => {
     setAuthNoticeDismissed(false)

@@ -256,6 +256,7 @@ export async function readAuthSession({
   fetchImpl = fetch,
   apiBaseUrl,
   credentialsMode = 'include',
+  connectionFallbackOverride = null,
 } = {}) {
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
   const source = apiBaseUrl ? 'env/runtime-configured' : 'default'
@@ -278,7 +279,7 @@ export async function readAuthSession({
       ok: response.ok,
       status: response.status,
       data: applyAuthResponseDecorators(data, response, {
-        connectionFallback,
+        connectionFallback: connectionFallbackOverride ?? connectionFallback,
       }),
       meta,
     }
@@ -300,6 +301,7 @@ export async function readAuthPending({
   fetchImpl = fetch,
   apiBaseUrl,
   credentialsMode = 'include',
+  connectionFallbackOverride = null,
 } = {}) {
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
   const source = apiBaseUrl ? 'env/runtime-configured' : 'default'
@@ -322,7 +324,7 @@ export async function readAuthPending({
       ok: response.ok,
       status: response.status,
       data: applyAuthResponseDecorators(data, response, {
-        connectionFallback,
+        connectionFallback: connectionFallbackOverride ?? connectionFallback,
       }),
       meta,
     }
