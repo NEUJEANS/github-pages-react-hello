@@ -4,6 +4,7 @@ export const AUTH_SCAFFOLD_HEADER = 'x-havenly-auth-scaffold'
 export const AUTH_HANDOFF_HEADER = 'x-havenly-auth-handoff-id'
 export const AUTH_RESUME_TOKEN_HEADER = 'x-havenly-auth-resume-token'
 export const AUTH_NEXT_ACTION_HEADER = 'x-havenly-auth-next-action'
+export const AUTH_CONNECTION_METHOD_HEADER = 'x-havenly-auth-connection-method'
 export const AUTH_CONNECTION_ENDPOINT_HEADER = 'x-havenly-auth-connection-endpoint'
 export const AUTH_CONNECTION_TARGET_HEADER = 'x-havenly-auth-connection-target'
 export const AUTH_CONNECTION_CREDENTIALS_HEADER = 'x-havenly-auth-connection-credentials'
@@ -64,15 +65,17 @@ async function parseAuthResponse(response) {
   }
 }
 
+function readHeaderValue(response, headerName) {
+  return typeof response?.headers?.get === 'function'
+    ? (response.headers.get(headerName) ?? '').trim()
+    : ''
+}
+
 function readAuthContinuation(data = {}, response = null) {
   const bodyResumeToken = typeof data?.resumeToken === 'string' ? data.resumeToken.trim() : ''
-  const headerResumeToken = typeof response?.headers?.get === 'function'
-    ? (response.headers.get(AUTH_RESUME_TOKEN_HEADER) ?? '').trim()
-    : ''
+  const headerResumeToken = readHeaderValue(response, AUTH_RESUME_TOKEN_HEADER)
   const bodyNextAction = typeof data?.nextAction === 'string' ? data.nextAction.trim() : ''
-  const headerNextAction = typeof response?.headers?.get === 'function'
-    ? (response.headers.get(AUTH_NEXT_ACTION_HEADER) ?? '').trim()
-    : ''
+  const headerNextAction = readHeaderValue(response, AUTH_NEXT_ACTION_HEADER)
 
   const resumeToken = bodyResumeToken || headerResumeToken || null
   const nextAction = bodyNextAction || headerNextAction || null
@@ -85,13 +88,58 @@ function readAuthContinuation(data = {}, response = null) {
   }
 }
 
-function applyAuthContinuation(data, response) {
+function pickFirstText(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+
+  return ''
+}
+
+function readAuthConnection(data = {}, response = null, fallback = null) {
+  const bodyConnection = data?.connection ?? data?.authConnection ?? null
+  const method = pickFirstText(bodyConnection?.method, readHeaderValue(response, AUTH_CONNECTION_METHOD_HEADER), fallback?.method)
+  const endpoint = pickFirstText(bodyConnection?.endpoint, readHeaderValue(response, AUTH_CONNECTION_ENDPOINT_HEADER), fallback?.endpoint)
+  const targetLabel = pickFirstText(bodyConnection?.targetLabel, readHeaderValue(response, AUTH_CONNECTION_TARGET_HEADER), fallback?.targetLabel)
+  const credentialsMode = pickFirstText(bodyConnection?.credentialsMode, readHeaderValue(response, AUTH_CONNECTION_CREDENTIALS_HEADER), fallback?.credentialsMode)
+  const source = pickFirstText(bodyConnection?.source, readHeaderValue(response, AUTH_CONNECTION_SOURCE_HEADER), fallback?.source)
+  const headerResolvedUrl = endpoint && targetLabel && targetLabel !== 'same-origin /api auth scaffold'
+    ? `https://${targetLabel}${endpoint}`
+    : endpoint || ''
+  const resolvedUrl = typeof bodyConnection?.resolvedUrl === 'string' && bodyConnection.resolvedUrl.trim()
+    ? bodyConnection.resolvedUrl.trim()
+    : (headerResolvedUrl || (typeof fallback?.resolvedUrl === 'string' && fallback.resolvedUrl.trim()
+      ? fallback.resolvedUrl.trim()
+      : ''))
+
+  if (!method && !endpoint && !targetLabel && !credentialsMode && !source && !resolvedUrl) return null
+
+  const nextResolvedUrl = resolvedUrl || null
+  const isSameOriginScaffold = bodyConnection?.isSameOriginScaffold ?? fallback?.isSameOriginScaffold ?? targetLabel === 'same-origin /api auth scaffold'
+  const isExternal = bodyConnection?.isExternal ?? fallback?.isExternal ?? Boolean(targetLabel && targetLabel !== 'same-origin /api auth scaffold')
+
+  return {
+    method: method || null,
+    endpoint: endpoint || null,
+    resolvedUrl: nextResolvedUrl,
+    targetLabel: targetLabel || null,
+    isExternal,
+    isSameOriginScaffold,
+    credentialsMode: credentialsMode || null,
+    source: source || null,
+  }
+}
+
+function applyAuthResponseDecorators(data, response, { connectionFallback = null } = {}) {
   const continuation = readAuthContinuation(data, response)
-  if (!continuation) return data
+  const connection = readAuthConnection(data, response, connectionFallback)
+
+  if (!continuation && !connection) return data
 
   return {
     ...(data ?? {}),
-    ...continuation,
+    ...(continuation ?? {}),
+    ...(connection ? { connection } : {}),
   }
 }
 
@@ -136,6 +184,7 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
     headers: {
       'content-type': 'application/json',
       ...(plan.handoffId ? { [AUTH_HANDOFF_HEADER]: plan.handoffId } : {}),
+      [AUTH_CONNECTION_METHOD_HEADER]: plan.method,
       [AUTH_CONNECTION_ENDPOINT_HEADER]: plan.endpoint,
       [AUTH_CONNECTION_TARGET_HEADER]: targetLabel,
       [AUTH_CONNECTION_CREDENTIALS_HEADER]: credentialsMode,
@@ -154,11 +203,23 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
     return {
       ok: response.ok,
       status: response.status,
-      data: applyAuthContinuation(
+      data: applyAuthResponseDecorators(
         data
           ? { ...data, handoffId: data.handoffId ?? plan.handoffId ?? null }
           : data,
         response,
+        {
+          connectionFallback: {
+            method: plan.method,
+            endpoint: plan.endpoint,
+            resolvedUrl: endpoint,
+            targetLabel,
+            isExternal: targetLabel !== 'same-origin /api auth scaffold',
+            isSameOriginScaffold: targetLabel === 'same-origin /api auth scaffold',
+            credentialsMode,
+            source,
+          },
+        },
       ),
       meta,
     }
@@ -188,7 +249,26 @@ export async function readAuthSession({
     return {
       ok: response.ok,
       status: response.status,
-      data: applyAuthContinuation(data, response),
+      data: applyAuthResponseDecorators(data, response, {
+        connectionFallback: {
+          method: 'GET',
+          endpoint,
+          resolvedUrl: resolvedEndpoint,
+          targetLabel: /^https?:\/\//.test(resolvedEndpoint)
+            ? (() => {
+                try {
+                  return new URL(resolvedEndpoint).host
+                } catch {
+                  return resolvedEndpoint
+                }
+              })()
+            : 'same-origin /api auth scaffold',
+          isExternal: /^https?:\/\//.test(resolvedEndpoint),
+          isSameOriginScaffold: !/^https?:\/\//.test(resolvedEndpoint) && endpoint.startsWith('/api/auth'),
+          credentialsMode,
+          source: apiBaseUrl ? 'env/runtime-configured' : 'default',
+        },
+      }),
       meta,
     }
   } catch {
@@ -221,7 +301,26 @@ export async function readAuthPending({
     return {
       ok: response.ok,
       status: response.status,
-      data: applyAuthContinuation(data, response),
+      data: applyAuthResponseDecorators(data, response, {
+        connectionFallback: {
+          method: 'GET',
+          endpoint,
+          resolvedUrl: resolvedEndpoint,
+          targetLabel: /^https?:\/\//.test(resolvedEndpoint)
+            ? (() => {
+                try {
+                  return new URL(resolvedEndpoint).host
+                } catch {
+                  return resolvedEndpoint
+                }
+              })()
+            : 'same-origin /api auth scaffold',
+          isExternal: /^https?:\/\//.test(resolvedEndpoint),
+          isSameOriginScaffold: !/^https?:\/\//.test(resolvedEndpoint) && endpoint.startsWith('/api/auth'),
+          credentialsMode,
+          source: apiBaseUrl ? 'env/runtime-configured' : 'default',
+        },
+      }),
       meta,
     }
   } catch {
@@ -254,7 +353,26 @@ export async function signOutAuthSession({
     return {
       ok: response.ok,
       status: response.status,
-      data: applyAuthContinuation(data, response),
+      data: applyAuthResponseDecorators(data, response, {
+        connectionFallback: {
+          method: 'POST',
+          endpoint,
+          resolvedUrl: resolvedEndpoint,
+          targetLabel: /^https?:\/\//.test(resolvedEndpoint)
+            ? (() => {
+                try {
+                  return new URL(resolvedEndpoint).host
+                } catch {
+                  return resolvedEndpoint
+                }
+              })()
+            : 'same-origin /api auth scaffold',
+          isExternal: /^https?:\/\//.test(resolvedEndpoint),
+          isSameOriginScaffold: !/^https?:\/\//.test(resolvedEndpoint) && endpoint.startsWith('/api/auth'),
+          credentialsMode,
+          source: apiBaseUrl ? 'env/runtime-configured' : 'default',
+        },
+      }),
       meta,
     }
   } catch {

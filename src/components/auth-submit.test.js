@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   AUTH_CONNECTION_CREDENTIALS_HEADER,
   AUTH_CONNECTION_ENDPOINT_HEADER,
+  AUTH_CONNECTION_METHOD_HEADER,
   AUTH_CONNECTION_SOURCE_HEADER,
   AUTH_CONNECTION_TARGET_HEADER,
   AUTH_HANDOFF_HEADER,
@@ -56,6 +57,7 @@ test('submitAuthLoginPlan sends the backend-ready payload as json with handoff c
   assert.equal(calls[0].options.credentials, 'same-origin')
   assert.equal(calls[0].options.headers['content-type'], 'application/json')
   assert.equal(calls[0].options.headers[AUTH_HANDOFF_HEADER], 'auth-20260406123000-2n9c')
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_METHOD_HEADER], 'POST')
   assert.equal(calls[0].options.headers[AUTH_CONNECTION_ENDPOINT_HEADER], '/api/auth/login')
   assert.equal(calls[0].options.headers[AUTH_CONNECTION_TARGET_HEADER], 'api.example.com')
   assert.equal(calls[0].options.headers[AUTH_CONNECTION_CREDENTIALS_HEADER], 'same-origin')
@@ -71,7 +73,21 @@ test('submitAuthLoginPlan sends the backend-ready payload as json with handoff c
   assert.deepEqual(result, {
     ok: true,
     status: 200,
-    data: { ok: true, sessionId: 'session-1', handoffId: 'auth-20260406123000-2n9c' },
+    data: {
+      ok: true,
+      sessionId: 'session-1',
+      handoffId: 'auth-20260406123000-2n9c',
+      connection: {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: 'https://api.example.com/api/auth/login',
+        targetLabel: 'api.example.com',
+        isExternal: true,
+        isSameOriginScaffold: false,
+        credentialsMode: 'same-origin',
+        source: 'default',
+      },
+    },
     meta: { authMode: 'remote', authTransport: 'network' },
   })
 })
@@ -133,7 +149,20 @@ test('submitAuthLoginPlan captures text errors from non-json auth scaffolds', as
   assert.deepEqual(result, {
     ok: false,
     status: 503,
-    data: { message: 'Auth service unavailable', handoffId: 'auth-20260406123000-2n9c' },
+    data: {
+      message: 'Auth service unavailable',
+      handoffId: 'auth-20260406123000-2n9c',
+      connection: {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: '/api/auth/login',
+        targetLabel: 'same-origin /api auth scaffold',
+        isExternal: false,
+        isSameOriginScaffold: true,
+        credentialsMode: 'include',
+        source: 'default',
+      },
+    },
     meta: { authMode: 'remote', authTransport: 'network' },
   })
 })
@@ -294,6 +323,43 @@ test('readAuthPending reads interrupted scaffold handoff state for login resume 
   })
 })
 
+test('readAuthSession reconstructs backend connection metadata from auth headers when the payload omits it', async () => {
+  const result = await readAuthSession({
+    endpoint: '/api/auth/session',
+    apiBaseUrl: 'https://api.example.com',
+    credentialsMode: 'same-origin',
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        'content-type': 'application/json',
+        [AUTH_SCAFFOLD_HEADER]: 'true',
+        [AUTH_CONNECTION_METHOD_HEADER]: 'POST',
+        [AUTH_CONNECTION_ENDPOINT_HEADER]: '/api/auth/login',
+        [AUTH_CONNECTION_TARGET_HEADER]: 'api.example.com',
+        [AUTH_CONNECTION_CREDENTIALS_HEADER]: 'same-origin',
+        [AUTH_CONNECTION_SOURCE_HEADER]: 'runtime',
+      }),
+      json: async () => ({
+        ok: true,
+        sessionId: 'demo-user-example-com',
+        user: { email: 'user@example.com', name: 'user@example.com' },
+      }),
+    }),
+  })
+
+  assert.deepEqual(result.data.connection, {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: 'https://api.example.com/api/auth/login',
+    targetLabel: 'api.example.com',
+    isExternal: true,
+    isSameOriginScaffold: false,
+    credentialsMode: 'same-origin',
+    source: 'runtime',
+  })
+})
+
 test('signOutAuthSession posts to the configured logout endpoint with credentials for scaffold teardown', async () => {
   const calls = []
   const result = await signOutAuthSession({
@@ -324,7 +390,19 @@ test('signOutAuthSession posts to the configured logout endpoint with credential
   assert.deepEqual(result, {
     ok: true,
     status: 200,
-    data: { ok: true },
+    data: {
+      ok: true,
+      connection: {
+        method: 'POST',
+        endpoint: '/api/auth/logout',
+        resolvedUrl: 'https://api.example.com/api/auth/logout',
+        targetLabel: 'api.example.com',
+        isExternal: true,
+        isSameOriginScaffold: false,
+        credentialsMode: 'same-origin',
+        source: 'env/runtime-configured',
+      },
+    },
     meta: {
       authMode: 'scaffold',
       authTransport: 'same-origin-middleware',
