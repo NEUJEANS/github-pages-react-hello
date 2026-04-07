@@ -1,7 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildAuthScaffoldResponse, buildAuthScaffoldSessionResponse } from './auth-backend-scaffold.js'
+import {
+  buildAuthScaffoldPendingResponse,
+  buildAuthScaffoldResponse,
+  buildAuthScaffoldSessionResponse,
+} from './auth-backend-scaffold.js'
 
 test('buildAuthScaffoldResponse returns a merged session payload for valid credentials', () => {
   const response = buildAuthScaffoldResponse({
@@ -191,6 +195,37 @@ test('buildAuthScaffoldSessionResponse returns 401 when no scaffold auth session
   assert.equal(response.status, 401)
   assert.deepEqual(response.data, {
     message: 'No scaffold auth session',
+    nextAction: 'login-required',
+  })
+})
+
+test('buildAuthScaffoldPendingResponse exposes the latest interrupted auth handoff payload', () => {
+  const response = buildAuthScaffoldPendingResponse({
+    submittedAt: '2026-04-07T00:20:00.000Z',
+    handoffId: 'auth-20260407002000-abcd',
+    email: 'user@example.com',
+    resumeToken: 'auth-20260407002000-abcd:merge',
+    nextAction: 'confirm-merge-resolution',
+    status: 409,
+  })
+
+  assert.equal(response.status, 200)
+  assert.deepEqual(response.data, {
+    submittedAt: '2026-04-07T00:20:00.000Z',
+    handoffId: 'auth-20260407002000-abcd',
+    email: 'user@example.com',
+    resumeToken: 'auth-20260407002000-abcd:merge',
+    nextAction: 'confirm-merge-resolution',
+    status: 409,
+  })
+})
+
+test('buildAuthScaffoldPendingResponse returns 404 when no interrupted auth handoff exists', () => {
+  const response = buildAuthScaffoldPendingResponse(null)
+
+  assert.equal(response.status, 404)
+  assert.deepEqual(response.data, {
+    message: 'No scaffold auth handoff',
     nextAction: 'login-required',
   })
 })

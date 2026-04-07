@@ -204,6 +204,39 @@ export async function readAuthSession({
   }
 }
 
+export async function readAuthPending({
+  endpoint = '/api/auth/pending',
+  fetchImpl = fetch,
+  apiBaseUrl,
+  credentialsMode = 'include',
+} = {}) {
+  const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
+
+  try {
+    const { response, data, meta } = await requestAuthJson(resolvedEndpoint, {
+      method: 'GET',
+      credentials: credentialsMode,
+    }, { fetchImpl })
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      data: applyAuthContinuation(data, response),
+      meta,
+    }
+  } catch {
+    return {
+      ok: false,
+      status: 0,
+      data: { message: 'Auth pending request failed' },
+      meta: {
+        authMode: 'remote',
+        authTransport: 'network',
+      },
+    }
+  }
+}
+
 export async function signOutAuthSession({
   endpoint = '/api/auth/logout',
   fetchImpl = fetch,

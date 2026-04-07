@@ -17,6 +17,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
       apiBaseUrl: 'https://runtime.example.com',
       loginEndpoint: '/api/auth/login',
       sessionEndpoint: '/api/auth/session',
+      pendingEndpoint: '/api/auth/pending',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
       source: 'runtime',
@@ -37,6 +38,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
       apiBaseUrl: 'https://query.example.com',
       loginEndpoint: '/api/auth/login',
       sessionEndpoint: '/api/auth/session',
+      pendingEndpoint: '/api/auth/pending',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
       source: 'query',
@@ -54,6 +56,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
       apiBaseUrl: 'https://api-env.example.com',
       loginEndpoint: '/api/auth/login',
       sessionEndpoint: '/api/auth/session',
+      pendingEndpoint: '/api/auth/pending',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
       source: 'env:VITE_API_BASE_URL',
@@ -67,6 +70,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
       apiBaseUrl: '',
       loginEndpoint: '/api/auth/login',
       sessionEndpoint: '/api/auth/session',
+      pendingEndpoint: '/api/auth/pending',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
       source: 'default',
@@ -75,27 +79,30 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
   )
 })
 
-test('resolveAuthConfig carries login/session endpoint and credential mode overrides for backend wiring', () => {
+test('resolveAuthConfig carries login/session/pending endpoint and credential mode overrides for backend wiring', () => {
   assert.deepEqual(
     resolveAuthConfig({
       env: {
         VITE_AUTH_LOGIN_ENDPOINT: 'v1/session/login',
         VITE_AUTH_SESSION_ENDPOINT: 'v1/session/me',
+        VITE_AUTH_PENDING_ENDPOINT: 'v1/session/pending',
         VITE_AUTH_LOGOUT_ENDPOINT: 'v1/session/logout',
         VITE_AUTH_CREDENTIALS: 'same-origin',
       },
       runtimeConfig: {
         loginEndpoint: '/internal/auth/login',
         sessionEndpoint: '/internal/auth/session',
+        pendingEndpoint: '/internal/auth/pending',
         logoutEndpoint: '/internal/auth/logout',
         credentialsMode: 'omit',
       },
-      locationSearch: '?authLoginEndpoint=%2Fquery-login&authSessionEndpoint=%2Fquery-session&authLogoutEndpoint=%2Fquery-logout&authCredentials=include',
+      locationSearch: '?authLoginEndpoint=%2Fquery-login&authSessionEndpoint=%2Fquery-session&authPendingEndpoint=%2Fquery-pending&authLogoutEndpoint=%2Fquery-logout&authCredentials=include',
     }),
     {
       apiBaseUrl: '',
       loginEndpoint: '/internal/auth/login',
       sessionEndpoint: '/internal/auth/session',
+      pendingEndpoint: '/internal/auth/pending',
       logoutEndpoint: '/internal/auth/logout',
       credentialsMode: 'omit',
       source: 'default',

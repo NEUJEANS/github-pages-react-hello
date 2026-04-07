@@ -111,6 +111,23 @@ export function buildAuthScaffoldSessionResponse(session = null) {
   }
 }
 
+export function buildAuthScaffoldPendingResponse(pending = null) {
+  if (!pending) {
+    return {
+      status: 404,
+      data: {
+        message: 'No scaffold auth handoff',
+        nextAction: 'login-required',
+      },
+    }
+  }
+
+  return {
+    status: 200,
+    data: pending,
+  }
+}
+
 export function buildAuthScaffoldResponse(request = {}) {
   const email = normalizeEmail(request.email)
   const password = typeof request.password === 'string' ? request.password : ''

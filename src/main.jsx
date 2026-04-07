@@ -19,7 +19,7 @@ import {
   buildAuthSubmitPlan,
   buildGuestDraftSnapshot,
 } from './components/auth-flow-state.js'
-import { readAuthSession, signOutAuthSession, submitAuthLoginPlan } from './components/auth-submit.js'
+import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthLoginPlan } from './components/auth-submit.js'
 import { resolveAuthConfig } from './components/auth-config.js'
 import {
   buildAuthConnectionSummary,
@@ -810,25 +810,43 @@ function App() {
         ...authConfig,
       })
 
-      if (!result.ok || cancelled) return
+      if (result.ok && !cancelled) {
+        const sessionConnection = buildAuthConnectionSummary({
+          endpoint: authConfig.sessionEndpoint,
+          method: 'GET',
+        }, authConfig)
+        const resultSummary = buildAuthResultSummary(result)
+        const nextSession = buildPersistedAuthSession(resultSummary, {
+          connection: resultSummary?.connection ?? sessionConnection,
+        })
 
-      const sessionConnection = buildAuthConnectionSummary({
-        endpoint: authConfig.sessionEndpoint,
-        method: 'GET',
-      }, authConfig)
-      const resultSummary = buildAuthResultSummary(result)
-      const nextSession = buildPersistedAuthSession(resultSummary, {
-        connection: resultSummary?.connection ?? sessionConnection,
+        persistAuthSession(globalThis.localStorage, nextSession)
+        setAuthSession(nextSession)
+        return
+      }
+
+      if (persistedAuthHandoff || cancelled) return
+
+      const pendingResult = await readAuthPending({
+        endpoint: authConfig.pendingEndpoint,
+        ...authConfig,
       })
 
-      persistAuthSession(globalThis.localStorage, nextSession)
-      setAuthSession(nextSession)
+      if (!pendingResult.ok || cancelled) return
+
+      persistAuthHandoff(globalThis.sessionStorage, pendingResult.data)
+      setLoginForm((current) => (
+        current.status === 'submitting'
+          ? current
+          : (buildAuthResumeState(pendingResult.data, persistedAuthSession) ?? current)
+      ))
+      setLoginModalState('form')
     })()
 
     return () => {
       cancelled = true
     }
-  }, [authConfig, authSession])
+  }, [authConfig, authSession, persistedAuthHandoff, persistedAuthSession])
 
   React.useEffect(() => {
     setAuthNoticeDismissed(false)

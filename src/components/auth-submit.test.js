@@ -10,6 +10,7 @@ import {
   AUTH_NEXT_ACTION_HEADER,
   AUTH_RESUME_TOKEN_HEADER,
   AUTH_SCAFFOLD_HEADER,
+  readAuthPending,
   readAuthSession,
   resolveAuthEndpoint,
   signOutAuthSession,
@@ -190,6 +191,101 @@ test('readAuthSession reads scaffold session state for frontend bootstrap wiring
       },
       resumeToken: 'resume-session-123',
       nextAction: 'resume-layout-checkout',
+    },
+    meta: {
+      authMode: 'scaffold',
+      authTransport: 'same-origin-middleware',
+    },
+  })
+})
+
+test('readAuthPending reads interrupted scaffold handoff state for login resume wiring', async () => {
+  const result = await readAuthPending({
+    fetchImpl: async (url, options) => {
+      assert.equal(url, '/api/auth/pending')
+      assert.equal(options.method, 'GET')
+      assert.equal(options.credentials, 'include')
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          'content-type': 'application/json',
+          [AUTH_SCAFFOLD_HEADER]: 'true',
+        }),
+        json: async () => ({
+          submittedAt: '2026-04-07T00:20:00.000Z',
+          handoffId: 'auth-20260407002000-abcd',
+          endpoint: '/api/auth/login',
+          method: 'POST',
+          email: 'user@example.com',
+          summary: {
+            email: 'user@example.com',
+            handoffId: 'auth-20260407002000-abcd',
+            mergeResolution: null,
+            intent: {
+              source: 'layout-editor',
+              action: 'save-layout-draft',
+              label: '로그인 후 보드 저장',
+              returnScreen: 'layout',
+            },
+          },
+          connection: {
+            method: 'POST',
+            endpoint: '/api/auth/login',
+            resolvedUrl: '/api/auth/login',
+            targetLabel: 'same-origin /api auth scaffold',
+            isExternal: false,
+            isSameOriginScaffold: true,
+            credentialsMode: 'include',
+            source: 'default',
+          },
+          continuation: {
+            resumeToken: 'auth-20260407002000-abcd:merge',
+            nextAction: 'confirm-merge-resolution',
+          },
+          allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
+          status: 409,
+        }),
+      }
+    },
+  })
+
+  assert.deepEqual(result, {
+    ok: true,
+    status: 200,
+    data: {
+      submittedAt: '2026-04-07T00:20:00.000Z',
+      handoffId: 'auth-20260407002000-abcd',
+      endpoint: '/api/auth/login',
+      method: 'POST',
+      email: 'user@example.com',
+      summary: {
+        email: 'user@example.com',
+        handoffId: 'auth-20260407002000-abcd',
+        mergeResolution: null,
+        intent: {
+          source: 'layout-editor',
+          action: 'save-layout-draft',
+          label: '로그인 후 보드 저장',
+          returnScreen: 'layout',
+        },
+      },
+      connection: {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: '/api/auth/login',
+        targetLabel: 'same-origin /api auth scaffold',
+        isExternal: false,
+        isSameOriginScaffold: true,
+        credentialsMode: 'include',
+        source: 'default',
+      },
+      continuation: {
+        resumeToken: 'auth-20260407002000-abcd:merge',
+        nextAction: 'confirm-merge-resolution',
+      },
+      allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
+      status: 409,
     },
     meta: {
       authMode: 'scaffold',
