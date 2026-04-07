@@ -816,8 +816,6 @@ function App() {
   )
 
   React.useEffect(() => {
-    if (authSession) return undefined
-
     let cancelled = false
 
     ;(async () => {
@@ -857,6 +855,17 @@ function App() {
         return
       }
 
+      if (!cancelled && persistedAuthSession) {
+        clearPersistedAuthSession(globalThis.localStorage)
+        setAuthSession(null)
+        setAuthNoticeDismissed(false)
+        setLoginForm((current) => {
+          if (current.status === 'submitting') return current
+          if (current.status === 'resume-ready' && current.handoff) return current
+          return buildEmptyLoginForm(current.intent)
+        })
+      }
+
       if (persistedAuthHandoff || cancelled) return
 
       const pendingResult = await readAuthPending({
@@ -879,7 +888,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [authConfig, authLoginConnectionSummary, authSession, persistedAuthHandoff, persistedAuthSession])
+  }, [authConfig, authLoginConnectionSummary, persistedAuthHandoff, persistedAuthSession])
 
   React.useEffect(() => {
     setAuthNoticeDismissed(false)

@@ -260,6 +260,9 @@ async function runBrowserSmoke(playwright) {
     await page.getByRole('button', { name: '로그아웃' }).click()
     await page.getByRole('button', { name: '로그인 열기' }).waitFor()
     const postLogoutLabel = await page.getByRole('button', { name: '로그인 열기' }).innerText()
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.getByRole('button', { name: '로그인 열기' }).waitFor()
+    const postLogoutReloadedLabel = await page.getByRole('button', { name: '로그인 열기' }).innerText()
     await capture(page, 'auth-login-direct-success.png')
     await page.close()
 
@@ -319,6 +322,7 @@ async function runBrowserSmoke(playwright) {
         reloadedNotice,
         reloadedAccountLabel,
         postLogoutLabel,
+        postLogoutReloadedLabel,
       },
       saveLayoutDraft: {
         status: saveDraftStatus,
