@@ -1,7 +1,57 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildAuthSessionNotice } from './auth-session-view-state.js'
+import { buildAuthReadyPanelState, buildAuthSessionNotice } from './auth-session-view-state.js'
+
+test('buildAuthReadyPanelState summarizes the authenticated resume panel for bootstrapped login state', () => {
+  assert.deepEqual(buildAuthReadyPanelState({
+    accountLabel: 'user@example.com',
+    sessionId: 'session-1234',
+    handoffId: 'auth-20260406123000-2n9c',
+    mergeMode: 'merged',
+    restoredWishlistCount: 2,
+    restoredCartCount: 1,
+    restoredLayoutItemCount: 3,
+    restoredRecommendationDraft: true,
+    intent: {
+      label: '로그인 후 보드 저장',
+      draftLabel: '거실 84A',
+      returnScreen: 'layout',
+    },
+    continuation: {
+      nextAction: 'save-layout-draft',
+      resumeToken: 'auth-20260406123000-2n9c:resume',
+    },
+    connection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/login',
+    },
+    guestDraftSummary: {
+      apartmentLabel: '래미안 포레스트 84A',
+      selectedRoomCount: 2,
+      recommendationRoom: '거실',
+    },
+  }), {
+    title: 'user@example.com 계정 연결됨',
+    subtitle: '게스트 초안을 계정에 이어붙인 상태예요.',
+    restoredBits: ['찜 2개', '장바구니 1개', '배치 3개', '추천 초안'],
+    draftContextBits: ['래미안 포레스트 84A', '공간 2개', '거실 추천'],
+    accountLabel: 'user@example.com',
+    handoffId: 'auth-20260406123000-2n9c',
+    sessionId: 'session-1234',
+    mergeMode: 'merged',
+    intentLabel: '로그인 후 보드 저장',
+    intentDraftLabel: '거실 84A',
+    nextAction: 'save-layout-draft',
+    resumeToken: 'auth-20260406123000-2n9c:resume',
+    returnScreen: 'layout',
+    connectionLabel: 'same-origin /api auth scaffold',
+    connectionEndpoint: '/api/auth/login',
+    primaryActionLabel: '로그인 후 보드 저장 이어가기',
+  })
+
+  assert.equal(buildAuthReadyPanelState(null), null)
+})
 
 test('buildAuthSessionNotice summarizes restored guest draft details after login', () => {
   assert.deepEqual(buildAuthSessionNotice({

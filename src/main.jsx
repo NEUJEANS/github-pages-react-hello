@@ -37,7 +37,7 @@ import {
   readPersistedAuthHandoff,
   readPersistedAuthSession,
 } from './components/auth-storage.js'
-import { buildAuthSessionNotice } from './components/auth-session-view-state.js'
+import { buildAuthReadyPanelState, buildAuthSessionNotice } from './components/auth-session-view-state.js'
 import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
 import {
@@ -808,6 +808,11 @@ function App() {
     [authSession],
   )
 
+  const authReadyPanelState = React.useMemo(
+    () => buildAuthReadyPanelState(authSession),
+    [authSession],
+  )
+
   React.useEffect(() => {
     if (authSession) return undefined
 
@@ -978,6 +983,12 @@ function App() {
     setLoginModalState('closed')
     setLoginForm(buildEmptyLoginForm())
   }, [authConfig])
+
+  const handleResumeAuthenticatedIntent = React.useCallback(() => {
+    const nextScreen = resolvePostAuthScreen(loginForm.intent ?? authSession?.intent ?? null)
+    setLoginModalState('closed')
+    if (nextScreen) navigate(nextScreen)
+  }, [authSession?.intent, loginForm.intent, navigate])
 
   const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
     const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null
@@ -1232,11 +1243,13 @@ function App() {
             authResultSummary={authResultSummary}
             authErrorSummary={authErrorSummary}
             authConnectionSummary={authConnectionSummary}
+            authReadyPanelState={authReadyPanelState}
             guestDraftSnapshot={guestDraftSnapshot}
             onChangeForm={(field, value) => setLoginForm((current) => ({ ...current, [field]: value, status: 'idle', result: null, mergeResolution: null }))}
             onClose={() => setLoginModalState('closed')}
             onProceed={() => setLoginModalState('form')}
             onDismissResume={handleDismissAuthResume}
+            onResumeAuthenticatedIntent={handleResumeAuthenticatedIntent}
             onSubmit={handleLoginSubmit}
           />
         )}
@@ -1851,7 +1864,7 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
 }
 
 
-function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, guestDraftSnapshot, onChangeForm, onClose, onProceed, onDismissResume, onSubmit }) {
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, authReadyPanelState, guestDraftSnapshot, onChangeForm, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmit }) {
   const guarded = state === 'guard'
   const allowedMergeResolutions = authErrorSummary?.allowedMergeResolutions ?? []
   const mergeResolutionLabels = {
@@ -1900,6 +1913,33 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 <button className="cta" onClick={onProceed}>그래도 로그인하기</button>
               </div>
             </>
+          ) : form.status === 'ready' && authReadyPanelState ? (
+            <div className="loginForm">
+              <div className="loginGuardCard authPrepCard">
+                <strong>{authReadyPanelState.title}</strong>
+                <p className="muted">{authReadyPanelState.subtitle}</p>
+                <p className="muted">이어갈 작업: {authReadyPanelState.intentLabel}{authReadyPanelState.intentDraftLabel ? ` · ${authReadyPanelState.intentDraftLabel}` : ''}</p>
+                {authReadyPanelState.nextAction && (
+                  <p className="muted">백엔드 다음 액션: {authReadyPanelState.nextAction}{authReadyPanelState.resumeToken ? ` · token ${authReadyPanelState.resumeToken}` : ''}</p>
+                )}
+                {authReadyPanelState.connectionLabel && (
+                  <p className="muted">연결 대상: {authReadyPanelState.connectionLabel}{authReadyPanelState.connectionEndpoint ? ` (${authReadyPanelState.connectionEndpoint})` : ''}</p>
+                )}
+                <div className="guardSummary compact">
+                  <div><label>계정</label><b>{authReadyPanelState.accountLabel}</b></div>
+                  {authReadyPanelState.sessionId && <div><label>세션</label><b>{authReadyPanelState.sessionId}</b></div>}
+                  {authReadyPanelState.handoffId && <div><label>handoff</label><b>{authReadyPanelState.handoffId}</b></div>}
+                  {authReadyPanelState.mergeMode && <div><label>병합 상태</label><b>{authReadyPanelState.mergeMode}</b></div>}
+                  {authReadyPanelState.returnScreen && <div><label>복귀 화면</label><b>{authReadyPanelState.returnScreen}</b></div>}
+                  {authReadyPanelState.restoredBits.map((bit) => <div key={bit}><label>복원</label><b>{bit}</b></div>)}
+                  {authReadyPanelState.draftContextBits.map((bit) => <div key={bit}><label>초안</label><b>{bit}</b></div>)}
+                </div>
+              </div>
+              <div className="footerButtons stackOnMobile">
+                <button className="ghost" onClick={onClose}>닫기</button>
+                <button className="cta" onClick={onResumeAuthenticatedIntent}>{authReadyPanelState.primaryActionLabel}</button>
+              </div>
+            </div>
           ) : (
             <>
               <div className="loginBenefits">
@@ -1954,7 +1994,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                   </div>
                 </div>
                 <div className="footerButtons stackOnMobile">
-                  <button className="ghost" onClick={form.status === 'ready' ? onClose : onClose}>{form.status === 'ready' ? '계속 둘러보기' : '회원가입'}</button>
+                  <button className="ghost" onClick={onClose}>회원가입</button>
                   {form.status === 'resume-ready' && (
                     <button className="ghost" onClick={onDismissResume}>이전 로그인 시도 지우기</button>
                   )}
@@ -1966,7 +2006,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                   {authErrorSummary?.tone === 'merge' && form.status !== 'ready' && allowedMergeResolutions.length === 0 && (
                     <span className="muted">이 auth scaffold는 아직 병합 선택지를 내려주지 않아 같은 handoff로 재시도만 준비된 상태예요.</span>
                   )}
-                  <button className="cta" disabled={form.status === 'ready' ? false : !authSubmitPlan.canSubmit} onClick={form.status === 'ready' ? onClose : () => onSubmit()}>{form.status === 'submitting' ? '준비 중…' : form.status === 'ready' ? '연결 완료' : '로그인'}</button>
+                  <button className="cta" disabled={!authSubmitPlan.canSubmit} onClick={() => onSubmit()}>{form.status === 'submitting' ? '준비 중…' : '로그인'}</button>
                 </div>
               </div>
             </>

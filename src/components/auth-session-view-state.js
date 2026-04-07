@@ -16,6 +16,53 @@ function buildIntentCopy(intent) {
   return ` ${label}${draftCopy} 단계까지 이어서 진행할 수 있어요.`
 }
 
+export function buildAuthReadyPanelState(session = null) {
+  if (!session?.accountLabel) return null
+
+  const restoredBits = []
+  if ((session.restoredWishlistCount ?? 0) > 0) restoredBits.push(`찜 ${session.restoredWishlistCount}개`)
+  if ((session.restoredCartCount ?? 0) > 0) restoredBits.push(`장바구니 ${session.restoredCartCount}개`)
+  if ((session.restoredLayoutItemCount ?? 0) > 0) restoredBits.push(`배치 ${session.restoredLayoutItemCount}개`)
+  if (session.restoredRecommendationDraft) restoredBits.push('추천 초안')
+
+  const draftContextBits = buildDraftContextBits(session.guestDraftSummary)
+  const intentLabel = session.intent?.label ?? '저장한 작업'
+  const intentDraftLabel = session.intent?.draftLabel ?? null
+  const nextAction = session.continuation?.nextAction ?? null
+  const resumeToken = session.continuation?.resumeToken ?? null
+  const returnScreen = session.intent?.returnScreen ?? null
+
+  const title = `${session.accountLabel} 계정 연결됨`
+  const subtitle = session.mergeMode === 'merged'
+    ? '게스트 초안을 계정에 이어붙인 상태예요.'
+    : session.mergeMode === 'replaced'
+      ? '계정 상태로 전환된 상태예요.'
+      : '현재 로그인 연결이 유지되고 있어요.'
+
+  const primaryActionLabel = returnScreen
+    ? `${intentLabel} 이어가기`
+    : '계정 상태 확인'
+
+  return {
+    title,
+    subtitle,
+    restoredBits,
+    draftContextBits,
+    accountLabel: session.accountLabel,
+    handoffId: session.handoffId ?? null,
+    sessionId: session.sessionId ?? null,
+    mergeMode: session.mergeMode ?? null,
+    intentLabel,
+    intentDraftLabel,
+    nextAction,
+    resumeToken,
+    returnScreen,
+    connectionLabel: session.connection?.targetLabel ?? null,
+    connectionEndpoint: session.connection?.endpoint ?? null,
+    primaryActionLabel,
+  }
+}
+
 export function buildAuthSessionNotice(session) {
   if (!session?.accountLabel) return null
 
