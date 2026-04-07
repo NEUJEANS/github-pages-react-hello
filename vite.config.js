@@ -81,6 +81,7 @@ function buildAuthContinuationHeaders(payload = null) {
   if (!payload || typeof payload !== "object") return {}
 
   return {
+    [AUTH_HANDOFF_HEADER]: payload.handoffId ?? payload.summary?.handoffId ?? "",
     [AUTH_RESUME_TOKEN_HEADER]: payload.resumeToken ?? payload.continuation?.resumeToken ?? "",
     [AUTH_NEXT_ACTION_HEADER]: payload.nextAction ?? payload.continuation?.nextAction ?? "",
     [AUTH_STATUS_HEADER]: payload.status ?? payload.continuation?.status ?? "",

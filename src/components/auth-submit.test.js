@@ -302,10 +302,10 @@ test('readAuthPending reads interrupted scaffold handoff state for login resume 
         headers: new Headers({
           'content-type': 'application/json',
           [AUTH_SCAFFOLD_HEADER]: 'true',
+          [AUTH_HANDOFF_HEADER]: 'auth-20260407002000-abcd',
         }),
         json: async () => ({
           submittedAt: '2026-04-07T00:20:00.000Z',
-          handoffId: 'auth-20260407002000-abcd',
           endpoint: '/api/auth/login',
           method: 'POST',
           email: 'user@example.com',
@@ -396,6 +396,7 @@ test('readAuthSession reconstructs backend connection metadata from auth headers
       headers: new Headers({
         'content-type': 'application/json',
         [AUTH_SCAFFOLD_HEADER]: 'true',
+        [AUTH_HANDOFF_HEADER]: 'auth-session-header-123',
         [AUTH_CONNECTION_METHOD_HEADER]: 'POST',
         [AUTH_CONNECTION_ENDPOINT_HEADER]: '/api/auth/login',
         [AUTH_CONNECTION_TARGET_HEADER]: 'api.example.com',
@@ -410,6 +411,7 @@ test('readAuthSession reconstructs backend connection metadata from auth headers
     }),
   })
 
+  assert.equal(result.data.handoffId, 'auth-session-header-123')
   assert.deepEqual(result.data.connection, {
     method: 'POST',
     endpoint: '/api/auth/login',

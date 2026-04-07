@@ -75,6 +75,14 @@ function readHeaderValue(response, headerName) {
     : ''
 }
 
+function readAuthHandoffId(data = {}, response = null, fallbackHandoffId = null) {
+  const bodyHandoffId = typeof data?.handoffId === 'string' ? data.handoffId.trim() : ''
+  const headerHandoffId = readHeaderValue(response, AUTH_HANDOFF_HEADER)
+  const fallback = typeof fallbackHandoffId === 'string' ? fallbackHandoffId.trim() : ''
+
+  return bodyHandoffId || headerHandoffId || fallback || null
+}
+
 function readAuthContinuation(data = {}, response = null) {
   const bodyResumeToken = typeof data?.resumeToken === 'string' ? data.resumeToken.trim() : ''
   const headerResumeToken = readHeaderValue(response, AUTH_RESUME_TOKEN_HEADER)
@@ -142,14 +150,16 @@ function readAuthConnection(data = {}, response = null, fallback = null) {
   }
 }
 
-function applyAuthResponseDecorators(data, response, { connectionFallback = null } = {}) {
+function applyAuthResponseDecorators(data, response, { handoffIdFallback = null, connectionFallback = null } = {}) {
+  const handoffId = readAuthHandoffId(data, response, handoffIdFallback)
   const continuation = readAuthContinuation(data, response)
   const connection = readAuthConnection(data, response, connectionFallback)
 
-  if (!continuation && !connection) return data
+  if (!handoffId && !continuation && !connection) return data
 
   return {
     ...(data ?? {}),
+    ...(handoffId ? { handoffId } : {}),
     ...(continuation ?? {}),
     ...(connection ? { connection } : {}),
   }
@@ -264,11 +274,10 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
       ok: response.ok,
       status: response.status,
       data: applyAuthResponseDecorators(
-        data
-          ? { ...data, handoffId: data.handoffId ?? plan.handoffId ?? null }
-          : data,
+        data,
         response,
         {
+          handoffIdFallback: plan.handoffId ?? null,
           connectionFallback,
         },
       ),
@@ -313,6 +322,7 @@ export async function readAuthSession({
       ok: response.ok,
       status: response.status,
       data: applyAuthResponseDecorators(data, response, {
+        handoffIdFallback: connectionFallbackOverride?.handoffId ?? connectionFallback?.handoffId ?? null,
         connectionFallback: connectionFallbackOverride ?? connectionFallback,
       }),
       meta,
@@ -360,6 +370,7 @@ export async function readAuthPending({
       ok: response.ok,
       status: response.status,
       data: applyAuthResponseDecorators(data, response, {
+        handoffIdFallback: connectionFallbackOverride?.handoffId ?? connectionFallback?.handoffId ?? null,
         connectionFallback: connectionFallbackOverride ?? connectionFallback,
       }),
       meta,
