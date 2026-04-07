@@ -54,6 +54,7 @@ export function resolveAuthConfig({
 
   return {
     apiBaseUrl,
+    currentOrigin: readString(globalThis?.location?.origin ?? ''),
     loginEndpoint: readEndpoint(
       runtimeLoginEndpoint
         || queryLoginEndpoint

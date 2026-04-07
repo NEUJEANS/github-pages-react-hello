@@ -61,25 +61,38 @@ export function buildSerializableAuthContinuation(continuation = null) {
   }
 }
 
-function safeHostLabel(url) {
+function safeUrl(url) {
   try {
-    return new URL(url).host
+    return new URL(url)
   } catch {
     return null
   }
 }
 
-export function buildAuthConnectionSummary(plan, { apiBaseUrl, source = 'default', credentialsMode = 'include' } = {}) {
+function readCurrentOrigin(currentOrigin = '') {
+  if (typeof currentOrigin === 'string' && currentOrigin.trim()) return currentOrigin.trim()
+  if (typeof globalThis?.location?.origin === 'string' && globalThis.location.origin.trim()) return globalThis.location.origin.trim()
+  return ''
+}
+
+export function buildAuthConnectionSummary(plan, { apiBaseUrl, currentOrigin, source = 'default', credentialsMode = 'include' } = {}) {
   const resolvedUrl = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
-  const hostLabel = safeHostLabel(resolvedUrl)
-  const isSameOriginScaffold = !hostLabel && plan.endpoint.startsWith('/api/auth')
+  const resolved = safeUrl(resolvedUrl)
+  const canonicalOrigin = readCurrentOrigin(currentOrigin)
+  const isSameOriginScaffold = (!resolved && plan.endpoint.startsWith('/api/auth'))
+    || Boolean(
+      resolved
+      && canonicalOrigin
+      && resolved.origin === canonicalOrigin
+      && resolved.pathname.startsWith('/api/auth'),
+    )
 
   return {
     method: plan.method,
     endpoint: plan.endpoint,
     resolvedUrl,
-    targetLabel: hostLabel ?? 'same-origin /api auth scaffold',
-    isExternal: Boolean(hostLabel),
+    targetLabel: isSameOriginScaffold ? 'same-origin /api auth scaffold' : (resolved?.host ?? 'same-origin /api auth scaffold'),
+    isExternal: !isSameOriginScaffold && Boolean(resolved?.host),
     isSameOriginScaffold,
     credentialsMode,
     source,

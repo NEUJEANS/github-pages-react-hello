@@ -105,7 +105,7 @@ function readAuthConnection(data = {}, response = null, fallback = null) {
   const source = pickFirstText(bodyConnection?.source, readHeaderValue(response, AUTH_CONNECTION_SOURCE_HEADER), fallback?.source)
   const headerResolvedUrl = endpoint && targetLabel && targetLabel !== 'same-origin /api auth scaffold'
     ? `https://${targetLabel}${endpoint}`
-    : endpoint || ''
+    : ''
   const resolvedUrl = typeof bodyConnection?.resolvedUrl === 'string' && bodyConnection.resolvedUrl.trim()
     ? bodyConnection.resolvedUrl.trim()
     : (headerResolvedUrl || (typeof fallback?.resolvedUrl === 'string' && fallback.resolvedUrl.trim()
@@ -154,18 +154,29 @@ function buildResponseMeta(response) {
   }
 }
 
-function resolveAuthTargetLabel(endpoint) {
+function readCurrentOrigin(currentOrigin = '') {
+  if (typeof currentOrigin === 'string' && currentOrigin.trim()) return currentOrigin.trim()
+  if (typeof globalThis?.location?.origin === 'string' && globalThis.location.origin.trim()) return globalThis.location.origin.trim()
+  return ''
+}
+
+function resolveAuthTargetLabel(endpoint, { currentOrigin } = {}) {
   if (!/^https?:\/\//.test(endpoint)) return 'same-origin /api auth scaffold'
 
   try {
-    return new URL(endpoint).host
+    const resolved = new URL(endpoint)
+    const canonicalOrigin = readCurrentOrigin(currentOrigin)
+    if (canonicalOrigin && resolved.origin === canonicalOrigin && resolved.pathname.startsWith('/api/auth')) {
+      return 'same-origin /api auth scaffold'
+    }
+    return resolved.host
   } catch {
     return endpoint
   }
 }
 
-function buildAuthConnectionHeaders({ method, endpoint, resolvedEndpoint, credentialsMode, source }) {
-  const targetLabel = resolveAuthTargetLabel(resolvedEndpoint)
+function buildAuthConnectionHeaders({ method, endpoint, resolvedEndpoint, credentialsMode, source, currentOrigin }) {
+  const targetLabel = resolveAuthTargetLabel(resolvedEndpoint, { currentOrigin })
 
   return {
     headers: {
@@ -201,7 +212,7 @@ async function requestAuthJson(endpoint, requestInit, { fetchImpl = fetch } = {}
   }
 }
 
-export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl, credentialsMode = 'include', source = 'default' } = {}) {
+export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {
   const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: plan.method,
@@ -209,6 +220,7 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
     resolvedEndpoint: endpoint,
     credentialsMode,
     source,
+    currentOrigin,
   })
   const continuation = plan.request?.continuation && typeof plan.request.continuation === 'object'
     ? {

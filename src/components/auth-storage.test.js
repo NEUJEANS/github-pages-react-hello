@@ -52,6 +52,40 @@ test('buildAuthConnectionSummary resolves same-origin and external auth targets'
       source: 'default',
     },
   )
+
+  assert.deepEqual(
+    buildAuthConnectionSummary(
+      { endpoint: '/api/auth/login', method: 'POST' },
+      { apiBaseUrl: 'https://havenly.example.com', currentOrigin: 'https://havenly.example.com' },
+    ),
+    {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: 'https://havenly.example.com/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
+  )
+
+  assert.deepEqual(
+    buildAuthConnectionSummary(
+      { endpoint: '/api/auth/login', method: 'POST' },
+      { apiBaseUrl: 'https://api.example.com', currentOrigin: 'https://havenly.example.com' },
+    ),
+    {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: 'https://api.example.com/api/auth/login',
+      targetLabel: 'api.example.com',
+      isExternal: true,
+      isSameOriginScaffold: false,
+      credentialsMode: 'include',
+      source: 'default',
+    },
+  )
 })
 
 test('createAuthHandoffId creates a compact serializable correlation id for login handoffs', () => {

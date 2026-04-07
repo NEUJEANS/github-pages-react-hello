@@ -41,6 +41,7 @@ test('submitAuthLoginPlan sends the backend-ready payload as json with handoff c
     },
   }, {
     apiBaseUrl: 'https://api.example.com',
+    currentOrigin: 'https://havenly.example.com',
     credentialsMode: 'same-origin',
     fetchImpl: async (url, options) => {
       calls.push({ url, options })
@@ -91,6 +92,46 @@ test('submitAuthLoginPlan sends the backend-ready payload as json with handoff c
       },
     },
     meta: { authMode: 'remote', authTransport: 'network' },
+  })
+})
+
+test('submitAuthLoginPlan keeps absolute same-origin scaffold targets canonical when api base matches the app origin', async () => {
+  const calls = []
+  const result = await submitAuthLoginPlan({
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    handoffId: 'auth-20260406123000-2n9c',
+    request: {
+      email: 'user@example.com',
+      password: 'password123',
+      handoffId: 'auth-20260406123000-2n9c',
+    },
+  }, {
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options })
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ ok: true, sessionId: 'session-1' }),
+      }
+    },
+  })
+
+  assert.equal(calls[0].url, 'https://havenly.example.com/api/auth/login')
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_TARGET_HEADER], 'same-origin /api auth scaffold')
+  assert.deepEqual(result.data.connection, {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: 'https://havenly.example.com/api/auth/login',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode: 'include',
+    source: 'default',
   })
 })
 

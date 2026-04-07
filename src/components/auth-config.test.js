@@ -15,6 +15,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     }),
     {
       apiBaseUrl: 'https://runtime.example.com',
+      currentOrigin: '',
       loginEndpoint: '/api/auth/login',
       sessionEndpoint: '/api/auth/session',
       pendingEndpoint: '/api/auth/pending',
@@ -36,6 +37,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     }),
     {
       apiBaseUrl: 'https://query.example.com',
+      currentOrigin: '',
       loginEndpoint: '/api/auth/login',
       sessionEndpoint: '/api/auth/session',
       pendingEndpoint: '/api/auth/pending',
@@ -54,6 +56,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     }),
     {
       apiBaseUrl: 'https://api-env.example.com',
+      currentOrigin: '',
       loginEndpoint: '/api/auth/login',
       sessionEndpoint: '/api/auth/session',
       pendingEndpoint: '/api/auth/pending',
@@ -68,6 +71,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     resolveAuthConfig({ env: {}, runtimeConfig: null, locationSearch: '' }),
     {
       apiBaseUrl: '',
+      currentOrigin: '',
       loginEndpoint: '/api/auth/login',
       sessionEndpoint: '/api/auth/session',
       pendingEndpoint: '/api/auth/pending',
@@ -100,6 +104,7 @@ test('resolveAuthConfig carries login/session/pending endpoint and credential mo
     }),
     {
       apiBaseUrl: '',
+      currentOrigin: '',
       loginEndpoint: '/internal/auth/login',
       sessionEndpoint: '/internal/auth/session',
       pendingEndpoint: '/internal/auth/pending',
