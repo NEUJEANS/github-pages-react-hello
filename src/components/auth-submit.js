@@ -287,6 +287,7 @@ export async function readAuthSession({
   endpoint = '/api/auth/session',
   fetchImpl = fetch,
   apiBaseUrl,
+  currentOrigin,
   credentialsMode = 'include',
   connectionFallbackOverride = null,
 } = {}) {
@@ -298,6 +299,7 @@ export async function readAuthSession({
     resolvedEndpoint,
     credentialsMode,
     source,
+    currentOrigin,
   })
 
   try {
@@ -332,6 +334,7 @@ export async function readAuthPending({
   endpoint = '/api/auth/pending',
   fetchImpl = fetch,
   apiBaseUrl,
+  currentOrigin,
   credentialsMode = 'include',
   connectionFallbackOverride = null,
 } = {}) {
@@ -343,6 +346,7 @@ export async function readAuthPending({
     resolvedEndpoint,
     credentialsMode,
     source,
+    currentOrigin,
   })
 
   try {
@@ -377,6 +381,7 @@ export async function signOutAuthSession({
   endpoint = '/api/auth/logout',
   fetchImpl = fetch,
   apiBaseUrl,
+  currentOrigin,
   credentialsMode = 'include',
 } = {}) {
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
@@ -387,6 +392,7 @@ export async function signOutAuthSession({
     resolvedEndpoint,
     credentialsMode,
     source,
+    currentOrigin,
   })
 
   try {

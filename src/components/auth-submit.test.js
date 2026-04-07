@@ -422,6 +422,38 @@ test('readAuthSession reconstructs backend connection metadata from auth headers
   })
 })
 
+test('readAuthSession keeps absolute same-origin bootstrap targets canonical when api base matches the app origin', async () => {
+  const calls = []
+  const result = await readAuthSession({
+    endpoint: '/api/auth/session',
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options })
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ ok: true }),
+      }
+    },
+  })
+
+  assert.equal(calls[0].url, 'https://havenly.example.com/api/auth/session')
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_TARGET_HEADER], 'same-origin /api auth scaffold')
+  assert.deepEqual(result.data.connection, {
+    method: 'GET',
+    endpoint: '/api/auth/session',
+    resolvedUrl: 'https://havenly.example.com/api/auth/session',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode: 'include',
+    source: 'env/runtime-configured',
+  })
+})
+
 test('readAuthSession can preserve the canonical login contract when bootstrap payloads omit connection metadata', async () => {
   const result = await readAuthSession({
     endpoint: '/api/auth/session',
@@ -536,6 +568,38 @@ test('readAuthPending can preserve the canonical login contract when pending boo
   })
 })
 
+test('readAuthPending keeps absolute same-origin bootstrap targets canonical when api base matches the app origin', async () => {
+  const calls = []
+  const result = await readAuthPending({
+    endpoint: '/api/auth/pending',
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options })
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ handoffId: 'pending-1', status: 409 }),
+      }
+    },
+  })
+
+  assert.equal(calls[0].url, 'https://havenly.example.com/api/auth/pending')
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_TARGET_HEADER], 'same-origin /api auth scaffold')
+  assert.deepEqual(result.data.connection, {
+    method: 'GET',
+    endpoint: '/api/auth/pending',
+    resolvedUrl: 'https://havenly.example.com/api/auth/pending',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode: 'include',
+    source: 'env/runtime-configured',
+  })
+})
+
 test('signOutAuthSession posts to the configured logout endpoint with credentials for scaffold teardown', async () => {
   const calls = []
   const result = await signOutAuthSession({
@@ -593,5 +657,37 @@ test('signOutAuthSession posts to the configured logout endpoint with credential
       authMode: 'scaffold',
       authTransport: 'same-origin-middleware',
     },
+  })
+})
+
+test('signOutAuthSession keeps absolute same-origin scaffold targets canonical when api base matches the app origin', async () => {
+  const calls = []
+  const result = await signOutAuthSession({
+    endpoint: '/api/auth/logout',
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options })
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ ok: true }),
+      }
+    },
+  })
+
+  assert.equal(calls[0].url, 'https://havenly.example.com/api/auth/logout')
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_TARGET_HEADER], 'same-origin /api auth scaffold')
+  assert.deepEqual(result.data.connection, {
+    method: 'POST',
+    endpoint: '/api/auth/logout',
+    resolvedUrl: 'https://havenly.example.com/api/auth/logout',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode: 'include',
+    source: 'env/runtime-configured',
   })
 })
