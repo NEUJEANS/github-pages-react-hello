@@ -58,6 +58,7 @@ function buildPlan({ email, password, mergeResolution = null, handoffId, intent 
 async function submitPlan(plan) {
   const authConfig = {
     apiBaseUrl,
+    currentOrigin: base.origin,
     credentialsMode: 'include',
     fetchImpl: fetch,
   }
@@ -127,21 +128,38 @@ async function runHttpSmoke() {
   const scaffoldSession = await readAuthSession({
     endpoint: '/api/auth/session',
     apiBaseUrl,
+    currentOrigin: base.origin,
     credentialsMode: 'include',
     fetchImpl: fetch,
   })
   const logoutResult = await signOutAuthSession({
     endpoint: '/api/auth/logout',
     apiBaseUrl,
+    currentOrigin: base.origin,
     credentialsMode: 'include',
     fetchImpl: fetch,
   })
   const scaffoldSessionAfterLogout = await readAuthSession({
     endpoint: '/api/auth/session',
     apiBaseUrl,
+    currentOrigin: base.origin,
     credentialsMode: 'include',
     fetchImpl: fetch,
   })
+
+  const saveDraftPlan = buildPlan({
+    email: 'board@example.com',
+    password: 'password123',
+    handoffId: 'auth-smoke-layout-0001',
+    intent: {
+      source: 'smoke',
+      action: 'save-layout-draft',
+      label: '보드 저장 이어가기',
+      returnScreen: 'layout',
+      draftLabel: '거실 배치 보드',
+    },
+  })
+  const saveDraft = await submitPlan(saveDraftPlan)
 
   return {
     mode: 'http-fallback',
@@ -156,6 +174,13 @@ async function runHttpSmoke() {
       accountLabel: direct.resultSummary?.accountLabel ?? null,
       targetLabel: direct.connection.targetLabel,
       resolvedUrl: direct.connection.resolvedUrl,
+    },
+    saveLayoutDraft: {
+      status: saveDraft.result.status,
+      nextAction: saveDraft.resultSummary?.nextAction ?? null,
+      resumeToken: saveDraft.resultSummary?.resumeToken ?? null,
+      targetLabel: saveDraft.connection.targetLabel,
+      resolvedUrl: saveDraft.connection.resolvedUrl,
     },
     guardedMerge: {
       promptStatus: mergePrompt.result.status,
@@ -180,6 +205,9 @@ async function runHttpSmoke() {
         authTransport: scaffoldSession.meta?.authTransport ?? null,
         sessionId: scaffoldSession.data?.sessionId ?? null,
         accountLabel: scaffoldSession.data?.user?.email ?? null,
+        nextAction: scaffoldSession.data?.nextAction ?? null,
+        resumeToken: scaffoldSession.data?.resumeToken ?? null,
+        connection: scaffoldSession.data?.connection ?? null,
       },
       logout: {
         status: logoutResult.status,
@@ -235,6 +263,26 @@ async function runBrowserSmoke(playwright) {
     await capture(page, 'auth-login-direct-success.png')
     await page.close()
 
+    const saveDraftPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await saveDraftPage.goto(`${baseUrl}#layout`, { waitUntil: 'networkidle' })
+    await saveDraftPage.getByRole('button', { name: '로그인 후 보드 저장' }).click()
+    await saveDraftPage.getByRole('button', { name: '그래도 로그인하기' }).click()
+    await submitLogin(saveDraftPage, {
+      email: 'board@example.com',
+      password: 'password123',
+    })
+    await saveDraftPage.getByRole('button', { name: '보드 저장 이어가기' }).waitFor()
+    const saveDraftStatus = await saveDraftPage.locator('.authPrepCard .muted').first().innerText()
+    const saveDraftConnection = await saveDraftPage.locator('.authPrepCard .muted').nth(3).innerText()
+    const saveDraftNotice = await saveDraftPage.locator('.authSessionNotice p').innerText()
+    await saveDraftPage.reload({ waitUntil: 'networkidle' })
+    await saveDraftPage.locator('.authSessionNotice').waitFor()
+    await saveDraftPage.getByRole('button', { name: '로그인 열기' }).click()
+    await saveDraftPage.getByRole('button', { name: '보드 저장 이어가기' }).waitFor()
+    const saveDraftReloadedStatus = await saveDraftPage.locator('.authPrepCard .muted').first().innerText()
+    await capture(saveDraftPage, 'auth-login-save-layout-ready.png')
+    await saveDraftPage.close()
+
     const mergePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await mergePage.goto(baseUrl, { waitUntil: 'networkidle' })
 
@@ -271,6 +319,12 @@ async function runBrowserSmoke(playwright) {
         reloadedNotice,
         reloadedAccountLabel,
         postLogoutLabel,
+      },
+      saveLayoutDraft: {
+        status: saveDraftStatus,
+        connection: saveDraftConnection,
+        notice: saveDraftNotice,
+        reloadedStatus: saveDraftReloadedStatus,
       },
       guardedMerge: { guardReasons, mergeError, mergeOptions, mergeStatus },
     }
