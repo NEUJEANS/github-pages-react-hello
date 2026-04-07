@@ -279,6 +279,18 @@ test('buildAuthReadyState revives a bootstrapped scaffold session into the login
       resumeToken: 'resume-session-123',
       nextAction: 'resume-layout-checkout',
     },
+    accountState: {
+      wishlistIds: ['wish-account-1'],
+      cartItems: [{ id: 'cart-account-1', qty: 2 }],
+      layoutItems: [{ id: 'layout-account-1', x: 12, y: 16 }],
+      recommendationDraft: {
+        room: '침실',
+        style: 'natural',
+        priority: 'storage',
+        lifestyle: ['재택근무'],
+        extraRequest: '붙박이장 중심으로',
+      },
+    },
   }
 
   assert.deepEqual(buildAuthReadyState(session), {
@@ -310,6 +322,18 @@ test('buildAuthReadyState revives a bootstrapped scaffold session into the login
     continuation: {
       resumeToken: 'resume-session-123',
       nextAction: 'resume-layout-checkout',
+    },
+    accountState: {
+      wishlistIds: ['wish-account-1'],
+      cartItems: [{ id: 'cart-account-1', qty: 2 }],
+      layoutItems: [{ id: 'layout-account-1', x: 12, y: 16 }],
+      recommendationDraft: {
+        room: '침실',
+        style: 'natural',
+        priority: 'storage',
+        lifestyle: ['재택근무'],
+        extraRequest: '붙박이장 중심으로',
+      },
     },
   })
 })
@@ -350,6 +374,18 @@ test('persistAuthSession stores the latest successful auth summary for the front
     authTransport: 'same-origin-middleware',
     resumeToken: 'resume-session-123',
     nextAction: 'resume-layout-checkout',
+    accountState: {
+      wishlistIds: ['wish-account-1'],
+      cartItems: [{ id: 'cart-account-1', qty: 2 }],
+      layoutItems: [{ id: 'layout-account-1', x: 12, y: 16 }],
+      recommendationDraft: {
+        room: '침실',
+        style: 'natural',
+        priority: 'storage',
+        lifestyle: ['재택근무'],
+        extraRequest: '붙박이장 중심으로',
+      },
+    },
   }, {
     savedAt: '2026-04-06T07:01:00.000Z',
     intent: {
@@ -407,6 +443,18 @@ test('persistAuthSession stores the latest successful auth summary for the front
   assert.deepEqual(session.continuation, {
     resumeToken: 'resume-session-123',
     nextAction: 'resume-layout-checkout',
+  })
+  assert.deepEqual(session.accountState, {
+    wishlistIds: ['wish-account-1'],
+    cartItems: [{ id: 'cart-account-1', qty: 2 }],
+    layoutItems: [{ id: 'layout-account-1', x: 12, y: 16 }],
+    recommendationDraft: {
+      room: '침실',
+      style: 'natural',
+      priority: 'storage',
+      lifestyle: ['재택근무'],
+      extraRequest: '붙박이장 중심으로',
+    },
   })
 })
 

@@ -129,7 +129,39 @@ export function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
   }
 }
 
-export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null, connection = null, continuation = null } = {}) {
+function buildSerializableAuthAccountState(accountState = null) {
+  if (!accountState || typeof accountState !== 'object') return null
+
+  const wishlistIds = Array.isArray(accountState.wishlistIds)
+    ? accountState.wishlistIds.filter((value) => typeof value === 'string' && value.trim())
+    : []
+  const cartItems = Array.isArray(accountState.cartItems)
+    ? accountState.cartItems.map((item) => ({ id: item.id, qty: item.qty ?? 1 }))
+    : []
+  const layoutItems = Array.isArray(accountState.layoutItems)
+    ? accountState.layoutItems.map((item) => ({ ...item }))
+    : []
+  const recommendationDraft = accountState.recommendationDraft && typeof accountState.recommendationDraft === 'object'
+    ? {
+        room: accountState.recommendationDraft.room ?? null,
+        style: accountState.recommendationDraft.style ?? null,
+        priority: accountState.recommendationDraft.priority ?? null,
+        lifestyle: [...(accountState.recommendationDraft.lifestyle ?? [])],
+        extraRequest: accountState.recommendationDraft.extraRequest ?? '',
+      }
+    : null
+
+  if (!wishlistIds.length && !cartItems.length && !layoutItems.length && !recommendationDraft) return null
+
+  return {
+    wishlistIds,
+    cartItems,
+    layoutItems,
+    recommendationDraft,
+  }
+}
+
+export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null, connection = null, continuation = null, accountState = null } = {}) {
   const derivedGuestDraftSummary = guestDraftSnapshot
     ? buildGuestDraftSessionSummary(guestDraftSnapshot)
     : (resultSummary?.guestDraftSummary ?? null)
@@ -155,6 +187,7 @@ export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = 
     connection: buildSerializableAuthConnection(connection),
     continuation: buildSerializableAuthContinuation(continuation ?? resultSummary),
     guestDraftSummary: derivedGuestDraftSummary,
+    accountState: buildSerializableAuthAccountState(accountState ?? resultSummary?.accountState ?? null),
   }
 }
 
@@ -191,6 +224,7 @@ export function buildAuthReadyState(session = null, { intent = null } = {}) {
     intent: buildSerializableAuthIntent(intent ?? session.intent ?? null),
     connection: buildSerializableAuthConnection(session.connection ?? null),
     continuation: buildSerializableAuthContinuation(session.continuation ?? null),
+    accountState: buildSerializableAuthAccountState(session.accountState ?? null),
   }
 }
 

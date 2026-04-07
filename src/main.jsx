@@ -38,6 +38,7 @@ import {
   readPersistedAuthSession,
 } from './components/auth-storage.js'
 import { buildAuthSessionNotice } from './components/auth-session-view-state.js'
+import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
 import {
   resolvePostAuthScreen,
@@ -818,6 +819,8 @@ function App() {
         const resultSummary = buildAuthResultSummary(result)
         const nextSession = buildPersistedAuthSession(resultSummary, {
           connection: resultSummary?.connection ?? sessionConnection,
+          continuation: buildSerializableAuthContinuation(result?.data),
+          accountState: result?.data?.accountState ?? null,
         })
 
         persistAuthSession(globalThis.localStorage, nextSession)
@@ -880,13 +883,16 @@ function App() {
       roomOptions,
       fallbackRoom: initialAiForm.room,
     })
+    const continuityPatch = authSession.accountState
+      ? {
+          wishlistIds: [...(authSession.accountState.wishlistIds ?? [])],
+          cartItems: [...(authSession.accountState.cartItems ?? [])],
+          layoutItems: [...(authSession.accountState.layoutItems ?? [])],
+          recommendationDraft: authSession.accountState.recommendationDraft ?? null,
+        }
+      : null
 
-    if (!nextRestorePatch) {
-      appliedAuthSessionRestoreRef.current = authSession.savedAt
-      return
-    }
-
-    if (nextRestorePatch.recommendationRoom) {
+    if (nextRestorePatch?.recommendationRoom) {
       setAiForm((current) => (
         current.room === nextRestorePatch.recommendationRoom
           ? current
@@ -894,7 +900,7 @@ function App() {
       ))
     }
 
-    if (nextRestorePatch.selectedSpaceIds?.length) {
+    if (nextRestorePatch?.selectedSpaceIds?.length) {
       setSpaceProfile((current) => {
         const currentIds = Array.isArray(current.spaces) ? current.spaces : []
         const nextIds = nextRestorePatch.selectedSpaceIds
@@ -906,8 +912,20 @@ function App() {
       })
     }
 
+    if (continuityPatch) {
+      setWishlistedIds(continuityPatch.wishlistIds)
+      cart.replaceItems(continuityPatch.cartItems)
+      editor.replaceItems(continuityPatch.layoutItems)
+      setAiForm((current) => (
+        continuityPatch.recommendationDraft
+          ? { ...current, ...continuityPatch.recommendationDraft }
+          : current
+      ))
+      setEngagement(initialEngagement)
+    }
+
     appliedAuthSessionRestoreRef.current = authSession.savedAt
-  }, [authSession])
+  }, [authSession, cart, editor])
 
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 
@@ -987,13 +1005,14 @@ function App() {
       const nextResultSummary = result.ok ? buildAuthResultSummary(result, submitPlan.summary) : null
 
       if (nextResultSummary) {
+        const continuityPatch = buildPostAuthContinuityPatch(result)
         const nextSession = buildPersistedAuthSession(nextResultSummary, {
           guestDraftSnapshot,
           intent: submitPlan.summary.intent,
           connection: nextResultSummary.connection ?? authConnectionSummary,
           continuation: nextContinuation,
+          accountState: result?.data?.accountState ?? null,
         })
-        const continuityPatch = buildPostAuthContinuityPatch(result)
 
         if (continuityPatch) {
           setWishlistedIds(continuityPatch.wishlistIds)
