@@ -245,6 +245,7 @@ export function buildAuthResumeState(handoff, session = null) {
 
   return {
     email: handoff.email ?? '',
+    password: '',
     handoffId: handoff.handoffId ?? handoff.summary?.handoffId ?? null,
     status: 'resume-ready',
     result: buildAuthResumeResult(handoff),
@@ -263,6 +264,7 @@ export function buildAuthReadyState(session = null, { intent = null } = {}) {
 
   return {
     email: session.accountLabel ?? '',
+    password: '',
     handoffId: session.handoffId ?? null,
     status: 'ready',
     result: null,

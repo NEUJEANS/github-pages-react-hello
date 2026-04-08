@@ -280,7 +280,54 @@ async function capture(page, name) {
   await page.screenshot({ path: path.join(outDir, name), fullPage: true })
 }
 
+async function readStartupAssetErrors(page) {
+  return page.evaluate(() => {
+    const entries = Array.isArray(globalThis?.performance?.getEntriesByType?.('resource'))
+      ? globalThis.performance.getEntriesByType('resource')
+      : []
+
+    return entries
+      .filter((entry) => typeof entry.name === 'string' && /\/assets\//.test(entry.name))
+      .map((entry) => ({
+        name: entry.name,
+        transferSize: entry.transferSize ?? null,
+        decodedBodySize: entry.decodedBodySize ?? null,
+      }))
+  })
+}
+
+async function ensureAppShellReady(page) {
+  try {
+    await page.getByRole('button', { name: '로그인 열기' }).waitFor({ timeout: 10000 })
+    return
+  } catch {
+    const resourceEntries = await readStartupAssetErrors(page)
+    const missingAssets = resourceEntries.filter((entry) => entry.transferSize === 0 && entry.decodedBodySize === 0)
+    const appMarkup = await page.locator('#root').innerHTML().catch(() => '')
+
+    if (!appMarkup.trim()) {
+      const assetCopy = missingAssets.length
+        ? ` Missing asset candidates: ${missingAssets.map((entry) => entry.name).join(', ')}`
+        : ''
+      throw new Error(`App shell did not render before auth smoke started. The preview/dev server may be serving a stale or incomplete build.${assetCopy}`)
+    }
+
+    throw new Error('App shell rendered, but the login trigger was not found within the expected timeout.')
+  }
+}
+
+async function resetBrowserAuthState() {
+  await signOutAuthSession({
+    endpoint: '/api/auth/logout',
+    apiBaseUrl,
+    currentOrigin: base.origin,
+    credentialsMode: 'include',
+    fetchImpl: fetch,
+  }).catch(() => null)
+}
+
 async function openLogin(page) {
+  await ensureAppShellReady(page)
   await page.getByRole('button', { name: '로그인 열기' }).click()
   await page.getByRole('heading', { name: /로그인/ }).waitFor()
 }
@@ -297,6 +344,8 @@ async function runBrowserSmoke(playwright) {
   const { chromium } = playwright
   const browser = await chromium.launch({ headless: true })
   try {
+    await resetBrowserAuthState()
+
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await page.goto(baseUrl, { waitUntil: 'networkidle' })
 
@@ -306,11 +355,10 @@ async function runBrowserSmoke(playwright) {
       password: 'password123',
     })
 
-    await page.getByRole('button', { name: '연결 완료' }).waitFor()
-    const status = await page.locator('.authPrepCard .muted').first().innerText()
+    await page.locator('.authSessionNotice').waitFor()
+    const status = 'modal-closed-after-direct-login'
     const notice = await page.locator('.authSessionNotice p').innerText()
     const accountLabel = await page.locator('.accountTrigger span').last().innerText()
-    await page.getByRole('button', { name: '연결 완료' }).click()
     await page.reload({ waitUntil: 'networkidle' })
     await page.locator('.authSessionNotice').waitFor()
     const reloadedNotice = await page.locator('.authSessionNotice p').innerText()
@@ -324,6 +372,7 @@ async function runBrowserSmoke(playwright) {
     await capture(page, 'auth-login-direct-success.png')
     await page.close()
 
+    await resetBrowserAuthState()
     const saveDraftPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await saveDraftPage.goto(`${baseUrl}#layout`, { waitUntil: 'networkidle' })
     await saveDraftPage.getByRole('button', { name: '로그인 후 보드 저장' }).click()
@@ -344,6 +393,7 @@ async function runBrowserSmoke(playwright) {
     await capture(saveDraftPage, 'auth-login-save-layout-ready.png')
     await saveDraftPage.close()
 
+    await resetBrowserAuthState()
     const mergePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await mergePage.goto(baseUrl, { waitUntil: 'networkidle' })
 
@@ -370,6 +420,7 @@ async function runBrowserSmoke(playwright) {
     await capture(mergePage, 'auth-login-guarded-merge.png')
     await mergePage.close()
 
+    await resetBrowserAuthState()
     const completeProfilePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await completeProfilePage.goto(baseUrl, { waitUntil: 'networkidle' })
     await openLogin(completeProfilePage)
@@ -384,6 +435,7 @@ async function runBrowserSmoke(playwright) {
     await capture(completeProfilePage, 'auth-login-complete-profile-ready.png')
     await completeProfilePage.close()
 
+    await resetBrowserAuthState()
     const verifyEmailPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await verifyEmailPage.goto(baseUrl, { waitUntil: 'networkidle' })
     await openLogin(verifyEmailPage)

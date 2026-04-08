@@ -244,6 +244,7 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
   const resumeState = buildAuthResumeState(handoff, session)
 
   assert.equal(resumeState.email, 'user@example.com')
+  assert.equal(resumeState.password, '')
   assert.equal(resumeState.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(resumeState.status, 'resume-ready')
   assert.deepEqual(resumeState.result, {
@@ -352,6 +353,7 @@ test('buildAuthReadyState revives a bootstrapped scaffold session into the login
 
   assert.deepEqual(buildAuthReadyState(session), {
     email: 'user@example.com',
+    password: '',
     handoffId: 'auth-20260406123000-2n9c',
     status: 'ready',
     result: null,
