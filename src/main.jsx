@@ -45,6 +45,7 @@ import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } f
 import {
   canResumePostAuthIntent,
   resolvePostAuthScreen,
+  shouldAttachDraftSaveToAuthContinuation,
   shouldCloseLoginModalAfterAuth,
   shouldSubmitContinuationBeforeResume,
 } from './components/auth-intent-state.js'
@@ -908,7 +909,10 @@ function App() {
               mergeResolution: loginForm.mergeResolution,
             }
           : null,
-    draftSave: shouldSubmitContinuationBeforeResume(authSession?.continuation ?? loginForm.continuation ?? null)
+    draftSave: shouldAttachDraftSaveToAuthContinuation(
+      authSession?.intent ?? loginForm.intent ?? null,
+      authSession?.continuation ?? loginForm.continuation ?? null,
+    )
       ? authDraftSavePayload
       : null,
   }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.phone, authContinuationFields.verificationCode, authDraftSavePayload, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, authSession?.intent, loginForm.continuation, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution])

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   canResumePostAuthIntent,
   resolvePostAuthScreen,
+  shouldAttachDraftSaveToAuthContinuation,
   shouldCloseLoginModalAfterAuth,
   shouldSubmitContinuationBeforeResume,
 } from './auth-intent-state.js'
@@ -45,6 +46,15 @@ test('shouldSubmitContinuationBeforeResume only marks real resumable auth handof
   assert.equal(shouldSubmitContinuationBeforeResume({ nextAction: 'verify-email' }), false)
   assert.equal(shouldSubmitContinuationBeforeResume({ nextAction: 'retry-login' }), false)
   assert.equal(shouldSubmitContinuationBeforeResume(null), false)
+})
+
+test('shouldAttachDraftSaveToAuthContinuation keeps layout draft payloads attached for layout-oriented intents and resumptions', () => {
+  assert.equal(shouldAttachDraftSaveToAuthContinuation({ action: 'save-layout-draft' }, { nextAction: 'complete-profile' }), true)
+  assert.equal(shouldAttachDraftSaveToAuthContinuation({ action: 'resume-account-state' }, { nextAction: 'verify-email' }), true)
+  assert.equal(shouldAttachDraftSaveToAuthContinuation({ action: 'login' }, { nextAction: 'save-layout-draft' }), true)
+  assert.equal(shouldAttachDraftSaveToAuthContinuation({ action: 'checkout' }, { nextAction: 'checkout-cart' }), true)
+  assert.equal(shouldAttachDraftSaveToAuthContinuation({ action: 'login' }, { nextAction: 'verify-email' }), false)
+  assert.equal(shouldAttachDraftSaveToAuthContinuation(null, null), false)
 })
 
 test('shouldCloseLoginModalAfterAuth closes only after successful auth results without backend blockers or resumable follow-through', () => {

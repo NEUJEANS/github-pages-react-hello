@@ -26,6 +26,21 @@ function readIntentAction(intent = null) {
   return typeof intent?.action === 'string' ? intent.action.trim() : ''
 }
 
+export function shouldAttachDraftSaveToAuthContinuation(intent = null, continuation = null) {
+  const intentAction = readIntentAction(intent)
+
+  if ([
+    'save-layout-draft',
+    'resume-layout-checkout',
+    'resume-guest-draft',
+    'resume-account-state',
+  ].includes(intentAction)) {
+    return true
+  }
+
+  return shouldSubmitContinuationBeforeResume(continuation)
+}
+
 export function canResumePostAuthIntent(intent, fallbackScreen = null, continuation = null) {
   return Boolean(readReturnScreen(intent) || resolveNextActionScreen(readContinuationNextAction(continuation), fallbackScreen) || fallbackScreen)
 }
