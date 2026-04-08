@@ -1310,11 +1310,13 @@ function App() {
           ? resolvePostAuthScreen(nextIntent, screen, nextContinuation)
           : null
 
+        clearPersistedAuthHandoff(globalThis.sessionStorage)
         persistAuthSession(globalThis.localStorage, nextSession)
         setAuthSession(nextSession)
         setAuthContinuationFields(buildAuthContinuationFieldState())
         setLoginForm((current) => ({
           ...current,
+          handoffId: nextSession.handoffId ?? current.handoffId ?? null,
           status: 'ready',
           result,
           continuation: nextContinuation,
