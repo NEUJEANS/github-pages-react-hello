@@ -705,8 +705,8 @@ function App() {
   const [wishlistedIds, setWishlistedIds] = React.useState([])
   const [loginModalState, setLoginModalState] = React.useState(() => (persistedAuthHandoff ? 'form' : 'closed'))
   const [loginForm, setLoginForm] = React.useState(() => (
-    buildAuthResumeState(persistedAuthHandoff, persistedAuthSession)
-      ?? buildAuthReadyState(persistedAuthSession)
+    buildAuthReadyState(persistedAuthSession)
+      ?? buildAuthResumeState(persistedAuthHandoff, persistedAuthSession)
       ?? buildEmptyLoginForm()
   ))
   const [authSession, setAuthSession] = React.useState(() => persistedAuthSession)
@@ -911,8 +911,15 @@ function App() {
           accountState: result?.data?.accountState ?? null,
         })
 
+        clearPersistedAuthHandoff(globalThis.sessionStorage)
         persistAuthSession(globalThis.localStorage, nextSession)
         setAuthSession(nextSession)
+        setLoginForm((current) => {
+          if (current.status === 'submitting') return current
+          return buildAuthReadyState(nextSession, {
+            intent: current.intent ?? nextSession.intent ?? null,
+          }) ?? current
+        })
         return
       }
 
