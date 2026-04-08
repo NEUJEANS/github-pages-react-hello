@@ -1038,6 +1038,9 @@ function App() {
   const openLogin = React.useCallback((intent = null) => {
     const requestedIntent = buildSerializableAuthIntent(intent)
 
+    cart.setIsOpen(false)
+    setSearchDrawerOpen(false)
+
     if (authSession && requestedIntent) {
       const currentIntent = buildSerializableAuthIntent(authSession.intent)
       const hasIntentChanged = JSON.stringify(currentIntent) !== JSON.stringify(requestedIntent)
@@ -1073,7 +1076,7 @@ function App() {
       }
     })
     setLoginModalState(authSession ? 'form' : hasLoginGuard ? 'guard' : 'form')
-  }, [authSession, hasLoginGuard])
+  }, [authSession, cart, hasLoginGuard])
 
   const handleDismissAuthResume = React.useCallback(() => {
     clearPersistedAuthHandoff(globalThis.sessionStorage)

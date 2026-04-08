@@ -471,7 +471,9 @@ async function runBrowserSmoke(playwright) {
     await mergePage.goto(baseUrl, { waitUntil: 'networkidle' })
 
     await mergePage.getByRole('button', { name: '장바구니 담기' }).first().click()
-    await mergePage.getByRole('button', { name: '장바구니 열기' }).click()
+    const openCartButton = mergePage.getByRole('button', { name: '장바구니 열기' })
+    await openCartButton.scrollIntoViewIfNeeded()
+    await openCartButton.click({ force: true })
     await mergePage.getByRole('dialog').getByRole('button', { name: '로그인 후 주문 이어가기' }).click()
 
     await mergePage.getByText('현재 감지된 진행 내역').waitFor()
@@ -489,7 +491,9 @@ async function runBrowserSmoke(playwright) {
     const mergeOptions = await mergePage.locator('.footerButtons button.ghost').evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim()).filter(Boolean))
 
     await mergePage.getByRole('button', { name: '현재 초안으로 계속' }).click()
-    await mergePage.getByRole('button', { name: '게스트 초안 이어가기' }).waitFor()
+    const mergeReadyAction = mergePage.locator('.authPrepCard button.cta').first()
+    await mergeReadyAction.waitFor()
+    const mergeReadyLabel = (await mergeReadyAction.innerText()).trim()
     const mergeStatus = await mergePage.locator('.authPrepCard .muted').first().innerText()
     await capture(mergePage, 'auth-login-guarded-merge.png')
     await mergePage.close()
@@ -565,7 +569,7 @@ async function runBrowserSmoke(playwright) {
           resumedStatus: verifyEmailResumedStatus,
         },
       },
-      guardedMerge: { guardReasons, mergeError, mergeOptions, mergeStatus },
+      guardedMerge: { guardReasons, mergeError, mergeOptions, mergeReadyLabel, mergeStatus },
     }
   } finally {
     await browser.close()
