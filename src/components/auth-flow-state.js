@@ -77,11 +77,24 @@ export function buildGuestDraftSnapshot({
   }
 }
 
+function normalizeContinuationNextAction(nextAction = '') {
+  switch (nextAction) {
+    case 'login':
+      return 'resume-authenticated-flow'
+    case 'checkout':
+      return 'checkout-cart'
+    default:
+      return nextAction
+  }
+}
+
 function buildSerializableContinuation(continuation = null) {
   if (!continuation || typeof continuation !== 'object') return null
 
   const resumeToken = typeof continuation.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
-  const nextAction = typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : ''
+  const nextAction = normalizeContinuationNextAction(
+    typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : '',
+  )
   const status = typeof continuation.status === 'string' ? continuation.status.trim() : ''
   const statusLabel = typeof continuation.statusLabel === 'string' ? continuation.statusLabel.trim() : ''
 
@@ -237,7 +250,7 @@ export function buildAuthResultSummary(result, fallbackSummary = {}) {
     intent: data.intent ?? fallbackSummary.intent ?? null,
     connection: data.connection ?? data.authConnection ?? fallbackSummary.connection ?? null,
     resumeToken: data.resumeToken ?? fallbackContinuation?.resumeToken ?? null,
-    nextAction: data.nextAction ?? fallbackContinuation?.nextAction ?? null,
+    nextAction: normalizeContinuationNextAction(data.nextAction ?? fallbackContinuation?.nextAction ?? null),
     continuationStatus: data.status ?? fallbackContinuation?.status ?? null,
     continuationStatusLabel: data.statusLabel ?? fallbackContinuation?.statusLabel ?? null,
     authMode: meta.authMode ?? fallbackSummary.authMode ?? 'remote',
@@ -258,7 +271,7 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
       message: message ?? '이메일 또는 비밀번호를 다시 확인해주세요.',
       summary: buildFallbackSummary(fallbackSummary),
       resumeToken: data.resumeToken ?? null,
-      nextAction: data.nextAction ?? null,
+      nextAction: normalizeContinuationNextAction(data.nextAction ?? null),
     }
   }
 
@@ -269,7 +282,7 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
       summary: buildFallbackSummary(fallbackSummary),
       allowedMergeResolutions: readAllowedMergeResolutions(data),
       resumeToken: data.resumeToken ?? null,
-      nextAction: data.nextAction ?? null,
+      nextAction: normalizeContinuationNextAction(data.nextAction ?? null),
     }
   }
 
@@ -279,7 +292,7 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
       message: message ?? '인증 서비스 연결을 아직 준비 중이에요. 잠시 후 다시 시도해주세요.',
       summary: buildFallbackSummary(fallbackSummary),
       resumeToken: data.resumeToken ?? null,
-      nextAction: data.nextAction ?? null,
+      nextAction: normalizeContinuationNextAction(data.nextAction ?? null),
     }
   }
 

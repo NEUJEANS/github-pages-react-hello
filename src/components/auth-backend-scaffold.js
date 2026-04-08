@@ -89,8 +89,28 @@ function buildContinuationStatus(nextAction, continuation = null) {
   }
 }
 
+function normalizeIntentAction(action = '') {
+  switch (action) {
+    case 'login':
+      return 'resume-authenticated-flow'
+    case 'checkout':
+      return 'checkout-cart'
+    case 'checkout-cart':
+    case 'save-layout-draft':
+    case 'resume-layout-checkout':
+    case 'resume-guest-draft':
+    case 'resume-account-state':
+    case 'resume-authenticated-flow':
+    case 'complete-profile':
+    case 'verify-email':
+      return action
+    default:
+      return ''
+  }
+}
+
 function buildScaffoldContinuation({ intent = null, mergeResolution = null, handoffId = null, continuation = null } = {}) {
-  const normalizedAction = typeof intent?.action === 'string' ? intent.action.trim() : ''
+  const normalizedAction = normalizeIntentAction(typeof intent?.action === 'string' ? intent.action.trim() : '')
   const continuationAction = typeof continuation?.nextAction === 'string' ? continuation.nextAction.trim() : ''
   const continuationToken = typeof continuation?.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
   const fallbackAction = mergeResolution === 'replace-with-account'

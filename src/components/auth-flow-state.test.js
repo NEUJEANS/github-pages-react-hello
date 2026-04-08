@@ -313,6 +313,40 @@ test('buildAuthResultSummary extracts backend auth response details without wide
   })
 })
 
+test('buildAuthResultSummary normalizes legacy backend continuation actions before the frontend resume flow consumes them', () => {
+  const checkoutSummary = buildAuthResultSummary({
+    data: {
+      sessionId: 'session-checkout-1',
+      user: { email: 'user@example.com' },
+      resumeToken: 'resume-checkout-123',
+      nextAction: 'checkout',
+    },
+    meta: {
+      authMode: 'scaffold',
+      authTransport: 'same-origin-middleware',
+    },
+  })
+
+  assert.equal(checkoutSummary.nextAction, 'checkout-cart')
+  assert.equal(checkoutSummary.resumeToken, 'resume-checkout-123')
+
+  const loginSummary = buildAuthResultSummary({
+    data: {
+      sessionId: 'session-login-1',
+      user: { email: 'user@example.com' },
+      resumeToken: 'resume-login-123',
+      nextAction: 'login',
+    },
+    meta: {
+      authMode: 'scaffold',
+      authTransport: 'same-origin-middleware',
+    },
+  })
+
+  assert.equal(loginSummary.nextAction, 'resume-authenticated-flow')
+  assert.equal(loginSummary.resumeToken, 'resume-login-123')
+})
+
 test('buildAuthResultSummary can preserve serialized auth handoff context from fallback bootstrap state when the backend session is sparse', () => {
   const fallbackConnection = {
     method: 'POST',

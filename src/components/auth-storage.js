@@ -47,11 +47,24 @@ export function buildSerializableAuthConnection(connection = null) {
   }
 }
 
+function normalizeAuthContinuationNextAction(nextAction = '') {
+  switch (nextAction) {
+    case 'login':
+      return 'resume-authenticated-flow'
+    case 'checkout':
+      return 'checkout-cart'
+    default:
+      return nextAction
+  }
+}
+
 export function buildSerializableAuthContinuation(continuation = null) {
   if (!continuation || typeof continuation !== 'object') return null
 
   const resumeToken = typeof continuation.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
-  const nextAction = typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : ''
+  const nextAction = normalizeAuthContinuationNextAction(
+    typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : '',
+  )
   const status = typeof continuation.status === 'string' ? continuation.status.trim() : ''
   const statusLabel = typeof continuation.statusLabel === 'string' ? continuation.statusLabel.trim() : ''
 

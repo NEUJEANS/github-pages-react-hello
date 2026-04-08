@@ -134,6 +134,26 @@ test('buildSerializableAuthContinuation keeps backend resume contract fields com
     status: 'action-required',
     statusLabel: '프로필 보완 필요',
   })
+
+  assert.deepEqual(buildSerializableAuthContinuation({
+    resumeToken: ' resume-legacy-123 ',
+    nextAction: ' checkout ',
+  }), {
+    resumeToken: 'resume-legacy-123',
+    nextAction: 'checkout-cart',
+    status: null,
+    statusLabel: null,
+  })
+
+  assert.deepEqual(buildSerializableAuthContinuation({
+    resumeToken: ' resume-legacy-login-123 ',
+    nextAction: ' login ',
+  }), {
+    resumeToken: 'resume-legacy-login-123',
+    nextAction: 'resume-authenticated-flow',
+    status: null,
+    statusLabel: null,
+  })
 })
 
 test('buildSerializableAuthContinuationFields keeps blocker payload fields serializable without empty noise', () => {

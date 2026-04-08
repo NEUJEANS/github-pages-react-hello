@@ -97,6 +97,40 @@ test('buildAuthScaffoldResponse preserves an upstream continuation contract when
   assert.equal(response.data.handoffId, 'auth-continue-1234')
 })
 
+test('buildAuthScaffoldResponse derives canonical continuation actions from intent before the backend is wired', () => {
+  const loginResponse = buildAuthScaffoldResponse({
+    email: 'user@example.com',
+    password: 'password123',
+    handoffId: 'auth-login-1234',
+    intent: {
+      source: 'header',
+      action: 'login',
+      label: '기본 로그인',
+      returnScreen: 'home',
+    },
+  })
+
+  assert.equal(loginResponse.status, 200)
+  assert.equal(loginResponse.data.nextAction, 'resume-authenticated-flow')
+  assert.equal(loginResponse.data.resumeToken, 'auth-login-1234:resume')
+
+  const checkoutResponse = buildAuthScaffoldResponse({
+    email: 'user@example.com',
+    password: 'password123',
+    handoffId: 'auth-checkout-1234',
+    intent: {
+      source: 'cart-drawer',
+      action: 'checkout',
+      label: '로그인 후 주문 이어가기',
+      returnScreen: 'home',
+    },
+  })
+
+  assert.equal(checkoutResponse.status, 200)
+  assert.equal(checkoutResponse.data.nextAction, 'checkout-cart')
+  assert.equal(checkoutResponse.data.resumeToken, 'auth-checkout-1234:resume')
+})
+
 test('buildAuthScaffoldResponse derives an action-required blocker for complete-profile auth steps', () => {
   const response = buildAuthScaffoldResponse({
     email: 'user@example.com',
