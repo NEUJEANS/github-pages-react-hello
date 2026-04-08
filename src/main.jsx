@@ -858,6 +858,7 @@ function App() {
     endpoint: authConfig.continueEndpoint,
     continuation: authSession?.continuation ?? loginForm.continuation ?? null,
     handoffId: authSession?.handoffId ?? loginForm.handoffId ?? null,
+    intent: buildSerializableAuthIntent(authSession?.intent ?? loginForm.intent ?? null),
     fields: authReadyPanelState?.nextAction === 'complete-profile'
       ? {
           displayName: authContinuationFields.displayName,
@@ -872,7 +873,7 @@ function App() {
               mergeResolution: loginForm.mergeResolution,
             }
           : null,
-  }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.phone, authContinuationFields.verificationCode, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, loginForm.continuation, loginForm.handoffId, loginForm.mergeResolution])
+  }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.phone, authContinuationFields.verificationCode, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, authSession?.intent, loginForm.continuation, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution])
 
   React.useEffect(() => {
     let cancelled = false
@@ -1316,6 +1317,7 @@ function App() {
           endpoint: authConfig.continueEndpoint,
           continuation: loginForm.continuation,
           handoffId: nextHandoffId,
+          intent: buildSerializableAuthIntent(loginForm.intent),
           fields: {
             mergeResolution: nextMergeResolution,
           },

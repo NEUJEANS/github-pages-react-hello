@@ -138,6 +138,7 @@ export function buildAuthContinuationPlan({
   continuation = null,
   fields = null,
   handoffId = null,
+  intent = null,
 } = {}) {
   const serializableContinuation = buildSerializableContinuation(continuation)
   const serializableFields = buildSerializableContinuationFields(fields)
@@ -158,10 +159,12 @@ export function buildAuthContinuationPlan({
       continuation: serializableContinuation,
       fields: serializableFields,
       handoffId: normalizedHandoffId || null,
+      intent,
     },
     summary: {
       handoffId: normalizedHandoffId || null,
       continuation: serializableContinuation,
+      intent,
       fieldCount: serializableFields ? Object.keys(serializableFields).length : 0,
       requiredFields,
       missingFields,

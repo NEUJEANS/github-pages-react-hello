@@ -609,6 +609,52 @@ test('submitAuthScaffoldContinuation falls back to the generic authenticated flo
   assert.equal(completed.data.statusLabel, '프로필 준비 완료')
 })
 
+test('submitAuthScaffoldContinuation can recover the intended post-login flow from the continuation payload when the stored session intent is sparse', () => {
+  resetAuthScaffoldState()
+
+  submitAuthScaffoldRequest({
+    request: {
+      email: 'profile@example.com',
+      password: 'password123',
+      handoffId: 'auth-profile-intent-recovery',
+      continuation: {
+        resumeToken: 'auth-profile-intent-recovery:profile',
+        nextAction: 'complete-profile',
+      },
+    },
+  })
+
+  const completed = submitAuthScaffoldContinuation({
+    request: {
+      handoffId: 'auth-profile-intent-recovery',
+      continuation: {
+        resumeToken: 'auth-profile-intent-recovery:profile',
+        nextAction: 'complete-profile',
+      },
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        returnScreen: 'layout',
+      },
+      fields: {
+        displayName: 'Havenly User',
+        phone: '010-1234-5678',
+      },
+    },
+  })
+
+  assert.equal(completed.status, 200)
+  assert.equal(completed.data.nextAction, 'save-layout-draft')
+  assert.equal(completed.data.status, 'ready')
+  assert.deepEqual(completed.data.intent, {
+    source: 'layout-editor',
+    action: 'save-layout-draft',
+    label: '로그인 후 보드 저장',
+    returnScreen: 'layout',
+  })
+})
+
 test('submitAuthScaffoldContinuation falls back to the generic authenticated flow after a blocker-only email verification intent is completed', () => {
   resetAuthScaffoldState()
 

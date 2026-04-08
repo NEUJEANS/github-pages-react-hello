@@ -68,6 +68,12 @@ test('buildAuthContinuationPlan prepares a serializable follow-up auth contract 
       status: ' action-required ',
       statusLabel: ' 프로필 보완 필요 ',
     },
+    intent: {
+      source: 'layout-editor',
+      action: 'save-layout-draft',
+      label: '로그인 후 보드 저장',
+      returnScreen: 'layout',
+    },
     fields: {
       displayName: ' Havenly User ',
       phone: ' 010-1234-5678 ',
@@ -89,6 +95,12 @@ test('buildAuthContinuationPlan prepares a serializable follow-up auth contract 
       phone: '010-1234-5678',
     },
     handoffId: 'auth-continue-123',
+    intent: {
+      source: 'layout-editor',
+      action: 'save-layout-draft',
+      label: '로그인 후 보드 저장',
+      returnScreen: 'layout',
+    },
   })
   assert.deepEqual(plan.summary, {
     handoffId: 'auth-continue-123',
@@ -97,6 +109,12 @@ test('buildAuthContinuationPlan prepares a serializable follow-up auth contract 
       nextAction: 'complete-profile',
       status: 'action-required',
       statusLabel: '프로필 보완 필요',
+    },
+    intent: {
+      source: 'layout-editor',
+      action: 'save-layout-draft',
+      label: '로그인 후 보드 저장',
+      returnScreen: 'layout',
     },
     fieldCount: 2,
     requiredFields: ['displayName', 'phone'],
@@ -131,6 +149,7 @@ test('buildAuthContinuationPlan blocks submit until required continuation fields
       verificationCode: '',
     },
     handoffId: 'auth-continue-123',
+    intent: null,
   })
   assert.deepEqual(plan.summary, {
     handoffId: 'auth-continue-123',
@@ -140,6 +159,7 @@ test('buildAuthContinuationPlan blocks submit until required continuation fields
       status: 'action-required',
       statusLabel: '이메일 인증 필요',
     },
+    intent: null,
     fieldCount: 1,
     requiredFields: ['verificationCode'],
     missingFields: ['verificationCode'],
@@ -163,6 +183,7 @@ test('buildAuthContinuationPlan requires a serializable merge resolution when au
   assert.deepEqual(plan.request.fields, {
     mergeResolution: 'keep-guest',
   })
+  assert.equal(plan.request.intent, null)
   assert.deepEqual(plan.summary.requiredFields, ['mergeResolution'])
   assert.deepEqual(plan.summary.missingFields, [])
 })

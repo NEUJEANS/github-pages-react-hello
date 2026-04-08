@@ -89,9 +89,12 @@ function buildContinuationStatus(nextAction, continuation = null) {
   }
 }
 
-function resolvePostBlockerNextAction(session = null, blockerAction = '') {
+function resolvePostBlockerNextAction(session = null, blockerAction = '', requestIntent = null) {
   const currentNextAction = typeof session?.nextAction === 'string' ? session.nextAction.trim() : ''
   if (currentNextAction && currentNextAction !== blockerAction) return currentNextAction
+
+  const requestIntentAction = normalizeIntentAction(typeof requestIntent?.action === 'string' ? requestIntent.action.trim() : '')
+  if (requestIntentAction && requestIntentAction !== blockerAction) return requestIntentAction
 
   const intentAction = normalizeIntentAction(typeof session?.intent?.action === 'string' ? session.intent.action.trim() : '')
   if (intentAction && intentAction !== blockerAction) return intentAction
@@ -242,6 +245,9 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
   const fields = request.fields && typeof request.fields === 'object' && !Array.isArray(request.fields)
     ? request.fields
     : null
+  const requestIntent = request.intent && typeof request.intent === 'object' && !Array.isArray(request.intent)
+    ? cloneValue(request.intent)
+    : null
   const pendingSession = cloneValue(scaffoldState.pending)
   const currentSession = cloneValue(scaffoldState.session)
   const mergeResolution = readMergeResolution(fields?.mergeResolution)
@@ -262,14 +268,18 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
         }
       }
 
+      const resumedIntent = requestIntent ?? cloneValue(pendingSession.summary?.intent ?? pendingSession.request?.intent ?? null)
       const resumedRequest = {
         ...(cloneValue(pendingSession.request) ?? {}),
         handoffId: request.handoffId ?? pendingSession.handoffId ?? null,
         mergeResolution,
+        intent: resumedIntent,
         continuation: {
           ...(cloneValue(pendingSession.continuation) ?? {}),
           ...cloneValue(continuation),
-          nextAction: pendingSession.summary?.intent?.action ?? nextAction ?? 'resume-authenticated-flow',
+          nextAction: normalizeIntentAction(
+            typeof resumedIntent?.action === 'string' ? resumedIntent.action.trim() : '',
+          ) || nextAction || 'resume-authenticated-flow',
           status: 'ready',
           statusLabel: mergeResolution === 'replace-with-account' ? '계정 상태로 전환 준비 완료' : '게스트 초안 병합 준비 완료',
         },
@@ -334,12 +344,13 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
 
     const nextSession = {
       ...currentSession,
+      ...(requestIntent ? { intent: requestIntent } : {}),
       profile: {
         displayName,
         phone,
       },
       resumeToken: resumeToken || currentSession.resumeToken || null,
-      nextAction: resolvePostBlockerNextAction(currentSession, 'complete-profile'),
+      nextAction: resolvePostBlockerNextAction(currentSession, 'complete-profile', requestIntent),
       status: 'ready',
       statusLabel: '프로필 준비 완료',
       connection: sessionConnection,
@@ -370,9 +381,10 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
 
     const nextSession = {
       ...currentSession,
+      ...(requestIntent ? { intent: requestIntent } : {}),
       verifiedAt: new Date().toISOString(),
       resumeToken: resumeToken || currentSession.resumeToken || null,
-      nextAction: resolvePostBlockerNextAction(currentSession, 'verify-email'),
+      nextAction: resolvePostBlockerNextAction(currentSession, 'verify-email', requestIntent),
       status: 'ready',
       statusLabel: '이메일 인증 완료',
       connection: sessionConnection,
@@ -388,9 +400,10 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
     status: 200,
     data: {
       ...currentSession,
+      ...(requestIntent ? { intent: requestIntent } : {}),
       handoffId: request.handoffId ?? currentSession.handoffId ?? null,
       resumeToken: resumeToken || currentSession.resumeToken || null,
-      nextAction: nextAction || currentSession.nextAction || 'resume-authenticated-flow',
+      nextAction: nextAction || currentSession.nextAction || normalizeIntentAction(typeof requestIntent?.action === 'string' ? requestIntent.action.trim() : '') || 'resume-authenticated-flow',
       ...(sessionConnection ? { connection: sessionConnection } : {}),
     },
   }
