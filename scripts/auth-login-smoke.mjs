@@ -134,8 +134,8 @@ function isAppShellStartupError(error) {
   return error instanceof Error && error.message.includes('App shell did not render before auth smoke started')
 }
 
-async function ensureBrowserBaseUrl(url) {
-  if (await isBaseUrlReachable(url)) {
+async function ensureBrowserBaseUrl(url, { forcePreview = true } = {}) {
+  if (!forcePreview && await isBaseUrlReachable(url)) {
     return {
       process: null,
       started: false,
@@ -538,6 +538,20 @@ async function resetBrowserAuthState() {
   }).catch(() => null)
 }
 
+async function clearBrowserStorage(page) {
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' })
+  await page.evaluate(() => {
+    globalThis.localStorage?.clear?.()
+    globalThis.sessionStorage?.clear?.()
+  })
+}
+
+async function resetBrowserScenario(page) {
+  await resetBrowserAuthState()
+  await page.context().clearCookies()
+  await clearBrowserStorage(page)
+}
+
 async function openLogin(page) {
   await ensureAppShellReady(page)
   await page.getByRole('button', { name: '로그인 열기' }).click()
@@ -563,9 +577,8 @@ async function runBrowserSmoke(playwright) {
   const { chromium } = playwright
   const browser = await chromium.launch({ headless: true })
   try {
-    await resetBrowserAuthState()
-
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await resetBrowserScenario(page)
     await page.goto(baseUrl, { waitUntil: 'networkidle' })
 
     await openLogin(page)
@@ -591,8 +604,8 @@ async function runBrowserSmoke(playwright) {
     await capture(page, 'auth-login-direct-success.png')
     await page.close()
 
-    await resetBrowserAuthState()
     const saveDraftPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await resetBrowserScenario(saveDraftPage)
     await saveDraftPage.goto(`${baseUrl}#layout`, { waitUntil: 'networkidle' })
     await saveDraftPage.getByRole('button', { name: '로그인 후 보드 저장' }).click()
     await continuePastGuardIfPresent(saveDraftPage)
@@ -612,8 +625,8 @@ async function runBrowserSmoke(playwright) {
     await capture(saveDraftPage, 'auth-login-save-layout-ready.png')
     await saveDraftPage.close()
 
-    await resetBrowserAuthState()
     const mergePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await resetBrowserScenario(mergePage)
     await mergePage.goto(baseUrl, { waitUntil: 'networkidle' })
 
     await mergePage.getByRole('button', { name: '장바구니 담기' }).first().click()
@@ -644,8 +657,8 @@ async function runBrowserSmoke(playwright) {
     await capture(mergePage, 'auth-login-guarded-merge.png')
     await mergePage.close()
 
-    await resetBrowserAuthState()
     const completeProfilePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await resetBrowserScenario(completeProfilePage)
     await completeProfilePage.goto(baseUrl, { waitUntil: 'networkidle' })
     await openLogin(completeProfilePage)
     await submitLogin(completeProfilePage, {
@@ -669,8 +682,8 @@ async function runBrowserSmoke(playwright) {
     await capture(completeProfilePage, 'auth-login-complete-profile-ready.png')
     await completeProfilePage.close()
 
-    await resetBrowserAuthState()
     const verifyEmailPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await resetBrowserScenario(verifyEmailPage)
     await verifyEmailPage.goto(baseUrl, { waitUntil: 'networkidle' })
     await openLogin(verifyEmailPage)
     await submitLogin(verifyEmailPage, {
