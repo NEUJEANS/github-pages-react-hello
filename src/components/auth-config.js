@@ -38,6 +38,9 @@ export function resolveAuthConfig({
   const queryPendingEndpoint = readString(params.get('authPendingEndpoint'))
   const runtimePendingEndpoint = readString(runtimeConfig?.pendingEndpoint)
   const envPendingEndpoint = readString(env?.VITE_AUTH_PENDING_ENDPOINT)
+  const queryContinueEndpoint = readString(params.get('authContinueEndpoint'))
+  const runtimeContinueEndpoint = readString(runtimeConfig?.continueEndpoint)
+  const envContinueEndpoint = readString(env?.VITE_AUTH_CONTINUE_ENDPOINT)
   const queryLogoutEndpoint = readString(params.get('authLogoutEndpoint'))
   const runtimeLogoutEndpoint = readString(runtimeConfig?.logoutEndpoint)
   const envLogoutEndpoint = readString(env?.VITE_AUTH_LOGOUT_ENDPOINT)
@@ -71,6 +74,12 @@ export function resolveAuthConfig({
         || queryPendingEndpoint
         || envPendingEndpoint,
       '/api/auth/pending',
+    ),
+    continueEndpoint: readEndpoint(
+      runtimeContinueEndpoint
+        || queryContinueEndpoint
+        || envContinueEndpoint,
+      '/api/auth/continue',
     ),
     logoutEndpoint: readEndpoint(
       runtimeLogoutEndpoint

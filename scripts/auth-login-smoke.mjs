@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { buildAuthSubmitPlan, buildAuthResultSummary, buildGuestDraftSnapshot, buildAuthErrorSummary } from '../src/components/auth-flow-state.js'
-import { readAuthSession, signOutAuthSession, submitAuthLoginPlan } from '../src/components/auth-submit.js'
+import { buildAuthContinuationPlan, buildAuthSubmitPlan, buildAuthResultSummary, buildGuestDraftSnapshot, buildAuthErrorSummary } from '../src/components/auth-flow-state.js'
+import { readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan } from '../src/components/auth-submit.js'
 import { buildAuthConnectionSummary, buildPersistedAuthSession } from '../src/components/auth-storage.js'
 import { buildPostAuthContinuityPatch } from '../src/components/auth-session-merge.js'
 
@@ -58,13 +58,14 @@ function buildPlan({ email, password, mergeResolution = null, handoffId, intent 
   })
 }
 
+const authConfig = {
+  apiBaseUrl,
+  currentOrigin: base.origin,
+  credentialsMode: 'include',
+  fetchImpl: fetch,
+}
+
 async function submitPlan(plan) {
-  const authConfig = {
-    apiBaseUrl,
-    currentOrigin: base.origin,
-    credentialsMode: 'include',
-    fetchImpl: fetch,
-  }
   const result = await submitAuthLoginPlan(plan, authConfig)
   const connection = buildAuthConnectionSummary(plan, authConfig)
 
@@ -74,6 +75,18 @@ async function submitPlan(plan) {
     resultSummary: result.ok ? buildAuthResultSummary(result, plan.summary) : null,
     errorSummary: result.ok ? null : buildAuthErrorSummary(result, plan.summary),
     replacementPatch: buildPostAuthContinuityPatch(result),
+  }
+}
+
+async function submitContinuation(plan, fallbackSummary = {}) {
+  const result = await submitAuthContinuationPlan(plan, authConfig)
+  const connection = buildAuthConnectionSummary(plan, authConfig)
+
+  return {
+    result,
+    connection,
+    resultSummary: result.ok ? buildAuthResultSummary(result, fallbackSummary) : null,
+    errorSummary: result.ok ? null : buildAuthErrorSummary(result, fallbackSummary),
   }
 }
 
@@ -183,6 +196,29 @@ async function runHttpSmoke() {
     },
   })
   const completeProfile = await submitPlan(completeProfilePlan)
+  const completeProfileContinuation = await submitContinuation(
+    buildAuthContinuationPlan({
+      endpoint: '/api/auth/continue',
+      handoffId: completeProfilePlan.summary.handoffId,
+      continuation: completeProfile.result.data,
+      fields: {
+        displayName: 'Havenly User',
+        phone: '010-1234-5678',
+      },
+    }),
+    {
+      ...completeProfilePlan.summary,
+      connection: completeProfile.connection,
+      continuation: completeProfile.resultSummary
+        ? {
+            resumeToken: completeProfile.resultSummary.resumeToken,
+            nextAction: completeProfile.resultSummary.nextAction,
+            status: completeProfile.resultSummary.continuationStatus,
+            statusLabel: completeProfile.resultSummary.continuationStatusLabel,
+          }
+        : null,
+    },
+  )
 
   const verifyEmailPlan = buildPlan({
     email: 'verify@example.com',
@@ -197,6 +233,28 @@ async function runHttpSmoke() {
     },
   })
   const verifyEmail = await submitPlan(verifyEmailPlan)
+  const verifyEmailContinuation = await submitContinuation(
+    buildAuthContinuationPlan({
+      endpoint: '/api/auth/continue',
+      handoffId: verifyEmailPlan.summary.handoffId,
+      continuation: verifyEmail.result.data,
+      fields: {
+        verificationCode: '123456',
+      },
+    }),
+    {
+      ...verifyEmailPlan.summary,
+      connection: verifyEmail.connection,
+      continuation: verifyEmail.resultSummary
+        ? {
+            resumeToken: verifyEmail.resultSummary.resumeToken,
+            nextAction: verifyEmail.resultSummary.nextAction,
+            status: verifyEmail.resultSummary.continuationStatus,
+            statusLabel: verifyEmail.resultSummary.continuationStatusLabel,
+          }
+        : null,
+    },
+  )
 
   return {
     mode: 'http-fallback',
@@ -228,6 +286,10 @@ async function runHttpSmoke() {
         continuationStatusLabel: completeProfile.resultSummary?.continuationStatusLabel ?? null,
         targetLabel: completeProfile.connection.targetLabel,
         resolvedUrl: completeProfile.connection.resolvedUrl,
+        continuedStatus: completeProfileContinuation.result.status,
+        continuedNextAction: completeProfileContinuation.resultSummary?.nextAction ?? null,
+        continuedStatusLabel: completeProfileContinuation.resultSummary?.continuationStatusLabel ?? null,
+        continuedConnectionTarget: completeProfileContinuation.connection.targetLabel,
       },
       verifyEmail: {
         status: verifyEmail.result.status,
@@ -237,6 +299,10 @@ async function runHttpSmoke() {
         continuationStatusLabel: verifyEmail.resultSummary?.continuationStatusLabel ?? null,
         targetLabel: verifyEmail.connection.targetLabel,
         resolvedUrl: verifyEmail.connection.resolvedUrl,
+        continuedStatus: verifyEmailContinuation.result.status,
+        continuedNextAction: verifyEmailContinuation.resultSummary?.nextAction ?? null,
+        continuedStatusLabel: verifyEmailContinuation.resultSummary?.continuationStatusLabel ?? null,
+        continuedConnectionTarget: verifyEmailContinuation.connection.targetLabel,
       },
     },
     guardedMerge: {

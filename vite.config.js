@@ -16,6 +16,7 @@ import {
   readAuthScaffoldPending,
   readAuthScaffoldSession,
   signOutAuthScaffoldSession,
+  submitAuthScaffoldContinuation,
   submitAuthScaffoldRequest,
 } from "./src/components/auth-backend-scaffold.js"
 
@@ -25,28 +26,45 @@ function readRequestBody(req) {
 
     req.on("data", (chunk) => {
       if (Buffer.isBuffer(chunk)) {
-        chunks.push(chunk)
+        chunks.push(chunk.toString("utf8"))
         return
       }
 
       if (typeof chunk === "string") {
-        chunks.push(Buffer.from(chunk, "utf8"))
+        chunks.push(chunk)
         return
       }
 
       if (chunk instanceof Uint8Array) {
-        chunks.push(Buffer.from(chunk))
+        chunks.push(Buffer.from(chunk).toString("utf8"))
         return
       }
 
-      chunks.push(Buffer.from(String(chunk ?? ""), "utf8"))
+      chunks.push(String(chunk ?? ""))
     })
     req.on("end", () => {
+      const raw = chunks.join("").replace(/^\uFEFF/, "").trim()
+      if (!raw) {
+        resolve({})
+        return
+      }
+
       try {
-        const raw = Buffer.concat(chunks).toString("utf8")
-        resolve(raw ? JSON.parse(raw) : {})
-      } catch (error) {
-        reject(error)
+        resolve(JSON.parse(raw))
+        return
+      } catch {
+        try {
+          const params = new URLSearchParams(raw)
+          const entries = Array.from(params.entries())
+          if (entries.length) {
+            resolve(Object.fromEntries(entries))
+            return
+          }
+        } catch {
+          // ignore and fall through to structured error below
+        }
+
+        resolve({ __invalidJson: raw })
       }
     })
     req.on("error", reject)
@@ -63,7 +81,8 @@ function writeJson(res, status, data, headers = {}) {
 }
 
 function readAuthConnection(req) {
-  const endpoint = req.headers[AUTH_CONNECTION_ENDPOINT_HEADER] ?? "/api/auth/login"
+  const headerMethod = req.headers[AUTH_CONNECTION_METHOD_HEADER]
+  const endpoint = req.headers[AUTH_CONNECTION_ENDPOINT_HEADER] ?? req.url ?? "/api/auth/login"
   const targetLabel = req.headers[AUTH_CONNECTION_TARGET_HEADER] ?? "same-origin /api auth scaffold"
   const credentialsMode = req.headers[AUTH_CONNECTION_CREDENTIALS_HEADER] ?? "include"
   const source = req.headers[AUTH_CONNECTION_SOURCE_HEADER] ?? "default"
@@ -72,7 +91,7 @@ function readAuthConnection(req) {
     : `https://${targetLabel}${endpoint}`
 
   return {
-    method: req.method ?? "POST",
+    method: headerMethod ?? req.method ?? "POST",
     endpoint,
     resolvedUrl,
     targetLabel,
@@ -144,6 +163,38 @@ function havenlyAuthScaffoldPlugin() {
       return
     }
 
+    if (req.method === "POST" && req.url === "/api/auth/continue") {
+      try {
+        const request = await readRequestBody(req)
+        const connection = readAuthConnection(req)
+        const response = submitAuthScaffoldContinuation({
+          request: {
+            ...request,
+            continuation: {
+              ...(request.continuation ?? {}),
+              resumeToken: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? request.continuation?.resumeToken ?? null,
+              nextAction: req.headers[AUTH_NEXT_ACTION_HEADER] ?? request.continuation?.nextAction ?? null,
+              status: request.continuation?.status ?? null,
+              statusLabel: request.continuation?.statusLabel ?? null,
+            },
+          },
+          connection,
+        })
+
+        writeJson(res, response.status, response.data, {
+          "x-havenly-auth-scaffold": "true",
+          ...buildAuthConnectionHeaders(response.data?.connection ?? connection),
+          ...buildAuthContinuationHeaders(response.data),
+        })
+      } catch (error) {
+        writeJson(res, 400, {
+          message: "Invalid auth scaffold continuation request",
+          detail: error instanceof Error ? error.message : String(error),
+        }, { "x-havenly-auth-scaffold": "true" })
+      }
+      return
+    }
+
     if (req.method !== "POST" || req.url !== "/api/auth/login") {
       next()
       return
@@ -171,8 +222,11 @@ function havenlyAuthScaffoldPlugin() {
         ...buildAuthConnectionHeaders(response.data?.connection ?? connection),
         ...buildAuthContinuationHeaders(response.data),
       })
-    } catch {
-      writeJson(res, 400, { message: "Invalid auth scaffold request" }, { "x-havenly-auth-scaffold": "true" })
+    } catch (error) {
+      writeJson(res, 400, {
+        message: "Invalid auth scaffold request",
+        detail: error instanceof Error ? error.message : String(error),
+      }, { "x-havenly-auth-scaffold": "true" })
     }
   }
 
