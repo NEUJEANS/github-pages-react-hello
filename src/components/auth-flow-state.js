@@ -107,6 +107,17 @@ function buildSerializableContinuationFields(fields = null) {
   return Object.fromEntries(entries)
 }
 
+function readContinuationRequiredFields(nextAction = null) {
+  switch (nextAction) {
+    case 'complete-profile':
+      return ['displayName', 'phone']
+    case 'verify-email':
+      return ['verificationCode']
+    default:
+      return []
+  }
+}
+
 export function buildAuthContinuationPlan({
   endpoint = '/api/auth/continue',
   continuation = null,
@@ -116,9 +127,15 @@ export function buildAuthContinuationPlan({
   const serializableContinuation = buildSerializableContinuation(continuation)
   const serializableFields = buildSerializableContinuationFields(fields)
   const normalizedHandoffId = sanitizeAuthHandoffId(handoffId)
+  const requiredFields = readContinuationRequiredFields(serializableContinuation?.nextAction)
+  const missingFields = requiredFields.filter((field) => {
+    const value = serializableFields?.[field]
+    return typeof value !== 'string' || !value.trim()
+  })
+  const hasContinuationContract = Boolean(serializableContinuation?.resumeToken || serializableContinuation?.nextAction)
 
   return {
-    canSubmit: Boolean(serializableContinuation?.resumeToken || serializableContinuation?.nextAction),
+    canSubmit: hasContinuationContract && missingFields.length === 0,
     endpoint,
     method: 'POST',
     handoffId: normalizedHandoffId || null,
@@ -131,6 +148,8 @@ export function buildAuthContinuationPlan({
       handoffId: normalizedHandoffId || null,
       continuation: serializableContinuation,
       fieldCount: serializableFields ? Object.keys(serializableFields).length : 0,
+      requiredFields,
+      missingFields,
     },
   }
 }

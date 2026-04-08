@@ -99,6 +99,50 @@ test('buildAuthContinuationPlan prepares a serializable follow-up auth contract 
       statusLabel: '프로필 보완 필요',
     },
     fieldCount: 2,
+    requiredFields: ['displayName', 'phone'],
+    missingFields: [],
+  })
+})
+
+test('buildAuthContinuationPlan blocks submit until required continuation fields are serializable', () => {
+  const plan = buildAuthContinuationPlan({
+    endpoint: '/api/auth/continue',
+    handoffId: ' auth-continue-123 ',
+    continuation: {
+      resumeToken: ' resume-123 ',
+      nextAction: ' verify-email ',
+      status: ' action-required ',
+      statusLabel: ' 이메일 인증 필요 ',
+    },
+    fields: {
+      verificationCode: '   ',
+    },
+  })
+
+  assert.equal(plan.canSubmit, false)
+  assert.deepEqual(plan.request, {
+    continuation: {
+      resumeToken: 'resume-123',
+      nextAction: 'verify-email',
+      status: 'action-required',
+      statusLabel: '이메일 인증 필요',
+    },
+    fields: {
+      verificationCode: '',
+    },
+    handoffId: 'auth-continue-123',
+  })
+  assert.deepEqual(plan.summary, {
+    handoffId: 'auth-continue-123',
+    continuation: {
+      resumeToken: 'resume-123',
+      nextAction: 'verify-email',
+      status: 'action-required',
+      statusLabel: '이메일 인증 필요',
+    },
+    fieldCount: 1,
+    requiredFields: ['verificationCode'],
+    missingFields: ['verificationCode'],
   })
 })
 

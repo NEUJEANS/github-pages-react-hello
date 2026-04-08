@@ -2180,6 +2180,9 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authCont
                     <p className="muted">실제 인증 UI 전 단계로, token을 유지한 채 최소 확인 payload만 `/api/auth/continue`로 보냅니다.</p>
                   </div>
                 )}
+                {authContinuationPlan.summary.missingFields.length > 0 && (
+                  <p className="muted">계속하려면 {authContinuationPlan.summary.missingFields.join(', ')} 필드를 먼저 채워주세요.</p>
+                )}
                 {authReadyPanelState.connectionLabel && (
                   <p className="muted">연결 대상: {authReadyPanelState.connectionLabel}{authReadyPanelState.connectionEndpoint ? ` (${authReadyPanelState.connectionEndpoint})` : ''}</p>
                 )}
