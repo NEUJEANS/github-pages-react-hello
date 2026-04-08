@@ -282,24 +282,15 @@ async function runHttpSmoke() {
   })
   const scaffoldSession = await readAuthSession({
     endpoint: '/api/auth/session',
-    apiBaseUrl,
-    currentOrigin: base.origin,
-    credentialsMode: 'include',
-    fetchImpl: fetch,
+    ...authConfig,
   })
   const logoutResult = await signOutAuthSession({
     endpoint: '/api/auth/logout',
-    apiBaseUrl,
-    currentOrigin: base.origin,
-    credentialsMode: 'include',
-    fetchImpl: fetch,
+    ...authConfig,
   })
   const scaffoldSessionAfterLogout = await readAuthSession({
     endpoint: '/api/auth/session',
-    apiBaseUrl,
-    currentOrigin: base.origin,
-    credentialsMode: 'include',
-    fetchImpl: fetch,
+    ...authConfig,
   })
 
   const saveDraftPlan = buildPlan({
@@ -531,10 +522,7 @@ async function ensureAppShellReady(page) {
 async function resetBrowserAuthState() {
   await signOutAuthSession({
     endpoint: '/api/auth/logout',
-    apiBaseUrl,
-    currentOrigin: base.origin,
-    credentialsMode: 'include',
-    fetchImpl: fetch,
+    ...authConfig,
   }).catch(() => null)
 }
 
@@ -573,6 +561,47 @@ async function submitLogin(page, { email, password }) {
   await loginForm.getByRole('button', { name: '로그인', exact: true }).click()
 }
 
+async function waitForAuthReadySignal(page, { expectedAccountLabel = null, timeoutMs = 30000 } = {}) {
+  const startedAt = Date.now()
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const authSessionNotice = page.locator('.authSessionNotice')
+    if (await authSessionNotice.count()) {
+      if (await authSessionNotice.first().isVisible().catch(() => false)) {
+        return {
+          signal: 'session-notice',
+          notice: await page.locator('.authSessionNotice p').innerText().catch(() => null),
+        }
+      }
+    }
+
+    const accountLabel = await page.locator('.accountTrigger span').last().innerText().catch(() => '')
+    const normalizedAccountLabel = typeof accountLabel === 'string' ? accountLabel.trim() : ''
+    if (expectedAccountLabel && normalizedAccountLabel === expectedAccountLabel) {
+      return {
+        signal: 'account-label',
+        accountLabel: normalizedAccountLabel,
+      }
+    }
+
+    const readyPanelCta = page.locator('.loginPanel .footerButtons .cta').last()
+    if (await readyPanelCta.count()) {
+      const ctaLabel = (await readyPanelCta.innerText().catch(() => '')).trim()
+      if (ctaLabel && ctaLabel !== '로그인' && ctaLabel !== '준비 중…') {
+        return {
+          signal: 'ready-panel',
+          accountLabel: normalizedAccountLabel || null,
+          ctaLabel,
+        }
+      }
+    }
+
+    await delay(250)
+  }
+
+  throw new Error(`Timed out waiting for an authenticated UI signal${expectedAccountLabel ? ` for ${expectedAccountLabel}` : ''}`)
+}
+
 async function runBrowserSmoke(playwright) {
   const { chromium } = playwright
   const browser = await chromium.launch({ headless: true })
@@ -587,14 +616,18 @@ async function runBrowserSmoke(playwright) {
       password: 'password123',
     })
 
-    await page.locator('.authSessionNotice').waitFor()
-    const status = 'modal-closed-after-direct-login'
-    const notice = await page.locator('.authSessionNotice p').innerText()
-    const accountLabel = await page.locator('.accountTrigger span').last().innerText()
+    const directReady = await waitForAuthReadySignal(page, { expectedAccountLabel: 'user@example.com' })
+    const status = directReady.signal === 'session-notice'
+      ? 'modal-closed-after-direct-login'
+      : directReady.signal === 'ready-panel'
+        ? 'modal-open-ready-panel-after-direct-login'
+        : 'account-badge-updated-after-direct-login'
+    const notice = directReady.notice ?? null
+    const accountLabel = directReady.accountLabel ?? await page.locator('.accountTrigger span').last().innerText()
     await page.reload({ waitUntil: 'networkidle' })
-    await page.locator('.authSessionNotice').waitFor()
-    const reloadedNotice = await page.locator('.authSessionNotice p').innerText()
-    const reloadedAccountLabel = await page.locator('.accountTrigger span').last().innerText()
+    const directReloadReady = await waitForAuthReadySignal(page, { expectedAccountLabel: 'user@example.com' })
+    const reloadedNotice = directReloadReady.notice ?? null
+    const reloadedAccountLabel = directReloadReady.accountLabel ?? await page.locator('.accountTrigger span').last().innerText()
     await page.getByRole('button', { name: '로그아웃' }).click()
     await page.getByRole('button', { name: '로그인 열기' }).waitFor()
     const postLogoutLabel = await page.getByRole('button', { name: '로그인 열기' }).innerText()
