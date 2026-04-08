@@ -286,10 +286,11 @@ async function openLogin(page) {
 }
 
 async function submitLogin(page, { email, password }) {
-  const inputs = page.locator('.loginForm input')
+  const loginForm = page.locator('.loginPanel .loginForm').last()
+  const inputs = loginForm.locator('input')
   await inputs.nth(0).fill(email)
   await inputs.nth(1).fill(password)
-  await page.getByRole('button', { name: '로그인' }).click()
+  await loginForm.getByRole('button', { name: '로그인', exact: true }).click()
 }
 
 async function runBrowserSmoke(playwright) {

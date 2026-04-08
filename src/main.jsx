@@ -105,6 +105,14 @@ const initialEngagement = {
   draftBoards: 0,
 }
 
+const initialAiForm = {
+  room: '거실',
+  style: 'minimal',
+  priority: 'flow',
+  lifestyle: ['기본'],
+  extraRequest: '',
+}
+
 const roomOptions = ['거실', '침실', '주방', '서재']
 const styleOptions = [
   { id: 'minimal', emoji: '🤍', label: '미니멀' },
