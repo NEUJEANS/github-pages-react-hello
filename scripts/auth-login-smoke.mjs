@@ -9,11 +9,30 @@ import { buildPostAuthContinuityPatch } from '../src/components/auth-session-mer
 const cliArgs = process.argv.slice(2)
 const requireBrowser = cliArgs.includes('--require-browser')
 const positionalArgs = cliArgs.filter((arg) => arg !== '--require-browser')
-const baseUrl = positionalArgs[0] || 'http://127.0.0.1:4174/github-pages-react-hello/'
-const base = new URL(baseUrl)
-const apiBaseUrl = base.origin
+const defaultBaseUrl = positionalArgs[0] || 'http://127.0.0.1:4174/github-pages-react-hello/'
+let baseUrl = defaultBaseUrl
+let base = new URL(baseUrl)
+let apiBaseUrl = base.origin
+let authConfig = {
+  apiBaseUrl,
+  currentOrigin: base.origin,
+  credentialsMode: 'include',
+  fetchImpl: fetch,
+}
 const outDir = path.resolve('playwright-artifacts')
 await fs.mkdir(outDir, { recursive: true })
+
+function setActiveBaseUrl(url) {
+  baseUrl = url
+  base = new URL(url)
+  apiBaseUrl = base.origin
+  authConfig = {
+    apiBaseUrl,
+    currentOrigin: base.origin,
+    credentialsMode: 'include',
+    fetchImpl: fetch,
+  }
+}
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -100,11 +119,23 @@ async function startPreviewServer(url) {
   throw new Error(`Timed out waiting for preview server at ${url}. stdout: ${stdout || '(empty)'} stderr: ${stderr || '(empty)'}`)
 }
 
+function buildFallbackBaseUrl(url, { portOffset = 1 } = {}) {
+  const nextUrl = new URL(url)
+  const currentPort = Number(nextUrl.port || (nextUrl.protocol === 'https:' ? 443 : 80))
+  nextUrl.port = String(currentPort + portOffset)
+  return nextUrl.toString()
+}
+
+function isAppShellStartupError(error) {
+  return error instanceof Error && error.message.includes('App shell did not render before auth smoke started')
+}
+
 async function ensureBrowserBaseUrl(url) {
   if (await isBaseUrlReachable(url)) {
     return {
       process: null,
       started: false,
+      url,
     }
   }
 
@@ -115,6 +146,7 @@ async function ensureBrowserBaseUrl(url) {
   return {
     process: previewProcess,
     started,
+    url,
   }
 }
 
@@ -160,13 +192,6 @@ function buildPlan({ email, password, mergeResolution = null, handoffId, intent 
     endpoint: '/api/auth/login',
     intent,
   })
-}
-
-const authConfig = {
-  apiBaseUrl,
-  currentOrigin: base.origin,
-  credentialsMode: 'include',
-  fetchImpl: fetch,
 }
 
 async function submitPlan(plan) {
@@ -468,7 +493,20 @@ async function readStartupAssetErrors(page) {
 
 async function ensureAppShellReady(page) {
   try {
-    await page.getByRole('button', { name: '로그인 열기' }).waitFor({ timeout: 10000 })
+    await page.waitForFunction(() => {
+      const root = document.querySelector('#root')
+      return Boolean(root && root.innerHTML.trim())
+    }, { timeout: 15000 })
+
+    const loginTrigger = page.getByRole('button', { name: /로그인 열기/ })
+    const logoutTrigger = page.getByRole('button', { name: '로그아웃' })
+    const accountTrigger = page.locator('.accountTrigger')
+
+    await Promise.any([
+      loginTrigger.waitFor({ timeout: 10000 }),
+      logoutTrigger.waitFor({ timeout: 10000 }),
+      accountTrigger.waitFor({ timeout: 10000 }),
+    ])
     return
   } catch {
     const resourceEntries = await readStartupAssetErrors(page)
@@ -482,7 +520,7 @@ async function ensureAppShellReady(page) {
       throw new Error(`App shell did not render before auth smoke started. The preview/dev server may be serving a stale or incomplete build.${assetCopy}`)
     }
 
-    throw new Error('App shell rendered, but the login trigger was not found within the expected timeout.')
+    throw new Error('App shell rendered, but the auth shell controls were not found within the expected timeout.')
   }
 }
 
@@ -595,7 +633,7 @@ async function runBrowserSmoke(playwright) {
     const mergeOptions = await mergePage.locator('.footerButtons button.ghost').evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim()).filter(Boolean))
 
     await mergePage.getByRole('button', { name: '현재 초안으로 계속' }).click()
-    const mergeReadyAction = mergePage.locator('.authPrepCard button.cta').first()
+    const mergeReadyAction = mergePage.locator('.loginPanel .footerButtons .cta').last()
     await mergeReadyAction.waitFor()
     const mergeReadyLabel = (await mergeReadyAction.innerText()).trim()
     const mergeStatus = await mergePage.locator('.authPrepCard .muted').first().innerText()
@@ -690,9 +728,31 @@ try {
     try {
       const ensuredBaseUrl = await ensureBrowserBaseUrl(baseUrl)
       previewServer = ensuredBaseUrl.process
-      result = {
-        ...(await runBrowserSmoke(playwright.module)),
-        browserServerStarted: ensuredBaseUrl.started,
+      setActiveBaseUrl(ensuredBaseUrl.url)
+
+      try {
+        result = {
+          ...(await runBrowserSmoke(playwright.module)),
+          browserServerStarted: ensuredBaseUrl.started,
+          browserBaseUrl: baseUrl,
+        }
+      } catch (error) {
+        const canRetryWithFreshPreview = !ensuredBaseUrl.started && isAppShellStartupError(error)
+
+        if (!canRetryWithFreshPreview) throw error
+
+        const fallbackBaseUrl = buildFallbackBaseUrl(defaultBaseUrl)
+        const fallbackPreview = await ensureBrowserBaseUrl(fallbackBaseUrl)
+        previewServer = fallbackPreview.process ?? previewServer
+        setActiveBaseUrl(fallbackPreview.url)
+
+        result = {
+          ...(await runBrowserSmoke(playwright.module)),
+          browserServerStarted: fallbackPreview.started || ensuredBaseUrl.started,
+          browserBaseUrl: baseUrl,
+          browserRecoveredFromStaleBase: true,
+          browserOriginalBaseUrl: defaultBaseUrl,
+        }
       }
     } catch (error) {
       if (requireBrowser) throw error
@@ -703,6 +763,7 @@ try {
         browserRequested: true,
         browserAttempted: true,
         browserReady: false,
+        browserBaseUrl: baseUrl,
         browserError: error instanceof Error ? error.message : String(error),
       }
     }
