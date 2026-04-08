@@ -161,6 +161,34 @@ async function runHttpSmoke() {
   })
   const saveDraft = await submitPlan(saveDraftPlan)
 
+  const completeProfilePlan = buildPlan({
+    email: 'profile@example.com',
+    password: 'password123',
+    handoffId: 'auth-smoke-profile-0001',
+    intent: {
+      source: 'smoke',
+      action: 'complete-profile',
+      label: '프로필 마무리',
+      returnScreen: 'home',
+      draftLabel: '필수 프로필',
+    },
+  })
+  const completeProfile = await submitPlan(completeProfilePlan)
+
+  const verifyEmailPlan = buildPlan({
+    email: 'verify@example.com',
+    password: 'password123',
+    handoffId: 'auth-smoke-verify-0001',
+    intent: {
+      source: 'smoke',
+      action: 'verify-email',
+      label: '이메일 인증 이어가기',
+      returnScreen: 'home',
+      draftLabel: '인증 대기',
+    },
+  })
+  const verifyEmail = await submitPlan(verifyEmailPlan)
+
   return {
     mode: 'http-fallback',
     baseUrl,
@@ -181,6 +209,26 @@ async function runHttpSmoke() {
       resumeToken: saveDraft.resultSummary?.resumeToken ?? null,
       targetLabel: saveDraft.connection.targetLabel,
       resolvedUrl: saveDraft.connection.resolvedUrl,
+    },
+    actionRequired: {
+      completeProfile: {
+        status: completeProfile.result.status,
+        nextAction: completeProfile.resultSummary?.nextAction ?? null,
+        resumeToken: completeProfile.resultSummary?.resumeToken ?? null,
+        continuationStatus: completeProfile.resultSummary?.continuationStatus ?? null,
+        continuationStatusLabel: completeProfile.resultSummary?.continuationStatusLabel ?? null,
+        targetLabel: completeProfile.connection.targetLabel,
+        resolvedUrl: completeProfile.connection.resolvedUrl,
+      },
+      verifyEmail: {
+        status: verifyEmail.result.status,
+        nextAction: verifyEmail.resultSummary?.nextAction ?? null,
+        resumeToken: verifyEmail.resultSummary?.resumeToken ?? null,
+        continuationStatus: verifyEmail.resultSummary?.continuationStatus ?? null,
+        continuationStatusLabel: verifyEmail.resultSummary?.continuationStatusLabel ?? null,
+        targetLabel: verifyEmail.connection.targetLabel,
+        resolvedUrl: verifyEmail.connection.resolvedUrl,
+      },
     },
     guardedMerge: {
       promptStatus: mergePrompt.result.status,
@@ -307,10 +355,38 @@ async function runBrowserSmoke(playwright) {
     const mergeOptions = await mergePage.locator('.footerButtons button.ghost').evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim()).filter(Boolean))
 
     await mergePage.getByRole('button', { name: '현재 초안으로 계속' }).click()
-    await mergePage.getByRole('button', { name: '연결 완료' }).waitFor()
+    await mergePage.getByRole('button', { name: '게스트 초안 이어가기' }).waitFor()
     const mergeStatus = await mergePage.locator('.authPrepCard .muted').first().innerText()
     await capture(mergePage, 'auth-login-guarded-merge.png')
     await mergePage.close()
+
+    const completeProfilePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await completeProfilePage.goto(baseUrl, { waitUntil: 'networkidle' })
+    await openLogin(completeProfilePage)
+    await submitLogin(completeProfilePage, {
+      email: 'profile@example.com',
+      password: 'password123',
+    })
+    await completeProfilePage.getByRole('button', { name: '프로필 보완 계약 보기' }).waitFor()
+    const completeProfileStatus = await completeProfilePage.locator('.authPrepCard .muted').first().innerText()
+    const completeProfileChecklist = await completeProfilePage.locator('.authChecklist li').allInnerTexts()
+    const completeProfileDisabled = await completeProfilePage.getByRole('button', { name: '프로필 보완 계약 보기' }).isDisabled()
+    await capture(completeProfilePage, 'auth-login-complete-profile-ready.png')
+    await completeProfilePage.close()
+
+    const verifyEmailPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await verifyEmailPage.goto(baseUrl, { waitUntil: 'networkidle' })
+    await openLogin(verifyEmailPage)
+    await submitLogin(verifyEmailPage, {
+      email: 'verify@example.com',
+      password: 'password123',
+    })
+    await verifyEmailPage.getByRole('button', { name: '이메일 인증 계약 보기' }).waitFor()
+    const verifyEmailStatus = await verifyEmailPage.locator('.authPrepCard .muted').first().innerText()
+    const verifyEmailChecklist = await verifyEmailPage.locator('.authChecklist li').allInnerTexts()
+    const verifyEmailDisabled = await verifyEmailPage.getByRole('button', { name: '이메일 인증 계약 보기' }).isDisabled()
+    await capture(verifyEmailPage, 'auth-login-verify-email-ready.png')
+    await verifyEmailPage.close()
 
     return {
       mode: 'browser',
@@ -329,6 +405,18 @@ async function runBrowserSmoke(playwright) {
         connection: saveDraftConnection,
         notice: saveDraftNotice,
         reloadedStatus: saveDraftReloadedStatus,
+      },
+      actionRequired: {
+        completeProfile: {
+          status: completeProfileStatus,
+          checklist: completeProfileChecklist,
+          primaryActionDisabled: completeProfileDisabled,
+        },
+        verifyEmail: {
+          status: verifyEmailStatus,
+          checklist: verifyEmailChecklist,
+          primaryActionDisabled: verifyEmailDisabled,
+        },
       },
       guardedMerge: { guardReasons, mergeError, mergeOptions, mergeStatus },
     }

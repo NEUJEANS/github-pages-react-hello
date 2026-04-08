@@ -23,7 +23,24 @@ function readRequestBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = []
 
-    req.on("data", (chunk) => chunks.push(chunk))
+    req.on("data", (chunk) => {
+      if (Buffer.isBuffer(chunk)) {
+        chunks.push(chunk)
+        return
+      }
+
+      if (typeof chunk === "string") {
+        chunks.push(Buffer.from(chunk, "utf8"))
+        return
+      }
+
+      if (chunk instanceof Uint8Array) {
+        chunks.push(Buffer.from(chunk))
+        return
+      }
+
+      chunks.push(Buffer.from(String(chunk ?? ""), "utf8"))
+    })
     req.on("end", () => {
       try {
         const raw = Buffer.concat(chunks).toString("utf8")
