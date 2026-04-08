@@ -173,6 +173,26 @@ export function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
   }
 }
 
+function buildGuestDraftSummaryFromDraftSave(draftSave = null) {
+  const serializableDraftSave = buildSerializableDraftSave(draftSave)
+  if (!serializableDraftSave) return null
+
+  return {
+    apartmentLabel: serializableDraftSave.apartmentLabel ?? serializableDraftSave.draftLabel ?? null,
+    selectedRoomCount: Array.isArray(serializableDraftSave.selectedSpaceIds)
+      ? serializableDraftSave.selectedSpaceIds.length
+      : 0,
+    selectedRooms: [],
+    selectedSpaceIds: Array.isArray(serializableDraftSave.selectedSpaceIds)
+      ? [...serializableDraftSave.selectedSpaceIds]
+      : [],
+    recommendationRoom: serializableDraftSave.recommendationRoom ?? null,
+    wishlistCount: 0,
+    cartCount: 0,
+    layoutItemCount: serializableDraftSave.layoutItemCount ?? 0,
+  }
+}
+
 function buildSerializableDraftSave(draftSave = null) {
   if (!draftSave || typeof draftSave !== 'object' || Array.isArray(draftSave)) return null
 
@@ -232,7 +252,7 @@ function buildSerializableAuthAccountState(accountState = null) {
 export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null, connection = null, continuation = null, continuationFields = null, accountState = null } = {}) {
   const derivedGuestDraftSummary = guestDraftSnapshot
     ? buildGuestDraftSessionSummary(guestDraftSnapshot)
-    : (resultSummary?.guestDraftSummary ?? null)
+    : (resultSummary?.guestDraftSummary ?? buildGuestDraftSummaryFromDraftSave(resultSummary?.draftSave ?? null) ?? null)
 
   return {
     savedAt,

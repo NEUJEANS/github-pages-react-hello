@@ -772,6 +772,40 @@ test('buildPersistedAuthSession falls back to backend session context when no gu
   })
 })
 
+test('buildPersistedAuthSession can derive restore-ready guest draft context from serialized draft-save payloads', () => {
+  const session = buildPersistedAuthSession({
+    sessionId: 'sess_draftsave',
+    accountLabel: 'user@example.com',
+    draftSave: {
+      draftLabel: '거실 배치 보드',
+      apartmentLabel: '래미안 포레스트 84A',
+      recommendationRoom: '거실',
+      selectedSpaceIds: ['living', 'bed1'],
+      layoutItems: [{ id: 'layout-1' }, { id: 'layout-2' }],
+      layoutItemCount: 2,
+    },
+  })
+
+  assert.deepEqual(session.guestDraftSummary, {
+    apartmentLabel: '래미안 포레스트 84A',
+    selectedRoomCount: 2,
+    selectedRooms: [],
+    selectedSpaceIds: ['living', 'bed1'],
+    recommendationRoom: '거실',
+    wishlistCount: 0,
+    cartCount: 0,
+    layoutItemCount: 2,
+  })
+  assert.deepEqual(session.draftSave, {
+    draftLabel: '거실 배치 보드',
+    apartmentLabel: '래미안 포레스트 84A',
+    recommendationRoom: '거실',
+    selectedSpaceIds: ['living', 'bed1'],
+    layoutItems: [{ id: 'layout-1' }, { id: 'layout-2' }],
+    layoutItemCount: 2,
+  })
+})
+
 test('buildSerializableAuthIntent trims the guarded login handoff context down to serializable UI fields', () => {
   assert.deepEqual(buildSerializableAuthIntent({
     source: ' layout-editor ',
