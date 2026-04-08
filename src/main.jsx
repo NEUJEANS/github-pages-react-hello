@@ -1154,6 +1154,7 @@ function App() {
     try {
       const result = await submitAuthContinuationPlan(authContinuationPlan, authConfig)
       const nextContinuation = buildSerializableAuthContinuation(result?.data)
+      const nextIntent = authSession.intent ?? loginForm.intent ?? null
 
       if (result.ok) {
         const nextResultSummary = buildAuthResultSummary(result, {
@@ -1163,27 +1164,43 @@ function App() {
           layoutItemCount: authSession.layoutItemCount ?? 0,
           hasRecommendationDraft: authSession.hasRecommendationDraft ?? false,
           guestDraftSummary: authSession.guestDraftSummary ?? null,
-          intent: authSession.intent ?? loginForm.intent ?? null,
+          intent: nextIntent,
           connection: authSession.connection ?? authConnectionSummary,
           continuation: authSession.continuation ?? null,
           authMode: authSession.authMode ?? null,
           authTransport: authSession.authTransport ?? null,
         })
         const nextSession = buildPersistedAuthSession(nextResultSummary, {
-          intent: authSession.intent ?? loginForm.intent ?? null,
+          intent: nextIntent,
           connection: nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
           continuation: nextContinuation,
           accountState: result?.data?.accountState ?? authSession.accountState ?? null,
         })
+        const nextScreen = canResumePostAuthIntent(nextIntent, null, nextContinuation)
+          ? resolvePostAuthScreen(nextIntent, null, nextContinuation)
+          : null
 
         persistAuthSession(globalThis.localStorage, nextSession)
         setAuthSession(nextSession)
         setAuthContinuationFields(initialAuthContinuationFields)
+        setLoginForm((current) => ({
+          ...current,
+          status: 'ready',
+          result,
+          continuation: nextContinuation,
+        }))
+
+        if (nextScreen) {
+          setLoginModalState('closed')
+          navigate(nextScreen)
+        }
+
+        return
       }
 
       setLoginForm((current) => ({
         ...current,
-        status: result.ok ? 'ready' : 'error',
+        status: 'error',
         result,
         continuation: nextContinuation,
       }))
@@ -1198,7 +1215,7 @@ function App() {
         },
       }))
     }
-  }, [authConfig, authConnectionSummary, authContinuationPlan, authSession, loginForm.handoffId, loginForm.intent])
+  }, [authConfig, authConnectionSummary, authContinuationPlan, authSession, loginForm.handoffId, loginForm.intent, navigate])
 
   const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
     const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null

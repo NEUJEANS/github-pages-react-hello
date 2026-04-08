@@ -77,15 +77,15 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
       }
     case 'complete-profile':
       return {
-        primaryActionLabel: '프로필 보완 계약 보기',
-        primaryActionHint: '백엔드 인증은 연결됐고, 다음 checkpoint에서 프로필 입력 화면을 붙일 수 있도록 재개 계약을 먼저 노출해요.',
-        primaryActionDisabled: true,
+        primaryActionLabel: '프로필 보완 제출',
+        primaryActionHint: '백엔드가 요구한 최소 프로필 payload를 바로 제출하고, blocker가 풀리면 원래 로그인 목적 흐름으로 이어갈 수 있어요.',
+        primaryActionDisabled: false,
       }
     case 'verify-email':
       return {
-        primaryActionLabel: '이메일 인증 계약 보기',
-        primaryActionHint: '이메일 인증 화면 연결 전에도 어떤 token과 상태를 이어야 하는지 바로 확인할 수 있어요.',
-        primaryActionDisabled: true,
+        primaryActionLabel: '이메일 인증 확인',
+        primaryActionHint: '인증 코드를 바로 제출하고, backend가 준비 완료를 돌려주면 원래 이어가려던 흐름으로 복귀할 수 있어요.',
+        primaryActionDisabled: false,
       }
     default:
       return {
