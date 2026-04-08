@@ -22,13 +22,46 @@ function trimTrailingSlash(value = '') {
   return value.endsWith('/') ? value.slice(0, -1) : value
 }
 
-export function resolveAuthEndpoint(endpoint, { apiBaseUrl } = {}) {
+function trimLeadingSlash(value = '') {
+  return value.startsWith('/') ? value.slice(1) : value
+}
+
+function normalizeAppBasePath(appBasePath = '') {
+  const normalized = typeof appBasePath === 'string' ? appBasePath.trim() : ''
+  if (!normalized || normalized === '/') return ''
+  return `/${trimLeadingSlash(trimTrailingSlash(normalized))}`
+}
+
+export function resolveAuthEndpoint(endpoint, { apiBaseUrl, appBasePath, currentOrigin } = {}) {
   if (/^https?:\/\//.test(endpoint)) return endpoint
 
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
   const normalizedBase = trimTrailingSlash(apiBaseUrl?.trim?.() ?? '')
-  if (!normalizedBase) return endpoint
+  const normalizedAppBasePath = normalizeAppBasePath(appBasePath)
+  const canonicalOrigin = readCurrentOrigin(currentOrigin)
+  const shouldPrefixAppBasePath = Boolean(
+    normalizedAppBasePath
+    && normalizedEndpoint.startsWith('/api/auth/')
+    && normalizedBase
+    && canonicalOrigin
+    && normalizedBase == canonicalOrigin
+  )
 
-  return `${normalizedBase}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
+  if (normalizedBase) {
+    return shouldPrefixAppBasePath
+      ? `${normalizedBase}${normalizedAppBasePath}${normalizedEndpoint}`
+      : `${normalizedBase}${normalizedEndpoint}`
+  }
+
+  if (normalizedAppBasePath && normalizedEndpoint.startsWith('/api/auth/')) {
+    return `${normalizedAppBasePath}${normalizedEndpoint}`
+  }
+
+  return endpoint
+}
+
+function isSameOriginAuthScaffoldPath(pathname = '') {
+  return typeof pathname === 'string' && pathname.includes('/api/auth/')
 }
 
 function isSameOriginAuthScaffoldEndpoint(resolvedUrl, endpoint, { currentOrigin } = {}) {
@@ -36,11 +69,18 @@ function isSameOriginAuthScaffoldEndpoint(resolvedUrl, endpoint, { currentOrigin
   if (!/^https?:\/\//.test(resolvedUrl)) return true
 
   const origin = readCurrentOrigin(currentOrigin)
-  return Boolean(origin && resolvedUrl.startsWith(`${origin}/api/auth/`))
+  if (!origin) return false
+
+  try {
+    const resolved = new URL(resolvedUrl)
+    return resolved.origin === origin && isSameOriginAuthScaffoldPath(resolved.pathname)
+  } catch {
+    return false
+  }
 }
 
-function shouldUseLocalAuthScaffold(plan, { apiBaseUrl, currentOrigin } = {}) {
-  const resolvedUrl = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
+function shouldUseLocalAuthScaffold(plan, { apiBaseUrl, appBasePath, currentOrigin } = {}) {
+  const resolvedUrl = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   return isSameOriginAuthScaffoldEndpoint(resolvedUrl, plan.endpoint, { currentOrigin })
 }
 
@@ -226,7 +266,7 @@ function resolveAuthTargetLabel(endpoint, { currentOrigin } = {}) {
   try {
     const resolved = new URL(endpoint)
     const canonicalOrigin = readCurrentOrigin(currentOrigin)
-    if (canonicalOrigin && resolved.origin === canonicalOrigin && resolved.pathname.startsWith('/api/auth')) {
+    if (canonicalOrigin && resolved.origin === canonicalOrigin && isSameOriginAuthScaffoldPath(resolved.pathname)) {
       return 'same-origin /api auth scaffold'
     }
     return resolved.host
@@ -298,8 +338,8 @@ function buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders) {
   }
 }
 
-export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {
-  const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
+export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl, appBasePath, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {
+  const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: plan.method,
     endpoint: plan.endpoint,
@@ -313,7 +353,7 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
   try {
     const { response, data, meta } = await requestAuthJson(endpoint, requestInit, { fetchImpl })
 
-    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, appBasePath, currentOrigin }) && [404, 405, 501].includes(response.status)) {
       return buildScaffoldLoginResult(plan, connectionFallback)
     }
 
@@ -331,7 +371,7 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
       meta,
     }
   } catch {
-    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, currentOrigin })) {
+    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, appBasePath, currentOrigin })) {
       return buildScaffoldLoginResult(plan, connectionFallback)
     }
 
@@ -339,8 +379,8 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
   }
 }
 
-export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiBaseUrl, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {
-  const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
+export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiBaseUrl, appBasePath, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {
+  const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: plan.method,
     endpoint: plan.endpoint,
@@ -368,7 +408,7 @@ export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiB
   try {
     const { response, data, meta } = await requestAuthJson(endpoint, requestInit, { fetchImpl })
 
-    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, appBasePath, currentOrigin }) && [404, 405, 501].includes(response.status)) {
       return submitScaffoldContinuation()
     }
 
@@ -386,7 +426,7 @@ export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiB
       meta,
     }
   } catch {
-    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, currentOrigin })) {
+    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, appBasePath, currentOrigin })) {
       return submitScaffoldContinuation()
     }
 
@@ -398,12 +438,13 @@ export async function readAuthSession({
   endpoint = '/api/auth/session',
   fetchImpl = fetch,
   apiBaseUrl,
+  appBasePath,
   currentOrigin,
   credentialsMode = 'include',
   source = apiBaseUrl ? 'env/runtime-configured' : 'default',
   connectionFallbackOverride = null,
 } = {}) {
-  const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
+  const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: 'GET',
     endpoint,
@@ -420,7 +461,7 @@ export async function readAuthSession({
       headers: connectionHeaders,
     }, { fetchImpl })
 
-    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, appBasePath, currentOrigin }) && [404, 405, 501].includes(response.status)) {
       return buildScaffoldReadResult(readAuthScaffoldSession())
     }
 
@@ -434,7 +475,7 @@ export async function readAuthSession({
       meta,
     }
   } catch {
-    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, currentOrigin })) {
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, appBasePath, currentOrigin })) {
       return buildScaffoldReadResult(readAuthScaffoldSession())
     }
 
@@ -454,12 +495,13 @@ export async function readAuthPending({
   endpoint = '/api/auth/pending',
   fetchImpl = fetch,
   apiBaseUrl,
+  appBasePath,
   currentOrigin,
   credentialsMode = 'include',
   source = apiBaseUrl ? 'env/runtime-configured' : 'default',
   connectionFallbackOverride = null,
 } = {}) {
-  const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
+  const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: 'GET',
     endpoint,
@@ -476,7 +518,7 @@ export async function readAuthPending({
       headers: connectionHeaders,
     }, { fetchImpl })
 
-    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, appBasePath, currentOrigin }) && [404, 405, 501].includes(response.status)) {
       return buildScaffoldReadResult(readAuthScaffoldPending())
     }
 
@@ -490,7 +532,7 @@ export async function readAuthPending({
       meta,
     }
   } catch {
-    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, currentOrigin })) {
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, appBasePath, currentOrigin })) {
       return buildScaffoldReadResult(readAuthScaffoldPending())
     }
 
@@ -510,11 +552,12 @@ export async function signOutAuthSession({
   endpoint = '/api/auth/logout',
   fetchImpl = fetch,
   apiBaseUrl,
+  appBasePath,
   currentOrigin,
   credentialsMode = 'include',
   source = apiBaseUrl ? 'env/runtime-configured' : 'default',
 } = {}) {
-  const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl })
+  const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: 'POST',
     endpoint,
@@ -531,7 +574,7 @@ export async function signOutAuthSession({
       headers: connectionHeaders,
     }, { fetchImpl })
 
-    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, appBasePath, currentOrigin }) && [404, 405, 501].includes(response.status)) {
       return buildScaffoldReadResult(signOutAuthScaffoldSession())
     }
 
@@ -544,7 +587,7 @@ export async function signOutAuthSession({
       meta,
     }
   } catch {
-    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, currentOrigin })) {
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, appBasePath, currentOrigin })) {
       return buildScaffoldReadResult(signOutAuthScaffoldSession())
     }
 

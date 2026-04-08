@@ -26,6 +26,8 @@ import {
 test('resolveAuthEndpoint keeps local auth routes by default and prefixes configured api base urls', () => {
   assert.equal(resolveAuthEndpoint('/api/auth/login'), '/api/auth/login')
   assert.equal(resolveAuthEndpoint('/api/auth/login', { apiBaseUrl: 'https://api.example.com/' }), 'https://api.example.com/api/auth/login')
+  assert.equal(resolveAuthEndpoint('/api/auth/continue', { appBasePath: '/github-pages-react-hello/' }), '/github-pages-react-hello/api/auth/continue')
+  assert.equal(resolveAuthEndpoint('/api/auth/continue', { apiBaseUrl: 'https://havenly.example.com', appBasePath: '/github-pages-react-hello/', currentOrigin: 'https://havenly.example.com' }), 'https://havenly.example.com/github-pages-react-hello/api/auth/continue')
   assert.equal(resolveAuthEndpoint('https://auth.example.com/login', { apiBaseUrl: 'https://api.example.com/' }), 'https://auth.example.com/login')
 })
 
@@ -987,4 +989,38 @@ test('signOutAuthSession preserves the configured auth source label during logou
 
   assert.equal(calls[0].options.headers[AUTH_CONNECTION_SOURCE_HEADER], 'runtime')
   assert.equal(result.data.connection?.source, 'runtime')
+})
+
+
+test('submitAuthContinuationPlan can target same-origin scaffold endpoints under a configured app base path', async () => {
+  const calls = []
+  const result = await submitAuthContinuationPlan({
+    endpoint: '/api/auth/continue',
+    method: 'POST',
+    handoffId: 'auth-continue-basepath-123',
+    request: {
+      handoffId: 'auth-continue-basepath-123',
+      continuation: {
+        resumeToken: 'resume-basepath-123',
+        nextAction: 'verify-email',
+      },
+      fields: { verificationCode: '123456' },
+    },
+  }, {
+    appBasePath: '/github-pages-react-hello/',
+    currentOrigin: 'https://havenly.example.com',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options })
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ ok: true, nextAction: 'resume-authenticated-flow' }),
+      }
+    },
+  })
+
+  assert.equal(result.ok, true)
+  assert.equal(calls[0].url, '/github-pages-react-hello/api/auth/continue')
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_TARGET_HEADER], 'same-origin /api auth scaffold')
 })

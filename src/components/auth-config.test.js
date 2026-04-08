@@ -16,6 +16,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     {
       apiBaseUrl: 'https://runtime.example.com',
       currentOrigin: '',
+      appBasePath: '/',
       loginEndpoint: '/api/auth/login',
       sessionEndpoint: '/api/auth/session',
       pendingEndpoint: '/api/auth/pending',
@@ -39,6 +40,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     {
       apiBaseUrl: 'https://query.example.com',
       currentOrigin: '',
+      appBasePath: '/',
       loginEndpoint: '/api/auth/login',
       sessionEndpoint: '/api/auth/session',
       pendingEndpoint: '/api/auth/pending',
@@ -59,6 +61,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     {
       apiBaseUrl: 'https://api-env.example.com',
       currentOrigin: '',
+      appBasePath: '/',
       loginEndpoint: '/api/auth/login',
       sessionEndpoint: '/api/auth/session',
       pendingEndpoint: '/api/auth/pending',
@@ -75,6 +78,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
     {
       apiBaseUrl: '',
       currentOrigin: '',
+      appBasePath: '/',
       loginEndpoint: '/api/auth/login',
       sessionEndpoint: '/api/auth/session',
       pendingEndpoint: '/api/auth/pending',
@@ -111,12 +115,37 @@ test('resolveAuthConfig carries login/session/pending/continue endpoint and cred
     {
       apiBaseUrl: '',
       currentOrigin: '',
+      appBasePath: '/',
       loginEndpoint: '/internal/auth/login',
       sessionEndpoint: '/internal/auth/session',
       pendingEndpoint: '/internal/auth/pending',
       continueEndpoint: '/internal/auth/continue',
       logoutEndpoint: '/internal/auth/logout',
       credentialsMode: 'omit',
+      source: 'default',
+      isConfigured: false,
+    },
+  )
+})
+
+
+test('resolveAuthConfig carries the Vite base path for same-origin scaffold routing under subpath deploys', () => {
+  assert.deepEqual(
+    resolveAuthConfig({
+      env: { BASE_URL: '/github-pages-react-hello/' },
+      runtimeConfig: null,
+      locationSearch: '',
+    }),
+    {
+      apiBaseUrl: '',
+      currentOrigin: '',
+      appBasePath: '/github-pages-react-hello/',
+      loginEndpoint: '/api/auth/login',
+      sessionEndpoint: '/api/auth/session',
+      pendingEndpoint: '/api/auth/pending',
+      continueEndpoint: '/api/auth/continue',
+      logoutEndpoint: '/api/auth/logout',
+      credentialsMode: 'include',
       source: 'default',
       isConfigured: false,
     },

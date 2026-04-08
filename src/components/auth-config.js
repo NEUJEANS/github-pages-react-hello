@@ -47,6 +47,8 @@ export function resolveAuthConfig({
   const queryCredentialMode = readCredentialMode(params.get('authCredentials'))
   const runtimeCredentialMode = readCredentialMode(runtimeConfig?.credentialsMode)
   const envCredentialMode = readCredentialMode(env?.VITE_AUTH_CREDENTIALS)
+  const runtimeAppBasePath = readString(runtimeConfig?.appBasePath)
+  const envAppBasePath = readString(env?.BASE_URL)
 
   const apiBaseUrl = trimTrailingSlash(
     runtimeApiBaseUrl
@@ -58,6 +60,7 @@ export function resolveAuthConfig({
   return {
     apiBaseUrl,
     currentOrigin: readString(globalThis?.location?.origin ?? ''),
+    appBasePath: readEndpoint(runtimeAppBasePath || envAppBasePath || '/', '/'),
     loginEndpoint: readEndpoint(
       runtimeLoginEndpoint
         || queryLoginEndpoint

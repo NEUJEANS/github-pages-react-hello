@@ -13,8 +13,10 @@ const defaultBaseUrl = positionalArgs[0] || 'http://127.0.0.1:4174/github-pages-
 let baseUrl = defaultBaseUrl
 let base = new URL(baseUrl)
 let apiBaseUrl = base.origin
+let appBasePath = base.pathname.endsWith('/') ? base.pathname.slice(0, -1) || '/' : base.pathname
 let authConfig = {
   apiBaseUrl,
+  appBasePath,
   currentOrigin: base.origin,
   credentialsMode: 'include',
   fetchImpl: fetch,
@@ -26,8 +28,10 @@ function setActiveBaseUrl(url) {
   baseUrl = url
   base = new URL(url)
   apiBaseUrl = base.origin
+  appBasePath = base.pathname.endsWith('/') ? base.pathname.slice(0, -1) || '/' : base.pathname
   authConfig = {
     apiBaseUrl,
+    appBasePath,
     currentOrigin: base.origin,
     credentialsMode: 'include',
     fetchImpl: fetch,
