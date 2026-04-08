@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  buildAuthContinuationPlan,
   buildAuthErrorSummary,
   buildAuthResultSummary,
   buildAuthStatusCopy,
@@ -54,6 +55,50 @@ test('buildGuestDraftSnapshot keeps the login handoff payload serializable and f
       cartItems: [{ id: 'bed-001', qty: 2 }],
       layoutItems: [{ id: 'placed-sofa', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2 }],
     },
+  })
+})
+
+test('buildAuthContinuationPlan prepares a serializable follow-up auth contract payload', () => {
+  const plan = buildAuthContinuationPlan({
+    endpoint: '/api/auth/continue',
+    handoffId: ' auth-continue-123 ',
+    continuation: {
+      resumeToken: ' resume-123 ',
+      nextAction: ' complete-profile ',
+      status: ' action-required ',
+      statusLabel: ' 프로필 보완 필요 ',
+    },
+    fields: {
+      displayName: ' Havenly User ',
+      phone: ' 010-1234-5678 ',
+      ignored: undefined,
+    },
+  })
+
+  assert.equal(plan.canSubmit, true)
+  assert.equal(plan.endpoint, '/api/auth/continue')
+  assert.deepEqual(plan.request, {
+    continuation: {
+      resumeToken: 'resume-123',
+      nextAction: 'complete-profile',
+      status: 'action-required',
+      statusLabel: '프로필 보완 필요',
+    },
+    fields: {
+      displayName: 'Havenly User',
+      phone: '010-1234-5678',
+    },
+    handoffId: 'auth-continue-123',
+  })
+  assert.deepEqual(plan.summary, {
+    handoffId: 'auth-continue-123',
+    continuation: {
+      resumeToken: 'resume-123',
+      nextAction: 'complete-profile',
+      status: 'action-required',
+      statusLabel: '프로필 보완 필요',
+    },
+    fieldCount: 2,
   })
 })
 

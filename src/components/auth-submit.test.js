@@ -19,6 +19,7 @@ import {
   readAuthSession,
   resolveAuthEndpoint,
   signOutAuthSession,
+  submitAuthContinuationPlan,
   submitAuthLoginPlan,
 } from './auth-submit.js'
 
@@ -319,6 +320,90 @@ test('submitAuthLoginPlan can recover backend continuation headers on same-origi
     authMode: 'scaffold',
     authTransport: 'same-origin-middleware',
   })
+})
+
+test('submitAuthContinuationPlan forwards resume headers and falls back to the local scaffold continuation path', async () => {
+  resetAuthScaffoldState()
+
+  await submitAuthLoginPlan({
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    handoffId: 'auth-continue-123',
+    request: {
+      email: 'user@example.com',
+      password: 'password123',
+      handoffId: 'auth-continue-123',
+      continuation: {
+        resumeToken: 'auth-continue-123:profile',
+        nextAction: 'complete-profile',
+      },
+    },
+  }, {
+    fetchImpl: async () => { throw new Error('offline') },
+  })
+
+  const result = await submitAuthContinuationPlan({
+    endpoint: '/api/auth/continue',
+    method: 'POST',
+    handoffId: 'auth-continue-123',
+    request: {
+      handoffId: 'auth-continue-123',
+      continuation: {
+        resumeToken: 'auth-continue-123:profile',
+        nextAction: 'complete-profile',
+      },
+      fields: {
+        displayName: 'Havenly User',
+        phone: '010-1234-5678',
+      },
+    },
+  }, {
+    fetchImpl: async () => { throw new Error('offline') },
+  })
+
+  assert.equal(result.ok, true)
+  assert.equal(result.status, 200)
+  assert.equal(result.data.nextAction, 'resume-authenticated-flow')
+  assert.equal(result.data.status, 'ready')
+  assert.equal(result.data.connection.targetLabel, 'same-origin /api auth scaffold')
+  assert.deepEqual(result.meta, {
+    authMode: 'scaffold',
+    authTransport: 'local-fallback',
+  })
+
+  const calls = []
+  const networkResult = await submitAuthContinuationPlan({
+    endpoint: '/api/auth/continue',
+    method: 'POST',
+    handoffId: 'auth-continue-123',
+    request: {
+      handoffId: 'auth-continue-123',
+      continuation: {
+        resumeToken: 'resume-123',
+        nextAction: 'verify-email',
+      },
+      fields: {
+        verificationCode: '123456',
+      },
+    },
+  }, {
+    apiBaseUrl: 'https://api.example.com',
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options })
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ ok: true, nextAction: 'resume-authenticated-flow' }),
+      }
+    },
+  })
+
+  assert.equal(networkResult.ok, true)
+  assert.equal(calls[0].url, 'https://api.example.com/api/auth/continue')
+  assert.equal(calls[0].options.headers[AUTH_RESUME_TOKEN_HEADER], 'resume-123')
+  assert.equal(calls[0].options.headers[AUTH_NEXT_ACTION_HEADER], 'verify-email')
+  assert.equal(calls[0].options.headers[AUTH_CONNECTION_ENDPOINT_HEADER], '/api/auth/continue')
 })
 
 test('submitAuthLoginPlan captures text errors from non-json auth scaffolds', async () => {

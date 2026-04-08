@@ -95,6 +95,46 @@ function buildSerializableContinuation(continuation = null) {
   }
 }
 
+function buildSerializableContinuationFields(fields = null) {
+  if (!fields || typeof fields !== 'object' || Array.isArray(fields)) return null
+
+  const entries = Object.entries(fields)
+    .map(([key, value]) => [typeof key === 'string' ? key.trim() : '', typeof value === 'string' ? value.trim() : value])
+    .filter(([key, value]) => key && value !== undefined)
+
+  if (!entries.length) return null
+
+  return Object.fromEntries(entries)
+}
+
+export function buildAuthContinuationPlan({
+  endpoint = '/api/auth/continue',
+  continuation = null,
+  fields = null,
+  handoffId = null,
+} = {}) {
+  const serializableContinuation = buildSerializableContinuation(continuation)
+  const serializableFields = buildSerializableContinuationFields(fields)
+  const normalizedHandoffId = sanitizeAuthHandoffId(handoffId)
+
+  return {
+    canSubmit: Boolean(serializableContinuation?.resumeToken || serializableContinuation?.nextAction),
+    endpoint,
+    method: 'POST',
+    handoffId: normalizedHandoffId || null,
+    request: {
+      continuation: serializableContinuation,
+      fields: serializableFields,
+      handoffId: normalizedHandoffId || null,
+    },
+    summary: {
+      handoffId: normalizedHandoffId || null,
+      continuation: serializableContinuation,
+      fieldCount: serializableFields ? Object.keys(serializableFields).length : 0,
+    },
+  }
+}
+
 export function buildAuthSubmitPlan({
   email,
   password,

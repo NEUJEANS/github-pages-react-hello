@@ -2,6 +2,7 @@ import {
   readAuthScaffoldPending,
   readAuthScaffoldSession,
   signOutAuthScaffoldSession,
+  submitAuthScaffoldContinuation,
   submitAuthScaffoldRequest,
 } from './auth-backend-scaffold.js'
 
@@ -271,23 +272,19 @@ async function requestAuthJson(endpoint, requestInit, { fetchImpl = fetch } = {}
   }
 }
 
-export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {
-  const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
-  const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
-    method: plan.method,
-    endpoint: plan.endpoint,
-    resolvedEndpoint: endpoint,
-    credentialsMode,
-    source,
-    currentOrigin,
-  })
-  const continuation = plan.request?.continuation && typeof plan.request.continuation === 'object'
+function readRequestContinuation(continuation) {
+  return continuation && typeof continuation === 'object'
     ? {
-        resumeToken: typeof plan.request.continuation.resumeToken === 'string' ? plan.request.continuation.resumeToken.trim() : '',
-        nextAction: typeof plan.request.continuation.nextAction === 'string' ? plan.request.continuation.nextAction.trim() : '',
+        resumeToken: typeof continuation.resumeToken === 'string' ? continuation.resumeToken.trim() : '',
+        nextAction: typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : '',
       }
     : null
-  const requestInit = {
+}
+
+function buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders) {
+  const continuation = readRequestContinuation(plan.request?.continuation)
+
+  return {
     method: plan.method,
     credentials: credentialsMode,
     headers: {
@@ -299,6 +296,19 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
     },
     body: JSON.stringify(plan.request),
   }
+}
+
+export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {
+  const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
+  const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
+    method: plan.method,
+    endpoint: plan.endpoint,
+    resolvedEndpoint: endpoint,
+    credentialsMode,
+    source,
+    currentOrigin,
+  })
+  const requestInit = buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders)
 
   try {
     const { response, data, meta } = await requestAuthJson(endpoint, requestInit, { fetchImpl })
@@ -326,6 +336,61 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
     }
 
     throw new Error('Auth request failed')
+  }
+}
+
+export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiBaseUrl, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {
+  const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
+  const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
+    method: plan.method,
+    endpoint: plan.endpoint,
+    resolvedEndpoint: endpoint,
+    credentialsMode,
+    source,
+    currentOrigin,
+  })
+  const requestInit = buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders)
+
+  const submitScaffoldContinuation = () => {
+    const scaffoldResponse = submitAuthScaffoldContinuation({
+      request: plan.request,
+      connection: connectionFallback,
+    })
+
+    return {
+      ok: scaffoldResponse.status >= 200 && scaffoldResponse.status < 300,
+      status: scaffoldResponse.status,
+      data: scaffoldResponse.data,
+      meta: buildScaffoldMeta({ via: 'local-fallback' }),
+    }
+  }
+
+  try {
+    const { response, data, meta } = await requestAuthJson(endpoint, requestInit, { fetchImpl })
+
+    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+      return submitScaffoldContinuation()
+    }
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      data: applyAuthResponseDecorators(
+        data,
+        response,
+        {
+          handoffIdFallback: plan.handoffId ?? null,
+          connectionFallback,
+        },
+      ),
+      meta,
+    }
+  } catch {
+    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, currentOrigin })) {
+      return submitScaffoldContinuation()
+    }
+
+    throw new Error('Auth continuation request failed')
   }
 }
 

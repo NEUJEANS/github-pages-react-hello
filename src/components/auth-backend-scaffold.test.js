@@ -10,6 +10,7 @@ import {
   readAuthScaffoldSession,
   resetAuthScaffoldState,
   signOutAuthScaffoldSession,
+  submitAuthScaffoldContinuation,
   submitAuthScaffoldRequest,
 } from './auth-backend-scaffold.js'
 
@@ -434,6 +435,77 @@ test('buildAuthScaffoldPendingResponse returns 404 when no interrupted auth hand
   assert.deepEqual(response.data, {
     message: 'No scaffold auth handoff',
     nextAction: 'login-required',
+  })
+})
+
+test('submitAuthScaffoldContinuation can complete a profile blocker and restore the saved continuation target', () => {
+  resetAuthScaffoldState()
+
+  submitAuthScaffoldRequest({
+    request: {
+      email: 'user@example.com',
+      password: 'password123',
+      handoffId: 'auth-profile-1',
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        returnScreen: 'layout',
+      },
+      continuation: {
+        resumeToken: 'auth-profile-1:profile',
+        nextAction: 'complete-profile',
+      },
+    },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
+  })
+
+  const blocked = submitAuthScaffoldContinuation({
+    request: {
+      handoffId: 'auth-profile-1',
+      continuation: {
+        resumeToken: 'auth-profile-1:profile',
+        nextAction: 'complete-profile',
+      },
+      fields: {
+        displayName: '  ',
+      },
+    },
+  })
+
+  assert.equal(blocked.status, 422)
+  assert.equal(blocked.data.nextAction, 'complete-profile')
+  assert.equal(blocked.data.status, 'action-required')
+
+  const completed = submitAuthScaffoldContinuation({
+    request: {
+      handoffId: 'auth-profile-1',
+      continuation: {
+        resumeToken: 'auth-profile-1:profile',
+        nextAction: 'complete-profile',
+      },
+      fields: {
+        displayName: 'Havenly User',
+        phone: '010-1234-5678',
+      },
+    },
+  })
+
+  assert.equal(completed.status, 200)
+  assert.equal(completed.data.nextAction, 'save-layout-draft')
+  assert.equal(completed.data.status, 'ready')
+  assert.deepEqual(completed.data.profile, {
+    displayName: 'Havenly User',
+    phone: '010-1234-5678',
   })
 })
 

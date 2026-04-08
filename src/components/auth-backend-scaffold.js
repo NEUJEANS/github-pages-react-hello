@@ -199,6 +199,109 @@ export function readAuthScaffoldPending() {
   return buildAuthScaffoldPendingResponse(cloneValue(scaffoldState.pending))
 }
 
+export function submitAuthScaffoldContinuation({ request = {}, connection = null } = {}) {
+  const currentSession = cloneValue(scaffoldState.session)
+  if (!currentSession) {
+    return {
+      status: 401,
+      data: {
+        message: 'No scaffold auth session',
+        nextAction: 'login-required',
+        ...(connection ? { connection } : {}),
+      },
+    }
+  }
+
+  const continuation = request.continuation ?? {}
+  const nextAction = typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : ''
+  const resumeToken = typeof continuation.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
+  const fields = request.fields && typeof request.fields === 'object' && !Array.isArray(request.fields)
+    ? request.fields
+    : null
+
+  if (nextAction === 'complete-profile') {
+    const displayName = typeof fields?.displayName === 'string' ? fields.displayName.trim() : ''
+    const phone = typeof fields?.phone === 'string' ? fields.phone.trim() : ''
+
+    if (!displayName || !phone) {
+      return {
+        status: 422,
+        data: {
+          message: 'Profile completion fields required',
+          handoffId: request.handoffId ?? currentSession.handoffId ?? null,
+          resumeToken: resumeToken || null,
+          nextAction: 'complete-profile',
+          status: 'action-required',
+          statusLabel: '프로필 보완 필요',
+          ...(connection ? { connection } : {}),
+        },
+      }
+    }
+
+    const nextSession = {
+      ...currentSession,
+      profile: {
+        displayName,
+        phone,
+      },
+      resumeToken: resumeToken || currentSession.resumeToken || null,
+      nextAction: currentSession.intent?.action ?? 'resume-authenticated-flow',
+      status: 'ready',
+      statusLabel: '프로필 준비 완료',
+      connection: cloneValue(connection ?? currentSession.connection ?? null),
+    }
+    scaffoldState.session = nextSession
+    return {
+      status: 200,
+      data: cloneValue(nextSession),
+    }
+  }
+
+  if (nextAction === 'verify-email') {
+    const verificationCode = typeof fields?.verificationCode === 'string' ? fields.verificationCode.trim() : ''
+    if (!verificationCode) {
+      return {
+        status: 202,
+        data: {
+          ...currentSession,
+          handoffId: request.handoffId ?? currentSession.handoffId ?? null,
+          resumeToken: resumeToken || currentSession.resumeToken || null,
+          nextAction: 'verify-email',
+          status: 'action-required',
+          statusLabel: '이메일 인증 필요',
+          ...(connection ? { connection } : {}),
+        },
+      }
+    }
+
+    const nextSession = {
+      ...currentSession,
+      verifiedAt: new Date().toISOString(),
+      resumeToken: resumeToken || currentSession.resumeToken || null,
+      nextAction: currentSession.intent?.action ?? 'resume-authenticated-flow',
+      status: 'ready',
+      statusLabel: '이메일 인증 완료',
+      connection: cloneValue(connection ?? currentSession.connection ?? null),
+    }
+    scaffoldState.session = nextSession
+    return {
+      status: 200,
+      data: cloneValue(nextSession),
+    }
+  }
+
+  return {
+    status: 200,
+    data: {
+      ...currentSession,
+      handoffId: request.handoffId ?? currentSession.handoffId ?? null,
+      resumeToken: resumeToken || currentSession.resumeToken || null,
+      nextAction: nextAction || currentSession.nextAction || 'resume-authenticated-flow',
+      ...(connection ? { connection } : {}),
+    },
+  }
+}
+
 export function signOutAuthScaffoldSession() {
   const connection = cloneValue(scaffoldState.session?.connection ?? scaffoldState.pending?.connection ?? null)
   resetAuthScaffoldState()
