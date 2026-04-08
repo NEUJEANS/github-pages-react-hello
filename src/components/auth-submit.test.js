@@ -1024,3 +1024,77 @@ test('submitAuthContinuationPlan can target same-origin scaffold endpoints under
   assert.equal(calls[0].url, '/github-pages-react-hello/api/auth/continue')
   assert.equal(calls[0].options.headers[AUTH_CONNECTION_TARGET_HEADER], 'same-origin /api auth scaffold')
 })
+test('submitAuthLoginPlan falls back to the local scaffold when a same-origin preview serves HTML instead of an auth payload', async () => {
+  resetAuthScaffoldState()
+
+  const result = await submitAuthLoginPlan({
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    handoffId: 'auth-preview-html-0001',
+    request: {
+      email: 'user@example.com',
+      password: 'password123',
+      handoffId: 'auth-preview-html-0001',
+    },
+  }, {
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (name) => name === 'content-type' ? 'text/html; charset=utf-8' : null,
+      },
+      text: async () => '<!doctype html><html><body>preview shell</body></html>',
+    }),
+  })
+
+  assert.equal(result.ok, true)
+  assert.equal(result.meta.authMode, 'scaffold')
+  assert.equal(result.meta.authTransport, 'local-fallback')
+  assert.equal(result.data.user.email, 'user@example.com')
+  assert.equal(result.data.connection.targetLabel, 'same-origin /api auth scaffold')
+})
+
+test('readAuthSession falls back to the local scaffold when a same-origin preview serves HTML for the session endpoint', async () => {
+  resetAuthScaffoldState()
+
+  await submitAuthLoginPlan({
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    handoffId: 'auth-preview-html-0002',
+    request: {
+      email: 'user@example.com',
+      password: 'password123',
+      handoffId: 'auth-preview-html-0002',
+    },
+  }, {
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async () => {
+      throw new Error('connect ECONNREFUSED')
+    },
+  })
+
+  const session = await readAuthSession({
+    endpoint: '/api/auth/session',
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (name) => name === 'content-type' ? 'text/html; charset=utf-8' : null,
+      },
+      text: async () => '<!doctype html><html><body>preview shell</body></html>',
+    }),
+  })
+
+  assert.equal(session.ok, true)
+  assert.equal(session.meta.authMode, 'scaffold')
+  assert.equal(session.meta.authTransport, 'local-fallback')
+  assert.equal(session.data.user.email, 'user@example.com')
+})

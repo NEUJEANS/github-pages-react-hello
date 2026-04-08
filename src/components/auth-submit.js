@@ -299,6 +299,15 @@ function buildAuthConnectionHeaders({ method, endpoint, resolvedEndpoint, creden
   }
 }
 
+function shouldTreatAsDocumentFallback(response) {
+  const contentType = typeof response?.headers?.get === 'function'
+    ? (response.headers.get('content-type') ?? '')
+    : ''
+
+  if (!response?.ok) return false
+  return contentType.includes('text/html')
+}
+
 async function requestAuthJson(endpoint, requestInit, { fetchImpl = fetch } = {}) {
   const response = await fetchImpl(endpoint, requestInit)
   const data = await parseAuthResponse(response)
@@ -308,6 +317,7 @@ async function requestAuthJson(endpoint, requestInit, { fetchImpl = fetch } = {}
     data: data && typeof data === 'object' && !Array.isArray(data)
       ? data
       : null,
+    treatAsDocumentFallback: shouldTreatAsDocumentFallback(response, data),
     meta: buildResponseMeta(response),
   }
 }
@@ -351,9 +361,9 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
   const requestInit = buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders)
 
   try {
-    const { response, data, meta } = await requestAuthJson(endpoint, requestInit, { fetchImpl })
+    const { response, data, treatAsDocumentFallback, meta } = await requestAuthJson(endpoint, requestInit, { fetchImpl })
 
-    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, appBasePath, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, appBasePath, currentOrigin }) && ([404, 405, 501].includes(response.status) || treatAsDocumentFallback)) {
       return buildScaffoldLoginResult(plan, connectionFallback)
     }
 
@@ -406,9 +416,9 @@ export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiB
   }
 
   try {
-    const { response, data, meta } = await requestAuthJson(endpoint, requestInit, { fetchImpl })
+    const { response, data, treatAsDocumentFallback, meta } = await requestAuthJson(endpoint, requestInit, { fetchImpl })
 
-    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, appBasePath, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, appBasePath, currentOrigin }) && ([404, 405, 501].includes(response.status) || treatAsDocumentFallback)) {
       return submitScaffoldContinuation()
     }
 
@@ -455,13 +465,13 @@ export async function readAuthSession({
   })
 
   try {
-    const { response, data, meta } = await requestAuthJson(resolvedEndpoint, {
+    const { response, data, treatAsDocumentFallback, meta } = await requestAuthJson(resolvedEndpoint, {
       method: 'GET',
       credentials: credentialsMode,
       headers: connectionHeaders,
     }, { fetchImpl })
 
-    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, appBasePath, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, appBasePath, currentOrigin }) && ([404, 405, 501].includes(response.status) || treatAsDocumentFallback)) {
       return buildScaffoldReadResult(readAuthScaffoldSession())
     }
 
@@ -512,13 +522,13 @@ export async function readAuthPending({
   })
 
   try {
-    const { response, data, meta } = await requestAuthJson(resolvedEndpoint, {
+    const { response, data, treatAsDocumentFallback, meta } = await requestAuthJson(resolvedEndpoint, {
       method: 'GET',
       credentials: credentialsMode,
       headers: connectionHeaders,
     }, { fetchImpl })
 
-    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, appBasePath, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, appBasePath, currentOrigin }) && ([404, 405, 501].includes(response.status) || treatAsDocumentFallback)) {
       return buildScaffoldReadResult(readAuthScaffoldPending())
     }
 
@@ -568,13 +578,13 @@ export async function signOutAuthSession({
   })
 
   try {
-    const { response, data, meta } = await requestAuthJson(resolvedEndpoint, {
+    const { response, data, treatAsDocumentFallback, meta } = await requestAuthJson(resolvedEndpoint, {
       method: 'POST',
       credentials: credentialsMode,
       headers: connectionHeaders,
     }, { fetchImpl })
 
-    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, appBasePath, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, appBasePath, currentOrigin }) && ([404, 405, 501].includes(response.status) || treatAsDocumentFallback)) {
       return buildScaffoldReadResult(signOutAuthScaffoldSession())
     }
 
