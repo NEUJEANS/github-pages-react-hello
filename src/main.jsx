@@ -2207,7 +2207,11 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authCont
               </div>
               <div className="footerButtons stackOnMobile">
                 <button className="ghost" onClick={onClose}>닫기</button>
-                {authReadyPanelState.primaryActionDisabled ? (
+                {authReadyPanelState.nextAction === 'complete-profile' || authReadyPanelState.nextAction === 'verify-email' ? (
+                  <button className="cta" disabled={!authContinuationPlan.canSubmit || form.status === 'submitting'} onClick={onSubmitContinuation}>
+                    {form.status === 'submitting' ? '연결 중…' : authReadyPanelState.primaryActionLabel}
+                  </button>
+                ) : authReadyPanelState.primaryActionDisabled ? (
                   <button className="cta" disabled={!authContinuationPlan.canSubmit || form.status === 'submitting'} onClick={onSubmitContinuation}>
                     {form.status === 'submitting' ? '연결 중…' : authReadyPanelState.primaryActionLabel}
                   </button>

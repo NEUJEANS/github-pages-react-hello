@@ -398,6 +398,13 @@ async function openLogin(page) {
   await page.getByRole('heading', { name: /로그인/ }).waitFor()
 }
 
+async function continuePastGuardIfPresent(page) {
+  const guardButton = page.getByRole('button', { name: '그래도 로그인하기' })
+  if (await guardButton.count()) {
+    await guardButton.click()
+  }
+}
+
 async function submitLogin(page, { email, password }) {
   const loginForm = page.locator('.loginPanel .loginForm').last()
   const inputs = loginForm.locator('input')
@@ -442,7 +449,7 @@ async function runBrowserSmoke(playwright) {
     const saveDraftPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await saveDraftPage.goto(`${baseUrl}#layout`, { waitUntil: 'networkidle' })
     await saveDraftPage.getByRole('button', { name: '로그인 후 보드 저장' }).click()
-    await saveDraftPage.getByRole('button', { name: '그래도 로그인하기' }).click()
+    await continuePastGuardIfPresent(saveDraftPage)
     await submitLogin(saveDraftPage, {
       email: 'board@example.com',
       password: 'password123',
@@ -469,7 +476,8 @@ async function runBrowserSmoke(playwright) {
 
     await mergePage.getByText('현재 감지된 진행 내역').waitFor()
     const guardReasons = await mergePage.locator('.loginReasonList span').allInnerTexts()
-    await mergePage.getByRole('button', { name: '그래도 로그인하기' }).click()
+    await continuePastGuardIfPresent(mergePage)
+    await mergePage.getByRole('button', { name: '로그인', exact: true }).waitFor()
 
     await submitLogin(mergePage, {
       email: 'merge@example.com',
@@ -494,10 +502,15 @@ async function runBrowserSmoke(playwright) {
       email: 'profile@example.com',
       password: 'password123',
     })
-    await completeProfilePage.getByRole('button', { name: '프로필 보완 계약 보기' }).waitFor()
+    await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).waitFor()
     const completeProfileStatus = await completeProfilePage.locator('.authPrepCard .muted').first().innerText()
     const completeProfileChecklist = await completeProfilePage.locator('.authChecklist li').allInnerTexts()
-    const completeProfileDisabled = await completeProfilePage.getByRole('button', { name: '프로필 보완 계약 보기' }).isDisabled()
+    const completeProfileReadyDisabled = await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).isDisabled()
+    await completeProfilePage.getByPlaceholder('홍길동').fill('Havenly User')
+    await completeProfilePage.getByPlaceholder('010-1234-5678').fill('010-1234-5678')
+    await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).click()
+    await completeProfilePage.locator('.authSessionNotice').waitFor()
+    const completeProfileResumedStatus = await completeProfilePage.locator('.authSessionNotice p').innerText()
     await capture(completeProfilePage, 'auth-login-complete-profile-ready.png')
     await completeProfilePage.close()
 
@@ -509,10 +522,14 @@ async function runBrowserSmoke(playwright) {
       email: 'verify@example.com',
       password: 'password123',
     })
-    await verifyEmailPage.getByRole('button', { name: '이메일 인증 계약 보기' }).waitFor()
+    await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).waitFor()
     const verifyEmailStatus = await verifyEmailPage.locator('.authPrepCard .muted').first().innerText()
     const verifyEmailChecklist = await verifyEmailPage.locator('.authChecklist li').allInnerTexts()
-    const verifyEmailDisabled = await verifyEmailPage.getByRole('button', { name: '이메일 인증 계약 보기' }).isDisabled()
+    const verifyEmailReadyDisabled = await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).isDisabled()
+    await verifyEmailPage.getByPlaceholder('123456').fill('123456')
+    await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).click()
+    await verifyEmailPage.locator('.authSessionNotice').waitFor()
+    const verifyEmailResumedStatus = await verifyEmailPage.locator('.authSessionNotice p').innerText()
     await capture(verifyEmailPage, 'auth-login-verify-email-ready.png')
     await verifyEmailPage.close()
 
@@ -538,12 +555,14 @@ async function runBrowserSmoke(playwright) {
         completeProfile: {
           status: completeProfileStatus,
           checklist: completeProfileChecklist,
-          primaryActionDisabled: completeProfileDisabled,
+          primaryActionDisabled: completeProfileReadyDisabled,
+          resumedStatus: completeProfileResumedStatus,
         },
         verifyEmail: {
           status: verifyEmailStatus,
           checklist: verifyEmailChecklist,
-          primaryActionDisabled: verifyEmailDisabled,
+          primaryActionDisabled: verifyEmailReadyDisabled,
+          resumedStatus: verifyEmailResumedStatus,
         },
       },
       guardedMerge: { guardReasons, mergeError, mergeOptions, mergeStatus },
