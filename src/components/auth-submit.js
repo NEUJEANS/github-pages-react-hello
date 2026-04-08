@@ -94,10 +94,22 @@ async function parseAuthResponse(response) {
   }
 }
 
+function decodeHeaderValue(value = '') {
+  if (!value) return ''
+
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
 function readHeaderValue(response, headerName) {
-  return typeof response?.headers?.get === 'function'
+  const rawValue = typeof response?.headers?.get === 'function'
     ? (response.headers.get(headerName) ?? '').trim()
     : ''
+
+  return decodeHeaderValue(rawValue)
 }
 
 function readAuthHandoffId(data = {}, response = null, fallbackHandoffId = null) {

@@ -299,7 +299,7 @@ test('submitAuthLoginPlan can recover backend continuation headers on same-origi
         [AUTH_RESUME_TOKEN_HEADER, 'resume-123'],
         [AUTH_NEXT_ACTION_HEADER, 'complete-profile'],
         [AUTH_STATUS_HEADER, 'action-required'],
-        [AUTH_STATUS_LABEL_HEADER, '프로필 보완 필요'],
+        [AUTH_STATUS_LABEL_HEADER, encodeURIComponent('프로필 보완 필요')],
       ])
       return {
         ok: true,
@@ -672,7 +672,7 @@ test('readAuthSession can recover continuation metadata from scaffold headers wh
         [AUTH_RESUME_TOKEN_HEADER, 'resume-session-123'],
         [AUTH_NEXT_ACTION_HEADER, 'resume-layout-checkout'],
         [AUTH_STATUS_HEADER, 'action-required'],
-        [AUTH_STATUS_LABEL_HEADER, '프로필 보완 필요'],
+        [AUTH_STATUS_LABEL_HEADER, encodeURIComponent('프로필 보완 필요')],
       ])
       return {
         ok: true,
