@@ -87,6 +87,14 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
         primaryActionHint: '인증 코드를 바로 제출하고, backend가 준비 완료를 돌려주면 원래 이어가려던 흐름으로 복귀할 수 있어요.',
         primaryActionDisabled: false,
       }
+    case 'resume-authenticated-flow':
+      return {
+        primaryActionLabel: returnScreen ? `${intentLabel} 이어가기` : '현재 흐름으로 돌아가기',
+        primaryActionHint: returnScreen
+          ? '백엔드 scaffold가 현재 인증 handoff를 확인했어요. 저장된 복귀 화면에서 바로 이어갈 수 있어요.'
+          : '백엔드 scaffold가 현재 인증 handoff를 확인했어요. 로그인 모달을 닫고 지금 보던 흐름으로 돌아갈 수 있어요.',
+        primaryActionDisabled: false,
+      }
     default:
       return {
         primaryActionLabel: returnScreen ? `${intentLabel} 이어가기` : '계정 상태 확인',

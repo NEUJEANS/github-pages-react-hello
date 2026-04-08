@@ -1019,6 +1019,7 @@ function App() {
       }
     }
 
+    setAuthContinuationFields(initialAuthContinuationFields)
     setLoginForm((current) => {
       const nextIntent = requestedIntent ?? current.intent ?? authSession?.intent ?? null
 
@@ -1041,7 +1042,13 @@ function App() {
 
   const handleDismissAuthResume = React.useCallback(() => {
     clearPersistedAuthHandoff(globalThis.sessionStorage)
+    setAuthContinuationFields(initialAuthContinuationFields)
     setLoginForm((current) => buildEmptyLoginForm(current.intent))
+  }, [])
+
+  const handleCloseLoginModal = React.useCallback(() => {
+    setAuthContinuationFields(initialAuthContinuationFields)
+    setLoginModalState('closed')
   }, [])
 
   const handleLogout = React.useCallback(async () => {
@@ -1054,6 +1061,7 @@ function App() {
     clearPersistedAuthHandoff(globalThis.sessionStorage)
     setAuthSession(null)
     setAuthNoticeDismissed(false)
+    setAuthContinuationFields(initialAuthContinuationFields)
     setLoginModalState('closed')
     setLoginForm(buildEmptyLoginForm())
   }, [authConfig])
@@ -1062,9 +1070,9 @@ function App() {
     const nextIntent = loginForm.intent ?? authSession?.intent ?? null
     const nextContinuation = authSession?.continuation ?? loginForm.continuation ?? null
 
-    if (!canResumePostAuthIntent(nextIntent, null, nextContinuation)) return
+    if (!canResumePostAuthIntent(nextIntent, screen, nextContinuation)) return
 
-    const nextScreen = resolvePostAuthScreen(nextIntent, null, nextContinuation)
+    const nextScreen = resolvePostAuthScreen(nextIntent, screen, nextContinuation)
 
     if (!shouldSubmitContinuationBeforeResume(nextContinuation) || !authSession || !authContinuationPlan.canSubmit) {
       setLoginModalState('closed')
@@ -1133,7 +1141,7 @@ function App() {
         },
       }))
     }
-  }, [authConfig, authConnectionSummary, authContinuationPlan, authSession, loginForm.continuation, loginForm.handoffId, loginForm.intent, navigate])
+  }, [authConfig, authConnectionSummary, authContinuationPlan, authSession, loginForm.continuation, loginForm.handoffId, loginForm.intent, navigate, screen])
 
   const handleAuthContinuationFieldChange = React.useCallback((field, value) => {
     setAuthContinuationFields((current) => ({
@@ -1176,8 +1184,8 @@ function App() {
           continuation: nextContinuation,
           accountState: result?.data?.accountState ?? authSession.accountState ?? null,
         })
-        const nextScreen = canResumePostAuthIntent(nextIntent, null, nextContinuation)
-          ? resolvePostAuthScreen(nextIntent, null, nextContinuation)
+        const nextScreen = canResumePostAuthIntent(nextIntent, screen, nextContinuation)
+          ? resolvePostAuthScreen(nextIntent, screen, nextContinuation)
           : null
 
         persistAuthSession(globalThis.localStorage, nextSession)
@@ -1215,7 +1223,7 @@ function App() {
         },
       }))
     }
-  }, [authConfig, authConnectionSummary, authContinuationPlan, authSession, loginForm.handoffId, loginForm.intent, navigate])
+  }, [authConfig, authConnectionSummary, authContinuationPlan, authSession, loginForm.handoffId, loginForm.intent, navigate, screen])
 
   const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
     const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null
@@ -1302,7 +1310,7 @@ function App() {
       if (shouldCloseLoginModalAfterAuth(result, submitPlan.summary.intent, nextContinuation)) {
         const nextScreen = resolvePostAuthScreen(
           submitPlan.summary.intent,
-          null,
+          screen,
           nextContinuation,
         )
         setLoginModalState('closed')
@@ -1320,7 +1328,7 @@ function App() {
         mergeResolution: nextMergeResolution,
       }))
     }
-  }, [authConfig, authConnectionSummary, cart, editor, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password])
+  }, [authConfig, authConnectionSummary, cart, editor, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password, screen])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),
@@ -1481,8 +1489,11 @@ function App() {
             guestDraftSnapshot={guestDraftSnapshot}
             onChangeForm={(field, value) => setLoginForm((current) => ({ ...current, [field]: value, status: 'idle', result: null, mergeResolution: null }))}
             onChangeContinuationField={handleAuthContinuationFieldChange}
-            onClose={() => setLoginModalState('closed')}
-            onProceed={() => setLoginModalState('form')}
+            onClose={handleCloseLoginModal}
+            onProceed={() => {
+              setAuthContinuationFields(initialAuthContinuationFields)
+              setLoginModalState('form')
+            }}
             onDismissResume={handleDismissAuthResume}
             onResumeAuthenticatedIntent={handleResumeAuthenticatedIntent}
             onSubmitContinuation={handleAuthContinuationSubmit}

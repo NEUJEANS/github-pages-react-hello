@@ -251,6 +251,40 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
       ],
     },
   })
+
+  assert.deepEqual(buildAuthReadyPanelState({
+    accountLabel: 'user@example.com',
+    intent: {
+      label: '로그인 후 현재 흐름 이어가기',
+      returnScreen: null,
+    },
+    continuation: {
+      nextAction: 'resume-authenticated-flow',
+      resumeToken: 'auth-user-1234:resume',
+    },
+  }), {
+    title: 'user@example.com 계정 연결됨',
+    subtitle: '현재 로그인 연결이 유지되고 있어요.',
+    restoredBits: [],
+    draftContextBits: [],
+    accountLabel: 'user@example.com',
+    handoffId: null,
+    sessionId: null,
+    mergeMode: null,
+    intentLabel: '로그인 후 현재 흐름 이어가기',
+    intentDraftLabel: null,
+    nextAction: 'resume-authenticated-flow',
+    resumeToken: 'auth-user-1234:resume',
+    continuationStatus: null,
+    continuationStatusLabel: null,
+    returnScreen: null,
+    connectionLabel: null,
+    connectionEndpoint: null,
+    primaryActionLabel: '현재 흐름으로 돌아가기',
+    primaryActionHint: '백엔드 scaffold가 현재 인증 handoff를 확인했어요. 로그인 모달을 닫고 지금 보던 흐름으로 돌아갈 수 있어요.',
+    primaryActionDisabled: false,
+    actionChecklist: null,
+  })
 })
 
 test('buildAuthSessionNotice summarizes restored guest draft details after login', () => {

@@ -21,12 +21,15 @@ test('resolvePostAuthScreen can fall back to backend continuation actions when n
   assert.equal(resolvePostAuthScreen(null, null, { nextAction: 'resume-guest-draft' }), 'layout')
   assert.equal(resolvePostAuthScreen(null, null, { nextAction: 'resume-account-state' }), 'layout')
   assert.equal(resolvePostAuthScreen(null, null, { nextAction: 'checkout-cart' }), 'home')
+  assert.equal(resolvePostAuthScreen(null, 'beds', { nextAction: 'resume-authenticated-flow' }), 'beds')
   assert.equal(resolvePostAuthScreen(null, 'beds', { nextAction: 'complete-profile' }), 'beds')
 })
 
 test('canResumePostAuthIntent only allows ready-panel continuation when a real screen target exists', () => {
   assert.equal(canResumePostAuthIntent({ returnScreen: 'layout' }), true)
   assert.equal(canResumePostAuthIntent(null, null, { nextAction: 'checkout-cart' }), true)
+  assert.equal(canResumePostAuthIntent(null, 'layout', { nextAction: 'resume-authenticated-flow' }), true)
+  assert.equal(canResumePostAuthIntent(null, null, { nextAction: 'resume-authenticated-flow' }), false)
   assert.equal(canResumePostAuthIntent(null, null, { nextAction: 'complete-profile' }), false)
   assert.equal(canResumePostAuthIntent(null, null, { nextAction: 'verify-email' }), false)
   assert.equal(canResumePostAuthIntent(null, 'home', { nextAction: 'verify-email' }), true)

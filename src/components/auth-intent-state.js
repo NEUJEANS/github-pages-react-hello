@@ -1,4 +1,4 @@
-function resolveNextActionScreen(nextAction) {
+function resolveNextActionScreen(nextAction, fallbackScreen = null) {
   switch (nextAction) {
     case 'save-layout-draft':
     case 'resume-layout-checkout':
@@ -7,6 +7,8 @@ function resolveNextActionScreen(nextAction) {
       return 'layout'
     case 'checkout-cart':
       return 'home'
+    case 'resume-authenticated-flow':
+      return fallbackScreen || null
     default:
       return null
   }
@@ -21,12 +23,12 @@ function readReturnScreen(intent = null) {
 }
 
 export function canResumePostAuthIntent(intent, fallbackScreen = null, continuation = null) {
-  return Boolean(readReturnScreen(intent) || resolveNextActionScreen(readContinuationNextAction(continuation)) || fallbackScreen)
+  return Boolean(readReturnScreen(intent) || resolveNextActionScreen(readContinuationNextAction(continuation), fallbackScreen) || fallbackScreen)
 }
 
 export function resolvePostAuthScreen(intent, fallbackScreen = null, continuation = null) {
   const returnScreen = readReturnScreen(intent)
-  const continuationScreen = resolveNextActionScreen(readContinuationNextAction(continuation))
+  const continuationScreen = resolveNextActionScreen(readContinuationNextAction(continuation), fallbackScreen)
 
   return returnScreen || continuationScreen || fallbackScreen || null
 }
