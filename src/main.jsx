@@ -1193,6 +1193,8 @@ function App() {
       }
 
       const nextResultSummary = buildAuthResultSummary(result, {
+        sessionId: authSession.sessionId ?? null,
+        accountLabel: authSession.accountLabel ?? null,
         handoffId: authSession.handoffId ?? loginForm.handoffId ?? null,
         wishlistCount: authSession.wishlistCount ?? 0,
         cartCount: authSession.cartCount ?? 0,
@@ -1283,6 +1285,8 @@ function App() {
 
       if (result.ok) {
         const nextResultSummary = buildAuthResultSummary(result, {
+          sessionId: authSession.sessionId ?? null,
+          accountLabel: authSession.accountLabel ?? null,
           handoffId: authSession.handoffId ?? loginForm.handoffId ?? null,
           wishlistCount: authSession.wishlistCount ?? 0,
           cartCount: authSession.cartCount ?? 0,

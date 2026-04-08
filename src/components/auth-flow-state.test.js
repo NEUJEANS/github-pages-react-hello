@@ -493,6 +493,36 @@ test('buildAuthResultSummary can preserve serialized auth handoff context from f
   assert.equal(summary.continuationStatusLabel, '보드 저장 준비')
 })
 
+test('buildAuthResultSummary preserves the existing account label and session id when continuation responses omit them', () => {
+  const summary = buildAuthResultSummary({
+    ok: true,
+    status: 200,
+    data: {
+      nextAction: 'resume-authenticated-flow',
+      status: 'ready',
+      statusLabel: '프로필 준비 완료',
+    },
+  }, {
+    accountLabel: 'profile@example.com',
+    sessionId: 'session-existing-123',
+    handoffId: 'auth-profile-123',
+    continuation: {
+      resumeToken: 'resume-profile-123',
+      nextAction: 'complete-profile',
+      status: 'action-required',
+      statusLabel: '프로필 보완 필요',
+    },
+  })
+
+  assert.equal(summary.accountLabel, 'profile@example.com')
+  assert.equal(summary.sessionId, 'session-existing-123')
+  assert.equal(summary.handoffId, 'auth-profile-123')
+  assert.equal(summary.resumeToken, 'resume-profile-123')
+  assert.equal(summary.nextAction, 'resume-authenticated-flow')
+  assert.equal(summary.continuationStatus, 'ready')
+  assert.equal(summary.continuationStatusLabel, '프로필 준비 완료')
+})
+
 test('buildAuthErrorSummary categorizes backend auth failures for the modal state', () => {
   assert.deepEqual(
     buildAuthErrorSummary({ ok: false, status: 401, data: { message: 'Invalid credentials', resumeToken: 'resume-invalid', nextAction: 'retry-login' } }, {

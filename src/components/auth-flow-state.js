@@ -280,9 +280,9 @@ export function buildAuthResultSummary(result, fallbackSummary = {}) {
   const fallbackContinuation = fallbackSummary.continuation ?? null
 
   return {
-    sessionId: data.sessionId ?? data.session?.id ?? null,
+    sessionId: data.sessionId ?? data.session?.id ?? fallbackSummary.sessionId ?? null,
     handoffId: data.handoffId ?? data.authHandoffId ?? fallbackSummary.handoffId ?? null,
-    accountLabel: data.user?.name ?? data.user?.email ?? data.account?.email ?? null,
+    accountLabel: data.user?.name ?? data.user?.email ?? data.account?.email ?? fallbackSummary.accountLabel ?? null,
     mergeMode: mergedDraft?.mode ?? mergedDraft?.status ?? data.mergeMode ?? null,
     mergedDraftCount: readMergeCount(mergedDraft?.count, fallbackLayoutCount),
     restoredWishlistCount: readMergeCount(mergedDraft?.wishlistCount, fallbackWishlistCount),
