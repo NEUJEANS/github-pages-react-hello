@@ -970,8 +970,24 @@ function App() {
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 
   const openLogin = React.useCallback((intent = null) => {
+    const requestedIntent = buildSerializableAuthIntent(intent)
+
+    if (authSession && requestedIntent) {
+      const currentIntent = buildSerializableAuthIntent(authSession.intent)
+      const hasIntentChanged = JSON.stringify(currentIntent) !== JSON.stringify(requestedIntent)
+
+      if (hasIntentChanged) {
+        const nextSession = {
+          ...authSession,
+          intent: requestedIntent,
+        }
+        persistAuthSession(globalThis.localStorage, nextSession)
+        setAuthSession(nextSession)
+      }
+    }
+
     setLoginForm((current) => {
-      const nextIntent = buildSerializableAuthIntent(intent) ?? current.intent ?? authSession?.intent ?? null
+      const nextIntent = requestedIntent ?? current.intent ?? authSession?.intent ?? null
 
       if (authSession && current.status !== 'resume-ready') {
         return buildAuthReadyState(authSession, { intent: nextIntent }) ?? current

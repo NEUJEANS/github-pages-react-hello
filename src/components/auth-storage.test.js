@@ -397,6 +397,62 @@ test('buildAuthReadyState revives a bootstrapped scaffold session into the login
   })
 })
 
+test('buildAuthReadyState can override the active post-login intent without mutating the bootstrapped session contract', () => {
+  const session = {
+    savedAt: '2026-04-08T05:40:00.000Z',
+    sessionId: 'sess_456',
+    handoffId: 'auth-20260408054000-abcd',
+    accountLabel: 'user@example.com',
+    intent: {
+      source: 'header',
+      action: 'login',
+      label: '기본 로그인',
+      returnScreen: 'home',
+    },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
+    continuation: {
+      resumeToken: 'resume-session-456',
+      nextAction: 'resume-authenticated-flow',
+      status: null,
+      statusLabel: null,
+    },
+  }
+
+  const readyState = buildAuthReadyState(session, {
+    intent: {
+      source: 'layout-editor',
+      action: 'save-layout-draft',
+      label: '로그인 후 보드 저장',
+      returnScreen: 'layout',
+      draftLabel: '거실 배치 보드',
+    },
+  })
+
+  assert.equal(readyState.session, session)
+  assert.deepEqual(readyState.intent, {
+    source: 'layout-editor',
+    action: 'save-layout-draft',
+    label: '로그인 후 보드 저장',
+    returnScreen: 'layout',
+    draftLabel: '거실 배치 보드',
+  })
+  assert.deepEqual(session.intent, {
+    source: 'header',
+    action: 'login',
+    label: '기본 로그인',
+    returnScreen: 'home',
+  })
+})
+
 test('persistAuthSession stores the latest successful auth summary for the frontend shell', () => {
   const storage = createMemoryStorage()
   const session = buildPersistedAuthSession({
