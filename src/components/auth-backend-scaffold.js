@@ -140,7 +140,37 @@ function buildScaffoldContinuation({ intent = null, mergeResolution = null, hand
   }
 }
 
-function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null, continuation = null } = {}) {
+function buildDraftSaveState(request = {}, guestDraftSnapshot = null) {
+  const requestDraftSave = request?.draftSave && typeof request.draftSave === 'object' && !Array.isArray(request.draftSave)
+    ? request.draftSave
+    : null
+  const continuity = guestDraftSnapshot?.continuity ?? {}
+  const layoutItems = Array.isArray(requestDraftSave?.layoutItems)
+    ? requestDraftSave.layoutItems.map((item) => ({ ...item }))
+    : (Array.isArray(continuity.layoutItems)
+      ? continuity.layoutItems.map((item) => ({ ...item }))
+      : [])
+  const selectedSpaceIds = Array.isArray(requestDraftSave?.selectedSpaceIds)
+    ? [...requestDraftSave.selectedSpaceIds]
+    : (Array.isArray(guestDraftSnapshot?.spaceProfile?.spaces)
+      ? [...guestDraftSnapshot.spaceProfile.spaces]
+      : [])
+
+  if (!requestDraftSave && !layoutItems.length && !selectedSpaceIds.length && !continuity.apartmentLabel && !guestDraftSnapshot?.recommendationDraft?.room) {
+    return null
+  }
+
+  return {
+    draftLabel: requestDraftSave?.draftLabel ?? continuity.apartmentLabel ?? null,
+    apartmentLabel: requestDraftSave?.apartmentLabel ?? continuity.apartmentLabel ?? null,
+    recommendationRoom: requestDraftSave?.recommendationRoom ?? guestDraftSnapshot?.recommendationDraft?.room ?? null,
+    selectedSpaceIds,
+    layoutItems,
+    layoutItemCount: Array.isArray(layoutItems) ? layoutItems.length : 0,
+  }
+}
+
+function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null, continuation = null, draftSave = null } = {}) {
   const safeSessionId = email.replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'guest'
   const continuationState = buildScaffoldContinuation({
     intent,
@@ -166,6 +196,7 @@ function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, 
       resolution: mergeResolution,
     }),
     guestDraftSummary: buildGuestDraftSessionSummary(guestDraftSnapshot),
+    draftSave: buildDraftSaveState({ draftSave }, guestDraftSnapshot),
     intent: intent && typeof intent === 'object' ? { ...intent } : null,
     accountState: buildAccountState({ mergeResolution }),
     ...continuationState,
@@ -345,6 +376,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
     const nextSession = {
       ...currentSession,
       ...(requestIntent ? { intent: requestIntent } : {}),
+      ...(request.draftSave ? { draftSave: buildDraftSaveState(request) } : {}),
       profile: {
         displayName,
         phone,
@@ -382,6 +414,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
     const nextSession = {
       ...currentSession,
       ...(requestIntent ? { intent: requestIntent } : {}),
+      ...(request.draftSave ? { draftSave: buildDraftSaveState(request) } : {}),
       verifiedAt: new Date().toISOString(),
       resumeToken: resumeToken || currentSession.resumeToken || null,
       nextAction: resolvePostBlockerNextAction(currentSession, 'verify-email', requestIntent),
@@ -401,6 +434,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
     data: {
       ...currentSession,
       ...(requestIntent ? { intent: requestIntent } : {}),
+      ...(request.draftSave ? { draftSave: buildDraftSaveState(request) } : {}),
       handoffId: request.handoffId ?? currentSession.handoffId ?? null,
       resumeToken: resumeToken || currentSession.resumeToken || null,
       nextAction: nextAction || currentSession.nextAction || normalizeIntentAction(typeof requestIntent?.action === 'string' ? requestIntent.action.trim() : '') || 'resume-authenticated-flow',
@@ -537,6 +571,7 @@ export function buildAuthScaffoldResponse(request = {}) {
       mergeResolution,
       intent: request.intent ?? null,
       continuation: request.continuation ?? null,
+      draftSave: request.draftSave ?? null,
     }),
   }
 }

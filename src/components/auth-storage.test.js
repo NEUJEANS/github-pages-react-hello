@@ -370,6 +370,7 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
     displayName: '홍길동',
     phone: '010-1234-5678',
   })
+  assert.equal(resumeState.draftSave, null)
 })
 
 test('buildGuestDraftSessionSummary keeps the persisted post-login restore details serializable', () => {
@@ -477,6 +478,7 @@ test('buildAuthReadyState revives a bootstrapped scaffold session into the login
     continuationFields: {
       verificationCode: '123456',
     },
+    draftSave: null,
     accountState: {
       wishlistIds: ['wish-account-1'],
       cartItems: [{ id: 'cart-account-1', qty: 2 }],

@@ -79,6 +79,13 @@ test('buildAuthContinuationPlan prepares a serializable follow-up auth contract 
       phone: ' 010-1234-5678 ',
       ignored: undefined,
     },
+    draftSave: {
+      draftLabel: ' 거실 배치 보드 ',
+      apartmentLabel: ' 래미안 포레스트 84A ',
+      recommendationRoom: ' 거실 ',
+      selectedSpaceIds: ['living', 'bed1', 'living'],
+      layoutItems: [{ id: 'layout-1', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2 }],
+    },
   })
 
   assert.equal(plan.canSubmit, true)
@@ -101,6 +108,14 @@ test('buildAuthContinuationPlan prepares a serializable follow-up auth contract 
       label: '로그인 후 보드 저장',
       returnScreen: 'layout',
     },
+    draftSave: {
+      draftLabel: '거실 배치 보드',
+      apartmentLabel: '래미안 포레스트 84A',
+      recommendationRoom: '거실',
+      selectedSpaceIds: ['living', 'bed1'],
+      layoutItems: [{ id: 'layout-1', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2 }],
+      layoutItemCount: 1,
+    },
   })
   assert.deepEqual(plan.summary, {
     handoffId: 'auth-continue-123',
@@ -119,6 +134,15 @@ test('buildAuthContinuationPlan prepares a serializable follow-up auth contract 
     fieldCount: 2,
     requiredFields: ['displayName', 'phone'],
     missingFields: [],
+    draftSave: {
+      draftLabel: '거실 배치 보드',
+      apartmentLabel: '래미안 포레스트 84A',
+      recommendationRoom: '거실',
+      selectedSpaceIds: ['living', 'bed1'],
+      layoutItems: [{ id: 'layout-1', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2 }],
+      layoutItemCount: 1,
+    },
+    hasDraftSave: true,
   })
 })
 
@@ -150,6 +174,7 @@ test('buildAuthContinuationPlan blocks submit until required continuation fields
     },
     handoffId: 'auth-continue-123',
     intent: null,
+    draftSave: null,
   })
   assert.deepEqual(plan.summary, {
     handoffId: 'auth-continue-123',
@@ -163,6 +188,8 @@ test('buildAuthContinuationPlan blocks submit until required continuation fields
     fieldCount: 1,
     requiredFields: ['verificationCode'],
     missingFields: ['verificationCode'],
+    draftSave: null,
+    hasDraftSave: false,
   })
 })
 
@@ -260,6 +287,14 @@ test('buildAuthResultSummary extracts backend auth response details without wide
         credentialsMode: 'include',
         source: 'default',
       },
+      draftSave: {
+        draftLabel: '거실 배치 보드',
+        apartmentLabel: '래미안 포레스트 84A',
+        recommendationRoom: '거실',
+        selectedSpaceIds: ['living', 'bed1'],
+        layoutItems: [{ id: 'layout-1' }],
+        layoutItemCount: 1,
+      },
       mergedGuestDraft: {
         count: 3,
         mode: 'merged',
@@ -324,6 +359,14 @@ test('buildAuthResultSummary extracts backend auth response details without wide
       isSameOriginScaffold: true,
       credentialsMode: 'include',
       source: 'default',
+    },
+    draftSave: {
+      draftLabel: '거실 배치 보드',
+      apartmentLabel: '래미안 포레스트 84A',
+      recommendationRoom: '거실',
+      selectedSpaceIds: ['living', 'bed1'],
+      layoutItems: [{ id: 'layout-1' }],
+      layoutItemCount: 1,
     },
     resumeToken: 'resume-123',
     nextAction: 'resume-layout-checkout',

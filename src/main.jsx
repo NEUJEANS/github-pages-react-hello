@@ -577,6 +577,7 @@ function buildAuthSessionResultSummary(session = null) {
     layoutItemCount: session.layoutItemCount ?? 0,
     hasRecommendationDraft: Boolean(session.hasRecommendationDraft),
     guestDraftSummary: session.guestDraftSummary ?? null,
+    draftSave: session.draftSave ?? null,
     intent: session.intent ?? null,
     connection: session.connection ?? null,
     resumeToken: session.continuation?.resumeToken ?? null,
@@ -873,7 +874,16 @@ function App() {
               mergeResolution: loginForm.mergeResolution,
             }
           : null,
-  }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.phone, authContinuationFields.verificationCode, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, authSession?.intent, loginForm.continuation, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution])
+    draftSave: shouldSubmitContinuationBeforeResume(authSession?.continuation ?? loginForm.continuation ?? null)
+      ? {
+          draftLabel: authSession?.intent?.draftLabel ?? loginForm.intent?.draftLabel ?? guestDraftSnapshot.continuity?.apartmentLabel ?? null,
+          apartmentLabel: guestDraftSnapshot.continuity?.apartmentLabel ?? null,
+          recommendationRoom: guestDraftSnapshot.recommendationDraft?.room ?? null,
+          selectedSpaceIds: guestDraftSnapshot.spaceProfile?.spaces ?? [],
+          layoutItems: guestDraftSnapshot.continuity?.layoutItems ?? [],
+        }
+      : null,
+  }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.phone, authContinuationFields.verificationCode, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, authSession?.intent, guestDraftSnapshot, loginForm.continuation, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution])
 
   React.useEffect(() => {
     let cancelled = false

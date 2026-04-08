@@ -35,6 +35,14 @@ test('buildAuthScaffoldResponse returns a merged session payload for valid crede
         layoutItems: [{ id: 'layout-1' }, { id: 'layout-2' }],
       },
     },
+    draftSave: {
+      draftLabel: '거실 배치 보드',
+      apartmentLabel: '래미안 포레스트 84A',
+      recommendationRoom: '거실',
+      selectedSpaceIds: ['living', 'bed1'],
+      layoutItems: [{ id: 'layout-1' }],
+      layoutItemCount: 1,
+    },
   })
 
   assert.equal(response.status, 200)
@@ -64,6 +72,14 @@ test('buildAuthScaffoldResponse returns a merged session payload for valid crede
     action: 'save-layout-draft',
     label: '로그인 후 보드 저장',
     returnScreen: 'layout',
+  })
+  assert.deepEqual(response.data.draftSave, {
+    draftLabel: '거실 배치 보드',
+    apartmentLabel: '래미안 포레스트 84A',
+    recommendationRoom: '거실',
+    selectedSpaceIds: ['living', 'bed1'],
+    layoutItems: [{ id: 'layout-1' }],
+    layoutItemCount: 1,
   })
   assert.equal(response.data.resumeToken, null)
   assert.equal(response.data.nextAction, 'save-layout-draft')
@@ -559,6 +575,14 @@ test('submitAuthScaffoldContinuation can complete a profile blocker and restore 
         displayName: 'Havenly User',
         phone: '010-1234-5678',
       },
+      draftSave: {
+        draftLabel: '거실 배치 보드',
+        apartmentLabel: '래미안 포레스트 84A',
+        recommendationRoom: '거실',
+        selectedSpaceIds: ['living', 'bed1'],
+        layoutItems: [{ id: 'layout-1' }],
+        layoutItemCount: 1,
+      },
     },
   })
 
@@ -569,6 +593,14 @@ test('submitAuthScaffoldContinuation can complete a profile blocker and restore 
   assert.deepEqual(completed.data.profile, {
     displayName: 'Havenly User',
     phone: '010-1234-5678',
+  })
+  assert.deepEqual(completed.data.draftSave, {
+    draftLabel: '거실 배치 보드',
+    apartmentLabel: '래미안 포레스트 84A',
+    recommendationRoom: '거실',
+    selectedSpaceIds: ['living', 'bed1'],
+    layoutItems: [{ id: 'layout-1' }],
+    layoutItemCount: 1,
   })
 })
 

@@ -120,6 +120,47 @@ function buildSerializableContinuationFields(fields = null) {
   return Object.fromEntries(entries)
 }
 
+function buildSerializableDraftSaveHandoff(draftSave = null) {
+  if (!draftSave || typeof draftSave !== 'object' || Array.isArray(draftSave)) return null
+
+  const layoutItems = Array.isArray(draftSave.layoutItems)
+    ? draftSave.layoutItems.map((item) => ({
+        id: item?.id ?? null,
+        sourceId: item?.sourceId ?? null,
+        x: item?.x ?? null,
+        y: item?.y ?? null,
+        rotation: item?.rotation ?? 0,
+        colorIndex: item?.colorIndex ?? 0,
+      }))
+    : []
+
+  const selectedSpaceIds = Array.isArray(draftSave.selectedSpaceIds)
+    ? draftSave.selectedSpaceIds.filter((value, index, array) => typeof value === 'string' && value.trim() && array.indexOf(value) === index)
+    : []
+
+  const payload = {
+    draftLabel: typeof draftSave.draftLabel === 'string' ? draftSave.draftLabel.trim() : '',
+    apartmentLabel: typeof draftSave.apartmentLabel === 'string' ? draftSave.apartmentLabel.trim() : '',
+    recommendationRoom: typeof draftSave.recommendationRoom === 'string' ? draftSave.recommendationRoom.trim() : '',
+    selectedSpaceIds,
+    layoutItems,
+    layoutItemCount: layoutItems.length,
+  }
+
+  if (!payload.draftLabel && !payload.apartmentLabel && !payload.recommendationRoom && !payload.selectedSpaceIds.length && !payload.layoutItems.length) {
+    return null
+  }
+
+  return {
+    draftLabel: payload.draftLabel || null,
+    apartmentLabel: payload.apartmentLabel || null,
+    recommendationRoom: payload.recommendationRoom || null,
+    selectedSpaceIds: payload.selectedSpaceIds,
+    layoutItems: payload.layoutItems,
+    layoutItemCount: payload.layoutItemCount,
+  }
+}
+
 function readContinuationRequiredFields(nextAction = null) {
   switch (nextAction) {
     case 'complete-profile':
@@ -139,9 +180,11 @@ export function buildAuthContinuationPlan({
   fields = null,
   handoffId = null,
   intent = null,
+  draftSave = null,
 } = {}) {
   const serializableContinuation = buildSerializableContinuation(continuation)
   const serializableFields = buildSerializableContinuationFields(fields)
+  const serializableDraftSave = buildSerializableDraftSaveHandoff(draftSave)
   const normalizedHandoffId = sanitizeAuthHandoffId(handoffId)
   const requiredFields = readContinuationRequiredFields(serializableContinuation?.nextAction)
   const missingFields = requiredFields.filter((field) => {
@@ -160,6 +203,7 @@ export function buildAuthContinuationPlan({
       fields: serializableFields,
       handoffId: normalizedHandoffId || null,
       intent,
+      draftSave: serializableDraftSave,
     },
     summary: {
       handoffId: normalizedHandoffId || null,
@@ -168,6 +212,8 @@ export function buildAuthContinuationPlan({
       fieldCount: serializableFields ? Object.keys(serializableFields).length : 0,
       requiredFields,
       missingFields,
+      draftSave: serializableDraftSave,
+      hasDraftSave: Boolean(serializableDraftSave),
     },
   }
 }
@@ -252,6 +298,7 @@ export function buildAuthResultSummary(result, fallbackSummary = {}) {
     guestDraftSummary: data.guestDraftSummary ?? fallbackSummary.guestDraftSummary ?? null,
     intent: data.intent ?? fallbackSummary.intent ?? null,
     connection: data.connection ?? data.authConnection ?? fallbackSummary.connection ?? null,
+    draftSave: data.draftSave ?? fallbackSummary.draftSave ?? null,
     resumeToken: data.resumeToken ?? fallbackContinuation?.resumeToken ?? null,
     nextAction: normalizeContinuationNextAction(data.nextAction ?? fallbackContinuation?.nextAction ?? null),
     continuationStatus: data.status ?? fallbackContinuation?.status ?? null,

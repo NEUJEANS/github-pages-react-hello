@@ -134,7 +134,7 @@ export function createAuthHandoffId({ now = new Date(), random = Math.random } =
   return `auth-${timestamp}-${entropy}`
 }
 
-export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedAt = new Date().toISOString(), connection = null, continuation = null, continuationFields = null } = {}) {
+export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedAt = new Date().toISOString(), connection = null, continuation = null, continuationFields = null, draftSave = null } = {}) {
   return {
     submittedAt,
     handoffId: plan.handoffId ?? plan.summary?.handoffId ?? null,
@@ -148,6 +148,7 @@ export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedA
     connection: buildSerializableAuthConnection(connection),
     continuation: buildSerializableAuthContinuation(continuation),
     continuationFields: buildSerializableAuthContinuationFields(continuationFields),
+    draftSave: buildSerializableDraftSave(draftSave),
     guestDraftSnapshot,
   }
 }
@@ -169,6 +170,30 @@ export function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
     wishlistCount: Array.isArray(continuity.wishlistIds) ? continuity.wishlistIds.length : 0,
     cartCount: Array.isArray(continuity.cartItems) ? continuity.cartItems.length : 0,
     layoutItemCount: Array.isArray(continuity.layoutItems) ? continuity.layoutItems.length : 0,
+  }
+}
+
+function buildSerializableDraftSave(draftSave = null) {
+  if (!draftSave || typeof draftSave !== 'object' || Array.isArray(draftSave)) return null
+
+  const selectedSpaceIds = Array.isArray(draftSave.selectedSpaceIds)
+    ? draftSave.selectedSpaceIds.filter((value, index, array) => typeof value === 'string' && value.trim() && array.indexOf(value) === index)
+    : []
+  const layoutItems = Array.isArray(draftSave.layoutItems)
+    ? draftSave.layoutItems.map((item) => ({ ...item }))
+    : []
+
+  if (!selectedSpaceIds.length && !layoutItems.length && !draftSave.draftLabel && !draftSave.apartmentLabel && !draftSave.recommendationRoom) {
+    return null
+  }
+
+  return {
+    draftLabel: typeof draftSave.draftLabel === 'string' ? draftSave.draftLabel.trim() || null : null,
+    apartmentLabel: typeof draftSave.apartmentLabel === 'string' ? draftSave.apartmentLabel.trim() || null : null,
+    recommendationRoom: typeof draftSave.recommendationRoom === 'string' ? draftSave.recommendationRoom.trim() || null : null,
+    selectedSpaceIds,
+    layoutItems,
+    layoutItemCount: typeof draftSave.layoutItemCount === 'number' ? draftSave.layoutItemCount : layoutItems.length,
   }
 }
 
@@ -231,6 +256,7 @@ export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = 
     continuation: buildSerializableAuthContinuation(continuation ?? resultSummary),
     continuationFields: buildSerializableAuthContinuationFields(continuationFields ?? resultSummary?.continuationFields ?? null),
     guestDraftSummary: derivedGuestDraftSummary,
+    draftSave: buildSerializableDraftSave(resultSummary?.draftSave ?? null),
     accountState: buildSerializableAuthAccountState(accountState ?? resultSummary?.accountState ?? null),
   }
 }
@@ -284,6 +310,7 @@ export function buildAuthResumeState(handoff, session = null) {
     connection: buildSerializableAuthConnection(handoff.connection ?? session?.connection ?? null),
     continuation: buildSerializableAuthContinuation(handoff.continuation ?? session?.continuation ?? null),
     continuationFields: buildSerializableAuthContinuationFields(handoff.continuationFields ?? session?.continuationFields ?? null),
+    draftSave: buildSerializableDraftSave(handoff.draftSave ?? session?.draftSave ?? null),
   }
 }
 
@@ -304,6 +331,7 @@ export function buildAuthReadyState(session = null, { intent = null } = {}) {
     connection: buildSerializableAuthConnection(session.connection ?? null),
     continuation: buildSerializableAuthContinuation(session.continuation ?? null),
     continuationFields: buildSerializableAuthContinuationFields(session.continuationFields ?? null),
+    draftSave: buildSerializableDraftSave(session.draftSave ?? null),
     accountState: buildSerializableAuthAccountState(session.accountState ?? null),
   }
 }
