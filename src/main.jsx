@@ -45,6 +45,7 @@ import {
   canResumePostAuthIntent,
   resolvePostAuthScreen,
   shouldCloseLoginModalAfterAuth,
+  shouldSubmitContinuationBeforeResume,
 } from './components/auth-intent-state.js'
 import { buildFilteredBedProducts } from './components/bed-filter-state.js'
 import { toggleWishlistId } from './components/wishlist-state.js'
@@ -1057,16 +1058,82 @@ function App() {
     setLoginForm(buildEmptyLoginForm())
   }, [authConfig])
 
-  const handleResumeAuthenticatedIntent = React.useCallback(() => {
+  const handleResumeAuthenticatedIntent = React.useCallback(async () => {
     const nextIntent = loginForm.intent ?? authSession?.intent ?? null
     const nextContinuation = authSession?.continuation ?? loginForm.continuation ?? null
 
     if (!canResumePostAuthIntent(nextIntent, null, nextContinuation)) return
 
     const nextScreen = resolvePostAuthScreen(nextIntent, null, nextContinuation)
-    setLoginModalState('closed')
-    if (nextScreen) navigate(nextScreen)
-  }, [authSession?.continuation, authSession?.intent, loginForm.continuation, loginForm.intent, navigate])
+
+    if (!shouldSubmitContinuationBeforeResume(nextContinuation) || !authSession || !authContinuationPlan.canSubmit) {
+      setLoginModalState('closed')
+      if (nextScreen) navigate(nextScreen)
+      return
+    }
+
+    setLoginForm((current) => ({
+      ...current,
+      status: 'submitting',
+      result: null,
+    }))
+
+    try {
+      const result = await submitAuthContinuationPlan(authContinuationPlan, authConfig)
+      const submittedContinuation = buildSerializableAuthContinuation(result?.data)
+
+      if (!result.ok) {
+        setLoginForm((current) => ({
+          ...current,
+          status: 'error',
+          result,
+          continuation: submittedContinuation,
+        }))
+        return
+      }
+
+      const nextResultSummary = buildAuthResultSummary(result, {
+        handoffId: authSession.handoffId ?? loginForm.handoffId ?? null,
+        wishlistCount: authSession.wishlistCount ?? 0,
+        cartCount: authSession.cartCount ?? 0,
+        layoutItemCount: authSession.layoutItemCount ?? 0,
+        hasRecommendationDraft: authSession.hasRecommendationDraft ?? false,
+        guestDraftSummary: authSession.guestDraftSummary ?? null,
+        intent: authSession.intent ?? loginForm.intent ?? null,
+        connection: authSession.connection ?? authConnectionSummary,
+        continuation: authSession.continuation ?? null,
+        authMode: authSession.authMode ?? null,
+        authTransport: authSession.authTransport ?? null,
+      })
+      const nextSession = buildPersistedAuthSession(nextResultSummary, {
+        intent: authSession.intent ?? loginForm.intent ?? null,
+        connection: nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
+        continuation: submittedContinuation,
+        accountState: result?.data?.accountState ?? authSession.accountState ?? null,
+      })
+
+      persistAuthSession(globalThis.localStorage, nextSession)
+      setAuthSession(nextSession)
+      setLoginForm((current) => ({
+        ...current,
+        status: 'ready',
+        result,
+        continuation: submittedContinuation,
+      }))
+      setLoginModalState('closed')
+      if (nextScreen) navigate(nextScreen)
+    } catch {
+      setLoginForm((current) => ({
+        ...current,
+        status: 'error',
+        result: {
+          ok: false,
+          status: 0,
+          data: { message: 'Continuation request failed' },
+        },
+      }))
+    }
+  }, [authConfig, authConnectionSummary, authContinuationPlan, authSession, loginForm.continuation, loginForm.handoffId, loginForm.intent, navigate])
 
   const handleAuthContinuationFieldChange = React.useCallback((field, value) => {
     setAuthContinuationFields((current) => ({
@@ -2125,7 +2192,9 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authCont
                     {form.status === 'submitting' ? '연결 중…' : authReadyPanelState.primaryActionLabel}
                   </button>
                 ) : (
-                  <button className="cta" disabled={false} onClick={onResumeAuthenticatedIntent}>{authReadyPanelState.primaryActionLabel}</button>
+                  <button className="cta" disabled={form.status === 'submitting'} onClick={onResumeAuthenticatedIntent}>
+                    {form.status === 'submitting' ? '연결 중…' : authReadyPanelState.primaryActionLabel}
+                  </button>
                 )}
               </div>
             </div>

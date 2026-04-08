@@ -39,6 +39,18 @@ function readContinuationStatus(result) {
   return typeof result?.data?.status === 'string' ? result.data.status.trim() : ''
 }
 
+export function shouldSubmitContinuationBeforeResume(continuation = null) {
+  const nextAction = readContinuationNextAction(continuation)
+
+  return [
+    'save-layout-draft',
+    'resume-layout-checkout',
+    'resume-guest-draft',
+    'resume-account-state',
+    'checkout-cart',
+  ].includes(nextAction)
+}
+
 export function shouldCloseLoginModalAfterAuth(result, intent = null, continuationOverride = null) {
   if (!result?.ok) return false
 
