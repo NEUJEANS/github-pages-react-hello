@@ -22,6 +22,10 @@ function readReturnScreen(intent = null) {
   return typeof intent?.returnScreen === 'string' ? intent.returnScreen.trim() : ''
 }
 
+function readIntentAction(intent = null) {
+  return typeof intent?.action === 'string' ? intent.action.trim() : ''
+}
+
 export function canResumePostAuthIntent(intent, fallbackScreen = null, continuation = null) {
   return Boolean(readReturnScreen(intent) || resolveNextActionScreen(readContinuationNextAction(continuation), fallbackScreen) || fallbackScreen)
 }
@@ -59,10 +63,13 @@ export function shouldCloseLoginModalAfterAuth(result, intent = null, continuati
   const nextAction = readContinuationAction(result)
   const status = readContinuationStatus(result)
   const continuation = continuationOverride ?? result?.data ?? null
+  const intentAction = readIntentAction(intent)
+  const isPassiveLoginIntent = intentAction === 'login'
+  const hasFollowThroughTarget = canResumePostAuthIntent(intent, null, continuation)
 
   if (status === 'action-required') return false
   if (nextAction === 'complete-profile' || nextAction === 'verify-email') return false
-  if (canResumePostAuthIntent(intent, null, continuation)) return false
+  if (hasFollowThroughTarget && !isPassiveLoginIntent) return false
 
   return true
 }

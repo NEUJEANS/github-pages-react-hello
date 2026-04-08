@@ -52,6 +52,8 @@ test('shouldCloseLoginModalAfterAuth closes only after successful auth results w
   assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'resume-layout-checkout' } }), false)
   assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'checkout-cart' } }), false)
   assert.equal(shouldCloseLoginModalAfterAuth({ ok: true }, { returnScreen: 'layout' }), false)
+  assert.equal(shouldCloseLoginModalAfterAuth({ ok: true }, { action: 'login', returnScreen: 'layout' }), true)
+  assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'resume-authenticated-flow' } }, { action: 'login', returnScreen: 'layout' }), true)
   assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'complete-profile' } }), false)
   assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'verify-email' } }), false)
   assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { status: 'action-required' } }), false)
