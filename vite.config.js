@@ -131,9 +131,35 @@ function buildAuthContinuationHeaders(payload = null) {
   }
 }
 
+function readRequestPath(req) {
+  if (typeof req?.url !== "string") return ""
+
+  try {
+    return new URL(req.url, "http://localhost").pathname
+  } catch {
+    return req.url.split("?")[0] ?? ""
+  }
+}
+
+function normalizeAuthScaffoldPath(pathname = "") {
+  if (pathname === "/api/auth/login") return pathname
+  if (pathname.endsWith("/api/auth/login")) return "/api/auth/login"
+  if (pathname === "/api/auth/session") return pathname
+  if (pathname.endsWith("/api/auth/session")) return "/api/auth/session"
+  if (pathname === "/api/auth/pending") return pathname
+  if (pathname.endsWith("/api/auth/pending")) return "/api/auth/pending"
+  if (pathname === "/api/auth/logout") return pathname
+  if (pathname.endsWith("/api/auth/logout")) return "/api/auth/logout"
+  if (pathname === "/api/auth/continue") return pathname
+  if (pathname.endsWith("/api/auth/continue")) return "/api/auth/continue"
+  return pathname
+}
+
 function havenlyAuthScaffoldPlugin() {
   const handler = async (req, res, next) => {
-    if (req.method === "GET" && req.url === "/api/auth/session") {
+    const requestPath = normalizeAuthScaffoldPath(readRequestPath(req))
+
+    if (req.method === "GET" && requestPath === "/api/auth/session") {
       const response = readAuthScaffoldSession()
       writeJson(res, response.status, response.data, {
         "x-havenly-auth-scaffold": "true",
@@ -143,7 +169,7 @@ function havenlyAuthScaffoldPlugin() {
       return
     }
 
-    if (req.method === "GET" && req.url === "/api/auth/pending") {
+    if (req.method === "GET" && requestPath === "/api/auth/pending") {
       const response = readAuthScaffoldPending()
       writeJson(res, response.status, response.data, {
         "x-havenly-auth-scaffold": "true",
@@ -153,7 +179,7 @@ function havenlyAuthScaffoldPlugin() {
       return
     }
 
-    if (req.method === "POST" && req.url === "/api/auth/logout") {
+    if (req.method === "POST" && requestPath === "/api/auth/logout") {
       const response = signOutAuthScaffoldSession()
       writeJson(res, response.status, response.data, {
         "x-havenly-auth-scaffold": "true",
@@ -163,7 +189,7 @@ function havenlyAuthScaffoldPlugin() {
       return
     }
 
-    if (req.method === "POST" && req.url === "/api/auth/continue") {
+    if (req.method === "POST" && requestPath === "/api/auth/continue") {
       try {
         const request = await readRequestBody(req)
         const connection = readAuthConnection(req)
@@ -195,7 +221,7 @@ function havenlyAuthScaffoldPlugin() {
       return
     }
 
-    if (req.method !== "POST" || req.url !== "/api/auth/login") {
+    if (req.method !== "POST" || requestPath !== "/api/auth/login") {
       next()
       return
     }
