@@ -39,14 +39,16 @@ function readContinuationStatus(result) {
   return typeof result?.data?.status === 'string' ? result.data.status.trim() : ''
 }
 
-export function shouldCloseLoginModalAfterAuth(result) {
+export function shouldCloseLoginModalAfterAuth(result, intent = null, continuationOverride = null) {
   if (!result?.ok) return false
 
   const nextAction = readContinuationAction(result)
   const status = readContinuationStatus(result)
+  const continuation = continuationOverride ?? result?.data ?? null
 
   if (status === 'action-required') return false
   if (nextAction === 'complete-profile' || nextAction === 'verify-email') return false
+  if (canResumePostAuthIntent(intent, null, continuation)) return false
 
   return true
 }

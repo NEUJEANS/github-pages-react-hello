@@ -27,9 +27,11 @@ test('canResumePostAuthIntent only allows ready-panel continuation when a real s
   assert.equal(canResumePostAuthIntent(null, 'home', { nextAction: 'verify-email' }), true)
 })
 
-test('shouldCloseLoginModalAfterAuth closes only after successful auth results without backend blockers', () => {
+test('shouldCloseLoginModalAfterAuth closes only after successful auth results without backend blockers or resumable follow-through', () => {
   assert.equal(shouldCloseLoginModalAfterAuth({ ok: true }), true)
-  assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'resume-layout-checkout' } }), true)
+  assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'resume-layout-checkout' } }), false)
+  assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'checkout-cart' } }), false)
+  assert.equal(shouldCloseLoginModalAfterAuth({ ok: true }, { returnScreen: 'layout' }), false)
   assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'complete-profile' } }), false)
   assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { nextAction: 'verify-email' } }), false)
   assert.equal(shouldCloseLoginModalAfterAuth({ ok: true, data: { status: 'action-required' } }), false)

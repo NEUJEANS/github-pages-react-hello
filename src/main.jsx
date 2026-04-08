@@ -1102,7 +1102,7 @@ function App() {
         mergeResolution: result.ok ? null : nextMergeResolution,
       }))
 
-      if (shouldCloseLoginModalAfterAuth(result)) {
+      if (shouldCloseLoginModalAfterAuth(result, submitPlan.summary.intent, nextContinuation)) {
         const nextScreen = resolvePostAuthScreen(
           submitPlan.summary.intent,
           null,
