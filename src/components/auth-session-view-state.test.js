@@ -52,6 +52,7 @@ test('buildAuthReadyPanelState summarizes the authenticated resume panel for boo
     primaryActionLabel: '보드 저장 이어가기',
     primaryActionHint: '로그인 후 저장하려던 배치 초안을 그대로 이어갈 수 있어요.',
     primaryActionDisabled: false,
+    actionChecklist: null,
   })
 
   assert.equal(buildAuthReadyPanelState(null), null)
@@ -90,6 +91,7 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionLabel: '주문 흐름 이어가기',
     primaryActionHint: '계정 장바구니 기준으로 다음 주문 단계를 이어갈 수 있어요.',
     primaryActionDisabled: false,
+    actionChecklist: null,
   })
 
   assert.deepEqual(buildAuthReadyPanelState({
@@ -124,6 +126,7 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionLabel: '계정 상태로 이어가기',
     primaryActionHint: '계정 기준으로 복원된 보드와 저장 상태를 레이아웃 화면에서 확인할 수 있어요.',
     primaryActionDisabled: false,
+    actionChecklist: null,
   })
 
   assert.deepEqual(buildAuthReadyPanelState({
@@ -158,6 +161,7 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionLabel: '게스트 초안 이어가기',
     primaryActionHint: '병합된 게스트 초안을 레이아웃 흐름에서 바로 이어 확인할 수 있어요.',
     primaryActionDisabled: false,
+    actionChecklist: null,
   })
 
   assert.deepEqual(buildAuthReadyPanelState({
@@ -190,9 +194,62 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     returnScreen: 'layout',
     connectionLabel: null,
     connectionEndpoint: null,
-    primaryActionLabel: '프로필 연동 준비 중',
-    primaryActionHint: '백엔드 인증은 연결됐지만, 프로필 보완 화면 연결은 아직 scaffold 단계예요.',
+    primaryActionLabel: '프로필 보완 계약 보기',
+    primaryActionHint: '백엔드 인증은 연결됐고, 다음 checkpoint에서 프로필 입력 화면을 붙일 수 있도록 재개 계약을 먼저 노출해요.',
     primaryActionDisabled: true,
+    actionChecklist: {
+      title: '프로필 보완 연결 준비',
+      description: '백엔드가 추가 프로필 입력을 요구하는 상태예요. 아직 별도 화면은 없지만, 프론트가 어떤 계약으로 다음 단계를 이어야 하는지 바로 확인할 수 있어요.',
+      items: [
+        'resume token auth-user-1234:profile 값을 유지한 채 다음 프로필 저장 요청으로 이어가기',
+        '현재 인증 연결 대상을 그대로 유지하기',
+        '닉네임 · 연락처 같은 프로필 필드를 직렬화 가능한 payload로 최소 구성하기',
+      ],
+    },
+  })
+
+  assert.deepEqual(buildAuthReadyPanelState({
+    accountLabel: 'user@example.com',
+    continuation: {
+      nextAction: 'verify-email',
+      resumeToken: 'auth-user-1234:verify',
+      status: 'action-required',
+      statusLabel: '이메일 인증 필요',
+    },
+    connection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/login',
+    },
+  }), {
+    title: 'user@example.com 계정 연결됨',
+    subtitle: '현재 로그인 연결이 유지되고 있어요.',
+    restoredBits: [],
+    draftContextBits: [],
+    accountLabel: 'user@example.com',
+    handoffId: null,
+    sessionId: null,
+    mergeMode: null,
+    intentLabel: '저장한 작업',
+    intentDraftLabel: null,
+    nextAction: 'verify-email',
+    resumeToken: 'auth-user-1234:verify',
+    continuationStatus: 'action-required',
+    continuationStatusLabel: '이메일 인증 필요',
+    returnScreen: null,
+    connectionLabel: 'same-origin /api auth scaffold',
+    connectionEndpoint: '/api/auth/login',
+    primaryActionLabel: '이메일 인증 계약 보기',
+    primaryActionHint: '이메일 인증 화면 연결 전에도 어떤 token과 상태를 이어야 하는지 바로 확인할 수 있어요.',
+    primaryActionDisabled: true,
+    actionChecklist: {
+      title: '이메일 인증 연결 준비',
+      description: '백엔드가 이메일 인증 단계를 기다리고 있어요. 실제 인증 화면이 붙기 전까지 필요한 handoff 계약을 먼저 노출합니다.',
+      items: [
+        'resume token auth-user-1234:verify 으로 인증 확인 조회를 재개하기',
+        '현재 인증 연결 대상 same-origin /api auth scaffold (/api/auth/login) 기준으로 폴링/재개 흐름 붙이기',
+        '인증 완료 전에는 로그인 모달을 닫지 않고 상태만 갱신하기',
+      ],
+    },
   })
 })
 

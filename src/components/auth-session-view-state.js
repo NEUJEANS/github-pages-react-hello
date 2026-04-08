@@ -16,6 +16,33 @@ function buildIntentCopy(intent) {
   return ` ${label}${draftCopy} 단계까지 이어서 진행할 수 있어요.`
 }
 
+function buildActionChecklist(nextAction, { resumeToken = null, connectionLabel = null, connectionEndpoint = null } = {}) {
+  switch (nextAction) {
+    case 'complete-profile':
+      return {
+        title: '프로필 보완 연결 준비',
+        description: '백엔드가 추가 프로필 입력을 요구하는 상태예요. 아직 별도 화면은 없지만, 프론트가 어떤 계약으로 다음 단계를 이어야 하는지 바로 확인할 수 있어요.',
+        items: [
+          resumeToken ? `resume token ${resumeToken} 값을 유지한 채 다음 프로필 저장 요청으로 이어가기` : '다음 프로필 저장 요청에 resume token 이어붙이기',
+          connectionLabel ? `현재 인증 연결 대상 ${connectionLabel}${connectionEndpoint ? ` (${connectionEndpoint})` : ''}를 그대로 사용하기` : '현재 인증 연결 대상을 그대로 유지하기',
+          '닉네임 · 연락처 같은 프로필 필드를 직렬화 가능한 payload로 최소 구성하기',
+        ],
+      }
+    case 'verify-email':
+      return {
+        title: '이메일 인증 연결 준비',
+        description: '백엔드가 이메일 인증 단계를 기다리고 있어요. 실제 인증 화면이 붙기 전까지 필요한 handoff 계약을 먼저 노출합니다.',
+        items: [
+          resumeToken ? `resume token ${resumeToken} 으로 인증 확인 조회를 재개하기` : '이메일 인증 확인 조회에 resume token 전달하기',
+          connectionLabel ? `현재 인증 연결 대상 ${connectionLabel}${connectionEndpoint ? ` (${connectionEndpoint})` : ''} 기준으로 폴링/재개 흐름 붙이기` : '현재 인증 연결 대상 기준으로 폴링/재개 흐름 붙이기',
+          '인증 완료 전에는 로그인 모달을 닫지 않고 상태만 갱신하기',
+        ],
+      }
+    default:
+      return null
+  }
+}
+
 function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
   switch (nextAction) {
     case 'save-layout-draft':
@@ -50,14 +77,14 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
       }
     case 'complete-profile':
       return {
-        primaryActionLabel: '프로필 연동 준비 중',
-        primaryActionHint: '백엔드 인증은 연결됐지만, 프로필 보완 화면 연결은 아직 scaffold 단계예요.',
+        primaryActionLabel: '프로필 보완 계약 보기',
+        primaryActionHint: '백엔드 인증은 연결됐고, 다음 checkpoint에서 프로필 입력 화면을 붙일 수 있도록 재개 계약을 먼저 노출해요.',
         primaryActionDisabled: true,
       }
     case 'verify-email':
       return {
-        primaryActionLabel: '이메일 인증 대기 중',
-        primaryActionHint: '백엔드가 이메일 인증 단계를 요구하고 있어요. 프론트 연결은 다음 checkpoint에서 붙이면 돼요.',
+        primaryActionLabel: '이메일 인증 계약 보기',
+        primaryActionHint: '이메일 인증 화면 연결 전에도 어떤 token과 상태를 이어야 하는지 바로 확인할 수 있어요.',
         primaryActionDisabled: true,
       }
     default:
@@ -96,7 +123,14 @@ export function buildAuthReadyPanelState(session = null) {
       ? '계정 상태로 전환된 상태예요.'
       : '현재 로그인 연결이 유지되고 있어요.'
 
+  const connectionLabel = session.connection?.targetLabel ?? null
+  const connectionEndpoint = session.connection?.endpoint ?? null
   const { primaryActionLabel, primaryActionHint, primaryActionDisabled } = resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen)
+  const actionChecklist = buildActionChecklist(nextAction, {
+    resumeToken,
+    connectionLabel,
+    connectionEndpoint,
+  })
 
   return {
     title,
@@ -114,11 +148,12 @@ export function buildAuthReadyPanelState(session = null) {
     continuationStatus,
     continuationStatusLabel,
     returnScreen,
-    connectionLabel: session.connection?.targetLabel ?? null,
-    connectionEndpoint: session.connection?.endpoint ?? null,
+    connectionLabel,
+    connectionEndpoint,
     primaryActionLabel,
     primaryActionHint,
     primaryActionDisabled,
+    actionChecklist,
   }
 }
 

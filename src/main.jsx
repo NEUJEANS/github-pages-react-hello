@@ -1956,13 +1956,22 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 <p className="muted">이어갈 작업: {authReadyPanelState.intentLabel}{authReadyPanelState.intentDraftLabel ? ` · ${authReadyPanelState.intentDraftLabel}` : ''}</p>
                 {authReadyPanelState.primaryActionHint && <p className="muted">{authReadyPanelState.primaryActionHint}</p>}
                 {authReadyPanelState.primaryActionDisabled && (
-                  <p className="muted">이 단계는 백엔드 scaffold 계약만 살아 있고, 실제 프론트 화면 연결은 아직 준비 중이에요.</p>
+                  <p className="muted">이 단계는 아직 별도 화면까지 붙지 않았지만, backend 재개 계약과 필요한 handoff 정보를 여기서 바로 확인할 수 있어요.</p>
                 )}
                 {(authReadyPanelState.nextAction || authReadyPanelState.continuationStatusLabel || authReadyPanelState.continuationStatus) && (
                   <p className="muted">백엔드 다음 액션: {authReadyPanelState.nextAction ?? 'next-action 미정'}{authReadyPanelState.resumeToken ? ` · token ${authReadyPanelState.resumeToken}` : ''}{authReadyPanelState.continuationStatusLabel ? ` · ${authReadyPanelState.continuationStatusLabel}` : authReadyPanelState.continuationStatus ? ` · ${authReadyPanelState.continuationStatus}` : ''}</p>
                 )}
                 {authReadyPanelState.connectionLabel && (
                   <p className="muted">연결 대상: {authReadyPanelState.connectionLabel}{authReadyPanelState.connectionEndpoint ? ` (${authReadyPanelState.connectionEndpoint})` : ''}</p>
+                )}
+                {authReadyPanelState.actionChecklist && (
+                  <div className="loginGuardCard authPrepCard">
+                    <strong>{authReadyPanelState.actionChecklist.title}</strong>
+                    <p className="muted">{authReadyPanelState.actionChecklist.description}</p>
+                    <ul className="authChecklist">
+                      {authReadyPanelState.actionChecklist.items.map((item) => <li key={item}>{item}</li>)}
+                    </ul>
+                  </div>
                 )}
                 <div className="guardSummary compact">
                   <div><label>계정</label><b>{authReadyPanelState.accountLabel}</b></div>
