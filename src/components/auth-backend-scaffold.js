@@ -89,6 +89,16 @@ function buildContinuationStatus(nextAction, continuation = null) {
   }
 }
 
+function resolvePostBlockerNextAction(session = null, blockerAction = '') {
+  const currentNextAction = typeof session?.nextAction === 'string' ? session.nextAction.trim() : ''
+  if (currentNextAction && currentNextAction !== blockerAction) return currentNextAction
+
+  const intentAction = normalizeIntentAction(typeof session?.intent?.action === 'string' ? session.intent.action.trim() : '')
+  if (intentAction && intentAction !== blockerAction) return intentAction
+
+  return 'resume-authenticated-flow'
+}
+
 function normalizeIntentAction(action = '') {
   switch (action) {
     case 'login':
@@ -329,7 +339,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
         phone,
       },
       resumeToken: resumeToken || currentSession.resumeToken || null,
-      nextAction: currentSession.intent?.action ?? 'resume-authenticated-flow',
+      nextAction: resolvePostBlockerNextAction(currentSession, 'complete-profile'),
       status: 'ready',
       statusLabel: '프로필 준비 완료',
       connection: sessionConnection,
@@ -362,7 +372,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
       ...currentSession,
       verifiedAt: new Date().toISOString(),
       resumeToken: resumeToken || currentSession.resumeToken || null,
-      nextAction: currentSession.intent?.action ?? 'resume-authenticated-flow',
+      nextAction: resolvePostBlockerNextAction(currentSession, 'verify-email'),
       status: 'ready',
       statusLabel: '이메일 인증 완료',
       connection: sessionConnection,

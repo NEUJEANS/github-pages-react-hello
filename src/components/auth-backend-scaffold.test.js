@@ -572,6 +572,79 @@ test('submitAuthScaffoldContinuation can complete a profile blocker and restore 
   })
 })
 
+test('submitAuthScaffoldContinuation falls back to the generic authenticated flow after a blocker-only profile intent is completed', () => {
+  resetAuthScaffoldState()
+
+  submitAuthScaffoldRequest({
+    request: {
+      email: 'profile@example.com',
+      password: 'password123',
+      handoffId: 'auth-profile-blocker-only',
+      intent: {
+        source: 'login-modal',
+        action: 'complete-profile',
+        label: '프로필 마무리',
+        returnScreen: 'home',
+      },
+    },
+  })
+
+  const completed = submitAuthScaffoldContinuation({
+    request: {
+      handoffId: 'auth-profile-blocker-only',
+      continuation: {
+        resumeToken: 'auth-profile-blocker-only:resume',
+        nextAction: 'complete-profile',
+      },
+      fields: {
+        displayName: 'Havenly User',
+        phone: '010-1234-5678',
+      },
+    },
+  })
+
+  assert.equal(completed.status, 200)
+  assert.equal(completed.data.nextAction, 'resume-authenticated-flow')
+  assert.equal(completed.data.status, 'ready')
+  assert.equal(completed.data.statusLabel, '프로필 준비 완료')
+})
+
+test('submitAuthScaffoldContinuation falls back to the generic authenticated flow after a blocker-only email verification intent is completed', () => {
+  resetAuthScaffoldState()
+
+  submitAuthScaffoldRequest({
+    request: {
+      email: 'verify@example.com',
+      password: 'password123',
+      handoffId: 'auth-verify-blocker-only',
+      intent: {
+        source: 'login-modal',
+        action: 'verify-email',
+        label: '이메일 인증 이어가기',
+        returnScreen: 'home',
+      },
+    },
+  })
+
+  const completed = submitAuthScaffoldContinuation({
+    request: {
+      handoffId: 'auth-verify-blocker-only',
+      continuation: {
+        resumeToken: 'auth-verify-blocker-only:resume',
+        nextAction: 'verify-email',
+      },
+      fields: {
+        verificationCode: '123456',
+      },
+    },
+  })
+
+  assert.equal(completed.status, 200)
+  assert.equal(completed.data.nextAction, 'resume-authenticated-flow')
+  assert.equal(completed.data.status, 'ready')
+  assert.equal(completed.data.statusLabel, '이메일 인증 완료')
+})
+
 test('submitAuthScaffoldContinuation can resolve a pending merge handoff into a scaffold session', () => {
   resetAuthScaffoldState()
 

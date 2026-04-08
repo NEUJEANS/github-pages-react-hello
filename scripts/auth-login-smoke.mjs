@@ -658,6 +658,11 @@ async function runBrowserSmoke(playwright) {
     const completeProfileReadyDisabled = await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).isDisabled()
     await completeProfilePage.getByPlaceholder('홍길동').fill('Havenly User')
     await completeProfilePage.getByPlaceholder('010-1234-5678').fill('010-1234-5678')
+    await completeProfilePage.reload({ waitUntil: 'networkidle' })
+    await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).waitFor()
+    const completeProfileReloadedStatus = await completeProfilePage.locator('.authPrepCard .muted').first().innerText()
+    const completeProfileReloadedDisplayName = await completeProfilePage.getByPlaceholder('홍길동').inputValue()
+    const completeProfileReloadedPhone = await completeProfilePage.getByPlaceholder('010-1234-5678').inputValue()
     await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).click()
     await completeProfilePage.locator('.authSessionNotice').waitFor()
     const completeProfileResumedStatus = await completeProfilePage.locator('.authSessionNotice p').innerText()
@@ -677,6 +682,10 @@ async function runBrowserSmoke(playwright) {
     const verifyEmailChecklist = await verifyEmailPage.locator('.authChecklist li').allInnerTexts()
     const verifyEmailReadyDisabled = await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).isDisabled()
     await verifyEmailPage.getByPlaceholder('123456').fill('123456')
+    await verifyEmailPage.reload({ waitUntil: 'networkidle' })
+    await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).waitFor()
+    const verifyEmailReloadedStatus = await verifyEmailPage.locator('.authPrepCard .muted').first().innerText()
+    const verifyEmailReloadedCode = await verifyEmailPage.getByPlaceholder('123456').inputValue()
     await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).click()
     await verifyEmailPage.locator('.authSessionNotice').waitFor()
     const verifyEmailResumedStatus = await verifyEmailPage.locator('.authSessionNotice p').innerText()
@@ -706,12 +715,21 @@ async function runBrowserSmoke(playwright) {
           status: completeProfileStatus,
           checklist: completeProfileChecklist,
           primaryActionDisabled: completeProfileReadyDisabled,
+          reloadedStatus: completeProfileReloadedStatus,
+          reloadedFields: {
+            displayName: completeProfileReloadedDisplayName,
+            phone: completeProfileReloadedPhone,
+          },
           resumedStatus: completeProfileResumedStatus,
         },
         verifyEmail: {
           status: verifyEmailStatus,
           checklist: verifyEmailChecklist,
           primaryActionDisabled: verifyEmailReadyDisabled,
+          reloadedStatus: verifyEmailReloadedStatus,
+          reloadedFields: {
+            verificationCode: verifyEmailReloadedCode,
+          },
           resumedStatus: verifyEmailResumedStatus,
         },
       },
