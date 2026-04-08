@@ -311,6 +311,34 @@ test('buildAuthScaffoldPendingHandoff keeps guest draft counts and continuation 
     endpoint: '/api/auth/login',
     method: 'POST',
     email: 'user@example.com',
+    request: {
+      email: 'user@example.com',
+      handoffId: 'auth-20260407002000-abcd',
+      mergeResolution: null,
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        returnScreen: 'layout',
+      },
+      continuation: {
+        resumeToken: 'auth-20260407002000-abcd:merge',
+        nextAction: 'confirm-merge-resolution',
+        status: 'action-required',
+        statusLabel: '병합 확인 필요',
+      },
+      guestDraftSnapshot: {
+        recommendationDraft: { room: '거실' },
+        spaceProfile: { spaces: ['living', 'bed1'] },
+        continuity: {
+          apartmentLabel: '래미안 포레스트 84A',
+          selectedRooms: ['거실', '침실'],
+          wishlistIds: ['wish-1', 'wish-2'],
+          cartItems: [{ id: 'cart-1', qty: 1 }],
+          layoutItems: [{ id: 'layout-1' }, { id: 'layout-2' }],
+        },
+      },
+    },
     summary: {
       email: 'user@example.com',
       handoffId: 'auth-20260407002000-abcd',
@@ -508,6 +536,81 @@ test('submitAuthScaffoldContinuation can complete a profile blocker and restore 
     displayName: 'Havenly User',
     phone: '010-1234-5678',
   })
+})
+
+test('submitAuthScaffoldContinuation can resolve a pending merge handoff into a scaffold session', () => {
+  resetAuthScaffoldState()
+
+  const connection = {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: 'https://havenly.example.com/api/auth/login',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode: 'include',
+    source: 'default',
+  }
+
+  submitAuthScaffoldRequest({
+    request: {
+      email: 'merge@example.com',
+      password: 'merge-conflict',
+      handoffId: 'auth-merge-cont-1',
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        returnScreen: 'layout',
+      },
+      guestDraftSnapshot: {
+        continuity: {
+          wishlistIds: ['wish-1'],
+          cartItems: [{ id: 'cart-1', qty: 1 }],
+          layoutItems: [{ id: 'layout-1' }],
+        },
+      },
+    },
+    connection,
+  })
+
+  const missingResolution = submitAuthScaffoldContinuation({
+    request: {
+      handoffId: 'auth-merge-cont-1',
+      continuation: {
+        resumeToken: 'auth-merge-cont-1:merge',
+        nextAction: 'confirm-merge-resolution',
+      },
+      fields: {},
+    },
+    connection,
+  })
+
+  assert.equal(missingResolution.status, 422)
+  assert.equal(missingResolution.data.nextAction, 'confirm-merge-resolution')
+  assert.deepEqual(missingResolution.data.allowedMergeResolutions, ['keep-guest', 'replace-with-account'])
+
+  const resolved = submitAuthScaffoldContinuation({
+    request: {
+      handoffId: 'auth-merge-cont-1',
+      continuation: {
+        resumeToken: 'auth-merge-cont-1:merge',
+        nextAction: 'confirm-merge-resolution',
+      },
+      fields: {
+        mergeResolution: 'replace-with-account',
+      },
+    },
+    connection,
+  })
+
+  assert.equal(resolved.status, 200)
+  assert.equal(resolved.data.handoffId, 'auth-merge-cont-1')
+  assert.equal(resolved.data.nextAction, 'save-layout-draft')
+  assert.equal(resolved.data.status, 'ready')
+  assert.equal(resolved.data.accountState?.wishlistIds?.length, 0)
+  assert.equal(readAuthScaffoldPending().status, 404)
+  assert.equal(readAuthScaffoldSession().status, 200)
 })
 
 test('stateful scaffold helpers preserve pending handoffs, session bootstrap, and logout teardown', () => {

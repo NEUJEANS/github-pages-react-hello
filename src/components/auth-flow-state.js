@@ -113,6 +113,8 @@ function readContinuationRequiredFields(nextAction = null) {
       return ['displayName', 'phone']
     case 'verify-email':
       return ['verificationCode']
+    case 'confirm-merge-resolution':
+      return ['mergeResolution']
     default:
       return []
   }

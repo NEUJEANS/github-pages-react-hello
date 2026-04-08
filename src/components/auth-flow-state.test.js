@@ -146,6 +146,27 @@ test('buildAuthContinuationPlan blocks submit until required continuation fields
   })
 })
 
+test('buildAuthContinuationPlan requires a serializable merge resolution when auth is paused on merge confirmation', () => {
+  const plan = buildAuthContinuationPlan({
+    endpoint: '/api/auth/continue',
+    handoffId: 'auth-continue-merge-123',
+    continuation: {
+      resumeToken: 'resume-merge-123',
+      nextAction: 'confirm-merge-resolution',
+    },
+    fields: {
+      mergeResolution: ' keep-guest ',
+    },
+  })
+
+  assert.equal(plan.canSubmit, true)
+  assert.deepEqual(plan.request.fields, {
+    mergeResolution: 'keep-guest',
+  })
+  assert.deepEqual(plan.summary.requiredFields, ['mergeResolution'])
+  assert.deepEqual(plan.summary.missingFields, [])
+})
+
 test('buildAuthSubmitPlan prepares a backend-friendly login request with handoff metadata', () => {
   const plan = buildAuthSubmitPlan({
     email: ' USER@Example.com ',

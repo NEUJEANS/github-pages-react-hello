@@ -31,6 +31,12 @@ function buildAccountState({ mergeResolution } = {}) {
   }
 }
 
+function readMergeResolution(value = null) {
+  return value === 'keep-guest' || value === 'replace-with-account'
+    ? value
+    : null
+}
+
 function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
   if (!guestDraftSnapshot) return null
 
@@ -200,8 +206,71 @@ export function readAuthScaffoldPending() {
 }
 
 export function submitAuthScaffoldContinuation({ request = {}, connection = null } = {}) {
+  const continuation = request.continuation ?? {}
+  const nextAction = typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : ''
+  const resumeToken = typeof continuation.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
+  const fields = request.fields && typeof request.fields === 'object' && !Array.isArray(request.fields)
+    ? request.fields
+    : null
+  const pendingSession = cloneValue(scaffoldState.pending)
   const currentSession = cloneValue(scaffoldState.session)
+  const mergeResolution = readMergeResolution(fields?.mergeResolution)
+
   if (!currentSession) {
+    if (nextAction === 'confirm-merge-resolution' && pendingSession) {
+      if (!mergeResolution) {
+        return {
+          status: 422,
+          data: {
+            message: 'Merge resolution required',
+            handoffId: request.handoffId ?? pendingSession.handoffId ?? null,
+            resumeToken: resumeToken || pendingSession.continuation?.resumeToken || null,
+            nextAction: 'confirm-merge-resolution',
+            allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
+            ...(connection ?? pendingSession.connection ? { connection: cloneValue(connection ?? pendingSession.connection) } : {}),
+          },
+        }
+      }
+
+      const resumedRequest = {
+        ...(cloneValue(pendingSession.request) ?? {}),
+        handoffId: request.handoffId ?? pendingSession.handoffId ?? null,
+        mergeResolution,
+        continuation: {
+          ...(cloneValue(pendingSession.continuation) ?? {}),
+          ...cloneValue(continuation),
+          nextAction: pendingSession.summary?.intent?.action ?? nextAction ?? 'resume-authenticated-flow',
+          status: 'ready',
+          statusLabel: mergeResolution === 'replace-with-account' ? '계정 상태로 전환 준비 완료' : '게스트 초안 병합 준비 완료',
+        },
+      }
+      const resumedResponse = buildAuthScaffoldResponse(resumedRequest)
+
+      if (resumedResponse.status >= 200 && resumedResponse.status < 300) {
+        scaffoldState.session = {
+          ...cloneValue(resumedResponse.data),
+          connection: cloneValue(connection ?? pendingSession.connection ?? null),
+        }
+        scaffoldState.pending = null
+
+        return {
+          status: resumedResponse.status,
+          data: cloneValue(scaffoldState.session),
+        }
+      }
+
+      scaffoldState.pending = buildAuthScaffoldPendingHandoff({
+        request: resumedRequest,
+        response: resumedResponse,
+        connection: cloneValue(connection ?? pendingSession.connection ?? null),
+      })
+
+      return {
+        status: resumedResponse.status,
+        data: cloneValue(resumedResponse.data),
+      }
+    }
+
     return {
       status: 401,
       data: {
@@ -212,12 +281,6 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
     }
   }
 
-  const continuation = request.continuation ?? {}
-  const nextAction = typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : ''
-  const resumeToken = typeof continuation.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
-  const fields = request.fields && typeof request.fields === 'object' && !Array.isArray(request.fields)
-    ? request.fields
-    : null
   const sessionConnection = cloneValue(currentSession.connection ?? connection ?? null)
 
   if (nextAction === 'complete-profile') {
@@ -350,6 +413,7 @@ export function buildAuthScaffoldPendingHandoff({ request = {}, response = {}, c
     endpoint: connection?.endpoint ?? '/api/auth/login',
     method: connection?.method ?? 'POST',
     email: request.email ?? null,
+    request: cloneValue(request),
     summary: {
       email: request.email ?? null,
       handoffId: request.handoffId ?? null,

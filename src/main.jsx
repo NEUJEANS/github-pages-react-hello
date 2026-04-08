@@ -862,8 +862,12 @@ function App() {
         ? {
             verificationCode: authContinuationFields.verificationCode,
           }
-        : null,
-  }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.phone, authContinuationFields.verificationCode, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, loginForm.continuation, loginForm.handoffId])
+        : loginForm.continuation?.nextAction === 'confirm-merge-resolution' && loginForm.mergeResolution
+          ? {
+              mergeResolution: loginForm.mergeResolution,
+            }
+          : null,
+  }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.phone, authContinuationFields.verificationCode, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, loginForm.continuation, loginForm.handoffId, loginForm.mergeResolution])
 
   React.useEffect(() => {
     let cancelled = false
@@ -1284,6 +1288,10 @@ function App() {
   const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
     const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null
     const nextHandoffId = loginForm.handoffId ?? createAuthHandoffId()
+    const shouldResolveMergeViaContinuation = loginForm.continuation?.nextAction === 'confirm-merge-resolution'
+      && Boolean(loginForm.continuation?.resumeToken)
+      && Boolean(nextMergeResolution)
+
     const submitPlan = buildAuthSubmitPlan({
       email: loginForm.email,
       password: loginForm.password,
@@ -1295,13 +1303,27 @@ function App() {
       continuation: buildSerializableAuthContinuation(loginForm.continuation),
     })
 
-    if (!submitPlan.canSubmit) return
+    const continuationPlan = shouldResolveMergeViaContinuation
+      ? buildAuthContinuationPlan({
+          endpoint: authConfig.continueEndpoint,
+          continuation: loginForm.continuation,
+          handoffId: nextHandoffId,
+          fields: {
+            mergeResolution: nextMergeResolution,
+          },
+        })
+      : null
+
+    if (!submitPlan.canSubmit && !continuationPlan?.canSubmit) return
 
     persistAuthHandoff(
       globalThis.sessionStorage,
       buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
         connection: authConnectionSummary,
-        continuationFields: pickPersistedAuthContinuationFields(loginForm.continuation, authContinuationFields),
+        continuation: shouldResolveMergeViaContinuation ? loginForm.continuation : null,
+        continuationFields: shouldResolveMergeViaContinuation
+          ? { mergeResolution: nextMergeResolution }
+          : pickPersistedAuthContinuationFields(loginForm.continuation, authContinuationFields),
       }),
     )
 
@@ -1314,9 +1336,17 @@ function App() {
     }))
 
     try {
-      const result = await submitAuthLoginPlan(submitPlan, authConfig)
+      const result = shouldResolveMergeViaContinuation
+        ? await submitAuthContinuationPlan(continuationPlan, authConfig)
+        : await submitAuthLoginPlan(submitPlan, authConfig)
       const nextContinuation = buildSerializableAuthContinuation(result?.data)
-      const nextResultSummary = result.ok ? buildAuthResultSummary(result, submitPlan.summary) : null
+      const nextResultSummary = result.ok
+        ? buildAuthResultSummary(result, {
+            ...submitPlan.summary,
+            connection: authConnectionSummary,
+            continuation: loginForm.continuation,
+          })
+        : null
 
       if (nextResultSummary) {
         const continuityPatch = buildPostAuthContinuityPatch(result)
@@ -1353,7 +1383,9 @@ function App() {
           buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
             connection: authConnectionSummary,
             continuation: nextContinuation,
-            continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
+            continuationFields: shouldResolveMergeViaContinuation
+              ? { mergeResolution: nextMergeResolution }
+              : pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
           }),
         )
       }
@@ -1387,7 +1419,7 @@ function App() {
         mergeResolution: nextMergeResolution,
       }))
     }
-  }, [authConfig, authConnectionSummary, cart, editor, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password, screen])
+  }, [authConfig, authConnectionSummary, authContinuationFields, cart, editor, guestDraftSnapshot, loginForm.continuation, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password, screen])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),
