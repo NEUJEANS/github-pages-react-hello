@@ -1,4 +1,9 @@
-import { buildAuthScaffoldResponse } from './auth-backend-scaffold.js'
+import {
+  readAuthScaffoldPending,
+  readAuthScaffoldSession,
+  signOutAuthScaffoldSession,
+  submitAuthScaffoldRequest,
+} from './auth-backend-scaffold.js'
 
 export const AUTH_SCAFFOLD_HEADER = 'x-havenly-auth-scaffold'
 export const AUTH_HANDOFF_HEADER = 'x-havenly-auth-handoff-id'
@@ -25,9 +30,17 @@ export function resolveAuthEndpoint(endpoint, { apiBaseUrl } = {}) {
   return `${normalizedBase}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
 }
 
-function shouldUseLocalAuthScaffold(plan, { apiBaseUrl } = {}) {
+function isSameOriginAuthScaffoldEndpoint(resolvedUrl, endpoint, { currentOrigin } = {}) {
+  if (!endpoint?.startsWith('/api/auth/')) return false
+  if (!/^https?:\/\//.test(resolvedUrl)) return true
+
+  const origin = readCurrentOrigin(currentOrigin)
+  return Boolean(origin && resolvedUrl.startsWith(`${origin}/api/auth/`))
+}
+
+function shouldUseLocalAuthScaffold(plan, { apiBaseUrl, currentOrigin } = {}) {
   const resolvedUrl = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
-  return !/^https?:\/\//.test(resolvedUrl) && plan.endpoint.startsWith('/api/auth/')
+  return isSameOriginAuthScaffoldEndpoint(resolvedUrl, plan.endpoint, { currentOrigin })
 }
 
 function buildScaffoldMeta({ via }) {
@@ -37,13 +50,25 @@ function buildScaffoldMeta({ via }) {
   }
 }
 
-function buildScaffoldLoginResult(plan, { via = 'local-fallback' } = {}) {
-  const scaffoldResponse = buildAuthScaffoldResponse(plan.request)
+function buildScaffoldLoginResult(plan, connectionFallback, { via = 'local-fallback' } = {}) {
+  const scaffoldResponse = submitAuthScaffoldRequest({
+    request: plan.request,
+    connection: connectionFallback,
+  })
 
   return {
     ok: scaffoldResponse.status >= 200 && scaffoldResponse.status < 300,
     status: scaffoldResponse.status,
     data: scaffoldResponse.data,
+    meta: buildScaffoldMeta({ via }),
+  }
+}
+
+function buildScaffoldReadResult(readResponse, { via = 'local-fallback' } = {}) {
+  return {
+    ok: readResponse.status >= 200 && readResponse.status < 300,
+    status: readResponse.status,
+    data: readResponse.data,
     meta: buildScaffoldMeta({ via }),
   }
 }
@@ -266,8 +291,8 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
   try {
     const { response, data, meta } = await requestAuthJson(endpoint, requestInit, { fetchImpl })
 
-    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl }) && [404, 405, 501].includes(response.status)) {
-      return buildScaffoldLoginResult(plan)
+    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+      return buildScaffoldLoginResult(plan, connectionFallback)
     }
 
     return {
@@ -284,8 +309,8 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
       meta,
     }
   } catch {
-    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl })) {
-      return buildScaffoldLoginResult(plan)
+    if (shouldUseLocalAuthScaffold(plan, { apiBaseUrl, currentOrigin })) {
+      return buildScaffoldLoginResult(plan, connectionFallback)
     }
 
     throw new Error('Auth request failed')
@@ -318,6 +343,10 @@ export async function readAuthSession({
       headers: connectionHeaders,
     }, { fetchImpl })
 
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+      return buildScaffoldReadResult(readAuthScaffoldSession())
+    }
+
     return {
       ok: response.ok,
       status: response.status,
@@ -328,6 +357,10 @@ export async function readAuthSession({
       meta,
     }
   } catch {
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, currentOrigin })) {
+      return buildScaffoldReadResult(readAuthScaffoldSession())
+    }
+
     return {
       ok: false,
       status: 0,
@@ -366,6 +399,10 @@ export async function readAuthPending({
       headers: connectionHeaders,
     }, { fetchImpl })
 
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+      return buildScaffoldReadResult(readAuthScaffoldPending())
+    }
+
     return {
       ok: response.ok,
       status: response.status,
@@ -376,6 +413,10 @@ export async function readAuthPending({
       meta,
     }
   } catch {
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, currentOrigin })) {
+      return buildScaffoldReadResult(readAuthScaffoldPending())
+    }
+
     return {
       ok: false,
       status: 0,
@@ -413,6 +454,10 @@ export async function signOutAuthSession({
       headers: connectionHeaders,
     }, { fetchImpl })
 
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, currentOrigin }) && [404, 405, 501].includes(response.status)) {
+      return buildScaffoldReadResult(signOutAuthScaffoldSession())
+    }
+
     return {
       ok: response.ok,
       status: response.status,
@@ -422,6 +467,10 @@ export async function signOutAuthSession({
       meta,
     }
   } catch {
+    if (shouldUseLocalAuthScaffold({ endpoint }, { apiBaseUrl, currentOrigin })) {
+      return buildScaffoldReadResult(signOutAuthScaffoldSession())
+    }
+
     return {
       ok: false,
       status: 0,

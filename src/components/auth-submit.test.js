@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
+import { resetAuthScaffoldState } from './auth-backend-scaffold.js'
+
 import {
   AUTH_CONNECTION_CREDENTIALS_HEADER,
   AUTH_CONNECTION_ENDPOINT_HEADER,
@@ -135,6 +137,147 @@ test('submitAuthLoginPlan keeps absolute same-origin scaffold targets canonical 
     credentialsMode: 'include',
     source: 'default',
   })
+})
+
+test('submitAuthLoginPlan falls back to the local scaffold store when an absolute same-origin auth endpoint is offline', async () => {
+  resetAuthScaffoldState()
+
+  const result = await submitAuthLoginPlan({
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    handoffId: 'auth-20260406123000-2n9c',
+    request: {
+      email: 'user@example.com',
+      password: 'password123',
+      handoffId: 'auth-20260406123000-2n9c',
+    },
+  }, {
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async () => {
+      throw new Error('connect ECONNREFUSED')
+    },
+  })
+
+  assert.equal(result.ok, true)
+  assert.equal(result.status, 200)
+  assert.equal(result.meta.authMode, 'scaffold')
+  assert.equal(result.meta.authTransport, 'local-fallback')
+  assert.equal(result.data.connection.targetLabel, 'same-origin /api auth scaffold')
+  assert.equal(result.data.connection.resolvedUrl, 'https://havenly.example.com/api/auth/login')
+})
+
+test('readAuthSession, readAuthPending, and signOutAuthSession share the same local same-origin scaffold store', async () => {
+  resetAuthScaffoldState()
+
+  await submitAuthLoginPlan({
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    handoffId: 'auth-20260406123000-2n9c',
+    request: {
+      email: 'merge@example.com',
+      password: 'merge-conflict',
+      handoffId: 'auth-20260406123000-2n9c',
+      guestDraftSnapshot: {
+        continuity: {
+          wishlistIds: ['wish-1'],
+          cartItems: [{ id: 'cart-1', qty: 1 }],
+          layoutItems: [{ id: 'layout-1' }],
+        },
+      },
+    },
+  }, {
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async () => {
+      throw new Error('connect ECONNREFUSED')
+    },
+  })
+
+  const pending = await readAuthPending({
+    endpoint: '/api/auth/pending',
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async () => {
+      throw new Error('connect ECONNREFUSED')
+    },
+  })
+
+  assert.equal(pending.status, 200)
+  assert.equal(pending.meta.authMode, 'scaffold')
+  assert.equal(pending.data.handoffId, 'auth-20260406123000-2n9c')
+  assert.equal(pending.data.connection.targetLabel, 'same-origin /api auth scaffold')
+
+  await submitAuthLoginPlan({
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    handoffId: 'auth-20260406123000-2n9c',
+    request: {
+      email: 'merge@example.com',
+      password: 'merge-conflict',
+      mergeResolution: 'replace-with-account',
+      handoffId: 'auth-20260406123000-2n9c',
+      guestDraftSnapshot: {
+        continuity: {
+          wishlistIds: ['wish-1'],
+          cartItems: [{ id: 'cart-1', qty: 1 }],
+          layoutItems: [{ id: 'layout-1' }],
+        },
+      },
+    },
+  }, {
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async () => {
+      throw new Error('connect ECONNREFUSED')
+    },
+  })
+
+  const session = await readAuthSession({
+    endpoint: '/api/auth/session',
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async () => {
+      throw new Error('connect ECONNREFUSED')
+    },
+  })
+
+  assert.equal(session.status, 200)
+  assert.equal(session.meta.authTransport, 'local-fallback')
+  assert.equal(session.data.user.email, 'merge@example.com')
+  assert.equal(session.data.connection.resolvedUrl, 'https://havenly.example.com/api/auth/login')
+
+  const logout = await signOutAuthSession({
+    endpoint: '/api/auth/logout',
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async () => {
+      throw new Error('connect ECONNREFUSED')
+    },
+  })
+
+  assert.equal(logout.status, 200)
+  assert.equal(logout.meta.authMode, 'scaffold')
+  assert.equal(logout.data.nextAction, 'login-required')
+
+  const sessionAfterLogout = await readAuthSession({
+    endpoint: '/api/auth/session',
+    apiBaseUrl: 'https://havenly.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async () => {
+      throw new Error('connect ECONNREFUSED')
+    },
+  })
+
+  assert.equal(sessionAfterLogout.status, 401)
+  assert.equal(sessionAfterLogout.meta.authMode, 'scaffold')
 })
 
 test('submitAuthLoginPlan can recover backend continuation headers on same-origin scaffold responses when the payload stays sparse', async () => {

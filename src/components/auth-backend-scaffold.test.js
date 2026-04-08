@@ -6,6 +6,11 @@ import {
   buildAuthScaffoldPendingResponse,
   buildAuthScaffoldResponse,
   buildAuthScaffoldSessionResponse,
+  readAuthScaffoldPending,
+  readAuthScaffoldSession,
+  resetAuthScaffoldState,
+  signOutAuthScaffoldSession,
+  submitAuthScaffoldRequest,
 } from './auth-backend-scaffold.js'
 
 test('buildAuthScaffoldResponse returns a merged session payload for valid credentials', () => {
@@ -430,4 +435,72 @@ test('buildAuthScaffoldPendingResponse returns 404 when no interrupted auth hand
     message: 'No scaffold auth handoff',
     nextAction: 'login-required',
   })
+})
+
+test('stateful scaffold helpers preserve pending handoffs, session bootstrap, and logout teardown', () => {
+  resetAuthScaffoldState()
+
+  const connection = {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: 'https://havenly.example.com/api/auth/login',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode: 'include',
+    source: 'default',
+  }
+
+  const mergePrompt = submitAuthScaffoldRequest({
+    request: {
+      email: 'merge@example.com',
+      password: 'merge-conflict',
+      handoffId: 'auth-stateful-merge-1',
+      guestDraftSnapshot: {
+        continuity: {
+          wishlistIds: ['wish-1'],
+          cartItems: [{ id: 'cart-1', qty: 1 }],
+          layoutItems: [{ id: 'layout-1' }],
+        },
+      },
+    },
+    connection,
+    submittedAt: '2026-04-08T03:10:00.000Z',
+  })
+
+  assert.equal(mergePrompt.status, 409)
+  assert.equal(readAuthScaffoldSession().status, 401)
+  assert.equal(readAuthScaffoldPending().status, 200)
+  assert.equal(readAuthScaffoldPending().data.handoffId, 'auth-stateful-merge-1')
+  assert.equal(readAuthScaffoldPending().data.connection.targetLabel, 'same-origin /api auth scaffold')
+
+  const mergeResolved = submitAuthScaffoldRequest({
+    request: {
+      email: 'merge@example.com',
+      password: 'merge-conflict',
+      handoffId: 'auth-stateful-merge-1',
+      mergeResolution: 'keep-guest',
+      guestDraftSnapshot: {
+        continuity: {
+          wishlistIds: ['wish-1'],
+          cartItems: [{ id: 'cart-1', qty: 1 }],
+          layoutItems: [{ id: 'layout-1' }],
+        },
+      },
+    },
+    connection,
+  })
+
+  assert.equal(mergeResolved.status, 200)
+  assert.equal(readAuthScaffoldPending().status, 404)
+  assert.equal(readAuthScaffoldSession().status, 200)
+  assert.equal(readAuthScaffoldSession().data.handoffId, 'auth-stateful-merge-1')
+  assert.equal(readAuthScaffoldSession().data.connection.resolvedUrl, 'https://havenly.example.com/api/auth/login')
+
+  const logout = signOutAuthScaffoldSession()
+  assert.equal(logout.status, 200)
+  assert.equal(logout.data.nextAction, 'login-required')
+  assert.equal(logout.data.connection.targetLabel, 'same-origin /api auth scaffold')
+  assert.equal(readAuthScaffoldSession().status, 401)
+  assert.equal(readAuthScaffoldPending().status, 404)
 })

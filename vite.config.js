@@ -13,10 +13,10 @@ import {
   AUTH_STATUS_LABEL_HEADER,
 } from "./src/components/auth-submit.js"
 import {
-  buildAuthScaffoldPendingHandoff,
-  buildAuthScaffoldPendingResponse,
-  buildAuthScaffoldResponse,
-  buildAuthScaffoldSessionResponse,
+  readAuthScaffoldPending,
+  readAuthScaffoldSession,
+  signOutAuthScaffoldSession,
+  submitAuthScaffoldRequest,
 } from "./src/components/auth-backend-scaffold.js"
 
 function readRequestBody(req) {
@@ -91,38 +91,33 @@ function buildAuthContinuationHeaders(payload = null) {
 }
 
 function havenlyAuthScaffoldPlugin() {
-  let latestSession = null
-  let latestPendingHandoff = null
-
   const handler = async (req, res, next) => {
     if (req.method === "GET" && req.url === "/api/auth/session") {
-      const response = buildAuthScaffoldSessionResponse(latestSession)
+      const response = readAuthScaffoldSession()
       writeJson(res, response.status, response.data, {
         "x-havenly-auth-scaffold": "true",
-        ...buildAuthConnectionHeaders(latestSession?.connection),
-        ...buildAuthContinuationHeaders(latestSession),
+        ...buildAuthConnectionHeaders(response.data?.connection),
+        ...buildAuthContinuationHeaders(response.data),
       })
       return
     }
 
     if (req.method === "GET" && req.url === "/api/auth/pending") {
-      const response = buildAuthScaffoldPendingResponse(latestPendingHandoff)
+      const response = readAuthScaffoldPending()
       writeJson(res, response.status, response.data, {
         "x-havenly-auth-scaffold": "true",
-        ...buildAuthConnectionHeaders(latestPendingHandoff?.connection),
-        ...buildAuthContinuationHeaders(latestPendingHandoff),
+        ...buildAuthConnectionHeaders(response.data?.connection),
+        ...buildAuthContinuationHeaders(response.data),
       })
       return
     }
 
     if (req.method === "POST" && req.url === "/api/auth/logout") {
-      const logoutConnection = latestSession?.connection ?? latestPendingHandoff?.connection ?? null
-      latestSession = null
-      latestPendingHandoff = null
-      writeJson(res, 200, { ok: true }, {
+      const response = signOutAuthScaffoldSession()
+      writeJson(res, response.status, response.data, {
         "x-havenly-auth-scaffold": "true",
-        ...buildAuthConnectionHeaders(logoutConnection),
-        ...buildAuthContinuationHeaders({ nextAction: "login-required" }),
+        ...buildAuthConnectionHeaders(response.data?.connection),
+        ...buildAuthContinuationHeaders(response.data),
       })
       return
     }
@@ -134,38 +129,25 @@ function havenlyAuthScaffoldPlugin() {
 
     try {
       const request = await readRequestBody(req)
-      const response = buildAuthScaffoldResponse(request)
       const connection = readAuthConnection(req)
-
-      if (response.status >= 200 && response.status < 300) {
-        latestSession = {
-          ...response.data,
-          connection,
-        }
-        latestPendingHandoff = null
-      } else if (request.handoffId || request.email) {
-        latestPendingHandoff = buildAuthScaffoldPendingHandoff({
-          request: {
-            ...request,
-            continuation: {
-              ...(request.continuation ?? {}),
-              resumeToken: response.data?.resumeToken ?? req.headers[AUTH_RESUME_TOKEN_HEADER] ?? request.continuation?.resumeToken ?? null,
-              nextAction: response.data?.nextAction ?? req.headers[AUTH_NEXT_ACTION_HEADER] ?? request.continuation?.nextAction ?? null,
-              status: response.data?.status ?? request.continuation?.status ?? null,
-              statusLabel: response.data?.statusLabel ?? request.continuation?.statusLabel ?? null,
-            },
+      const response = submitAuthScaffoldRequest({
+        request: {
+          ...request,
+          continuation: {
+            ...(request.continuation ?? {}),
+            resumeToken: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? request.continuation?.resumeToken ?? null,
+            nextAction: req.headers[AUTH_NEXT_ACTION_HEADER] ?? request.continuation?.nextAction ?? null,
+            status: request.continuation?.status ?? null,
+            statusLabel: request.continuation?.statusLabel ?? null,
           },
-          response,
-          connection,
-        })
-      }
+        },
+        connection,
+      })
 
-      const responsePayload = latestSession && response.status >= 200 && response.status < 300 ? latestSession : response.data
-
-      writeJson(res, response.status, responsePayload, {
+      writeJson(res, response.status, response.data, {
         "x-havenly-auth-scaffold": "true",
-        ...buildAuthConnectionHeaders(connection),
-        ...buildAuthContinuationHeaders(responsePayload),
+        ...buildAuthConnectionHeaders(response.data?.connection ?? connection),
+        ...buildAuthContinuationHeaders(response.data),
       })
     } catch {
       writeJson(res, 400, { message: "Invalid auth scaffold request" }, { "x-havenly-auth-scaffold": "true" })

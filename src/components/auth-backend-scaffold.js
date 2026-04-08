@@ -110,7 +110,6 @@ function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, 
     continuation,
   })
 
-
   return {
     ok: true,
     sessionId: `demo-${safeSessionId}`,
@@ -131,6 +130,86 @@ function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, 
     intent: intent && typeof intent === 'object' ? { ...intent } : null,
     accountState: buildAccountState({ mergeResolution }),
     ...continuationState,
+  }
+}
+
+const scaffoldState = {
+  session: null,
+  pending: null,
+}
+
+function cloneValue(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value))
+}
+
+function mergeRequestContinuation(request = {}, response = {}) {
+  return {
+    ...(request.continuation ?? {}),
+    resumeToken: response.data?.resumeToken ?? request.continuation?.resumeToken ?? null,
+    nextAction: response.data?.nextAction ?? request.continuation?.nextAction ?? null,
+    status: response.data?.status ?? request.continuation?.status ?? null,
+    statusLabel: response.data?.statusLabel ?? request.continuation?.statusLabel ?? null,
+  }
+}
+
+export function resetAuthScaffoldState() {
+  scaffoldState.session = null
+  scaffoldState.pending = null
+}
+
+export function submitAuthScaffoldRequest({ request = {}, connection = null, submittedAt = new Date().toISOString() } = {}) {
+  const response = buildAuthScaffoldResponse(request)
+
+  if (response.status >= 200 && response.status < 300) {
+    scaffoldState.session = {
+      ...cloneValue(response.data),
+      connection: cloneValue(connection),
+    }
+    scaffoldState.pending = null
+
+    return {
+      status: response.status,
+      data: cloneValue(scaffoldState.session),
+    }
+  }
+
+  if (request.handoffId || request.email) {
+    scaffoldState.pending = buildAuthScaffoldPendingHandoff({
+      submittedAt,
+      request: {
+        ...cloneValue(request),
+        continuation: mergeRequestContinuation(request, response),
+      },
+      response,
+      connection: cloneValue(connection),
+    })
+  }
+
+  return {
+    status: response.status,
+    data: cloneValue(response.data),
+  }
+}
+
+export function readAuthScaffoldSession() {
+  return buildAuthScaffoldSessionResponse(cloneValue(scaffoldState.session))
+}
+
+export function readAuthScaffoldPending() {
+  return buildAuthScaffoldPendingResponse(cloneValue(scaffoldState.pending))
+}
+
+export function signOutAuthScaffoldSession() {
+  const connection = cloneValue(scaffoldState.session?.connection ?? scaffoldState.pending?.connection ?? null)
+  resetAuthScaffoldState()
+
+  return {
+    status: 200,
+    data: {
+      ok: true,
+      nextAction: 'login-required',
+      ...(connection ? { connection } : {}),
+    },
   }
 }
 
@@ -250,4 +329,3 @@ export function buildAuthScaffoldResponse(request = {}) {
     }),
   }
 }
-
