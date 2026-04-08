@@ -104,16 +104,16 @@ function readCurrentOrigin(currentOrigin = '') {
   return ''
 }
 
-export function buildAuthConnectionSummary(plan, { apiBaseUrl, currentOrigin, source = 'default', credentialsMode = 'include' } = {}) {
-  const resolvedUrl = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl })
+export function buildAuthConnectionSummary(plan, { apiBaseUrl, appBasePath, currentOrigin, source = 'default', credentialsMode = 'include' } = {}) {
+  const resolvedUrl = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   const resolved = safeUrl(resolvedUrl)
   const canonicalOrigin = readCurrentOrigin(currentOrigin)
-  const isSameOriginScaffold = (!resolved && plan.endpoint.startsWith('/api/auth'))
+  const isSameOriginScaffold = (!resolved && resolvedUrl.startsWith('/') && resolvedUrl.includes('/api/auth/'))
     || Boolean(
       resolved
       && canonicalOrigin
       && resolved.origin === canonicalOrigin
-      && resolved.pathname.startsWith('/api/auth'),
+      && resolved.pathname.includes('/api/auth/'),
     )
 
   return {
