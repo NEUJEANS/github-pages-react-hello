@@ -287,6 +287,57 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
   })
 })
 
+test('buildPersistedAuthHandoff keeps the serialized draft-save handoff alongside interrupted login state', () => {
+  const handoff = buildPersistedAuthHandoff(
+    {
+      endpoint: '/api/auth/login',
+      method: 'POST',
+      handoffId: 'auth-20260406123000-2n9c',
+      summary: {
+        email: 'user@example.com',
+        handoffId: 'auth-20260406123000-2n9c',
+        wishlistCount: 1,
+        cartCount: 0,
+        layoutItemCount: 2,
+        hasRecommendationDraft: true,
+        intent: {
+          source: 'layout-editor',
+          action: 'save-layout-draft',
+          label: '로그인 후 보드 저장',
+          returnScreen: 'layout',
+          draftLabel: '거실 배치 보드',
+        },
+      },
+    },
+    {
+      continuity: {
+        apartmentLabel: '래미안 포레스트 84A',
+        layoutItems: [{ id: 'layout-1' }, { id: 'layout-2' }],
+      },
+      recommendationDraft: { room: '거실' },
+      spaceProfile: { spaces: ['living', 'bed1'] },
+    },
+    {
+      draftSave: {
+        draftLabel: ' 거실 배치 보드 ',
+        apartmentLabel: ' 래미안 포레스트 84A ',
+        recommendationRoom: ' 거실 ',
+        selectedSpaceIds: ['living', 'bed1', 'living'],
+        layoutItems: [{ id: 'layout-1', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2 }],
+      },
+    },
+  )
+
+  assert.deepEqual(handoff.draftSave, {
+    draftLabel: '거실 배치 보드',
+    apartmentLabel: '래미안 포레스트 84A',
+    recommendationRoom: '거실',
+    selectedSpaceIds: ['living', 'bed1'],
+    layoutItems: [{ id: 'layout-1', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2 }],
+    layoutItemCount: 1,
+  })
+})
+
 test('buildAuthResumeState revives an interrupted login attempt from persisted handoff data', () => {
   const handoff = {
     submittedAt: '2026-04-06T06:59:00.000Z',

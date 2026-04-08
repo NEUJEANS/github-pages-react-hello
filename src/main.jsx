@@ -593,6 +593,30 @@ function resolveLoginButtonLabel(authSession) {
   return authSession?.accountLabel ?? LOGIN_BUTTON_LABEL
 }
 
+function buildAuthDraftSavePayload(loginFormDraftSave = null, authSessionDraftSave = null, guestDraftSnapshot = null, intent = null) {
+  if (loginFormDraftSave) return loginFormDraftSave
+  if (authSessionDraftSave) return authSessionDraftSave
+  if (!guestDraftSnapshot) return null
+
+  const draftLabel = intent?.draftLabel ?? guestDraftSnapshot.continuity?.apartmentLabel ?? null
+  const apartmentLabel = guestDraftSnapshot.continuity?.apartmentLabel ?? null
+  const recommendationRoom = guestDraftSnapshot.recommendationDraft?.room ?? null
+  const selectedSpaceIds = guestDraftSnapshot.spaceProfile?.spaces ?? []
+  const layoutItems = guestDraftSnapshot.continuity?.layoutItems ?? []
+
+  if (!draftLabel && !apartmentLabel && !recommendationRoom && !selectedSpaceIds.length && !layoutItems.length) {
+    return null
+  }
+
+  return {
+    draftLabel,
+    apartmentLabel,
+    recommendationRoom,
+    selectedSpaceIds,
+    layoutItems,
+  }
+}
+
 function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay, onOpenCart, cartCount, onSearchOpen, onOpenLogin, authSession }) {
   return (
     <header className={`topbar ${dark ? 'dark' : ''}`}>
@@ -855,6 +879,16 @@ function App() {
     setLoginModalState('form')
   }, [authSession, loginModalState])
 
+  const authDraftSavePayload = React.useMemo(
+    () => buildAuthDraftSavePayload(
+      loginForm.draftSave,
+      authSession?.draftSave ?? null,
+      guestDraftSnapshot,
+      authSession?.intent ?? loginForm.intent ?? null,
+    ),
+    [authSession?.draftSave, authSession?.intent, guestDraftSnapshot, loginForm.draftSave, loginForm.intent],
+  )
+
   const authContinuationPlan = React.useMemo(() => buildAuthContinuationPlan({
     endpoint: authConfig.continueEndpoint,
     continuation: authSession?.continuation ?? loginForm.continuation ?? null,
@@ -875,15 +909,9 @@ function App() {
             }
           : null,
     draftSave: shouldSubmitContinuationBeforeResume(authSession?.continuation ?? loginForm.continuation ?? null)
-      ? {
-          draftLabel: authSession?.intent?.draftLabel ?? loginForm.intent?.draftLabel ?? guestDraftSnapshot.continuity?.apartmentLabel ?? null,
-          apartmentLabel: guestDraftSnapshot.continuity?.apartmentLabel ?? null,
-          recommendationRoom: guestDraftSnapshot.recommendationDraft?.room ?? null,
-          selectedSpaceIds: guestDraftSnapshot.spaceProfile?.spaces ?? [],
-          layoutItems: guestDraftSnapshot.continuity?.layoutItems ?? [],
-        }
+      ? authDraftSavePayload
       : null,
-  }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.phone, authContinuationFields.verificationCode, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, authSession?.intent, guestDraftSnapshot, loginForm.continuation, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution])
+  }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.phone, authContinuationFields.verificationCode, authDraftSavePayload, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, authSession?.intent, loginForm.continuation, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution])
 
   React.useEffect(() => {
     let cancelled = false
@@ -1338,6 +1366,7 @@ function App() {
           fields: {
             mergeResolution: nextMergeResolution,
           },
+          draftSave: authDraftSavePayload,
         })
       : null
 
@@ -1351,6 +1380,7 @@ function App() {
         continuationFields: shouldResolveMergeViaContinuation
           ? { mergeResolution: nextMergeResolution }
           : pickPersistedAuthContinuationFields(loginForm.continuation, authContinuationFields),
+        draftSave: authDraftSavePayload,
       }),
     )
 
@@ -1413,6 +1443,7 @@ function App() {
             continuationFields: shouldResolveMergeViaContinuation
               ? { mergeResolution: nextMergeResolution }
               : pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
+            draftSave: authDraftSavePayload,
           }),
         )
       }
@@ -1446,7 +1477,7 @@ function App() {
         mergeResolution: nextMergeResolution,
       }))
     }
-  }, [authConfig, authConnectionSummary, authContinuationFields, cart, editor, guestDraftSnapshot, loginForm.continuation, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password, screen])
+  }, [authConfig, authConnectionSummary, authContinuationFields, authDraftSavePayload, cart, editor, guestDraftSnapshot, loginForm.continuation, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password, screen])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),

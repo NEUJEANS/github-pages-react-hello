@@ -305,6 +305,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
         handoffId: request.handoffId ?? pendingSession.handoffId ?? null,
         mergeResolution,
         intent: resumedIntent,
+        ...(request.draftSave ? { draftSave: cloneValue(request.draftSave) } : {}),
         continuation: {
           ...(cloneValue(pendingSession.continuation) ?? {}),
           ...cloneValue(continuation),

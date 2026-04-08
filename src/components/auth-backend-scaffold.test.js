@@ -236,6 +236,65 @@ test('buildAuthScaffoldResponse can switch to the account state after a merge co
   })
 })
 
+test('submitAuthScaffoldContinuation carries serialized draft-save payload through merge confirmation resume', () => {
+  resetAuthScaffoldState()
+
+  submitAuthScaffoldRequest({
+    request: {
+      email: 'user@example.com',
+      password: 'merge-conflict',
+      handoffId: 'auth-merge-1234',
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        returnScreen: 'layout',
+      },
+      guestDraftSnapshot: {
+        recommendationDraft: { room: '거실' },
+        spaceProfile: { spaces: ['living', 'bed1'] },
+        continuity: {
+          apartmentLabel: '래미안 포레스트 84A',
+          wishlistIds: ['wish-1'],
+          cartItems: [],
+          layoutItems: [{ id: 'layout-1' }],
+        },
+      },
+    },
+  })
+
+  const resumed = submitAuthScaffoldContinuation({
+    request: {
+      handoffId: 'auth-merge-1234',
+      continuation: {
+        resumeToken: 'auth-merge-1234:merge',
+        nextAction: 'confirm-merge-resolution',
+      },
+      fields: {
+        mergeResolution: 'keep-guest',
+      },
+      draftSave: {
+        draftLabel: '거실 배치 보드',
+        apartmentLabel: '래미안 포레스트 84A',
+        recommendationRoom: '거실',
+        selectedSpaceIds: ['living', 'bed1'],
+        layoutItems: [{ id: 'layout-1', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2 }],
+      },
+    },
+  })
+
+  assert.equal(resumed.status, 200)
+  assert.equal(resumed.data.nextAction, 'save-layout-draft')
+  assert.deepEqual(resumed.data.draftSave, {
+    draftLabel: '거실 배치 보드',
+    apartmentLabel: '래미안 포레스트 84A',
+    recommendationRoom: '거실',
+    selectedSpaceIds: ['living', 'bed1'],
+    layoutItems: [{ id: 'layout-1', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2 }],
+    layoutItemCount: 1,
+  })
+})
+
 test('buildAuthScaffoldResponse rejects short passwords and malformed emails', () => {
   const response = buildAuthScaffoldResponse({
     email: 'not-an-email',
