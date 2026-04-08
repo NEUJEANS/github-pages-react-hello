@@ -10,6 +10,7 @@ import {
   buildGuestDraftSessionSummary,
   buildSerializableAuthConnection,
   buildSerializableAuthContinuation,
+  buildSerializableAuthContinuationFields,
   buildSerializableAuthIntent,
   buildPersistedAuthHandoff,
   buildPersistedAuthSession,
@@ -135,6 +136,18 @@ test('buildSerializableAuthContinuation keeps backend resume contract fields com
   })
 })
 
+test('buildSerializableAuthContinuationFields keeps blocker payload fields serializable without empty noise', () => {
+  assert.deepEqual(buildSerializableAuthContinuationFields({
+    displayName: ' 홍길동 ',
+    phone: ' 010-1234-5678 ',
+    verificationCode: '',
+    ignored: null,
+  }), {
+    displayName: '홍길동',
+    phone: '010-1234-5678',
+  })
+})
+
 test('persistAuthHandoff stores the serializable guest draft payload for follow-up auth wiring', () => {
   const storage = createMemoryStorage()
   const handoff = buildPersistedAuthHandoff({
@@ -178,6 +191,10 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
       resumeToken: 'resume-123',
       nextAction: 'confirm-merge-resolution',
     },
+    continuationFields: {
+      displayName: ' 홍길동 ',
+      phone: ' 010-1234-5678 ',
+    },
   })
 
   assert.equal(persistAuthHandoff(storage, handoff), true)
@@ -205,6 +222,10 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
     nextAction: 'confirm-merge-resolution',
     status: null,
     statusLabel: null,
+  })
+  assert.deepEqual(handoff.continuationFields, {
+    displayName: '홍길동',
+    phone: '010-1234-5678',
   })
 })
 
@@ -235,6 +256,10 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
     continuation: {
       resumeToken: 'resume-123',
       nextAction: 'confirm-merge-resolution',
+    },
+    continuationFields: {
+      displayName: '홍길동',
+      phone: '010-1234-5678',
     },
     allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
     error: 'Guest draft merge confirmation required',
@@ -282,6 +307,10 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
     nextAction: 'confirm-merge-resolution',
     status: null,
     statusLabel: null,
+  })
+  assert.deepEqual(resumeState.continuationFields, {
+    displayName: '홍길동',
+    phone: '010-1234-5678',
   })
 })
 
@@ -337,6 +366,9 @@ test('buildAuthReadyState revives a bootstrapped scaffold session into the login
       status: null,
       statusLabel: null,
     },
+    continuationFields: {
+      verificationCode: '123456',
+    },
     accountState: {
       wishlistIds: ['wish-account-1'],
       cartItems: [{ id: 'cart-account-1', qty: 2 }],
@@ -383,6 +415,9 @@ test('buildAuthReadyState revives a bootstrapped scaffold session into the login
       nextAction: 'resume-layout-checkout',
       status: null,
       statusLabel: null,
+    },
+    continuationFields: {
+      verificationCode: '123456',
     },
     accountState: {
       wishlistIds: ['wish-account-1'],
@@ -522,6 +557,10 @@ test('persistAuthSession stores the latest successful auth summary for the front
       credentialsMode: 'include',
       source: 'default',
     },
+    continuationFields: {
+      displayName: '홍길동',
+      phone: '010-1234-5678',
+    },
     guestDraftSnapshot: {
       recommendationDraft: { room: '거실' },
       spaceProfile: { spaces: ['living', 'bed1'] },
@@ -562,6 +601,10 @@ test('persistAuthSession stores the latest successful auth summary for the front
     nextAction: 'resume-layout-checkout',
     status: null,
     statusLabel: null,
+  })
+  assert.deepEqual(session.continuationFields, {
+    displayName: '홍길동',
+    phone: '010-1234-5678',
   })
   assert.deepEqual(session.accountState, {
     wishlistIds: ['wish-account-1'],

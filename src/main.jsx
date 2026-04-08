@@ -28,6 +28,7 @@ import {
   buildAuthResumeState,
   buildPersistedAuthHandoff,
   buildSerializableAuthContinuation,
+  buildSerializableAuthContinuationFields,
   buildSerializableAuthIntent,
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
@@ -119,6 +120,19 @@ const initialAuthContinuationFields = {
   displayName: '',
   phone: '',
   verificationCode: '',
+}
+
+function buildAuthContinuationFieldState(fields = null) {
+  return {
+    ...initialAuthContinuationFields,
+    ...(buildSerializableAuthContinuationFields(fields) ?? {}),
+  }
+}
+
+function pickPersistedAuthContinuationFields(continuation = null, fields = null) {
+  const nextAction = typeof continuation?.nextAction === 'string' ? continuation.nextAction.trim() : ''
+  if (nextAction !== 'complete-profile' && nextAction !== 'verify-email') return null
+  return buildSerializableAuthContinuationFields(fields)
 }
 
 const roomOptions = ['거실', '침실', '주방', '서재']
@@ -696,7 +710,9 @@ function App() {
       ?? buildEmptyLoginForm()
   ))
   const [authSession, setAuthSession] = React.useState(() => persistedAuthSession)
-  const [authContinuationFields, setAuthContinuationFields] = React.useState(initialAuthContinuationFields)
+  const [authContinuationFields, setAuthContinuationFields] = React.useState(() => buildAuthContinuationFieldState(
+    persistedAuthHandoff?.continuationFields ?? persistedAuthSession?.continuationFields ?? null,
+  ))
   const [authNoticeDismissed, setAuthNoticeDismissed] = React.useState(false)
   const [engagement, setEngagement] = React.useState(initialEngagement)
   const appliedAuthSessionRestoreRef = React.useRef(persistedAuthSession?.savedAt ?? null)
@@ -881,6 +897,7 @@ function App() {
         const nextSession = buildPersistedAuthSession(resultSummary, {
           connection: resultSummary?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary ?? sessionConnection,
           continuation: buildSerializableAuthContinuation(result?.data),
+          continuationFields: persistedAuthSession?.continuationFields ?? persistedAuthHandoff?.continuationFields ?? null,
           accountState: result?.data?.accountState ?? null,
         })
 
@@ -942,6 +959,18 @@ function App() {
       return nextReadyState ?? current
     })
   }, [authSession])
+
+  React.useEffect(() => {
+    const activeContinuationFields = loginForm.continuationFields
+      ?? authSession?.continuationFields
+      ?? persistedAuthHandoff?.continuationFields
+      ?? null
+
+    setAuthContinuationFields((current) => {
+      const next = buildAuthContinuationFieldState(activeContinuationFields)
+      return JSON.stringify(current) === JSON.stringify(next) ? current : next
+    })
+  }, [authSession?.continuationFields, loginForm.continuationFields, persistedAuthHandoff?.continuationFields])
 
   React.useEffect(() => {
     if (!authSession?.savedAt) {
@@ -1019,7 +1048,9 @@ function App() {
       }
     }
 
-    setAuthContinuationFields(initialAuthContinuationFields)
+    setAuthContinuationFields(buildAuthContinuationFieldState(
+      loginForm.continuationFields ?? authSession?.continuationFields ?? null,
+    ))
     setLoginForm((current) => {
       const nextIntent = requestedIntent ?? current.intent ?? authSession?.intent ?? null
 
@@ -1042,12 +1073,11 @@ function App() {
 
   const handleDismissAuthResume = React.useCallback(() => {
     clearPersistedAuthHandoff(globalThis.sessionStorage)
-    setAuthContinuationFields(initialAuthContinuationFields)
+    setAuthContinuationFields(buildAuthContinuationFieldState())
     setLoginForm((current) => buildEmptyLoginForm(current.intent))
   }, [])
 
   const handleCloseLoginModal = React.useCallback(() => {
-    setAuthContinuationFields(initialAuthContinuationFields)
     setLoginModalState('closed')
   }, [])
 
@@ -1061,7 +1091,7 @@ function App() {
     clearPersistedAuthHandoff(globalThis.sessionStorage)
     setAuthSession(null)
     setAuthNoticeDismissed(false)
-    setAuthContinuationFields(initialAuthContinuationFields)
+    setAuthContinuationFields(buildAuthContinuationFieldState())
     setLoginModalState('closed')
     setLoginForm(buildEmptyLoginForm())
   }, [authConfig])
@@ -1117,6 +1147,7 @@ function App() {
         intent: authSession.intent ?? loginForm.intent ?? null,
         connection: nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
         continuation: submittedContinuation,
+        continuationFields: pickPersistedAuthContinuationFields(submittedContinuation, authContinuationFields),
         accountState: result?.data?.accountState ?? authSession.accountState ?? null,
       })
 
@@ -1144,11 +1175,35 @@ function App() {
   }, [authConfig, authConnectionSummary, authContinuationPlan, authSession, loginForm.continuation, loginForm.handoffId, loginForm.intent, navigate, screen])
 
   const handleAuthContinuationFieldChange = React.useCallback((field, value) => {
-    setAuthContinuationFields((current) => ({
-      ...current,
+    const nextFields = buildAuthContinuationFieldState({
+      ...authContinuationFields,
       [field]: value,
+    })
+
+    setAuthContinuationFields(nextFields)
+    setLoginForm((current) => ({
+      ...current,
+      continuationFields: nextFields,
     }))
-  }, [])
+
+    if (authSession) {
+      const nextSession = {
+        ...authSession,
+        continuationFields: buildSerializableAuthContinuationFields(nextFields),
+      }
+      persistAuthSession(globalThis.localStorage, nextSession)
+      setAuthSession(nextSession)
+      return
+    }
+
+    const currentHandoff = readPersistedAuthHandoff(globalThis.sessionStorage)
+    if (currentHandoff) {
+      persistAuthHandoff(globalThis.sessionStorage, {
+        ...currentHandoff,
+        continuationFields: buildSerializableAuthContinuationFields(nextFields),
+      })
+    }
+  }, [authContinuationFields, authSession])
 
   const handleAuthContinuationSubmit = React.useCallback(async () => {
     if (!authSession || !authContinuationPlan.canSubmit) return
@@ -1182,6 +1237,7 @@ function App() {
           intent: nextIntent,
           connection: nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
           continuation: nextContinuation,
+          continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
           accountState: result?.data?.accountState ?? authSession.accountState ?? null,
         })
         const nextScreen = canResumePostAuthIntent(nextIntent, screen, nextContinuation)
@@ -1190,7 +1246,7 @@ function App() {
 
         persistAuthSession(globalThis.localStorage, nextSession)
         setAuthSession(nextSession)
-        setAuthContinuationFields(initialAuthContinuationFields)
+        setAuthContinuationFields(buildAuthContinuationFieldState())
         setLoginForm((current) => ({
           ...current,
           status: 'ready',
@@ -1245,6 +1301,7 @@ function App() {
       globalThis.sessionStorage,
       buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
         connection: authConnectionSummary,
+        continuationFields: pickPersistedAuthContinuationFields(loginForm.continuation, authContinuationFields),
       }),
     )
 
@@ -1268,6 +1325,7 @@ function App() {
           intent: submitPlan.summary.intent,
           connection: nextResultSummary.connection ?? authConnectionSummary,
           continuation: nextContinuation,
+          continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
           accountState: result?.data?.accountState ?? null,
         })
 
@@ -1295,6 +1353,7 @@ function App() {
           buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
             connection: authConnectionSummary,
             continuation: nextContinuation,
+            continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
           }),
         )
       }
@@ -1491,7 +1550,9 @@ function App() {
             onChangeContinuationField={handleAuthContinuationFieldChange}
             onClose={handleCloseLoginModal}
             onProceed={() => {
-              setAuthContinuationFields(initialAuthContinuationFields)
+              setAuthContinuationFields(buildAuthContinuationFieldState(
+                loginForm.continuationFields ?? authSession?.continuationFields ?? null,
+              ))
               setLoginModalState('form')
             }}
             onDismissResume={handleDismissAuthResume}
