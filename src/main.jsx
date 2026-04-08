@@ -13,13 +13,14 @@ import { buildSelectedSpaceSummary } from './components/space-summary.js'
 import { buildLoginGuardSnapshot } from './components/login-guard.js'
 import { buildSearchDrawerState } from './components/search-drawer.js'
 import {
+  buildAuthContinuationPlan,
   buildAuthErrorSummary,
   buildAuthResultSummary,
   buildAuthStatusCopy,
   buildAuthSubmitPlan,
   buildGuestDraftSnapshot,
 } from './components/auth-flow-state.js'
-import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthLoginPlan } from './components/auth-submit.js'
+import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan } from './components/auth-submit.js'
 import { resolveAuthConfig } from './components/auth-config.js'
 import {
   buildAuthConnectionSummary,
@@ -111,6 +112,12 @@ const initialAiForm = {
   priority: 'flow',
   lifestyle: ['기본'],
   extraRequest: '',
+}
+
+const initialAuthContinuationFields = {
+  displayName: '',
+  phone: '',
+  verificationCode: '',
 }
 
 const roomOptions = ['거실', '침실', '주방', '서재']
@@ -688,6 +695,7 @@ function App() {
       ?? buildEmptyLoginForm()
   ))
   const [authSession, setAuthSession] = React.useState(() => persistedAuthSession)
+  const [authContinuationFields, setAuthContinuationFields] = React.useState(initialAuthContinuationFields)
   const [authNoticeDismissed, setAuthNoticeDismissed] = React.useState(false)
   const [engagement, setEngagement] = React.useState(initialEngagement)
   const appliedAuthSessionRestoreRef = React.useRef(persistedAuthSession?.savedAt ?? null)
@@ -823,6 +831,22 @@ function App() {
     () => buildAuthReadyPanelState(authSession),
     [authSession],
   )
+
+  const authContinuationPlan = React.useMemo(() => buildAuthContinuationPlan({
+    endpoint: authConfig.continueEndpoint,
+    continuation: authSession?.continuation ?? loginForm.continuation ?? null,
+    handoffId: authSession?.handoffId ?? loginForm.handoffId ?? null,
+    fields: authReadyPanelState?.nextAction === 'complete-profile'
+      ? {
+          displayName: authContinuationFields.displayName,
+          phone: authContinuationFields.phone,
+        }
+      : authReadyPanelState?.nextAction === 'verify-email'
+        ? {
+            verificationCode: authContinuationFields.verificationCode,
+          }
+        : null,
+  }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.phone, authContinuationFields.verificationCode, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, loginForm.continuation, loginForm.handoffId])
 
   React.useEffect(() => {
     let cancelled = false
@@ -1043,6 +1067,71 @@ function App() {
     setLoginModalState('closed')
     if (nextScreen) navigate(nextScreen)
   }, [authSession?.continuation, authSession?.intent, loginForm.continuation, loginForm.intent, navigate])
+
+  const handleAuthContinuationFieldChange = React.useCallback((field, value) => {
+    setAuthContinuationFields((current) => ({
+      ...current,
+      [field]: value,
+    }))
+  }, [])
+
+  const handleAuthContinuationSubmit = React.useCallback(async () => {
+    if (!authSession || !authContinuationPlan.canSubmit) return
+
+    setLoginForm((current) => ({
+      ...current,
+      status: 'submitting',
+      result: null,
+    }))
+
+    try {
+      const result = await submitAuthContinuationPlan(authContinuationPlan, authConfig)
+      const nextContinuation = buildSerializableAuthContinuation(result?.data)
+
+      if (result.ok) {
+        const nextResultSummary = buildAuthResultSummary(result, {
+          handoffId: authSession.handoffId ?? loginForm.handoffId ?? null,
+          wishlistCount: authSession.wishlistCount ?? 0,
+          cartCount: authSession.cartCount ?? 0,
+          layoutItemCount: authSession.layoutItemCount ?? 0,
+          hasRecommendationDraft: authSession.hasRecommendationDraft ?? false,
+          guestDraftSummary: authSession.guestDraftSummary ?? null,
+          intent: authSession.intent ?? loginForm.intent ?? null,
+          connection: authSession.connection ?? authConnectionSummary,
+          continuation: authSession.continuation ?? null,
+          authMode: authSession.authMode ?? null,
+          authTransport: authSession.authTransport ?? null,
+        })
+        const nextSession = buildPersistedAuthSession(nextResultSummary, {
+          intent: authSession.intent ?? loginForm.intent ?? null,
+          connection: nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
+          continuation: nextContinuation,
+          accountState: result?.data?.accountState ?? authSession.accountState ?? null,
+        })
+
+        persistAuthSession(globalThis.localStorage, nextSession)
+        setAuthSession(nextSession)
+        setAuthContinuationFields(initialAuthContinuationFields)
+      }
+
+      setLoginForm((current) => ({
+        ...current,
+        status: result.ok ? 'ready' : 'error',
+        result,
+        continuation: nextContinuation,
+      }))
+    } catch {
+      setLoginForm((current) => ({
+        ...current,
+        status: 'error',
+        result: {
+          ok: false,
+          status: 0,
+          data: { message: 'Continuation request failed' },
+        },
+      }))
+    }
+  }, [authConfig, authConnectionSummary, authContinuationPlan, authSession, loginForm.handoffId, loginForm.intent])
 
   const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
     const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null
@@ -1298,6 +1387,8 @@ function App() {
             reasons={loginGuardReasons}
             form={loginForm}
             authSubmitPlan={authSubmitPlan}
+            authContinuationPlan={authContinuationPlan}
+            authContinuationFields={authContinuationFields}
             authStatusMessage={authStatusMessage}
             authResultSummary={authResultSummary}
             authErrorSummary={authErrorSummary}
@@ -1305,10 +1396,12 @@ function App() {
             authReadyPanelState={authReadyPanelState}
             guestDraftSnapshot={guestDraftSnapshot}
             onChangeForm={(field, value) => setLoginForm((current) => ({ ...current, [field]: value, status: 'idle', result: null, mergeResolution: null }))}
+            onChangeContinuationField={handleAuthContinuationFieldChange}
             onClose={() => setLoginModalState('closed')}
             onProceed={() => setLoginModalState('form')}
             onDismissResume={handleDismissAuthResume}
             onResumeAuthenticatedIntent={handleResumeAuthenticatedIntent}
+            onSubmitContinuation={handleAuthContinuationSubmit}
             onSubmit={handleLoginSubmit}
           />
         )}
@@ -1923,7 +2016,7 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
 }
 
 
-function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, authReadyPanelState, guestDraftSnapshot, onChangeForm, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmit }) {
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, authReadyPanelState, guestDraftSnapshot, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
   const guarded = state === 'guard'
   const allowedMergeResolutions = authErrorSummary?.allowedMergeResolutions ?? []
   const mergeResolutionLabels = {
@@ -1980,10 +2073,28 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
                 <p className="muted">이어갈 작업: {authReadyPanelState.intentLabel}{authReadyPanelState.intentDraftLabel ? ` · ${authReadyPanelState.intentDraftLabel}` : ''}</p>
                 {authReadyPanelState.primaryActionHint && <p className="muted">{authReadyPanelState.primaryActionHint}</p>}
                 {authReadyPanelState.primaryActionDisabled && (
-                  <p className="muted">이 단계는 아직 별도 화면까지 붙지 않았지만, backend 재개 계약과 필요한 handoff 정보를 여기서 바로 확인할 수 있어요.</p>
+                  <p className="muted">이 단계는 아직 별도 화면까지 붙지 않았지만, backend 재개 계약과 필요한 handoff 정보를 여기서 바로 확인하고 최소 payload로 다음 단계를 시험 연결할 수 있어요.</p>
                 )}
                 {(authReadyPanelState.nextAction || authReadyPanelState.continuationStatusLabel || authReadyPanelState.continuationStatus) && (
                   <p className="muted">백엔드 다음 액션: {authReadyPanelState.nextAction ?? 'next-action 미정'}{authReadyPanelState.resumeToken ? ` · token ${authReadyPanelState.resumeToken}` : ''}{authReadyPanelState.continuationStatusLabel ? ` · ${authReadyPanelState.continuationStatusLabel}` : authReadyPanelState.continuationStatus ? ` · ${authReadyPanelState.continuationStatus}` : ''}</p>
+                )}
+                {authReadyPanelState.nextAction === 'complete-profile' && (
+                  <div className="loginGuardCard authPrepCard">
+                    <strong>프로필 보완 payload</strong>
+                    <label>닉네임</label>
+                    <div className="inputWrap big">👤<input value={authContinuationFields.displayName} onChange={(event) => onChangeContinuationField('displayName', event.target.value)} placeholder="홍길동" /></div>
+                    <label>연락처</label>
+                    <div className="inputWrap big">📱<input value={authContinuationFields.phone} onChange={(event) => onChangeContinuationField('phone', event.target.value)} placeholder="010-1234-5678" /></div>
+                    <p className="muted">직렬화 가능한 최소 필드만 `/api/auth/continue`로 전달해 scaffold 응답과 세션 갱신을 확인합니다.</p>
+                  </div>
+                )}
+                {authReadyPanelState.nextAction === 'verify-email' && (
+                  <div className="loginGuardCard authPrepCard">
+                    <strong>이메일 인증 payload</strong>
+                    <label>인증 코드</label>
+                    <div className="inputWrap big">✅<input value={authContinuationFields.verificationCode} onChange={(event) => onChangeContinuationField('verificationCode', event.target.value)} placeholder="123456" /></div>
+                    <p className="muted">실제 인증 UI 전 단계로, token을 유지한 채 최소 확인 payload만 `/api/auth/continue`로 보냅니다.</p>
+                  </div>
                 )}
                 {authReadyPanelState.connectionLabel && (
                   <p className="muted">연결 대상: {authReadyPanelState.connectionLabel}{authReadyPanelState.connectionEndpoint ? ` (${authReadyPanelState.connectionEndpoint})` : ''}</p>
@@ -2009,7 +2120,13 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authStat
               </div>
               <div className="footerButtons stackOnMobile">
                 <button className="ghost" onClick={onClose}>닫기</button>
-                <button className="cta" disabled={authReadyPanelState.primaryActionDisabled} onClick={onResumeAuthenticatedIntent}>{authReadyPanelState.primaryActionLabel}</button>
+                {authReadyPanelState.primaryActionDisabled ? (
+                  <button className="cta" disabled={!authContinuationPlan.canSubmit || form.status === 'submitting'} onClick={onSubmitContinuation}>
+                    {form.status === 'submitting' ? '연결 중…' : authReadyPanelState.primaryActionLabel}
+                  </button>
+                ) : (
+                  <button className="cta" disabled={false} onClick={onResumeAuthenticatedIntent}>{authReadyPanelState.primaryActionLabel}</button>
+                )}
               </div>
             </div>
           ) : (
