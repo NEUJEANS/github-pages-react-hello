@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { spawn } from 'node:child_process'
 import { buildAuthContinuationPlan, buildAuthSubmitPlan, buildAuthResultSummary, buildGuestDraftSnapshot, buildAuthErrorSummary } from '../src/components/auth-flow-state.js'
 import { readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan } from '../src/components/auth-submit.js'
 import { buildAuthConnectionSummary, buildPersistedAuthSession } from '../src/components/auth-storage.js'
@@ -8,11 +9,114 @@ import { buildPostAuthContinuityPatch } from '../src/components/auth-session-mer
 const cliArgs = process.argv.slice(2)
 const requireBrowser = cliArgs.includes('--require-browser')
 const positionalArgs = cliArgs.filter((arg) => arg !== '--require-browser')
-const baseUrl = positionalArgs[0] || 'http://127.0.0.1:4173/github-pages-react-hello/'
+const baseUrl = positionalArgs[0] || 'http://127.0.0.1:4174/github-pages-react-hello/'
 const base = new URL(baseUrl)
 const apiBaseUrl = base.origin
 const outDir = path.resolve('playwright-artifacts')
 await fs.mkdir(outDir, { recursive: true })
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function isBaseUrlReachable(url, { fetchImpl = fetch } = {}) {
+  try {
+    const response = await fetchImpl(url, { redirect: 'follow' })
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
+async function waitForBaseUrl(url, { timeoutMs = 30000, intervalMs = 500, fetchImpl = fetch } = {}) {
+  const startedAt = Date.now()
+
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await isBaseUrlReachable(url, { fetchImpl })) return true
+    await delay(intervalMs)
+  }
+
+  return false
+}
+
+async function runCommand(command, args, { cwd = process.cwd() } = {}) {
+  await new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        CI: process.env.CI ?? '1',
+      },
+    })
+
+    child.on('exit', (code) => {
+      if (code === 0) {
+        resolve()
+        return
+      }
+
+      reject(new Error(`${command} ${args.join(' ')} exited with code ${code ?? 'unknown'}`))
+    })
+    child.on('error', reject)
+  })
+}
+
+async function startPreviewServer(url) {
+  const previewArgs = ['run', 'preview', '--', '--host', base.hostname, '--port', base.port || '4173']
+  const preview = spawn('npm', previewArgs, {
+    cwd: process.cwd(),
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      CI: process.env.CI ?? '1',
+    },
+  })
+
+  let stdout = ''
+  let stderr = ''
+
+  preview.stdout.on('data', (chunk) => {
+    stdout += chunk.toString()
+  })
+  preview.stderr.on('data', (chunk) => {
+    stderr += chunk.toString()
+  })
+
+  const ready = await waitForBaseUrl(url)
+  if (ready) {
+    return {
+      process: preview,
+      started: true,
+      stdout,
+      stderr,
+    }
+  }
+
+  preview.kill('SIGTERM')
+  await delay(500)
+  if (!preview.killed) preview.kill('SIGKILL')
+
+  throw new Error(`Timed out waiting for preview server at ${url}. stdout: ${stdout || '(empty)'} stderr: ${stderr || '(empty)'}`)
+}
+
+async function ensureBrowserBaseUrl(url) {
+  if (await isBaseUrlReachable(url)) {
+    return {
+      process: null,
+      started: false,
+    }
+  }
+
+  await runCommand('npm', ['run', 'build'])
+  await fs.mkdir(outDir, { recursive: true })
+  const { process: previewProcess, started } = await startPreviewServer(url)
+
+  return {
+    process: previewProcess,
+    started,
+  }
+}
 
 const guestDraftSnapshot = buildGuestDraftSnapshot({
   engagement: {
@@ -579,34 +683,49 @@ async function runBrowserSmoke(playwright) {
 const playwright = await loadPlaywright()
 
 let result
-if (playwright.module) {
-  try {
-    result = await runBrowserSmoke(playwright.module)
-  } catch (error) {
-    if (requireBrowser) throw error
+let previewServer = null
+
+try {
+  if (playwright.module) {
+    try {
+      const ensuredBaseUrl = await ensureBrowserBaseUrl(baseUrl)
+      previewServer = ensuredBaseUrl.process
+      result = {
+        ...(await runBrowserSmoke(playwright.module)),
+        browserServerStarted: ensuredBaseUrl.started,
+      }
+    } catch (error) {
+      if (requireBrowser) throw error
+
+      result = {
+        ...(await runHttpSmoke()),
+        mode: 'http-fallback',
+        browserRequested: true,
+        browserAttempted: true,
+        browserReady: false,
+        browserError: error instanceof Error ? error.message : String(error),
+      }
+    }
+  } else {
+    if (requireBrowser) {
+      throw (playwright.error ?? new Error('Playwright is unavailable'))
+    }
 
     result = {
       ...(await runHttpSmoke()),
       mode: 'http-fallback',
       browserRequested: true,
-      browserAttempted: true,
+      browserAttempted: false,
       browserReady: false,
-      browserError: error instanceof Error ? error.message : String(error),
+      browserError: playwright.error instanceof Error ? playwright.error.message : (playwright.error ? String(playwright.error) : 'Playwright is unavailable'),
     }
   }
-} else {
-  if (requireBrowser) {
-    throw (playwright.error ?? new Error('Playwright is unavailable'))
-  }
 
-  result = {
-    ...(await runHttpSmoke()),
-    mode: 'http-fallback',
-    browserRequested: true,
-    browserAttempted: false,
-    browserReady: false,
-    browserError: playwright.error instanceof Error ? playwright.error.message : (playwright.error ? String(playwright.error) : 'Playwright is unavailable'),
+  console.log(JSON.stringify(result, null, 2))
+} finally {
+  if (previewServer) {
+    previewServer.kill('SIGTERM')
+    await delay(500)
+    if (!previewServer.killed) previewServer.kill('SIGKILL')
   }
 }
-
-console.log(JSON.stringify(result, null, 2))
