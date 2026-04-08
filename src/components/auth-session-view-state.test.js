@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildAuthReadyPanelState, buildAuthSessionNotice } from './auth-session-view-state.js'
+import { buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './auth-session-view-state.js'
 
 test('buildAuthReadyPanelState summarizes the authenticated resume panel for bootstrapped login state', () => {
   assert.deepEqual(buildAuthReadyPanelState({
@@ -285,6 +285,38 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionDisabled: false,
     actionChecklist: null,
   })
+})
+
+test('shouldAutoOpenAuthReadyPanel reopens the login modal for action-required auth continuations', () => {
+  assert.equal(shouldAutoOpenAuthReadyPanel(null), false)
+  assert.equal(shouldAutoOpenAuthReadyPanel({ accountLabel: 'user@example.com' }), false)
+  assert.equal(shouldAutoOpenAuthReadyPanel({
+    accountLabel: 'user@example.com',
+    continuation: {
+      nextAction: 'complete-profile',
+      status: 'action-required',
+    },
+  }), true)
+  assert.equal(shouldAutoOpenAuthReadyPanel({
+    accountLabel: 'user@example.com',
+    continuation: {
+      nextAction: 'verify-email',
+    },
+  }), true)
+  assert.equal(shouldAutoOpenAuthReadyPanel({
+    accountLabel: 'user@example.com',
+    continuation: {
+      nextAction: 'resume-authenticated-flow',
+      status: 'ready',
+    },
+  }), false)
+  assert.equal(shouldAutoOpenAuthReadyPanel({
+    accountLabel: 'user@example.com',
+    continuation: {
+      nextAction: 'complete-profile',
+      status: 'action-required',
+    },
+  }, 'form'), false)
 })
 
 test('buildAuthSessionNotice summarizes restored guest draft details after login', () => {

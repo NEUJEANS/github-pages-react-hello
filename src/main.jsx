@@ -39,7 +39,7 @@ import {
   readPersistedAuthHandoff,
   readPersistedAuthSession,
 } from './components/auth-storage.js'
-import { buildAuthReadyPanelState, buildAuthSessionNotice } from './components/auth-session-view-state.js'
+import { buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './components/auth-session-view-state.js'
 import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
 import {
@@ -849,6 +849,11 @@ function App() {
     [authSession],
   )
 
+  React.useEffect(() => {
+    if (!shouldAutoOpenAuthReadyPanel(authSession, loginModalState)) return
+    setLoginModalState('form')
+  }, [authSession, loginModalState])
+
   const authContinuationPlan = React.useMemo(() => buildAuthContinuationPlan({
     endpoint: authConfig.continueEndpoint,
     continuation: authSession?.continuation ?? loginForm.continuation ?? null,
@@ -1512,6 +1517,15 @@ function App() {
             <p>{authSessionNotice.body}</p>
           </div>
           <div className="authSessionNoticeActions">
+            {authReadyPanelState && (
+              <button className="ghost minor" onClick={() => openLogin(authSession?.intent ?? null)}>
+                {authReadyPanelState.nextAction === 'complete-profile'
+                  ? '프로필 이어서 입력'
+                  : authReadyPanelState.nextAction === 'verify-email'
+                    ? '이메일 인증 이어가기'
+                    : '인증 상태 보기'}
+              </button>
+            )}
             <button className="ghost minor" onClick={handleLogout}>로그아웃</button>
             <button className="ghost minor" onClick={() => setAuthNoticeDismissed(true)}>닫기</button>
           </div>

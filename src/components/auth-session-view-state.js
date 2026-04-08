@@ -165,6 +165,18 @@ export function buildAuthReadyPanelState(session = null) {
   }
 }
 
+export function shouldAutoOpenAuthReadyPanel(session = null, modalState = 'closed') {
+  if (modalState !== 'closed') return false
+  if (!session?.accountLabel) return false
+
+  const nextAction = session.continuation?.nextAction ?? null
+  const status = session.continuation?.status ?? null
+
+  return status === 'action-required'
+    || nextAction === 'complete-profile'
+    || nextAction === 'verify-email'
+}
+
 export function buildAuthSessionNotice(session) {
   if (!session?.accountLabel) return null
 
