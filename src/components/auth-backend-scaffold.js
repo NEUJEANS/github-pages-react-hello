@@ -484,6 +484,12 @@ export function buildAuthScaffoldPendingHandoff({ request = {}, response = {}, c
     status: response.data?.status ?? request.continuation?.status ?? null,
     statusLabel: response.data?.statusLabel ?? request.continuation?.statusLabel ?? null,
   }
+  const continuationFields = request.fields && typeof request.fields === 'object' && !Array.isArray(request.fields)
+    ? cloneValue(request.fields)
+    : null
+  const draftSave = request.draftSave && typeof request.draftSave === 'object' && !Array.isArray(request.draftSave)
+    ? buildDraftSaveState(request, guestDraftSnapshot)
+    : null
 
   return {
     submittedAt,
@@ -504,6 +510,8 @@ export function buildAuthScaffoldPendingHandoff({ request = {}, response = {}, c
     },
     connection,
     continuation,
+    continuationFields,
+    draftSave,
     guestDraftSnapshot,
     guestDraftSummary: summary,
     allowedMergeResolutions: response.data?.allowedMergeResolutions ?? null,

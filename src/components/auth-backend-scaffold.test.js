@@ -479,6 +479,8 @@ test('buildAuthScaffoldPendingHandoff keeps guest draft counts and continuation 
       status: 'action-required',
       statusLabel: '병합 확인 필요',
     },
+    continuationFields: null,
+    draftSave: null,
     guestDraftSnapshot: {
       recommendationDraft: { room: '거실' },
       spaceProfile: { spaces: ['living', 'bed1'] },
@@ -574,6 +576,71 @@ test('buildAuthScaffoldPendingResponse returns 404 when no interrupted auth hand
     nextAction: 'login-required',
   })
 })
+
+test('buildAuthScaffoldPendingHandoff lifts serializable draft-save and continuation field state to the top level for frontend bootstrap', () => {
+  const pending = buildAuthScaffoldPendingHandoff({
+    request: {
+      email: 'profile@example.com',
+      handoffId: 'auth-pending-serialized-1',
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        returnScreen: 'layout',
+      },
+      continuation: {
+        resumeToken: 'auth-pending-serialized-1:profile',
+        nextAction: 'complete-profile',
+        status: 'action-required',
+        statusLabel: '프로필 보완 필요',
+      },
+      fields: {
+        displayName: 'Havenly User',
+        phone: '010-1234-5678',
+      },
+      draftSave: {
+        draftLabel: '거실 배치 보드',
+        apartmentLabel: '래미안 포레스트 84A',
+        recommendationRoom: '거실',
+        selectedSpaceIds: ['living', 'bed1'],
+        layoutItems: [{ id: 'layout-1' }],
+        layoutItemCount: 1,
+      },
+      guestDraftSnapshot: {
+        recommendationDraft: { room: '거실' },
+        spaceProfile: { spaces: ['living', 'bed1'] },
+        continuity: {
+          apartmentLabel: '래미안 포레스트 84A',
+          layoutItems: [{ id: 'layout-1' }, { id: 'layout-2' }],
+        },
+      },
+    },
+    response: {
+      status: 422,
+      data: {
+        message: 'Profile completion fields required',
+        resumeToken: 'auth-pending-serialized-1:profile',
+        nextAction: 'complete-profile',
+        status: 'action-required',
+        statusLabel: '프로필 보완 필요',
+      },
+    },
+  })
+
+  assert.deepEqual(pending.continuationFields, {
+    displayName: 'Havenly User',
+    phone: '010-1234-5678',
+  })
+  assert.deepEqual(pending.draftSave, {
+    draftLabel: '거실 배치 보드',
+    apartmentLabel: '래미안 포레스트 84A',
+    recommendationRoom: '거실',
+    selectedSpaceIds: ['living', 'bed1'],
+    layoutItems: [{ id: 'layout-1' }],
+    layoutItemCount: 1,
+  })
+})
+
 
 test('submitAuthScaffoldContinuation can complete a profile blocker and restore the saved continuation target', () => {
   resetAuthScaffoldState()
@@ -893,6 +960,8 @@ test('stateful scaffold helpers preserve pending handoffs, session bootstrap, an
   assert.equal(readAuthScaffoldPending().status, 200)
   assert.equal(readAuthScaffoldPending().data.handoffId, 'auth-stateful-merge-1')
   assert.equal(readAuthScaffoldPending().data.connection.targetLabel, 'same-origin /api auth scaffold')
+  assert.equal(readAuthScaffoldPending().data.draftSave, null)
+  assert.equal(readAuthScaffoldPending().data.continuationFields, null)
 
   const mergeResolved = submitAuthScaffoldRequest({
     request: {
