@@ -10,6 +10,7 @@
     "test": "node --test src/components/*.test.js",
     "review:gemini": "bash ./scripts/gemini-review.sh",
     "smoke:auth": "node ./scripts/auth-login-smoke.mjs",
+    "smoke:auth:browser": "node ./scripts/auth-login-smoke.mjs --require-browser",
     "checkpoint:status": "git status --short --branch && echo '---' && git log --oneline --decorate -5"
   },
   "dependencies": {

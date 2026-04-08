@@ -5,7 +5,10 @@ import { readAuthSession, signOutAuthSession, submitAuthLoginPlan } from '../src
 import { buildAuthConnectionSummary, buildPersistedAuthSession } from '../src/components/auth-storage.js'
 import { buildPostAuthContinuityPatch } from '../src/components/auth-session-merge.js'
 
-const baseUrl = process.argv[2] || 'http://127.0.0.1:4173/github-pages-react-hello/'
+const cliArgs = process.argv.slice(2)
+const requireBrowser = cliArgs.includes('--require-browser')
+const positionalArgs = cliArgs.filter((arg) => arg !== '--require-browser')
+const baseUrl = positionalArgs[0] || 'http://127.0.0.1:4173/github-pages-react-hello/'
 const base = new URL(baseUrl)
 const apiBaseUrl = base.origin
 const outDir = path.resolve('playwright-artifacts')
@@ -76,9 +79,15 @@ async function submitPlan(plan) {
 
 async function loadPlaywright() {
   try {
-    return await import('playwright')
-  } catch {
-    return null
+    return {
+      module: await import('playwright'),
+      error: null,
+    }
+  } catch (error) {
+    return {
+      module: null,
+      error,
+    }
   }
 }
 
@@ -426,5 +435,36 @@ async function runBrowserSmoke(playwright) {
 }
 
 const playwright = await loadPlaywright()
-const result = playwright ? await runBrowserSmoke(playwright) : await runHttpSmoke()
+
+let result
+if (playwright.module) {
+  try {
+    result = await runBrowserSmoke(playwright.module)
+  } catch (error) {
+    if (requireBrowser) throw error
+
+    result = {
+      ...(await runHttpSmoke()),
+      mode: 'http-fallback',
+      browserRequested: true,
+      browserAttempted: true,
+      browserReady: false,
+      browserError: error instanceof Error ? error.message : String(error),
+    }
+  }
+} else {
+  if (requireBrowser) {
+    throw (playwright.error ?? new Error('Playwright is unavailable'))
+  }
+
+  result = {
+    ...(await runHttpSmoke()),
+    mode: 'http-fallback',
+    browserRequested: true,
+    browserAttempted: false,
+    browserReady: false,
+    browserError: playwright.error instanceof Error ? playwright.error.message : (playwright.error ? String(playwright.error) : 'Playwright is unavailable'),
+  }
+}
+
 console.log(JSON.stringify(result, null, 2))
