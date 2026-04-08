@@ -218,6 +218,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
   const fields = request.fields && typeof request.fields === 'object' && !Array.isArray(request.fields)
     ? request.fields
     : null
+  const sessionConnection = cloneValue(currentSession.connection ?? connection ?? null)
 
   if (nextAction === 'complete-profile') {
     const displayName = typeof fields?.displayName === 'string' ? fields.displayName.trim() : ''
@@ -233,7 +234,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
           nextAction: 'complete-profile',
           status: 'action-required',
           statusLabel: '프로필 보완 필요',
-          ...(connection ? { connection } : {}),
+          ...(sessionConnection ? { connection: sessionConnection } : {}),
         },
       }
     }
@@ -248,7 +249,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
       nextAction: currentSession.intent?.action ?? 'resume-authenticated-flow',
       status: 'ready',
       statusLabel: '프로필 준비 완료',
-      connection: cloneValue(connection ?? currentSession.connection ?? null),
+      connection: sessionConnection,
     }
     scaffoldState.session = nextSession
     return {
@@ -269,7 +270,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
           nextAction: 'verify-email',
           status: 'action-required',
           statusLabel: '이메일 인증 필요',
-          ...(connection ? { connection } : {}),
+          ...(sessionConnection ? { connection: sessionConnection } : {}),
         },
       }
     }
@@ -281,7 +282,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
       nextAction: currentSession.intent?.action ?? 'resume-authenticated-flow',
       status: 'ready',
       statusLabel: '이메일 인증 완료',
-      connection: cloneValue(connection ?? currentSession.connection ?? null),
+      connection: sessionConnection,
     }
     scaffoldState.session = nextSession
     return {
@@ -297,7 +298,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
       handoffId: request.handoffId ?? currentSession.handoffId ?? null,
       resumeToken: resumeToken || currentSession.resumeToken || null,
       nextAction: nextAction || currentSession.nextAction || 'resume-authenticated-flow',
-      ...(connection ? { connection } : {}),
+      ...(sessionConnection ? { connection: sessionConnection } : {}),
     },
   }
 }

@@ -366,6 +366,7 @@ test('submitAuthContinuationPlan forwards resume headers and falls back to the l
   assert.equal(result.data.nextAction, 'resume-authenticated-flow')
   assert.equal(result.data.status, 'ready')
   assert.equal(result.data.connection.targetLabel, 'same-origin /api auth scaffold')
+  assert.equal(result.data.connection.endpoint, '/api/auth/login')
   assert.deepEqual(result.meta, {
     authMode: 'scaffold',
     authTransport: 'local-fallback',

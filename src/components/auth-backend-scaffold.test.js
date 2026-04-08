@@ -503,6 +503,7 @@ test('submitAuthScaffoldContinuation can complete a profile blocker and restore 
   assert.equal(completed.status, 200)
   assert.equal(completed.data.nextAction, 'save-layout-draft')
   assert.equal(completed.data.status, 'ready')
+  assert.equal(completed.data.connection?.endpoint, '/api/auth/login')
   assert.deepEqual(completed.data.profile, {
     displayName: 'Havenly User',
     phone: '010-1234-5678',
