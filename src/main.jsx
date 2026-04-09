@@ -2639,7 +2639,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                   <p className="muted">연결 대상: {guardPanelState.connectionLabel}{guardPanelState.connectionEndpoint ? ` (${guardPanelState.connectionEndpoint})` : ''} · {guardPanelState.connectionCredentialsMode ?? 'include'} credentials{guardPanelState.connectionSource ? ` · ${guardPanelState.connectionSource}` : ''}</p>
                 )}
                 {guardPanelState.submitPayloadPreview && (
-                  <div className="loginGuardCard authPrepCard">
+                  <div className="loginGuardCard authPrepCard" data-auth-preview="guard-submit-payload">
                     <strong>로그인 요청 payload 미리보기</strong>
                     <p className="muted">{guardPanelState.submitPayloadPreview.targetLabel ?? '현재 인증 연결 대상'}{guardPanelState.submitPayloadPreview.endpoint ? ` (${guardPanelState.submitPayloadPreview.endpoint})` : ''} 대상으로 첫 로그인 요청을 보냅니다.</p>
                     <div className="guardSummary compact">
@@ -2727,7 +2727,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                   </div>
                 )}
                 {authReadyPanelState.actionPayloadPreview && (
-                  <div className="loginGuardCard authPrepCard">
+                  <div className="loginGuardCard authPrepCard" data-auth-preview="continuation-submit-payload">
                     <strong>계속 요청 payload 미리보기</strong>
                     <p className="muted">{authReadyPanelState.actionPayloadPreview.targetLabel ?? '현재 인증 연결 대상'}{authReadyPanelState.actionPayloadPreview.connectionEndpoint ? ` (${authReadyPanelState.actionPayloadPreview.connectionEndpoint})` : ''} 대상으로 {authReadyPanelState.actionPayloadPreview.continuationEndpoint} 재개 요청을 이어갑니다.</p>
                     <div className="guardSummary compact">
@@ -2780,8 +2780,8 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                 <div><strong>보드 이어서 작업</strong><span>배치 중인 가구와 평면도 초안을 계정에 연결합니다.</span></div>
                 {form.intent?.label && <div><strong>이번 로그인 목적</strong><span>{form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</span></div>}
                 <div><strong>백엔드 전달 준비</strong><span>{activePlan.endpoint} 요청에 게스트 초안과 intent handoff를 같이 묶도록 구조를 맞췄어요.</span></div>
-                <div><strong>연결 대상</strong><span>{authConnectionSummary.targetLabel} · {authConnectionSummary.method} {authConnectionSummary.endpoint}</span></div>
-                <div><strong>인증 전송</strong><span>{authConnectionSummary.credentialsMode} credentials · {authConnectionSummary.source === 'default' ? '기본 same-origin scaffold' : authConnectionSummary.source}</span></div>
+                <div data-auth-connection-line="target"><strong>연결 대상</strong><span>{authConnectionSummary.targetLabel} · {authConnectionSummary.method} {authConnectionSummary.endpoint}</span></div>
+                <div data-auth-connection-line="transport"><strong>인증 전송</strong><span>{authConnectionSummary.credentialsMode} credentials · {authConnectionSummary.source === 'default' ? '기본 same-origin scaffold' : authConnectionSummary.source}</span></div>
               </div>
               <div className="loginForm">
                 {form.mode === 'signup' && (
@@ -2801,7 +2801,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <label className="authCheckbox"><input type="checkbox" checked={form.agreeToTerms} onChange={(event) => onChangeForm('agreeToTerms', event.target.checked)} /> <span>이 데모 계정을 만들고 현재 초안을 계정에 연결하는 데 동의합니다.</span></label>
                   </>
                 )}
-                <div className="loginGuardCard authPrepCard">
+                <div className="loginGuardCard authPrepCard" data-auth-preview="login-connection-status">
                   <strong>연결 준비 상태</strong>
                   <p className="muted">{authStatusMessage}</p>
                   {form.handoff && (
@@ -2817,7 +2817,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <p className="muted">오류 분류: {authErrorSummary.tone === 'credentials' ? '자격 증명' : authErrorSummary.tone === 'merge' ? '초안 병합' : authErrorSummary.tone === 'service' ? '인증 서비스' : '기타'}</p>
                   )}
                   {isMergeContinuationPending && (
-                    <div className="loginGuardCard authPrepCard">
+                    <div className="loginGuardCard authPrepCard" data-auth-preview="merge-continuation-payload">
                       <strong>병합 방향 payload · 병합 재개 payload 미리보기</strong>
                       <p className="muted">이전에 멈춘 병합 확인을 같은 handoff / resume token으로 재개합니다. 프론트에서는 직렬화 가능한 mergeResolution 한 필드만 붙여 <code>{continuationEndpointLabel}</code>에 전달합니다.</p>
                       <div className="footerButtons stackOnMobile">
@@ -2845,7 +2845,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <p className="muted">draftSave handoff: {loginPanelState.draftSaveBits.join(' · ')}</p>
                   )}
                   {loginPanelState.submitPayloadPreview && (
-                    <div className="loginGuardCard authPrepCard">
+                    <div className="loginGuardCard authPrepCard" data-auth-preview="login-submit-payload">
                       <strong>로그인 요청 payload 미리보기</strong>
                       <p className="muted">{loginPanelState.submitPayloadPreview.targetLabel ?? '현재 인증 연결 대상'}{loginPanelState.submitPayloadPreview.endpoint ? ` (${loginPanelState.submitPayloadPreview.endpoint})` : ''} 대상으로 첫 로그인 요청을 보냅니다.</p>
                       <div className="guardSummary compact">

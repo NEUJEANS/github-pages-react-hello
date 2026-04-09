@@ -633,8 +633,10 @@ function assertGuardPanelPreview(preview) {
 
 async function continuePastGuardIfPresent(page) {
   const guardButton = page.getByRole('button', { name: '그래도 로그인하기' })
-  if (await guardButton.count()) {
+  const guardVisible = await guardButton.isVisible().catch(() => false)
+  if (guardVisible) {
     await guardButton.click()
+    await page.locator('.loginPanel .loginForm').last().waitFor({ state: 'visible', timeout: 15000 })
   }
 }
 
@@ -653,14 +655,15 @@ async function submitLogin(page, { email, password }) {
 
 async function readLoginConnectionPreview(page) {
   const loginBenefits = page.locator('.loginBenefits')
-  const targetLine = loginBenefits.locator('div').filter({ hasText: '연결 대상' }).first()
-  const transportLine = loginBenefits.locator('div').filter({ hasText: '인증 전송' }).first()
-  const prepCard = page.locator('.loginForm .authPrepCard').filter({ hasText: '로그인 요청 payload 미리보기' }).first()
+  const targetLine = loginBenefits.locator('[data-auth-connection-line="target"]').first()
+  const transportLine = loginBenefits.locator('[data-auth-connection-line="transport"]').first()
+  const prepCard = page.locator('.loginForm [data-auth-preview="login-submit-payload"]').first()
+  const statusCard = page.locator('.loginForm [data-auth-preview="login-connection-status"]').first()
 
   return {
     target: (await targetLine.innerText().catch(() => '')).trim(),
     transport: (await transportLine.innerText().catch(() => '')).trim(),
-    status: (await prepCard.locator('.muted').first().innerText().catch(() => '')).trim(),
+    status: (await statusCard.locator('.muted').first().innerText().catch(() => '')).trim(),
     payloadPreview: await prepCard.locator('.guardSummary.compact div').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => []),
   }
 }
@@ -790,6 +793,7 @@ async function runBrowserSmoke(playwright) {
     await page.goto(baseUrl, { waitUntil: 'networkidle' })
 
     await openLogin(page)
+    await continuePastGuardIfPresent(page)
     const directLoginPreview = await readLoginConnectionPreview(page)
     assertLoginConnectionPreview(directLoginPreview)
     await submitLogin(page, {
@@ -895,6 +899,7 @@ async function runBrowserSmoke(playwright) {
     await resetBrowserScenario(completeProfilePage)
     await completeProfilePage.goto(baseUrl, { waitUntil: 'networkidle' })
     await openLogin(completeProfilePage)
+    await continuePastGuardIfPresent(completeProfilePage)
     await submitLogin(completeProfilePage, {
       email: 'profile@example.com',
       password: 'password123',
@@ -921,6 +926,7 @@ async function runBrowserSmoke(playwright) {
     await resetBrowserScenario(verifyEmailPage)
     await verifyEmailPage.goto(baseUrl, { waitUntil: 'networkidle' })
     await openLogin(verifyEmailPage)
+    await continuePastGuardIfPresent(verifyEmailPage)
     await submitLogin(verifyEmailPage, {
       email: 'verify@example.com',
       password: 'password123',
@@ -945,6 +951,7 @@ async function runBrowserSmoke(playwright) {
     await resetBrowserScenario(queryOverridePage)
     await queryOverridePage.goto(`${baseUrl}?authApiBaseUrl=${encodeURIComponent('https://auth-query.example.com')}&authLoginEndpoint=${encodeURIComponent('/v1/session/login')}&authCredentials=same-origin`, { waitUntil: 'domcontentloaded' })
     await openLogin(queryOverridePage)
+    await continuePastGuardIfPresent(queryOverridePage)
     await fillLoginForm(queryOverridePage, {
       email: 'user@example.com',
       password: 'password123',
@@ -964,6 +971,7 @@ async function runBrowserSmoke(playwright) {
     await resetBrowserScenario(runtimeOverridePage)
     await runtimeOverridePage.goto(baseUrl, { waitUntil: 'domcontentloaded' })
     await openLogin(runtimeOverridePage)
+    await continuePastGuardIfPresent(runtimeOverridePage)
     await fillLoginForm(runtimeOverridePage, {
       email: 'user@example.com',
       password: 'password123',
