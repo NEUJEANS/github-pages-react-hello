@@ -122,6 +122,7 @@ const initialAuthContinuationFields = {
   displayName: '',
   phone: '',
   verificationCode: '',
+  mergeResolution: '',
 }
 
 function buildAuthContinuationFieldState(fields = null) {
@@ -133,7 +134,7 @@ function buildAuthContinuationFieldState(fields = null) {
 
 function pickPersistedAuthContinuationFields(continuation = null, fields = null) {
   const nextAction = typeof continuation?.nextAction === 'string' ? continuation.nextAction.trim() : ''
-  if (nextAction !== 'complete-profile' && nextAction !== 'verify-email') return null
+  if (nextAction !== 'complete-profile' && nextAction !== 'verify-email' && nextAction !== 'confirm-merge-resolution') return null
   return buildSerializableAuthContinuationFields(fields)
 }
 
@@ -979,13 +980,13 @@ function App() {
         ? {
             verificationCode: authContinuationFields.verificationCode,
           }
-        : authReadyPanelState?.nextAction === 'confirm-merge-resolution' && loginForm.mergeResolution
+        : authReadyPanelState?.nextAction === 'confirm-merge-resolution' && (authContinuationFields.mergeResolution || loginForm.mergeResolution)
           ? {
-              mergeResolution: loginForm.mergeResolution,
+              mergeResolution: authContinuationFields.mergeResolution || loginForm.mergeResolution,
             }
-          : loginForm.continuation?.nextAction === 'confirm-merge-resolution' && loginForm.mergeResolution
+          : loginForm.continuation?.nextAction === 'confirm-merge-resolution' && (authContinuationFields.mergeResolution || loginForm.mergeResolution)
             ? {
-                mergeResolution: loginForm.mergeResolution,
+                mergeResolution: authContinuationFields.mergeResolution || loginForm.mergeResolution,
               }
             : null,
     draftSave: shouldAttachDraftSaveToAuthContinuation(
@@ -994,7 +995,7 @@ function App() {
     )
       ? authDraftSavePayload
       : null,
-  }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.phone, authContinuationFields.verificationCode, authDraftSavePayload, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, authSession?.intent, loginForm.continuation, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution])
+  }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.mergeResolution, authContinuationFields.phone, authContinuationFields.verificationCode, authDraftSavePayload, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, authSession?.intent, loginForm.continuation, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution])
 
   React.useEffect(() => {
     let cancelled = false
@@ -1120,6 +1121,21 @@ function App() {
       const next = buildAuthContinuationFieldState(activeContinuationFields)
       return JSON.stringify(current) === JSON.stringify(next) ? current : next
     })
+
+    const persistedMergeResolution = typeof activeContinuationFields?.mergeResolution === 'string'
+      ? activeContinuationFields.mergeResolution.trim()
+      : ''
+
+    if (persistedMergeResolution) {
+      setLoginForm((current) => (
+        current.mergeResolution === persistedMergeResolution
+          ? current
+          : {
+              ...current,
+              mergeResolution: persistedMergeResolution,
+            }
+      ))
+    }
   }, [authSession?.continuationFields, loginForm.continuationFields, persistedAuthHandoff?.continuationFields])
 
   React.useEffect(() => {
@@ -1343,6 +1359,7 @@ function App() {
     setLoginForm((current) => ({
       ...current,
       continuationFields: nextFields,
+      ...(field === 'mergeResolution' ? { mergeResolution: value, status: 'idle', result: null } : {}),
     }))
 
     if (authSession) {
@@ -2522,10 +2539,10 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <strong>병합 방향 payload</strong>
                     <p className="muted">이전에 멈춘 병합 확인을 같은 handoff / resume token으로 재개합니다. 프론트에서는 직렬화 가능한 mergeResolution 한 필드만 붙여 `/api/auth/continue`에 전달합니다.</p>
                     <div className="footerButtons stackOnMobile">
-                      <button className="ghost" onClick={() => onChangeForm('mergeResolution', 'keep-guest')}>
+                      <button className="ghost" onClick={() => onChangeContinuationField('mergeResolution', 'keep-guest')}>
                         {form.mergeResolution === 'keep-guest' ? '선택됨 · 현재 초안으로 계속' : '현재 초안으로 계속'}
                       </button>
-                      <button className="ghost" onClick={() => onChangeForm('mergeResolution', 'replace-with-account')}>
+                      <button className="ghost" onClick={() => onChangeContinuationField('mergeResolution', 'replace-with-account')}>
                         {form.mergeResolution === 'replace-with-account' ? '선택됨 · 계정 상태로 전환' : '계정 상태로 전환'}
                       </button>
                     </div>

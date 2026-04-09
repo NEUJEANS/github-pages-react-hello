@@ -807,6 +807,13 @@ async function runBrowserSmoke(playwright) {
     if (!mergePreviewLines.some((line) => line.includes('/api/auth/continue'))) {
       throw new Error(`Merge continuation preview did not expose the continuation endpoint before submit. Saw: ${mergePreviewLines.join(' | ')}`)
     }
+    await mergePage.reload({ waitUntil: 'networkidle' })
+    const mergeReloadedPayloadCard = mergePage.locator('.loginForm .authPrepCard').filter({ hasText: '병합 방향 payload' }).first()
+    await mergeReloadedPayloadCard.waitFor()
+    const mergeReloadedSelection = await mergeReloadedPayloadCard.locator('.muted').allInnerTexts()
+    if (!mergeReloadedSelection.some((line) => line.includes('mergeResolution keep-guest'))) {
+      throw new Error(`Merge continuation selection was not restored after reload. Saw: ${mergeReloadedSelection.join(' | ')}`)
+    }
     await mergeReadyAction.click()
     const mergeReadySignal = await waitForAuthReadySignal(mergePage, { expectedAccountLabel: 'merge@example.com' })
     await capture(mergePage, 'auth-login-guarded-merge.png')
@@ -936,7 +943,7 @@ async function runBrowserSmoke(playwright) {
           resumedStatus: verifyEmailResumedStatus,
         },
       },
-      guardedMerge: { guardReasons, guardPreview, mergeError, mergeOptions, mergePreviewLines, mergeReadyLabel, mergeStatus, mergeReadySignal },
+      guardedMerge: { guardReasons, guardPreview, mergeError, mergeOptions, mergePreviewLines, mergeReadyLabel, mergeStatus, mergeReloadedSelection, mergeReadySignal },
       authTargetOverrides: {
         query: queryOverridePreview,
         runtime: runtimeOverridePreview,
