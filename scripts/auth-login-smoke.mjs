@@ -602,6 +602,26 @@ async function waitForAuthReadySignal(page, { expectedAccountLabel = null, timeo
   throw new Error(`Timed out waiting for an authenticated UI signal${expectedAccountLabel ? ` for ${expectedAccountLabel}` : ''}`)
 }
 
+async function waitForLoggedOutSignal(page, { timeoutMs = 15000 } = {}) {
+  const startedAt = Date.now()
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const accountLabel = await page.locator('.accountTrigger span').last().innerText().catch(() => '')
+    const normalizedAccountLabel = typeof accountLabel === 'string' ? accountLabel.trim() : ''
+    const authSessionNoticeVisible = await page.locator('.authSessionNotice').first().isVisible().catch(() => false)
+
+    if (normalizedAccountLabel === '로그인' && !authSessionNoticeVisible) {
+      return {
+        accountLabel: normalizedAccountLabel,
+      }
+    }
+
+    await delay(250)
+  }
+
+  throw new Error('Timed out waiting for the logged-out UI signal')
+}
+
 async function runBrowserSmoke(playwright) {
   const { chromium } = playwright
   const browser = await chromium.launch({ headless: true })
@@ -629,8 +649,8 @@ async function runBrowserSmoke(playwright) {
     const reloadedNotice = directReloadReady.notice ?? null
     const reloadedAccountLabel = directReloadReady.accountLabel ?? await page.locator('.accountTrigger span').last().innerText()
     await page.getByRole('button', { name: '로그아웃' }).click()
-    await page.getByRole('button', { name: '로그인 열기' }).waitFor()
-    const postLogoutLabel = await page.getByRole('button', { name: '로그인 열기' }).innerText()
+    const loggedOut = await waitForLoggedOutSignal(page)
+    const postLogoutLabel = loggedOut.accountLabel
     await page.reload({ waitUntil: 'networkidle' })
     await page.getByRole('button', { name: '로그인 열기' }).waitFor()
     const postLogoutReloadedLabel = await page.getByRole('button', { name: '로그인 열기' }).innerText()

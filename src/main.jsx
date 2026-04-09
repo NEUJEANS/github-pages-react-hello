@@ -1158,11 +1158,6 @@ function App() {
   }, [])
 
   const handleLogout = React.useCallback(async () => {
-    await signOutAuthSession({
-      endpoint: authConfig.logoutEndpoint,
-      ...authConfig,
-    })
-
     clearPersistedAuthSession(globalThis.localStorage)
     clearPersistedAuthHandoff(globalThis.sessionStorage)
     setAuthSession(null)
@@ -1170,6 +1165,15 @@ function App() {
     setAuthContinuationFields(buildAuthContinuationFieldState())
     setLoginModalState('closed')
     setLoginForm(buildEmptyLoginForm())
+
+    try {
+      await signOutAuthSession({
+        endpoint: authConfig.logoutEndpoint,
+        ...authConfig,
+      })
+    } catch (error) {
+      console.warn('Auth logout teardown failed after optimistic client reset.', error)
+    }
   }, [authConfig])
 
   const handleResumeAuthenticatedIntent = React.useCallback(async () => {
