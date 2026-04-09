@@ -127,8 +127,57 @@ test('resolveAuthConfig carries login/session/pending/continue endpoint and cred
       continueEndpoint: '/internal/auth/continue',
       logoutEndpoint: '/internal/auth/logout',
       credentialsMode: 'omit',
-      source: 'default',
-      isConfigured: false,
+      source: 'runtime',
+      isConfigured: true,
+    },
+  )
+})
+
+test('resolveAuthConfig marks query and env endpoint-only overrides as configured auth wiring', () => {
+  assert.deepEqual(
+    resolveAuthConfig({
+      env: {},
+      runtimeConfig: null,
+      locationSearch: '?authLoginEndpoint=%2Fquery-login&authContinueEndpoint=%2Fquery-continue&authCredentials=same-origin',
+    }),
+    {
+      apiBaseUrl: '',
+      currentOrigin: '',
+      appBasePath: '/',
+      loginEndpoint: '/query-login',
+      signupEndpoint: '/api/auth/signup',
+      sessionEndpoint: '/api/auth/session',
+      pendingEndpoint: '/api/auth/pending',
+      continueEndpoint: '/query-continue',
+      logoutEndpoint: '/api/auth/logout',
+      credentialsMode: 'same-origin',
+      source: 'query',
+      isConfigured: true,
+    },
+  )
+
+  assert.deepEqual(
+    resolveAuthConfig({
+      env: {
+        VITE_AUTH_LOGIN_ENDPOINT: '/env-login',
+        VITE_AUTH_CONTINUE_ENDPOINT: '/env-continue',
+      },
+      runtimeConfig: null,
+      locationSearch: '',
+    }),
+    {
+      apiBaseUrl: '',
+      currentOrigin: '',
+      appBasePath: '/',
+      loginEndpoint: '/env-login',
+      signupEndpoint: '/api/auth/signup',
+      sessionEndpoint: '/api/auth/session',
+      pendingEndpoint: '/api/auth/pending',
+      continueEndpoint: '/env-continue',
+      logoutEndpoint: '/api/auth/logout',
+      credentialsMode: 'include',
+      source: 'env:auth-endpoint',
+      isConfigured: true,
     },
   )
 })

@@ -19,6 +19,27 @@ function readEndpoint(value, fallback = '/api/auth/login') {
   return normalized.startsWith('/') ? normalized : `/${normalized}`
 }
 
+function resolveAuthConfigSource({
+  runtimeApiBaseUrl,
+  queryApiBaseUrl,
+  explicitEnvApiBaseUrl,
+  fallbackEnvApiBaseUrl,
+  runtimeOverrides = [],
+  queryOverrides = [],
+  envOverrides = [],
+} = {}) {
+  if (runtimeApiBaseUrl || runtimeOverrides.some(Boolean)) return 'runtime'
+  if (queryApiBaseUrl || queryOverrides.some(Boolean)) return 'query'
+  if (explicitEnvApiBaseUrl) return 'env:VITE_AUTH_API_BASE_URL'
+  if (fallbackEnvApiBaseUrl) return 'env:VITE_API_BASE_URL'
+  if (envOverrides.some(Boolean)) return 'env:auth-endpoint'
+  return 'default'
+}
+
+function resolveAuthConfigConfigured(source = 'default') {
+  return source !== 'default'
+}
+
 export function resolveAuthConfig({
   env = {},
   runtimeConfig = globalThis?.__HAVENLY_AUTH_CONFIG__,
@@ -59,6 +80,39 @@ export function resolveAuthConfig({
       || explicitEnvApiBaseUrl
       || fallbackEnvApiBaseUrl,
   )
+  const source = resolveAuthConfigSource({
+    runtimeApiBaseUrl,
+    queryApiBaseUrl,
+    explicitEnvApiBaseUrl,
+    fallbackEnvApiBaseUrl,
+    runtimeOverrides: [
+      runtimeLoginEndpoint,
+      runtimeSignupEndpoint,
+      runtimeSessionEndpoint,
+      runtimePendingEndpoint,
+      runtimeContinueEndpoint,
+      runtimeLogoutEndpoint,
+      runtimeCredentialMode,
+    ],
+    queryOverrides: [
+      queryLoginEndpoint,
+      querySignupEndpoint,
+      querySessionEndpoint,
+      queryPendingEndpoint,
+      queryContinueEndpoint,
+      queryLogoutEndpoint,
+      queryCredentialMode,
+    ],
+    envOverrides: [
+      envLoginEndpoint,
+      envSignupEndpoint,
+      envSessionEndpoint,
+      envPendingEndpoint,
+      envContinueEndpoint,
+      envLogoutEndpoint,
+      envCredentialMode,
+    ],
+  })
 
   return {
     apiBaseUrl,
@@ -103,15 +157,7 @@ export function resolveAuthConfig({
       || queryCredentialMode
       || envCredentialMode
       || 'include',
-    source: runtimeApiBaseUrl
-      ? 'runtime'
-      : queryApiBaseUrl
-        ? 'query'
-        : explicitEnvApiBaseUrl
-          ? 'env:VITE_AUTH_API_BASE_URL'
-          : fallbackEnvApiBaseUrl
-            ? 'env:VITE_API_BASE_URL'
-            : 'default',
-    isConfigured: Boolean(apiBaseUrl),
+    source,
+    isConfigured: resolveAuthConfigConfigured(source),
   }
 }
