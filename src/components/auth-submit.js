@@ -352,7 +352,7 @@ function buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders, conn
   }
 }
 
-export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl, appBasePath, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {
+async function submitAuthAccessPlan(plan, { fetchImpl = fetch, apiBaseUrl, appBasePath, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {
   const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: plan.method,
@@ -391,6 +391,14 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
 
     throw new Error('Auth request failed')
   }
+}
+
+export async function submitAuthLoginPlan(plan, options = {}) {
+  return submitAuthAccessPlan(plan, options)
+}
+
+export async function submitAuthSignupPlan(plan, options = {}) {
+  return submitAuthAccessPlan(plan, options)
 }
 
 export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiBaseUrl, appBasePath, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {

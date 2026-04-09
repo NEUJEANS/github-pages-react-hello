@@ -182,7 +182,7 @@ function buildDraftSaveState(request = {}, guestDraftSnapshot = null) {
   }
 }
 
-function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null, continuation = null, draftSave = null } = {}) {
+function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null, continuation = null, draftSave = null, name = null } = {}) {
   const safeSessionId = email.replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'guest'
   const continuationState = buildScaffoldContinuation({
     email,
@@ -198,7 +198,7 @@ function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, 
     ...(handoffId ? { handoffId } : {}),
     user: {
       email,
-      name: email,
+      name: typeof name === 'string' && name.trim() ? name.trim() : email,
     },
     mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot, {
       mode: mergeResolution === 'keep-guest'
@@ -560,16 +560,44 @@ export function buildAuthScaffoldResponse(request = {}) {
   const guestDraftSnapshot = request.guestDraftSnapshot ?? null
   const mergeResolution = typeof request.mergeResolution === 'string' ? request.mergeResolution : null
   const handoffId = typeof request.handoffId === 'string' ? request.handoffId.trim() : null
+  const mode = request.mode === 'signup' ? 'signup' : 'login'
+  const displayName = typeof request.displayName === 'string' ? request.displayName.trim() : ''
 
   if (!email || !email.includes('@') || password.trim().length < 8) {
     return {
       status: 401,
       data: {
-        message: 'Invalid credentials',
+        message: mode === 'signup' ? 'Invalid signup payload' : 'Invalid credentials',
         ...(handoffId ? { handoffId } : {}),
         resumeToken: handoffId ? `${handoffId}:retry` : null,
-        nextAction: 'retry-login',
+        nextAction: mode === 'signup' ? 'retry-signup' : 'retry-login',
       },
+    }
+  }
+
+  if (mode === 'signup') {
+    if (displayName.length < 2) {
+      return {
+        status: 422,
+        data: {
+          message: 'Display name required',
+          ...(handoffId ? { handoffId } : {}),
+          resumeToken: handoffId ? `${handoffId}:retry` : null,
+          nextAction: 'retry-signup',
+        },
+      }
+    }
+
+    if (email === 'existing@example.com' || email === 'user@example.com') {
+      return {
+        status: 409,
+        data: {
+          message: 'Account already exists',
+          ...(handoffId ? { handoffId } : {}),
+          resumeToken: handoffId ? `${handoffId}:login` : null,
+          nextAction: 'retry-login',
+        },
+      }
     }
   }
 
@@ -598,6 +626,7 @@ export function buildAuthScaffoldResponse(request = {}) {
       intent: request.intent ?? null,
       continuation: request.continuation ?? null,
       draftSave: request.draftSave ?? null,
+      name: mode === 'signup' ? displayName : null,
     }),
   }
 }

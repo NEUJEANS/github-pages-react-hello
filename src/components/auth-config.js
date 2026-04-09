@@ -32,6 +32,9 @@ export function resolveAuthConfig({
   const queryLoginEndpoint = readString(params.get('authLoginEndpoint'))
   const runtimeLoginEndpoint = readString(runtimeConfig?.loginEndpoint)
   const envLoginEndpoint = readString(env?.VITE_AUTH_LOGIN_ENDPOINT)
+  const querySignupEndpoint = readString(params.get('authSignupEndpoint'))
+  const runtimeSignupEndpoint = readString(runtimeConfig?.signupEndpoint)
+  const envSignupEndpoint = readString(env?.VITE_AUTH_SIGNUP_ENDPOINT)
   const querySessionEndpoint = readString(params.get('authSessionEndpoint'))
   const runtimeSessionEndpoint = readString(runtimeConfig?.sessionEndpoint)
   const envSessionEndpoint = readString(env?.VITE_AUTH_SESSION_ENDPOINT)
@@ -65,6 +68,12 @@ export function resolveAuthConfig({
       runtimeLoginEndpoint
         || queryLoginEndpoint
         || envLoginEndpoint,
+    ),
+    signupEndpoint: readEndpoint(
+      runtimeSignupEndpoint
+        || querySignupEndpoint
+        || envSignupEndpoint,
+      '/api/auth/signup',
     ),
     sessionEndpoint: readEndpoint(
       runtimeSessionEndpoint

@@ -144,6 +144,8 @@ function readRequestPath(req) {
 function normalizeAuthScaffoldPath(pathname = "") {
   if (pathname === "/api/auth/login") return pathname
   if (pathname.endsWith("/api/auth/login")) return "/api/auth/login"
+  if (pathname === "/api/auth/signup") return pathname
+  if (pathname.endsWith("/api/auth/signup")) return "/api/auth/signup"
   if (pathname === "/api/auth/session") return pathname
   if (pathname.endsWith("/api/auth/session")) return "/api/auth/session"
   if (pathname === "/api/auth/pending") return pathname
@@ -221,7 +223,7 @@ function havenlyAuthScaffoldPlugin() {
       return
     }
 
-    if (req.method !== "POST" || requestPath !== "/api/auth/login") {
+    if (req.method !== "POST" || !["/api/auth/login", "/api/auth/signup"].includes(requestPath)) {
       next()
       return
     }

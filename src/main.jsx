@@ -20,7 +20,7 @@ import {
   buildAuthSubmitPlan,
   buildGuestDraftSnapshot,
 } from './components/auth-flow-state.js'
-import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan } from './components/auth-submit.js'
+import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan, submitAuthSignupPlan } from './components/auth-submit.js'
 import { resolveAuthConfig } from './components/auth-config.js'
 import {
   buildAuthConnectionSummary,
@@ -550,8 +550,12 @@ const LOGIN_BUTTON_LABEL = '로그인'
 
 function buildEmptyLoginForm(intent = null) {
   return {
+    mode: 'login',
     email: '',
     password: '',
+    displayName: '',
+    confirmPassword: '',
+    agreeToTerms: false,
     handoffId: null,
     status: 'idle',
     result: null,
@@ -593,6 +597,24 @@ function buildAuthSessionResultSummary(session = null) {
 
 function resolveLoginButtonLabel(authSession) {
   return authSession?.accountLabel ?? LOGIN_BUTTON_LABEL
+}
+
+function buildAuthModeLabels(mode = 'login') {
+  return mode === 'signup'
+    ? {
+        badge: 'SIGN UP',
+        title: '회원가입하고 추천 · 보드 · 장바구니를 한 계정으로 이어보세요',
+        submitLabel: '회원가입',
+        alternateLabel: '이미 계정이 있어요',
+        alternateMode: 'login',
+      }
+    : {
+        badge: 'ACCOUNT',
+        title: '로그인하고 추천 · 보드 · 장바구니를 이어서 관리하세요',
+        submitLabel: '로그인',
+        alternateLabel: '회원가입',
+        alternateMode: 'signup',
+      }
 }
 
 function buildAuthDraftSavePayload(loginFormDraftSave = null, authSessionDraftSave = null, guestDraftSnapshot = null, intent = null) {
@@ -837,9 +859,43 @@ function App() {
     draftSave: authDraftSavePayload,
   }), [authConfig.loginEndpoint, authDraftSavePayload, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password])
 
+  const authSignupPlan = React.useMemo(() => ({
+    canSubmit: loginForm.displayName.trim().length >= 2
+      && loginForm.email.includes('@')
+      && loginForm.password.trim().length >= 8
+      && loginForm.password === loginForm.confirmPassword
+      && loginForm.agreeToTerms,
+    endpoint: authConfig.signupEndpoint,
+    method: 'POST',
+    handoffId: loginForm.handoffId ?? null,
+    request: {
+      mode: 'signup',
+      displayName: loginForm.displayName.trim(),
+      email: loginForm.email.trim().toLowerCase(),
+      password: loginForm.password,
+      guestDraftSnapshot,
+      handoffId: loginForm.handoffId ?? null,
+      intent: buildSerializableAuthIntent(loginForm.intent),
+      draftSave: authDraftSavePayload,
+    },
+    summary: {
+      displayName: loginForm.displayName.trim(),
+      email: loginForm.email.trim().toLowerCase(),
+      handoffId: loginForm.handoffId ?? null,
+      wishlistCount: guestDraftSnapshot?.continuity?.wishlistIds?.length ?? 0,
+      cartCount: guestDraftSnapshot?.continuity?.cartItems?.length ?? 0,
+      layoutItemCount: guestDraftSnapshot?.continuity?.layoutItems?.length ?? 0,
+      hasRecommendationDraft: Boolean(guestDraftSnapshot?.recommendationDraft),
+      intent: buildSerializableAuthIntent(loginForm.intent),
+      draftSave: authDraftSavePayload,
+    },
+  }), [authConfig.signupEndpoint, authDraftSavePayload, guestDraftSnapshot, loginForm.agreeToTerms, loginForm.confirmPassword, loginForm.displayName, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.password])
+
+  const activeAuthPlan = loginForm.mode === 'signup' ? authSignupPlan : authSubmitPlan
+
   const authConnectionSummary = React.useMemo(
-    () => buildAuthConnectionSummary(authSubmitPlan, authConfig),
-    [authConfig, authSubmitPlan],
+    () => buildAuthConnectionSummary(activeAuthPlan, authConfig),
+    [activeAuthPlan, authConfig],
   )
 
   const authLoginConnectionSummary = React.useMemo(
@@ -852,16 +908,16 @@ function App() {
 
   const authResultSummary = React.useMemo(
     () => {
-      if (loginForm.result) return buildAuthResultSummary(loginForm.result, authSubmitPlan.summary)
+      if (loginForm.result) return buildAuthResultSummary(loginForm.result, activeAuthPlan.summary)
       if (loginForm.status === 'ready') return buildAuthSessionResultSummary(authSession)
       return null
     },
-    [authSession, authSubmitPlan.summary, loginForm.result, loginForm.status],
+    [activeAuthPlan.summary, authSession, loginForm.result, loginForm.status],
   )
 
   const authErrorSummary = React.useMemo(
-    () => buildAuthErrorSummary(loginForm.result, authSubmitPlan.summary),
-    [authSubmitPlan.summary, loginForm.result],
+    () => buildAuthErrorSummary(loginForm.result, activeAuthPlan.summary),
+    [activeAuthPlan.summary, loginForm.result],
   )
 
   const activeAuthStatusConnection = loginForm.status === 'resume-ready'
@@ -873,8 +929,8 @@ function App() {
     : authResultSummary
 
   const authStatusMessage = React.useMemo(
-    () => buildAuthStatusCopy(loginForm.status, authSubmitPlan.summary, activeAuthStatusSummary, authErrorSummary, activeAuthStatusConnection),
-    [activeAuthStatusConnection, activeAuthStatusSummary, authErrorSummary, authSubmitPlan.summary, loginForm.status],
+    () => buildAuthStatusCopy(loginForm.status, activeAuthPlan.summary, activeAuthStatusSummary, authErrorSummary, activeAuthStatusConnection),
+    [activeAuthPlan.summary, activeAuthStatusConnection, activeAuthStatusSummary, authErrorSummary, loginForm.status],
   )
 
   const authSessionNotice = React.useMemo(
@@ -1389,17 +1445,30 @@ function App() {
       && Boolean(loginForm.continuation?.resumeToken)
       && Boolean(nextMergeResolution)
 
-    const submitPlan = buildAuthSubmitPlan({
-      email: loginForm.email,
-      password: loginForm.password,
-      guestDraftSnapshot,
-      mergeResolution: nextMergeResolution,
-      handoffId: nextHandoffId,
-      endpoint: authConfig.loginEndpoint,
-      intent: buildSerializableAuthIntent(loginForm.intent),
-      continuation: buildSerializableAuthContinuation(loginForm.continuation),
-      draftSave: authDraftSavePayload,
-    })
+    const submitPlan = loginForm.mode === 'signup'
+      ? {
+          ...authSignupPlan,
+          handoffId: nextHandoffId,
+          request: {
+            ...authSignupPlan.request,
+            handoffId: nextHandoffId,
+          },
+          summary: {
+            ...authSignupPlan.summary,
+            handoffId: nextHandoffId,
+          },
+        }
+      : buildAuthSubmitPlan({
+          email: loginForm.email,
+          password: loginForm.password,
+          guestDraftSnapshot,
+          mergeResolution: nextMergeResolution,
+          handoffId: nextHandoffId,
+          endpoint: authConfig.loginEndpoint,
+          intent: buildSerializableAuthIntent(loginForm.intent),
+          continuation: buildSerializableAuthContinuation(loginForm.continuation),
+          draftSave: authDraftSavePayload,
+        })
 
     const continuationPlan = shouldResolveMergeViaContinuation
       ? buildAuthContinuationPlan({
@@ -1439,7 +1508,9 @@ function App() {
     try {
       const result = shouldResolveMergeViaContinuation
         ? await submitAuthContinuationPlan(continuationPlan, authConfig)
-        : await submitAuthLoginPlan(submitPlan, authConfig)
+        : loginForm.mode === 'signup'
+          ? await submitAuthSignupPlan(submitPlan, authConfig)
+          : await submitAuthLoginPlan(submitPlan, authConfig)
       const nextContinuation = buildSerializableAuthContinuation(result?.data)
       const nextResultSummary = result.ok
         ? buildAuthResultSummary(result, {
@@ -1521,7 +1592,7 @@ function App() {
         mergeResolution: nextMergeResolution,
       }))
     }
-  }, [authConfig, authConnectionSummary, authContinuationFields, authDraftSavePayload, cart, editor, guestDraftSnapshot, loginForm.continuation, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password, screen])
+  }, [authConfig, authConnectionSummary, authContinuationFields, authDraftSavePayload, authSignupPlan, cart, editor, guestDraftSnapshot, loginForm.continuation, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.mode, loginForm.password, screen])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),
@@ -1681,6 +1752,7 @@ function App() {
             reasons={loginGuardReasons}
             form={loginForm}
             authSubmitPlan={authSubmitPlan}
+            authSignupPlan={authSignupPlan}
             authContinuationPlan={authContinuationPlan}
             authContinuationFields={authContinuationFields}
             authStatusMessage={authStatusMessage}
@@ -2315,9 +2387,11 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
 }
 
 
-function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, authReadyPanelState, guestDraftSnapshot, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, authReadyPanelState, guestDraftSnapshot, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
   const guarded = state === 'guard'
   const allowedMergeResolutions = authErrorSummary?.allowedMergeResolutions ?? []
+  const modeLabels = buildAuthModeLabels(form.mode)
+  const activePlan = form.mode === 'signup' ? authSignupPlan : authSubmitPlan
   const mergeResolutionLabels = {
     'replace-with-account': '계정 상태로 전환',
     'keep-guest': '현재 초안으로 계속',
@@ -2332,9 +2406,9 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authCont
           <button className="overlayClose" onClick={onClose}>✕</button>
         </div>
         <div className="loginContent">
-          <div className="loginBadge">ACCOUNT</div>
-          <h2 id="login-title">{guarded ? '진행 중인 작업이 있어요. 그대로 로그인할까요?' : '로그인하고 추천 · 보드 · 장바구니를 이어서 관리하세요'}</h2>
-          <p className="muted">{guarded ? '게스트 상태에서 만든 초안과 활동이 있어 먼저 안내해드려요. 계속하면 계정과 연결하거나 새 상태로 전환될 수 있습니다.' : '페이지를 떠나지 않고 바로 계정을 연결하는 온보딩 블록입니다. 저장한 보드, AI 추천 이력, 찜 목록을 한 번에 이어볼 수 있어요.'}</p>
+          <div className="loginBadge">{guarded ? 'ACCOUNT' : modeLabels.badge}</div>
+          <h2 id="login-title">{guarded ? '진행 중인 작업이 있어요. 그대로 로그인할까요?' : modeLabels.title}</h2>
+          <p className="muted">{guarded ? '게스트 상태에서 만든 초안과 활동이 있어 먼저 안내해드려요. 계속하면 계정과 연결하거나 새 상태로 전환될 수 있습니다.' : form.mode === 'signup' ? '현재 초안과 추천 상태를 유지한 채 새 계정을 만들고 바로 이어갈 수 있게 연결합니다.' : '페이지를 떠나지 않고 바로 계정을 연결하는 온보딩 블록입니다. 저장한 보드, AI 추천 이력, 찜 목록을 한 번에 이어볼 수 있어요.'}</p>
 
           {guarded ? (
             <>
@@ -2440,19 +2514,36 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authCont
             </div>
           ) : (
             <>
+              <div className="authModeSwitch" role="tablist" aria-label="인증 방식 선택">
+                <button className={form.mode === 'login' ? 'solid mini' : 'mini'} onClick={() => onChangeForm('mode', 'login')}>로그인</button>
+                <button className={form.mode === 'signup' ? 'solid mini' : 'mini'} onClick={() => onChangeForm('mode', 'signup')}>회원가입</button>
+              </div>
               <div className="loginBenefits">
                 <div><strong>AI 이력 저장</strong><span>공간별 추천 결과를 다시 불러올 수 있어요.</span></div>
                 <div><strong>보드 이어서 작업</strong><span>배치 중인 가구와 평면도 초안을 계정에 연결합니다.</span></div>
                 {form.intent?.label && <div><strong>이번 로그인 목적</strong><span>{form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</span></div>}
-                <div><strong>백엔드 전달 준비</strong><span>{authSubmitPlan.endpoint} 요청에 게스트 초안과 intent handoff를 같이 묶도록 구조를 맞췄어요.</span></div>
+                <div><strong>백엔드 전달 준비</strong><span>{activePlan.endpoint} 요청에 게스트 초안과 intent handoff를 같이 묶도록 구조를 맞췄어요.</span></div>
                 <div><strong>연결 대상</strong><span>{authConnectionSummary.targetLabel} · {authConnectionSummary.method} {authConnectionSummary.endpoint}</span></div>
                 <div><strong>인증 전송</strong><span>{authConnectionSummary.credentialsMode} credentials · {authConnectionSummary.source === 'default' ? '기본 same-origin scaffold' : authConnectionSummary.source}</span></div>
               </div>
               <div className="loginForm">
+                {form.mode === 'signup' && (
+                  <>
+                    <label>이름</label>
+                    <div className="inputWrap big">👤<input value={form.displayName} onChange={(event) => onChangeForm('displayName', event.target.value)} placeholder="홍길동" /></div>
+                  </>
+                )}
                 <label>이메일</label>
                 <div className="inputWrap big">✉️<input value={form.email} onChange={(event) => onChangeForm('email', event.target.value)} placeholder="name@example.com" /></div>
                 <label>비밀번호</label>
                 <div className="inputWrap big">🔒<input type="password" value={form.password} onChange={(event) => onChangeForm('password', event.target.value)} placeholder="8자 이상 입력" /></div>
+                {form.mode === 'signup' && (
+                  <>
+                    <label>비밀번호 확인</label>
+                    <div className="inputWrap big">✅<input type="password" value={form.confirmPassword} onChange={(event) => onChangeForm('confirmPassword', event.target.value)} placeholder="비밀번호를 한 번 더 입력" /></div>
+                    <label className="authCheckbox"><input type="checkbox" checked={form.agreeToTerms} onChange={(event) => onChangeForm('agreeToTerms', event.target.checked)} /> <span>이 데모 계정을 만들고 현재 초안을 계정에 연결하는 데 동의합니다.</span></label>
+                  </>
+                )}
                 <div className="loginGuardCard authPrepCard">
                   <strong>연결 준비 상태</strong>
                   <p className="muted">{authStatusMessage}</p>
@@ -2472,22 +2563,22 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authCont
                     <p className="muted">병합 확정: {form.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하며 계속 진행' : form.mergeResolution === 'replace-with-account' ? '계정 상태를 우선 적용하며 계속 진행' : form.mergeResolution}</p>
                   )}
                   {form.intent?.label && (
-                    <p className="muted">로그인 후 이어갈 작업: {form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</p>
+                    <p className="muted">{form.mode === 'signup' ? '회원가입 후 이어갈 작업' : '로그인 후 이어갈 작업'}: {form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</p>
                   )}
-                  {authSubmitPlan.summary.draftSave && (
+                  {activePlan.summary.draftSave && (
                     <p className="muted">draftSave handoff: {[
-                      authSubmitPlan.summary.draftSave.draftLabel ? `초안 ${authSubmitPlan.summary.draftSave.draftLabel}` : null,
-                      authSubmitPlan.summary.draftSave.apartmentLabel,
-                      authSubmitPlan.summary.draftSave.recommendationRoom ? `${authSubmitPlan.summary.draftSave.recommendationRoom} 추천` : null,
-                      authSubmitPlan.summary.draftSave.selectedSpaceIds?.length ? `선택 공간 ${authSubmitPlan.summary.draftSave.selectedSpaceIds.length}개` : null,
-                      authSubmitPlan.summary.draftSave.layoutItemCount ? `저장 배치 ${authSubmitPlan.summary.draftSave.layoutItemCount}개` : null,
+                      activePlan.summary.draftSave.draftLabel ? `초안 ${activePlan.summary.draftSave.draftLabel}` : null,
+                      activePlan.summary.draftSave.apartmentLabel,
+                      activePlan.summary.draftSave.recommendationRoom ? `${activePlan.summary.draftSave.recommendationRoom} 추천` : null,
+                      activePlan.summary.draftSave.selectedSpaceIds?.length ? `선택 공간 ${activePlan.summary.draftSave.selectedSpaceIds.length}개` : null,
+                      activePlan.summary.draftSave.layoutItemCount ? `저장 배치 ${activePlan.summary.draftSave.layoutItemCount}개` : null,
                     ].filter(Boolean).join(' · ')}</p>
                   )}
                   <div className="guardSummary compact">
-                    <div><label>handoff</label><b>{authSubmitPlan.summary.handoffId ?? '미생성'}</b></div>
-                    <div><label>찜</label><b>{authSubmitPlan.summary.wishlistCount}개</b></div>
-                    <div><label>장바구니</label><b>{authSubmitPlan.summary.cartCount}개</b></div>
-                    <div><label>배치</label><b>{authSubmitPlan.summary.layoutItemCount}개</b></div>
+                    <div><label>handoff</label><b>{activePlan.summary.handoffId ?? '미생성'}</b></div>
+                    <div><label>찜</label><b>{activePlan.summary.wishlistCount}개</b></div>
+                    <div><label>장바구니</label><b>{activePlan.summary.cartCount}개</b></div>
+                    <div><label>배치</label><b>{activePlan.summary.layoutItemCount}개</b></div>
                     <div><label>대상</label><b>{authConnectionSummary.targetLabel}</b></div>
                     {authResultSummary?.accountLabel && <div><label>계정</label><b>{authResultSummary.accountLabel}</b></div>}
                     {authResultSummary?.sessionId && <div><label>세션</label><b>{authResultSummary.sessionId}</b></div>}
@@ -2501,7 +2592,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authCont
                   </div>
                 </div>
                 <div className="footerButtons stackOnMobile">
-                  <button className="ghost" onClick={onClose}>회원가입</button>
+                  <button className="ghost" onClick={() => onChangeForm('mode', modeLabels.alternateMode)}>{modeLabels.alternateLabel}</button>
                   {form.status === 'resume-ready' && (
                     <button className="ghost" onClick={onDismissResume}>이전 로그인 시도 지우기</button>
                   )}
@@ -2513,7 +2604,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authCont
                   {authErrorSummary?.tone === 'merge' && form.status !== 'ready' && allowedMergeResolutions.length === 0 && (
                     <span className="muted">이 auth scaffold는 아직 병합 선택지를 내려주지 않아 같은 handoff로 재시도만 준비된 상태예요.</span>
                   )}
-                  <button className="cta" disabled={!authSubmitPlan.canSubmit} onClick={() => onSubmit()}>{form.status === 'submitting' ? '준비 중…' : '로그인'}</button>
+                  <button className="cta" disabled={!activePlan.canSubmit || form.status === 'submitting'} onClick={() => onSubmit()}>{form.status === 'submitting' ? '준비 중…' : modeLabels.submitLabel}</button>
                 </div>
               </div>
             </>
