@@ -967,6 +967,14 @@ function App() {
     setLoginModalState('form')
   }, [authSession, loginModalState])
 
+  React.useEffect(() => {
+    if (loginModalState !== 'closed') return
+    if (loginForm.status !== 'resume-ready') return
+    if (!loginForm.handoff && !loginForm.continuation) return
+
+    setLoginModalState('form')
+  }, [loginForm.continuation, loginForm.handoff, loginForm.status, loginModalState])
+
   const authContinuationPlan = React.useMemo(() => buildAuthContinuationPlan({
     endpoint: authConfig.continueEndpoint,
     continuation: authSession?.continuation ?? loginForm.continuation ?? null,
