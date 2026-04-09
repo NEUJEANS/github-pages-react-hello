@@ -79,6 +79,16 @@ test('submitAuthLoginPlan sends the backend-ready payload as json with handoff c
     handoffId: 'auth-20260406123000-2n9c',
     intent: { action: 'save-layout-draft', label: '로그인 후 보드 저장' },
     continuation: { resumeToken: 'resume-123', nextAction: 'confirm-merge-resolution' },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: 'https://api.example.com/api/auth/login',
+      targetLabel: 'api.example.com',
+      isExternal: true,
+      isSameOriginScaffold: false,
+      credentialsMode: 'same-origin',
+      source: 'default',
+    },
   })
   assert.deepEqual(result, {
     ok: true,
@@ -407,6 +417,26 @@ test('submitAuthContinuationPlan forwards resume headers and falls back to the l
   assert.equal(calls[0].options.headers[AUTH_RESUME_TOKEN_HEADER], 'resume-123')
   assert.equal(calls[0].options.headers[AUTH_NEXT_ACTION_HEADER], 'verify-email')
   assert.equal(calls[0].options.headers[AUTH_CONNECTION_ENDPOINT_HEADER], '/api/auth/continue')
+  assert.deepEqual(JSON.parse(calls[0].options.body), {
+    handoffId: 'auth-continue-123',
+    continuation: {
+      resumeToken: 'resume-123',
+      nextAction: 'verify-email',
+    },
+    fields: {
+      verificationCode: '123456',
+    },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/continue',
+      resolvedUrl: 'https://api.example.com/api/auth/continue',
+      targetLabel: 'api.example.com',
+      isExternal: true,
+      isSameOriginScaffold: false,
+      credentialsMode: 'include',
+      source: 'default',
+    },
+  })
 })
 
 test('submitAuthLoginPlan captures text errors from non-json auth scaffolds', async () => {

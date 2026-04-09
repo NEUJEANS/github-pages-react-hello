@@ -241,12 +241,16 @@ export function resetAuthScaffoldState() {
 }
 
 export function submitAuthScaffoldRequest({ request = {}, connection = null, submittedAt = new Date().toISOString() } = {}) {
+  const requestConnection = request?.connection && typeof request.connection === 'object' && !Array.isArray(request.connection)
+    ? cloneValue(request.connection)
+    : null
   const response = buildAuthScaffoldResponse(request)
+  const resolvedConnection = cloneValue(connection ?? requestConnection)
 
   if (response.status >= 200 && response.status < 300) {
     scaffoldState.session = {
       ...cloneValue(response.data),
-      connection: cloneValue(connection),
+      connection: resolvedConnection,
     }
     scaffoldState.pending = null
 
@@ -264,7 +268,7 @@ export function submitAuthScaffoldRequest({ request = {}, connection = null, sub
         continuation: mergeRequestContinuation(request, response),
       },
       response,
-      connection: cloneValue(connection),
+      connection: resolvedConnection,
     })
   }
 

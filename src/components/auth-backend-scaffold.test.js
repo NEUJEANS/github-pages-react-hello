@@ -334,6 +334,50 @@ test('buildAuthScaffoldResponse rejects short passwords and malformed emails', (
   })
 })
 
+test('submitAuthScaffoldRequest can hydrate session connection metadata directly from the serialized request contract', () => {
+  resetAuthScaffoldState()
+
+  const response = submitAuthScaffoldRequest({
+    request: {
+      email: 'user@example.com',
+      password: 'password123',
+      handoffId: 'auth-serialized-connection-1',
+      connection: {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: 'https://api.example.com/api/auth/login',
+        targetLabel: 'api.example.com',
+        isExternal: true,
+        isSameOriginScaffold: false,
+        credentialsMode: 'include',
+        source: 'runtime',
+      },
+    },
+  })
+
+  assert.equal(response.status, 200)
+  assert.deepEqual(response.data.connection, {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: 'https://api.example.com/api/auth/login',
+    targetLabel: 'api.example.com',
+    isExternal: true,
+    isSameOriginScaffold: false,
+    credentialsMode: 'include',
+    source: 'runtime',
+  })
+  assert.deepEqual(readAuthScaffoldSession().data.connection, {
+    method: 'POST',
+    endpoint: '/api/auth/login',
+    resolvedUrl: 'https://api.example.com/api/auth/login',
+    targetLabel: 'api.example.com',
+    isExternal: true,
+    isSameOriginScaffold: false,
+    credentialsMode: 'include',
+    source: 'runtime',
+  })
+})
+
 test('buildAuthScaffoldSessionResponse exposes the latest scaffold auth session payload', () => {
   const response = buildAuthScaffoldSessionResponse({
     ok: true,

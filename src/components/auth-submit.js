@@ -331,8 +331,12 @@ function readRequestContinuation(continuation) {
     : null
 }
 
-function buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders) {
+function buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders, connectionFallback = null) {
   const continuation = readRequestContinuation(plan.request?.continuation)
+  const requestBody = {
+    ...(plan.request ?? {}),
+    ...(connectionFallback ? { connection: { ...connectionFallback } } : {}),
+  }
 
   return {
     method: plan.method,
@@ -344,7 +348,7 @@ function buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders) {
       ...(continuation?.nextAction ? { [AUTH_NEXT_ACTION_HEADER]: continuation.nextAction } : {}),
       ...connectionHeaders,
     },
-    body: JSON.stringify(plan.request),
+    body: JSON.stringify(requestBody),
   }
 }
 
@@ -358,7 +362,7 @@ export async function submitAuthLoginPlan(plan, { fetchImpl = fetch, apiBaseUrl,
     source,
     currentOrigin,
   })
-  const requestInit = buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders)
+  const requestInit = buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders, connectionFallback)
 
   try {
     const { response, data, treatAsDocumentFallback, meta } = await requestAuthJson(endpoint, requestInit, { fetchImpl })
@@ -399,7 +403,7 @@ export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiB
     source,
     currentOrigin,
   })
-  const requestInit = buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders)
+  const requestInit = buildAuthJsonRequestInit(plan, credentialsMode, connectionHeaders, connectionFallback)
 
   const submitScaffoldContinuation = () => {
     const scaffoldResponse = submitAuthScaffoldContinuation({
