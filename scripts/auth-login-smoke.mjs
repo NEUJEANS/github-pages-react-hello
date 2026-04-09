@@ -709,7 +709,7 @@ async function runBrowserSmoke(playwright) {
     await mergePage.getByText('현재 감지된 진행 내역').waitFor()
     const guardReasons = await mergePage.locator('.loginReasonList span').allInnerTexts()
     await continuePastGuardIfPresent(mergePage)
-    await mergePage.getByRole('button', { name: '로그인', exact: true }).waitFor()
+    await mergePage.locator('.loginPanel .loginForm').last().getByRole('button', { name: '로그인', exact: true }).waitFor()
 
     await submitLogin(mergePage, {
       email: 'merge@example.com',

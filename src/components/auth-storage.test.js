@@ -494,8 +494,12 @@ test('buildAuthReadyState revives a bootstrapped scaffold session into the login
   }
 
   assert.deepEqual(buildAuthReadyState(session), {
+    mode: 'login',
     email: 'user@example.com',
     password: '',
+    displayName: '',
+    confirmPassword: '',
+    agreeToTerms: false,
     handoffId: 'auth-20260406123000-2n9c',
     status: 'ready',
     result: null,
@@ -586,6 +590,10 @@ test('buildAuthReadyState can override the active post-login intent without muta
   })
 
   assert.equal(readyState.session, session)
+  assert.equal(readyState.mode, 'login')
+  assert.equal(readyState.displayName, '')
+  assert.equal(readyState.confirmPassword, '')
+  assert.equal(readyState.agreeToTerms, false)
   assert.deepEqual(readyState.intent, {
     source: 'layout-editor',
     action: 'save-layout-draft',

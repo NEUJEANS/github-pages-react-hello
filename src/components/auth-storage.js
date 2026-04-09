@@ -338,8 +338,12 @@ export function buildAuthReadyState(session = null, { intent = null } = {}) {
   if (!session?.accountLabel && !session?.sessionId) return null
 
   return {
+    mode: 'login',
     email: session.accountLabel ?? '',
     password: '',
+    displayName: '',
+    confirmPassword: '',
+    agreeToTerms: false,
     handoffId: session.handoffId ?? null,
     status: 'ready',
     result: null,
