@@ -1,16 +1,29 @@
-export function buildLoginGuardSnapshot({ engagement, wishlistCount = 0, cartCount = 0 }) {
+export function buildLoginGuardSnapshot({
+  engagement,
+  wishlistCount = 0,
+  cartCount = 0,
+  layoutItemCount = 0,
+  hasRecommendationDraft = false,
+  selectedSpaceCount = 0,
+}) {
   const metrics = {
     aiRequests: engagement?.aiRequests ?? 0,
     furniturePlacements: engagement?.furniturePlacements ?? 0,
     draftBoards: engagement?.draftBoards ?? 0,
     wishlistCount,
     cartCount,
+    layoutItemCount,
+    hasRecommendationDraft: Boolean(hasRecommendationDraft),
+    selectedSpaceCount,
   }
 
   const reasons = []
   if (metrics.aiRequests > 0) reasons.push(`AI 추천 요청 ${metrics.aiRequests}회`)
   if (metrics.furniturePlacements > 0) reasons.push(`가구 배치 ${metrics.furniturePlacements}회`)
   if (metrics.draftBoards > 0) reasons.push(`진행 중 보드 ${metrics.draftBoards}개`)
+  if (metrics.layoutItemCount > 0) reasons.push(`저장 예정 배치 ${metrics.layoutItemCount}개`)
+  if (metrics.selectedSpaceCount > 0) reasons.push(`선택 공간 ${metrics.selectedSpaceCount}개`)
+  if (metrics.hasRecommendationDraft) reasons.push('추천 초안 유지 중')
   if (metrics.wishlistCount > 0) reasons.push(`찜 ${metrics.wishlistCount}개`)
   if (metrics.cartCount > 0) reasons.push(`장바구니 ${metrics.cartCount}개`)
 

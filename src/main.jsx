@@ -826,7 +826,16 @@ function App() {
     engagement,
     wishlistCount: wishlistedIds.length,
     cartCount: cart.count,
-  }), [cart.count, engagement, wishlistedIds.length])
+    layoutItemCount: editor.items.length,
+    hasRecommendationDraft: Boolean(
+      aiForm.extraRequest?.trim()
+      || aiForm.room !== initialAiForm.room
+      || aiForm.style !== initialAiForm.style
+      || aiForm.priority !== initialAiForm.priority
+      || JSON.stringify(aiForm.lifestyle ?? []) !== JSON.stringify(initialAiForm.lifestyle),
+    ),
+    selectedSpaceCount: spaceProfile.spaces.length,
+  }), [aiForm.extraRequest, aiForm.lifestyle, aiForm.priority, aiForm.style, cart.count, editor.items.length, engagement, spaceProfile.spaces.length, wishlistedIds.length])
 
   const guestDraftSnapshot = React.useMemo(() => buildGuestDraftSnapshot({
     engagement,
