@@ -2407,6 +2407,8 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
 function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, authReadyPanelState, guestDraftSnapshot, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
   const guarded = state === 'guard'
   const allowedMergeResolutions = authErrorSummary?.allowedMergeResolutions ?? []
+  const isMergeContinuationPending = form.continuation?.nextAction === 'confirm-merge-resolution'
+  const hasSelectedMergeResolution = Boolean(form.mergeResolution)
   const modeLabels = buildAuthModeLabels(form.mode)
   const activePlan = form.mode === 'signup' ? authSignupPlan : authSubmitPlan
   const guardPanelState = buildAuthGuardPanelState({
@@ -2419,6 +2421,10 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
   })
   const mergeResolutionLabels = {
     'replace-with-account': '계정 상태로 전환',
+    'keep-guest': '현재 초안으로 계속',
+  }
+  const mergeResolutionCtaLabels = {
+    'replace-with-account': '계정 상태로 전환해서 계속',
     'keep-guest': '현재 초안으로 계속',
   }
   const mergeResolutionPreviewCopy = {
@@ -2679,23 +2685,23 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                   {form.status === 'resume-ready' && (
                     <button className="ghost" onClick={onDismissResume}>이전 로그인 시도 지우기</button>
                   )}
-                  {authErrorSummary?.tone === 'merge' && form.status !== 'ready' && allowedMergeResolutions.map((resolution) => (
+                  {(authErrorSummary?.tone === 'merge' || isMergeContinuationPending) && form.status !== 'ready' && allowedMergeResolutions.map((resolution) => (
                     <button key={resolution} className="ghost" onClick={() => onChangeForm('mergeResolution', resolution)}>
                       {form.mergeResolution === resolution ? `선택됨 · ${mergeResolutionLabels[resolution] ?? resolution}` : (mergeResolutionLabels[resolution] ?? resolution)}
                     </button>
                   ))}
-                  {authErrorSummary?.tone === 'merge' && form.status !== 'ready' && allowedMergeResolutions.length === 0 && (
+                  {(authErrorSummary?.tone === 'merge' || isMergeContinuationPending) && form.status !== 'ready' && allowedMergeResolutions.length === 0 && !hasSelectedMergeResolution && (
                     <span className="muted">이 auth scaffold는 아직 병합 선택지를 내려주지 않아 같은 handoff로 재시도만 준비된 상태예요.</span>
                   )}
                   <button
                     className="cta"
-                    disabled={(!activePlan.canSubmit && !(authErrorSummary?.tone === 'merge' && form.mergeResolution)) || form.status === 'submitting'}
+                    disabled={(!activePlan.canSubmit && !(isMergeContinuationPending && hasSelectedMergeResolution)) || form.status === 'submitting'}
                     onClick={() => onSubmit()}
                   >
                     {form.status === 'submitting'
                       ? '준비 중…'
-                      : authErrorSummary?.tone === 'merge' && form.mergeResolution
-                        ? `${mergeResolutionLabels[form.mergeResolution] ?? form.mergeResolution}로 계속`
+                      : isMergeContinuationPending && hasSelectedMergeResolution
+                        ? (mergeResolutionCtaLabels[form.mergeResolution] ?? `${mergeResolutionLabels[form.mergeResolution] ?? form.mergeResolution}로 계속`)
                         : modeLabels.submitLabel}
                   </button>
                 </div>
