@@ -611,6 +611,22 @@ async function readLoginConnectionPreview(page) {
   }
 }
 
+function normalizeUiText(value) {
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
+}
+
+async function readVisibleAccountLabel(page) {
+  const spanLabels = await page.locator('.accountTrigger span').evaluateAll((nodes) => (
+    nodes
+      .map((node) => node.textContent?.replace(/\s+/g, ' ').trim() ?? '')
+      .filter(Boolean)
+  )).catch(() => [])
+  const buttonLabel = normalizeUiText(await page.locator('.accountTrigger').innerText().catch(() => ''))
+  const meaningfulSpanLabel = [...spanLabels].reverse().find((value) => value && !/[🧑👤]/.test(value)) ?? ''
+
+  return meaningfulSpanLabel || buttonLabel
+}
+
 async function waitForAuthReadySignal(page, { expectedAccountLabel = null, timeoutMs = 30000 } = {}) {
   const startedAt = Date.now()
 
@@ -618,25 +634,40 @@ async function waitForAuthReadySignal(page, { expectedAccountLabel = null, timeo
     const authSessionNotice = page.locator('.authSessionNotice')
     if (await authSessionNotice.count()) {
       if (await authSessionNotice.first().isVisible().catch(() => false)) {
-        return {
-          signal: 'session-notice',
-          notice: await page.locator('.authSessionNotice p').innerText().catch(() => null),
+        const noticeTitle = normalizeUiText(await page.locator('.authSessionNotice strong').first().innerText().catch(() => ''))
+        const notice = normalizeUiText(await page.locator('.authSessionNotice p').innerText().catch(() => '')) || null
+
+        if (!expectedAccountLabel || noticeTitle.includes(expectedAccountLabel) || notice?.includes(expectedAccountLabel) || noticeTitle.includes('계정 연결됨')) {
+          return {
+            signal: 'session-notice',
+            notice,
+            accountLabel: expectedAccountLabel && noticeTitle.includes(expectedAccountLabel)
+              ? expectedAccountLabel
+              : null,
+          }
         }
       }
     }
 
-    const accountLabel = await page.locator('.accountTrigger span').last().innerText().catch(() => '')
-    const normalizedAccountLabel = typeof accountLabel === 'string' ? accountLabel.trim() : ''
-    if (expectedAccountLabel && normalizedAccountLabel === expectedAccountLabel) {
+    const normalizedAccountLabel = normalizeUiText(await readVisibleAccountLabel(page))
+    if (expectedAccountLabel ? normalizedAccountLabel.includes(expectedAccountLabel) : Boolean(normalizedAccountLabel && normalizedAccountLabel !== '로그인')) {
       return {
         signal: 'account-label',
         accountLabel: normalizedAccountLabel,
       }
     }
 
+    const logoutVisible = await page.getByRole('button', { name: '로그아웃' }).first().isVisible().catch(() => false)
+    if (logoutVisible && (!expectedAccountLabel || normalizedAccountLabel.includes(expectedAccountLabel))) {
+      return {
+        signal: 'logout-visible',
+        accountLabel: normalizedAccountLabel || null,
+      }
+    }
+
     const readyPanelCta = page.locator('.loginPanel .footerButtons .cta').last()
     if (await readyPanelCta.count()) {
-      const ctaLabel = (await readyPanelCta.innerText().catch(() => '')).trim()
+      const ctaLabel = normalizeUiText(await readyPanelCta.innerText().catch(() => ''))
       if (ctaLabel && ctaLabel !== '로그인' && ctaLabel !== '준비 중…') {
         return {
           signal: 'ready-panel',
@@ -649,7 +680,15 @@ async function waitForAuthReadySignal(page, { expectedAccountLabel = null, timeo
     await delay(250)
   }
 
-  throw new Error(`Timed out waiting for an authenticated UI signal${expectedAccountLabel ? ` for ${expectedAccountLabel}` : ''}`)
+  const debugState = {
+    accountLabel: normalizeUiText(await readVisibleAccountLabel(page)),
+    sessionNoticeTitle: normalizeUiText(await page.locator('.authSessionNotice strong').first().innerText().catch(() => '')),
+    sessionNoticeBody: normalizeUiText(await page.locator('.authSessionNotice p').first().innerText().catch(() => '')),
+    logoutVisible: await page.getByRole('button', { name: '로그아웃' }).first().isVisible().catch(() => false),
+    loginPanelVisible: await page.locator('.loginPanel').first().isVisible().catch(() => false),
+  }
+
+  throw new Error(`Timed out waiting for an authenticated UI signal${expectedAccountLabel ? ` for ${expectedAccountLabel}` : ''}. Debug: ${JSON.stringify(debugState)}`)
 }
 
 async function waitForLoggedOutSignal(page, { timeoutMs = 15000 } = {}) {
