@@ -2522,6 +2522,20 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     </ul>
                   </div>
                 )}
+                {authReadyPanelState.actionPayloadPreview && (
+                  <div className="loginGuardCard authPrepCard">
+                    <strong>계속 요청 payload 미리보기</strong>
+                    <p className="muted">{authReadyPanelState.actionPayloadPreview.targetLabel ?? '현재 인증 연결 대상'}{authReadyPanelState.actionPayloadPreview.endpoint ? ` → ${authReadyPanelState.actionPayloadPreview.endpoint}` : ''}로 `/api/auth/continue` 요청을 이어갑니다.</p>
+                    <div className="guardSummary compact">
+                      {authReadyPanelState.actionPayloadPreview.handoffId && <div><label>handoff</label><b>{authReadyPanelState.actionPayloadPreview.handoffId}</b></div>}
+                      {authReadyPanelState.actionPayloadPreview.resumeToken && <div><label>resume token</label><b>{authReadyPanelState.actionPayloadPreview.resumeToken}</b></div>}
+                      <div><label>payload keys</label><b>{authReadyPanelState.actionPayloadPreview.payloadKeys.join(', ')}</b></div>
+                      {authReadyPanelState.actionPayloadPreview.fieldKeys.length > 0 && <div><label>field keys</label><b>{authReadyPanelState.actionPayloadPreview.fieldKeys.join(', ')}</b></div>}
+                      {authReadyPanelState.actionPayloadPreview.draftSaveSelectedSpaceCount > 0 && <div><label>draftSave 공간</label><b>{authReadyPanelState.actionPayloadPreview.draftSaveSelectedSpaceCount}개</b></div>}
+                      {authReadyPanelState.actionPayloadPreview.draftSaveLayoutItemCount > 0 && <div><label>draftSave 배치</label><b>{authReadyPanelState.actionPayloadPreview.draftSaveLayoutItemCount}개</b></div>}
+                    </div>
+                  </div>
+                )}
                 <div className="guardSummary compact">
                   <div><label>계정</label><b>{authReadyPanelState.accountLabel}</b></div>
                   {authReadyPanelState.sessionId && <div><label>세션</label><b>{authReadyPanelState.sessionId}</b></div>}

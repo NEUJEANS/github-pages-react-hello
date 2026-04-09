@@ -30,6 +30,38 @@ function buildIntentCopy(intent) {
   return ` ${label}${draftCopy} 단계까지 이어서 진행할 수 있어요.`
 }
 
+function buildActionPayloadPreview(nextAction, { resumeToken = null, handoffId = null, connectionLabel = null, connectionEndpoint = null, draftSave = null } = {}) {
+  const payloadKeys = ['continuation', 'handoffId']
+  const fieldKeys = []
+
+  if (resumeToken) payloadKeys.push('resumeToken')
+  if (draftSave) payloadKeys.push('draftSave')
+
+  switch (nextAction) {
+    case 'complete-profile':
+      fieldKeys.push('displayName', 'phone')
+      break
+    case 'verify-email':
+      fieldKeys.push('verificationCode')
+      break
+    default:
+      break
+  }
+
+  if (!handoffId && !resumeToken && !fieldKeys.length && !draftSave && !connectionEndpoint && !connectionLabel) return null
+
+  return {
+    endpoint: connectionEndpoint ?? '/api/auth/continue',
+    targetLabel: connectionLabel ?? null,
+    handoffId: handoffId ?? null,
+    resumeToken: resumeToken ?? null,
+    payloadKeys,
+    fieldKeys,
+    draftSaveLayoutItemCount: draftSave?.layoutItemCount ?? 0,
+    draftSaveSelectedSpaceCount: Array.isArray(draftSave?.selectedSpaceIds) ? draftSave.selectedSpaceIds.length : 0,
+  }
+}
+
 function buildActionChecklist(nextAction, { resumeToken = null, connectionLabel = null, connectionEndpoint = null } = {}) {
   switch (nextAction) {
     case 'complete-profile':
@@ -212,6 +244,13 @@ export function buildAuthReadyPanelState(session = null, { actionConnection = nu
     connectionLabel,
     connectionEndpoint,
   })
+  const actionPayloadPreview = buildActionPayloadPreview(nextAction, {
+    resumeToken,
+    handoffId: session.handoffId ?? null,
+    connectionLabel,
+    connectionEndpoint,
+    draftSave: session.draftSave ?? null,
+  })
 
   return {
     title,
@@ -236,6 +275,7 @@ export function buildAuthReadyPanelState(session = null, { actionConnection = nu
     primaryActionHint,
     primaryActionDisabled,
     actionChecklist,
+    actionPayloadPreview,
   }
 }
 

@@ -129,6 +129,16 @@ test('buildAuthReadyPanelState summarizes the authenticated resume panel for boo
     primaryActionHint: '로그인 후 저장하려던 배치 초안을 그대로 이어갈 수 있어요.',
     primaryActionDisabled: false,
     actionChecklist: null,
+    actionPayloadPreview: {
+      endpoint: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      handoffId: 'auth-20260406123000-2n9c',
+      resumeToken: 'auth-20260406123000-2n9c:resume',
+      payloadKeys: ['continuation', 'handoffId', 'resumeToken', 'draftSave'],
+      fieldKeys: [],
+      draftSaveLayoutItemCount: 3,
+      draftSaveSelectedSpaceCount: 2,
+    },
   })
 
   assert.equal(buildAuthReadyPanelState(null), null)
@@ -169,6 +179,16 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionHint: '계정 장바구니 기준으로 다음 주문 단계를 이어갈 수 있어요.',
     primaryActionDisabled: false,
     actionChecklist: null,
+    actionPayloadPreview: {
+      endpoint: '/api/auth/continue',
+      targetLabel: null,
+      handoffId: null,
+      resumeToken: 'auth-user-1234:resume',
+      payloadKeys: ['continuation', 'handoffId', 'resumeToken'],
+      fieldKeys: [],
+      draftSaveLayoutItemCount: 0,
+      draftSaveSelectedSpaceCount: 0,
+    },
   })
 
   assert.deepEqual(buildAuthReadyPanelState({
@@ -205,6 +225,16 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionHint: '계정 기준으로 복원된 보드와 저장 상태를 레이아웃 화면에서 확인할 수 있어요.',
     primaryActionDisabled: false,
     actionChecklist: null,
+    actionPayloadPreview: {
+      endpoint: '/api/auth/continue',
+      targetLabel: null,
+      handoffId: null,
+      resumeToken: 'auth-user-1234:resume',
+      payloadKeys: ['continuation', 'handoffId', 'resumeToken'],
+      fieldKeys: [],
+      draftSaveLayoutItemCount: 0,
+      draftSaveSelectedSpaceCount: 0,
+    },
   })
 
   assert.deepEqual(buildAuthReadyPanelState({
@@ -241,6 +271,16 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionHint: '병합된 게스트 초안을 레이아웃 흐름에서 바로 이어 확인할 수 있어요.',
     primaryActionDisabled: false,
     actionChecklist: null,
+    actionPayloadPreview: {
+      endpoint: '/api/auth/continue',
+      targetLabel: null,
+      handoffId: null,
+      resumeToken: 'auth-user-1234:resume',
+      payloadKeys: ['continuation', 'handoffId', 'resumeToken'],
+      fieldKeys: [],
+      draftSaveLayoutItemCount: 0,
+      draftSaveSelectedSpaceCount: 0,
+    },
   })
 
   assert.deepEqual(buildAuthReadyPanelState({
@@ -285,6 +325,16 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
         '현재 인증 연결 대상을 그대로 유지하기',
         '닉네임 · 연락처 같은 프로필 필드를 직렬화 가능한 payload로 최소 구성하기',
       ],
+    },
+    actionPayloadPreview: {
+      endpoint: '/api/auth/continue',
+      targetLabel: null,
+      handoffId: null,
+      resumeToken: 'auth-user-1234:profile',
+      payloadKeys: ['continuation', 'handoffId', 'resumeToken'],
+      fieldKeys: ['displayName', 'phone'],
+      draftSaveLayoutItemCount: 0,
+      draftSaveSelectedSpaceCount: 0,
     },
   })
 
@@ -336,6 +386,16 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
         '인증 완료 전에는 로그인 모달을 닫지 않고 상태만 갱신하기',
       ],
     },
+    actionPayloadPreview: {
+      endpoint: '/api/auth/continue',
+      targetLabel: 'same-origin /api auth scaffold',
+      handoffId: null,
+      resumeToken: 'auth-user-1234:verify',
+      payloadKeys: ['continuation', 'handoffId', 'resumeToken'],
+      fieldKeys: ['verificationCode'],
+      draftSaveLayoutItemCount: 0,
+      draftSaveSelectedSpaceCount: 0,
+    },
   })
 
   assert.deepEqual(buildAuthReadyPanelState({
@@ -371,6 +431,16 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionHint: '백엔드 scaffold가 현재 인증 handoff를 확인했어요. 로그인 모달을 닫고 지금 보던 흐름으로 돌아갈 수 있어요.',
     primaryActionDisabled: false,
     actionChecklist: null,
+    actionPayloadPreview: {
+      endpoint: '/api/auth/continue',
+      targetLabel: null,
+      handoffId: null,
+      resumeToken: 'auth-user-1234:resume',
+      payloadKeys: ['continuation', 'handoffId', 'resumeToken'],
+      fieldKeys: [],
+      draftSaveLayoutItemCount: 0,
+      draftSaveSelectedSpaceCount: 0,
+    },
   })
 })
 

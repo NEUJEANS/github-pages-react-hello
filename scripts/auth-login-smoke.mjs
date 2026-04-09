@@ -823,6 +823,7 @@ async function runBrowserSmoke(playwright) {
     await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).waitFor()
     const completeProfileStatus = await completeProfilePage.locator('.authPrepCard .muted').first().innerText()
     const completeProfileChecklist = await completeProfilePage.locator('.authChecklist li').allInnerTexts()
+    const completeProfilePayloadPreview = await completeProfilePage.locator('.loginForm .authPrepCard').filter({ hasText: '계속 요청 payload 미리보기' }).first().locator('.guardSummary.compact div').allInnerTexts()
     const completeProfileReadyDisabled = await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).isDisabled()
     await completeProfilePage.getByPlaceholder('홍길동').fill('Havenly User')
     await completeProfilePage.getByPlaceholder('010-1234-5678').fill('010-1234-5678')
@@ -848,6 +849,7 @@ async function runBrowserSmoke(playwright) {
     await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).waitFor()
     const verifyEmailStatus = await verifyEmailPage.locator('.authPrepCard .muted').first().innerText()
     const verifyEmailChecklist = await verifyEmailPage.locator('.authChecklist li').allInnerTexts()
+    const verifyEmailPayloadPreview = await verifyEmailPage.locator('.loginForm .authPrepCard').filter({ hasText: '계속 요청 payload 미리보기' }).first().locator('.guardSummary.compact div').allInnerTexts()
     const verifyEmailReadyDisabled = await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).isDisabled()
     await verifyEmailPage.getByPlaceholder('123456').fill('123456')
     await verifyEmailPage.reload({ waitUntil: 'networkidle' })
@@ -913,6 +915,7 @@ async function runBrowserSmoke(playwright) {
         completeProfile: {
           status: completeProfileStatus,
           checklist: completeProfileChecklist,
+          payloadPreview: completeProfilePayloadPreview,
           primaryActionDisabled: completeProfileReadyDisabled,
           reloadedStatus: completeProfileReloadedStatus,
           reloadedFields: {
@@ -924,6 +927,7 @@ async function runBrowserSmoke(playwright) {
         verifyEmail: {
           status: verifyEmailStatus,
           checklist: verifyEmailChecklist,
+          payloadPreview: verifyEmailPayloadPreview,
           primaryActionDisabled: verifyEmailReadyDisabled,
           reloadedStatus: verifyEmailReloadedStatus,
           reloadedFields: {
