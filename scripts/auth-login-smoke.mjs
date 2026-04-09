@@ -558,6 +558,7 @@ async function resetBrowserScenario(page) {
   await page.context().clearCookies()
   await clearBrowserStorage(page)
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' })
+  await ensureAppShellReady(page)
   await ensureLoggedOutUi(page)
 }
 
@@ -572,10 +573,31 @@ async function waitForLoginModal(page) {
 
 async function openLogin(page) {
   await ensureAppShellReady(page)
-  const loginTrigger = page.getByRole('button', { name: '로그인 열기' }).first()
+
+  const loginPanel = page.locator('.loginPanel[data-auth-modal-state]')
+  if (await loginPanel.first().isVisible().catch(() => false)) {
+    await waitForLoginModal(page)
+    return
+  }
+
+  const loginTrigger = page.locator('.accountTrigger').first()
   await loginTrigger.waitFor({ state: 'visible', timeout: 15000 })
-  await loginTrigger.click()
-  await waitForLoginModal(page)
+  await loginTrigger.scrollIntoViewIfNeeded().catch(() => null)
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.evaluate(() => {
+      const trigger = document.querySelector('.accountTrigger')
+      if (trigger instanceof HTMLElement) trigger.click()
+    })
+
+    try {
+      await waitForLoginModal(page)
+      return
+    } catch (error) {
+      if (attempt === 2) throw error
+      await page.waitForTimeout(400)
+    }
+  }
 }
 
 async function readGuardPanelPreview(page) {
