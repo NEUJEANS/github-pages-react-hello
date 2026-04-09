@@ -636,10 +636,21 @@ function assertGuardPanelPreview(preview) {
 async function continuePastGuardIfPresent(page) {
   const guardButton = page.getByRole('button', { name: '그래도 로그인하기' })
   const guardVisible = await guardButton.isVisible().catch(() => false)
-  if (guardVisible) {
-    await guardButton.click()
-    await page.locator('.loginPanel .loginForm').last().waitFor({ state: 'visible', timeout: 15000 })
-  }
+  if (!guardVisible) return
+
+  await guardButton.click()
+
+  await page.waitForFunction(() => {
+    const loginPanel = document.querySelector('.loginPanel[data-auth-modal-state]')
+    if (!(loginPanel instanceof HTMLElement)) return false
+    const modalState = loginPanel.dataset.authModalState ?? ''
+    return modalState && modalState !== 'guard'
+  }, { timeout: 15000 })
+
+  await Promise.any([
+    page.locator('.loginPanel .loginForm').last().waitFor({ state: 'visible', timeout: 15000 }),
+    page.locator('.loginPanel [data-auth-preview="login-connection-status"]').first().waitFor({ state: 'visible', timeout: 15000 }),
+  ])
 }
 
 async function fillLoginForm(page, { email, password }) {
@@ -773,11 +784,11 @@ async function waitForLoggedOutSignal(page, { timeoutMs = 15000 } = {}) {
   const startedAt = Date.now()
 
   while (Date.now() - startedAt < timeoutMs) {
-    const accountLabel = await page.locator('.accountTrigger span').last().innerText().catch(() => '')
-    const normalizedAccountLabel = typeof accountLabel === 'string' ? accountLabel.trim() : ''
+    const normalizedAccountLabel = normalizeUiText(await readVisibleAccountLabel(page))
     const authSessionNoticeVisible = await page.locator('.authSessionNotice').first().isVisible().catch(() => false)
+    const loginTriggerVisible = await page.getByRole('button', { name: '로그인 열기' }).first().isVisible().catch(() => false)
 
-    if (normalizedAccountLabel === '로그인' && !authSessionNoticeVisible) {
+    if (normalizedAccountLabel === '로그인' && !authSessionNoticeVisible && loginTriggerVisible) {
       return {
         accountLabel: normalizedAccountLabel,
       }
