@@ -206,6 +206,8 @@ test('buildAuthScaffoldResponse returns 409 for the merge-conflict demo password
   assert.equal(response.data.allowedMergeResolution, 'keep-guest')
   assert.equal(response.data.resumeToken, 'auth-merge-1234:merge')
   assert.equal(response.data.nextAction, 'confirm-merge-resolution')
+  assert.equal(response.data.status, 'action-required')
+  assert.equal(response.data.statusLabel, '초안 병합 방향 확인 필요')
   assert.equal(response.data.mergedGuestDraft.layoutItemCount, 1)
 })
 

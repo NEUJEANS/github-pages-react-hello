@@ -81,6 +81,11 @@ function buildContinuationStatus(nextAction, continuation = null) {
         status: 'action-required',
         statusLabel: '이메일 인증 필요',
       }
+    case 'confirm-merge-resolution':
+      return {
+        status: 'action-required',
+        statusLabel: '초안 병합 방향 확인 필요',
+      }
     default:
       return {
         status: null,
@@ -611,6 +616,7 @@ export function buildAuthScaffoldResponse(request = {}) {
         ...(handoffId ? { handoffId } : {}),
         resumeToken: handoffId ? `${handoffId}:merge` : null,
         nextAction: 'confirm-merge-resolution',
+        ...buildContinuationStatus('confirm-merge-resolution'),
         mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot),
       },
     }

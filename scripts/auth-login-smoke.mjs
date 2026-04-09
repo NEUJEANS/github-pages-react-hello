@@ -433,6 +433,8 @@ async function runHttpSmoke() {
       promptStatus: mergePrompt.result.status,
       promptTone: mergePrompt.errorSummary?.tone ?? null,
       promptMessage: mergePrompt.errorSummary?.message ?? null,
+      promptContinuationStatus: mergePrompt.result.data?.status ?? null,
+      promptContinuationStatusLabel: mergePrompt.result.data?.statusLabel ?? null,
       allowedMergeResolutions: mergePrompt.errorSummary?.allowedMergeResolutions ?? [],
       resolvedStatus: mergeResolved.result.status,
       resolvedMergeMode: mergeResolved.resultSummary?.mergeMode ?? null,

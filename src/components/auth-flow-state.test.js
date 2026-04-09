@@ -581,6 +581,8 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
         allowedMergeResolutions: ['replace-with-account', 'keep-guest', 'replace-with-account'],
         resumeToken: 'resume-merge',
         nextAction: 'confirm-merge-resolution',
+        status: 'action-required',
+        statusLabel: '초안 병합 방향 확인 필요',
       },
     }, {
       handoffId: 'auth-20260406123000-2n9c',
@@ -602,6 +604,8 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
       allowedMergeResolutions: ['replace-with-account', 'keep-guest'],
       resumeToken: 'resume-merge',
       nextAction: 'confirm-merge-resolution',
+      continuationStatus: 'action-required',
+      continuationStatusLabel: '초안 병합 방향 확인 필요',
     },
   )
 })
@@ -639,5 +643,19 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
       },
     ),
     /user@example.com 계정과 연결 준비됨.*handoff auth-20260406123000-2n9c.*session-1.*게스트 초안 병합 완료.*same-origin scaffold로 응답 확인.*resume-layout-checkout.*resume-123.*프로필 보완 필요/,
+  )
+
+  assert.match(
+    buildAuthStatusCopy(
+      'error',
+      { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
+      null,
+      {
+        tone: 'merge',
+        message: 'Guest draft merge confirmation required',
+        continuationStatusLabel: '초안 병합 방향 확인 필요',
+      },
+    ),
+    /Guest draft merge confirmation required.*초안 병합 방향 확인 필요.*찜 2개.*장바구니 1개.*배치 3개/,
   )
 })

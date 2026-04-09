@@ -338,6 +338,8 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
       allowedMergeResolutions: readAllowedMergeResolutions(data),
       resumeToken: data.resumeToken ?? null,
       nextAction: normalizeContinuationNextAction(data.nextAction ?? null),
+      continuationStatus: data.status ?? null,
+      continuationStatusLabel: data.statusLabel ?? null,
     }
   }
 
@@ -389,7 +391,7 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
   }
   if (status === 'error') {
     if (errorSummary?.tone === 'credentials') return `${errorSummary.message} · 게스트 초안은 유지되어 다시 시도할 수 있어요.`
-    if (errorSummary?.tone === 'merge') return `${errorSummary.message} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개 handoff 기록을 유지합니다. 계속 진행하면 같은 초안으로 병합 방향을 확정할 수 있어요.`
+    if (errorSummary?.tone === 'merge') return `${errorSummary.message}${errorSummary.continuationStatusLabel ? ` · ${errorSummary.continuationStatusLabel}` : errorSummary.continuationStatus ? ` · ${errorSummary.continuationStatus}` : ''} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개 handoff 기록을 유지합니다. 계속 진행하면 같은 초안으로 병합 방향을 확정할 수 있어요.`
     if (errorSummary?.tone === 'service') {
       if (connectionSummary?.isSameOriginScaffold) {
         return `${errorSummary.message} · 현재는 ${connectionSummary.targetLabel} 대상만 준비되어 있어서, auth base URL 또는 백엔드 라우트가 연결되면 같은 초안으로 다시 이어갈 수 있어요.`
