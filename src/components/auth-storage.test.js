@@ -315,6 +315,14 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
       displayName: ' 홍길동 ',
       phone: ' 010-1234-5678 ',
     },
+    result: {
+      ok: false,
+      status: 409,
+      data: {
+        message: 'Guest draft merge confirmation required',
+        allowedMergeResolutions: ['keep-guest', 'replace-with-account', 'keep-guest'],
+      },
+    },
   })
 
   assert.equal(persistAuthHandoff(storage, handoff), true)
@@ -347,6 +355,9 @@ test('persistAuthHandoff stores the serializable guest draft payload for follow-
     displayName: '홍길동',
     phone: '010-1234-5678',
   })
+  assert.equal(handoff.status, 409)
+  assert.equal(handoff.error, 'Guest draft merge confirmation required')
+  assert.deepEqual(handoff.allowedMergeResolutions, ['keep-guest', 'replace-with-account', 'keep-guest'])
 })
 
 test('buildPersistedAuthHandoff keeps the serialized draft-save handoff alongside interrupted login state', () => {

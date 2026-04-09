@@ -140,7 +140,28 @@ export function createAuthHandoffId({ now = new Date(), random = Math.random } =
   return `auth-${timestamp}-${entropy}`
 }
 
-export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedAt = new Date().toISOString(), connection = null, continuation = null, continuationFields = null, draftSave = null } = {}) {
+function buildSerializableAuthHandoffResult(result = null) {
+  if (!result || typeof result !== 'object') return {}
+
+  const status = typeof result.status === 'number' ? result.status : null
+  const data = result.data && typeof result.data === 'object' && !Array.isArray(result.data)
+    ? result.data
+    : null
+  const message = typeof data?.message === 'string' && data.message.trim()
+    ? data.message.trim()
+    : (typeof data?.error === 'string' && data.error.trim() ? data.error.trim() : null)
+  const allowedMergeResolutions = Array.isArray(data?.allowedMergeResolutions)
+    ? [...data.allowedMergeResolutions]
+    : (data?.allowedMergeResolution ? [data.allowedMergeResolution] : null)
+
+  return {
+    ...(status !== null ? { status } : {}),
+    ...(message ? { error: message } : {}),
+    ...(allowedMergeResolutions?.length ? { allowedMergeResolutions } : {}),
+  }
+}
+
+export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedAt = new Date().toISOString(), connection = null, continuation = null, continuationFields = null, draftSave = null, result = null } = {}) {
   return {
     submittedAt,
     handoffId: plan.handoffId ?? plan.summary?.handoffId ?? null,
@@ -156,6 +177,7 @@ export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedA
     continuationFields: buildSerializableAuthContinuationFields(continuationFields),
     draftSave: buildSerializableDraftSave(draftSave),
     guestDraftSnapshot,
+    ...buildSerializableAuthHandoffResult(result),
   }
 }
 

@@ -1651,6 +1651,7 @@ function App() {
               ? { mergeResolution: nextMergeResolution }
               : pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
             draftSave: authDraftSavePayload,
+            result,
           }),
         )
       }
