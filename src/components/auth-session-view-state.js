@@ -44,6 +44,9 @@ function buildActionPayloadPreview(nextAction, { resumeToken = null, handoffId =
     case 'verify-email':
       fieldKeys.push('verificationCode')
       break
+    case 'confirm-merge-resolution':
+      fieldKeys.push('mergeResolution')
+      break
     default:
       break
   }
@@ -82,6 +85,16 @@ function buildActionChecklist(nextAction, { resumeToken = null, connectionLabel 
           resumeToken ? `resume token ${resumeToken} 으로 인증 확인 조회를 재개하기` : '이메일 인증 확인 조회에 resume token 전달하기',
           connectionLabel ? `현재 인증 연결 대상 ${connectionLabel}${connectionEndpoint ? ` (${connectionEndpoint})` : ''} 기준으로 폴링/재개 흐름 붙이기` : '현재 인증 연결 대상 기준으로 폴링/재개 흐름 붙이기',
           '인증 완료 전에는 로그인 모달을 닫지 않고 상태만 갱신하기',
+        ],
+      }
+    case 'confirm-merge-resolution':
+      return {
+        title: '초안 병합 방향 확정 준비',
+        description: '백엔드가 게스트 초안과 계정 상태 중 어떤 기준으로 이어갈지 다시 확인하고 있어요. 새로 로그인하지 않고 같은 handoff 계약으로 병합 방향만 확정할 수 있어요.',
+        items: [
+          resumeToken ? `resume token ${resumeToken} 과 함께 선택한 mergeResolution 값을 그대로 재개 요청에 실어 보내기` : '선택한 mergeResolution 값을 재개 요청에 포함하기',
+          connectionLabel ? `현재 인증 연결 대상 ${connectionLabel}${connectionEndpoint ? ` (${connectionEndpoint})` : ''} 기준으로 같은 handoff를 이어가기` : '현재 인증 연결 대상 기준으로 같은 handoff를 이어가기',
+          '확정 전에는 게스트 초안과 계정 상태를 모두 유지한 채 병합 방향만 선택하기',
         ],
       }
     default:
@@ -133,6 +146,12 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
         primaryActionHint: '인증 코드를 바로 제출하고, backend가 준비 완료를 돌려주면 원래 이어가려던 흐름으로 복귀할 수 있어요.',
         primaryActionDisabled: false,
       }
+    case 'confirm-merge-resolution':
+      return {
+        primaryActionLabel: '병합 방향 확정',
+        primaryActionHint: '선택한 병합 기준으로 `/api/auth/continue` 재개 요청을 보내면, backend가 같은 handoff를 이어서 다음 상태를 돌려줄 수 있어요.',
+        primaryActionDisabled: false,
+      }
     case 'resume-authenticated-flow':
       return {
         primaryActionLabel: returnScreen ? `${intentLabel} 이어가기` : '현재 흐름으로 돌아가기',
@@ -153,7 +172,7 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
 }
 
 function shouldUseContinuationConnection(nextAction = null) {
-  return nextAction === 'complete-profile' || nextAction === 'verify-email'
+  return nextAction === 'complete-profile' || nextAction === 'verify-email' || nextAction === 'confirm-merge-resolution'
 }
 
 export function buildAuthGuardPanelState({
@@ -289,6 +308,7 @@ export function shouldAutoOpenAuthReadyPanel(session = null, modalState = 'close
   return status === 'action-required'
     || nextAction === 'complete-profile'
     || nextAction === 'verify-email'
+    || nextAction === 'confirm-merge-resolution'
 }
 
 export function buildAuthSessionNotice(session) {

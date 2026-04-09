@@ -442,6 +442,67 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
       draftSaveSelectedSpaceCount: 0,
     },
   })
+
+  assert.deepEqual(buildAuthReadyPanelState({
+    accountLabel: 'merge@example.com',
+    handoffId: 'auth-merge-1234',
+    continuation: {
+      nextAction: 'confirm-merge-resolution',
+      resumeToken: 'auth-merge-1234:resume',
+      status: 'action-required',
+      statusLabel: '초안 병합 확인 필요',
+    },
+    connection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/login',
+    },
+  }, {
+    actionConnection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/continue',
+    },
+  }), {
+    title: 'merge@example.com 계정 연결됨',
+    subtitle: '현재 로그인 연결이 유지되고 있어요.',
+    restoredBits: [],
+    draftContextBits: [],
+    draftSaveBits: [],
+    accountLabel: 'merge@example.com',
+    handoffId: 'auth-merge-1234',
+    sessionId: null,
+    mergeMode: null,
+    intentLabel: '저장한 작업',
+    intentDraftLabel: null,
+    nextAction: 'confirm-merge-resolution',
+    resumeToken: 'auth-merge-1234:resume',
+    continuationStatus: 'action-required',
+    continuationStatusLabel: '초안 병합 확인 필요',
+    returnScreen: null,
+    connectionLabel: 'same-origin /api auth scaffold',
+    connectionEndpoint: '/api/auth/continue',
+    primaryActionLabel: '병합 방향 확정',
+    primaryActionHint: '선택한 병합 기준으로 `/api/auth/continue` 재개 요청을 보내면, backend가 같은 handoff를 이어서 다음 상태를 돌려줄 수 있어요.',
+    primaryActionDisabled: false,
+    actionChecklist: {
+      title: '초안 병합 방향 확정 준비',
+      description: '백엔드가 게스트 초안과 계정 상태 중 어떤 기준으로 이어갈지 다시 확인하고 있어요. 새로 로그인하지 않고 같은 handoff 계약으로 병합 방향만 확정할 수 있어요.',
+      items: [
+        'resume token auth-merge-1234:resume 과 함께 선택한 mergeResolution 값을 그대로 재개 요청에 실어 보내기',
+        '현재 인증 연결 대상 same-origin /api auth scaffold (/api/auth/continue) 기준으로 같은 handoff를 이어가기',
+        '확정 전에는 게스트 초안과 계정 상태를 모두 유지한 채 병합 방향만 선택하기',
+      ],
+    },
+    actionPayloadPreview: {
+      endpoint: '/api/auth/continue',
+      targetLabel: 'same-origin /api auth scaffold',
+      handoffId: 'auth-merge-1234',
+      resumeToken: 'auth-merge-1234:resume',
+      payloadKeys: ['continuation', 'handoffId', 'resumeToken'],
+      fieldKeys: ['mergeResolution'],
+      draftSaveLayoutItemCount: 0,
+      draftSaveSelectedSpaceCount: 0,
+    },
+  })
 })
 
 test('shouldAutoOpenAuthReadyPanel reopens the login modal for action-required auth continuations', () => {
@@ -458,6 +519,12 @@ test('shouldAutoOpenAuthReadyPanel reopens the login modal for action-required a
     accountLabel: 'user@example.com',
     continuation: {
       nextAction: 'verify-email',
+    },
+  }), true)
+  assert.equal(shouldAutoOpenAuthReadyPanel({
+    accountLabel: 'user@example.com',
+    continuation: {
+      nextAction: 'confirm-merge-resolution',
     },
   }), true)
   assert.equal(shouldAutoOpenAuthReadyPanel({

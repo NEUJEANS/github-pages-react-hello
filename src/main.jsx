@@ -979,11 +979,15 @@ function App() {
         ? {
             verificationCode: authContinuationFields.verificationCode,
           }
-        : loginForm.continuation?.nextAction === 'confirm-merge-resolution' && loginForm.mergeResolution
+        : authReadyPanelState?.nextAction === 'confirm-merge-resolution' && loginForm.mergeResolution
           ? {
               mergeResolution: loginForm.mergeResolution,
             }
-          : null,
+          : loginForm.continuation?.nextAction === 'confirm-merge-resolution' && loginForm.mergeResolution
+            ? {
+                mergeResolution: loginForm.mergeResolution,
+              }
+            : null,
     draftSave: shouldAttachDraftSaveToAuthContinuation(
       authSession?.intent ?? loginForm.intent ?? null,
       authSession?.continuation ?? loginForm.continuation ?? null,
@@ -2507,6 +2511,27 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <p className="muted">실제 인증 UI 전 단계로, token을 유지한 채 최소 확인 payload만 `/api/auth/continue`로 보냅니다.</p>
                   </div>
                 )}
+                {authReadyPanelState.nextAction === 'confirm-merge-resolution' && (
+                  <div className="loginGuardCard authPrepCard">
+                    <strong>병합 방향 payload</strong>
+                    <p className="muted">이전에 멈춘 병합 확인을 같은 handoff / resume token으로 재개합니다. 프론트에서는 직렬화 가능한 mergeResolution 한 필드만 붙여 `/api/auth/continue`에 전달합니다.</p>
+                    <div className="footerButtons stackOnMobile">
+                      <button className="ghost" onClick={() => onChangeForm('mergeResolution', 'keep-guest')}>
+                        {form.mergeResolution === 'keep-guest' ? '선택됨 · 현재 초안으로 계속' : '현재 초안으로 계속'}
+                      </button>
+                      <button className="ghost" onClick={() => onChangeForm('mergeResolution', 'replace-with-account')}>
+                        {form.mergeResolution === 'replace-with-account' ? '선택됨 · 계정 상태로 전환' : '계정 상태로 전환'}
+                      </button>
+                    </div>
+                    {form.mergeResolution && (
+                      <>
+                        <p className="muted">병합 확정: {form.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하며 계속 진행' : '계정 상태를 우선 적용하며 계속 진행'}</p>
+                        <p className="muted">재개 계약: {authReadyPanelState.nextAction}{authReadyPanelState.resumeToken ? ` · token ${authReadyPanelState.resumeToken}` : ''} · mergeResolution {form.mergeResolution}</p>
+                        <p className="muted">제출 대상: {authReadyPanelState.connectionLabel ?? authConnectionSummary.targetLabel}{authReadyPanelState.connectionEndpoint ? ` (${authReadyPanelState.connectionEndpoint})` : authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''} → /api/auth/continue</p>
+                      </>
+                    )}
+                  </div>
+                )}
                 {authContinuationPlan.summary.missingFields.length > 0 && (
                   <p className="muted">계속하려면 {authContinuationPlan.summary.missingFields.join(', ')} 필드를 먼저 채워주세요.</p>
                 )}
@@ -2549,7 +2574,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
               </div>
               <div className="footerButtons stackOnMobile">
                 <button className="ghost" onClick={onClose}>닫기</button>
-                {authReadyPanelState.nextAction === 'complete-profile' || authReadyPanelState.nextAction === 'verify-email' ? (
+                {authReadyPanelState.nextAction === 'complete-profile' || authReadyPanelState.nextAction === 'verify-email' || authReadyPanelState.nextAction === 'confirm-merge-resolution' ? (
                   <button className="cta" disabled={!authContinuationPlan.canSubmit || form.status === 'submitting'} onClick={onSubmitContinuation}>
                     {form.status === 'submitting' ? '연결 중…' : authReadyPanelState.primaryActionLabel}
                   </button>
