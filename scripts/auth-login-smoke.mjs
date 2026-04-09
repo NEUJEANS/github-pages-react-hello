@@ -673,8 +673,11 @@ function assertLoginConnectionPreview(preview) {
   const expectedFragments = [
     '/api/auth/login',
     'payload keys',
+    'response keys',
     'guestDraftSnapshot',
     'connection',
+    'resumeToken',
+    'nextAction',
   ]
 
   for (const fragment of expectedFragments) {

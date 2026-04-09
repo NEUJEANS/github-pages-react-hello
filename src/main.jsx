@@ -2660,6 +2660,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <div className="guardSummary compact">
                       {guardPanelState.submitPayloadPreview.handoffId && <div><label>handoff</label><b>{guardPanelState.submitPayloadPreview.handoffId}</b></div>}
                       <div><label>payload keys</label><b>{guardPanelState.submitPayloadPreview.payloadKeys.join(', ')}</b></div>
+                      <div><label>response keys</label><b>{guardPanelState.submitPayloadPreview.expectedResponseKeys.join(', ')}</b></div>
                       <div><label>찜</label><b>{guardPanelState.submitPayloadPreview.wishlistCount}개</b></div>
                       <div><label>장바구니</label><b>{guardPanelState.submitPayloadPreview.cartCount}개</b></div>
                       <div><label>배치</label><b>{guardPanelState.submitPayloadPreview.layoutItemCount}개</b></div>
@@ -2749,6 +2750,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                       {authReadyPanelState.actionPayloadPreview.handoffId && <div><label>handoff</label><b>{authReadyPanelState.actionPayloadPreview.handoffId}</b></div>}
                       {authReadyPanelState.actionPayloadPreview.resumeToken && <div><label>resume token</label><b>{authReadyPanelState.actionPayloadPreview.resumeToken}</b></div>}
                       <div><label>payload keys</label><b>{authReadyPanelState.actionPayloadPreview.payloadKeys.join(', ')}</b></div>
+                      <div><label>response keys</label><b>{authReadyPanelState.actionPayloadPreview.expectedResponseKeys.join(', ')}</b></div>
                       {authReadyPanelState.actionPayloadPreview.fieldKeys.length > 0 && <div><label>field keys</label><b>{authReadyPanelState.actionPayloadPreview.fieldKeys.join(', ')}</b></div>}
                       {authReadyPanelState.actionPayloadPreview.draftSaveSelectedSpaceCount > 0 && <div><label>draftSave 공간</label><b>{authReadyPanelState.actionPayloadPreview.draftSaveSelectedSpaceCount}개</b></div>}
                       {authReadyPanelState.actionPayloadPreview.draftSaveLayoutItemCount > 0 && <div><label>draftSave 배치</label><b>{authReadyPanelState.actionPayloadPreview.draftSaveLayoutItemCount}개</b></div>}
@@ -2866,6 +2868,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                       <div className="guardSummary compact">
                         {loginPanelState.submitPayloadPreview.handoffId && <div><label>handoff</label><b>{loginPanelState.submitPayloadPreview.handoffId}</b></div>}
                         <div><label>payload keys</label><b>{loginPanelState.submitPayloadPreview.payloadKeys.join(', ')}</b></div>
+                        <div><label>response keys</label><b>{loginPanelState.submitPayloadPreview.expectedResponseKeys.join(', ')}</b></div>
                         <div><label>찜</label><b>{loginPanelState.submitPayloadPreview.wishlistCount}개</b></div>
                         <div><label>장바구니</label><b>{loginPanelState.submitPayloadPreview.cartCount}개</b></div>
                         <div><label>배치</label><b>{loginPanelState.submitPayloadPreview.layoutItemCount}개</b></div>

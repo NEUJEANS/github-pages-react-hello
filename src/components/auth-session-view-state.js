@@ -34,20 +34,31 @@ function buildSubmitPayloadPreview(authSummary = null, connection = null) {
   if (!authSummary && !connection) return null
 
   const payloadKeys = ['email', 'password', 'handoffId']
+  const expectedResponseKeys = ['handoffId', 'sessionId', 'user', 'connection']
 
   if ((authSummary?.wishlistCount ?? 0) > 0 || (authSummary?.cartCount ?? 0) > 0 || (authSummary?.layoutItemCount ?? 0) > 0 || authSummary?.hasRecommendationDraft) {
     payloadKeys.push('guestDraftSnapshot')
+    expectedResponseKeys.push('guestDraftSummary', 'mergedGuestDraft')
   }
   if (authSummary?.mergeResolution) payloadKeys.push('mergeResolution')
-  if (authSummary?.intent) payloadKeys.push('intent')
+  if (authSummary?.intent) {
+    payloadKeys.push('intent')
+    expectedResponseKeys.push('intent')
+  }
   if (authSummary?.continuation) payloadKeys.push('continuation')
-  if (authSummary?.draftSave) payloadKeys.push('draftSave')
+  if (authSummary?.draftSave) {
+    payloadKeys.push('draftSave')
+    expectedResponseKeys.push('draftSave')
+  }
   if (connection) payloadKeys.push('connection')
+
+  expectedResponseKeys.push('resumeToken', 'nextAction')
 
   return {
     endpoint: connection?.endpoint ?? '/api/auth/login',
     targetLabel: connection?.targetLabel ?? null,
     payloadKeys,
+    expectedResponseKeys,
     handoffId: authSummary?.handoffId ?? null,
     draftSaveLayoutItemCount: authSummary?.draftSave?.layoutItemCount ?? 0,
     draftSaveSelectedSpaceCount: Array.isArray(authSummary?.draftSave?.selectedSpaceIds) ? authSummary.draftSave.selectedSpaceIds.length : 0,
@@ -60,9 +71,13 @@ function buildSubmitPayloadPreview(authSummary = null, connection = null) {
 function buildActionPayloadPreview(nextAction, { resumeToken = null, handoffId = null, connectionLabel = null, connectionEndpoint = null, continuationEndpoint = null, draftSave = null } = {}) {
   const payloadKeys = ['continuation', 'handoffId']
   const fieldKeys = []
+  const expectedResponseKeys = ['handoffId', 'sessionId', 'user', 'connection', 'resumeToken', 'nextAction', 'status', 'statusLabel']
 
   if (resumeToken) payloadKeys.push('resumeToken')
-  if (draftSave) payloadKeys.push('draftSave')
+  if (draftSave) {
+    payloadKeys.push('draftSave')
+    expectedResponseKeys.push('draftSave')
+  }
 
   switch (nextAction) {
     case 'complete-profile':
@@ -90,6 +105,7 @@ function buildActionPayloadPreview(nextAction, { resumeToken = null, handoffId =
     resumeToken: resumeToken ?? null,
     payloadKeys,
     fieldKeys,
+    expectedResponseKeys,
     draftSaveLayoutItemCount: draftSave?.layoutItemCount ?? 0,
     draftSaveSelectedSpaceCount: Array.isArray(draftSave?.selectedSpaceIds) ? draftSave.selectedSpaceIds.length : 0,
   }
