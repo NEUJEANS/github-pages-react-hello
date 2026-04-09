@@ -2659,13 +2659,26 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                   {authErrorSummary && (
                     <p className="muted">오류 분류: {authErrorSummary.tone === 'credentials' ? '자격 증명' : authErrorSummary.tone === 'merge' ? '초안 병합' : authErrorSummary.tone === 'service' ? '인증 서비스' : '기타'}</p>
                   )}
-                  {form.mergeResolution && (
+                  {isMergeContinuationPending && (
                     <div className="loginGuardCard authPrepCard">
-                      <strong>병합 재개 payload 미리보기</strong>
-                      <p className="muted">병합 확정: {form.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하며 계속 진행' : form.mergeResolution === 'replace-with-account' ? '계정 상태를 우선 적용하며 계속 진행' : form.mergeResolution}</p>
-                      <p className="muted">재개 계약: {form.continuation?.nextAction ?? 'confirm-merge-resolution'}{form.continuation?.resumeToken ? ` · token ${form.continuation.resumeToken}` : ''} · mergeResolution {form.mergeResolution}</p>
-                      <p className="muted">제출 대상: {authConnectionSummary.targetLabel}{authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''} → /api/auth/continue</p>
-                      <p className="muted">{mergeResolutionPreviewCopy[form.mergeResolution] ?? '선택한 병합 기준으로 현재 인증 handoff를 다시 이어갑니다.'}</p>
+                      <strong>병합 방향 payload · 병합 재개 payload 미리보기</strong>
+                      <p className="muted">이전에 멈춘 병합 확인을 같은 handoff / resume token으로 재개합니다. 프론트에서는 직렬화 가능한 mergeResolution 한 필드만 붙여 `/api/auth/continue`에 전달합니다.</p>
+                      <div className="footerButtons stackOnMobile">
+                        <button className="ghost" onClick={() => onChangeForm('mergeResolution', 'keep-guest')}>
+                          {form.mergeResolution === 'keep-guest' ? '선택됨 · 현재 초안으로 계속' : '현재 초안으로 계속'}
+                        </button>
+                        <button className="ghost" onClick={() => onChangeForm('mergeResolution', 'replace-with-account')}>
+                          {form.mergeResolution === 'replace-with-account' ? '선택됨 · 계정 상태로 전환' : '계정 상태로 전환'}
+                        </button>
+                      </div>
+                      {form.mergeResolution && (
+                        <>
+                          <p className="muted">병합 확정: {form.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하며 계속 진행' : form.mergeResolution === 'replace-with-account' ? '계정 상태를 우선 적용하며 계속 진행' : form.mergeResolution}</p>
+                          <p className="muted">재개 계약: {form.continuation?.nextAction ?? 'confirm-merge-resolution'}{form.continuation?.resumeToken ? ` · token ${form.continuation.resumeToken}` : ''} · mergeResolution {form.mergeResolution}</p>
+                          <p className="muted">제출 대상: {authConnectionSummary.targetLabel}{authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''} → /api/auth/continue</p>
+                          <p className="muted">{mergeResolutionPreviewCopy[form.mergeResolution] ?? '선택한 병합 기준으로 현재 인증 handoff를 다시 이어갑니다.'}</p>
+                        </>
+                      )}
                     </div>
                   )}
                   {form.intent?.label && (
@@ -2702,7 +2715,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                   {form.status === 'resume-ready' && (
                     <button className="ghost" onClick={onDismissResume}>이전 로그인 시도 지우기</button>
                   )}
-                  {(authErrorSummary?.tone === 'merge' || isMergeContinuationPending) && form.status !== 'ready' && allowedMergeResolutions.map((resolution) => (
+                  {(authErrorSummary?.tone === 'merge' || isMergeContinuationPending) && !isMergeContinuationPending && form.status !== 'ready' && allowedMergeResolutions.map((resolution) => (
                     <button key={resolution} className="ghost" onClick={() => onChangeForm('mergeResolution', resolution)}>
                       {form.mergeResolution === resolution ? `선택됨 · ${mergeResolutionLabels[resolution] ?? resolution}` : (mergeResolutionLabels[resolution] ?? resolution)}
                     </button>
