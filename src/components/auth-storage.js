@@ -323,8 +323,12 @@ export function buildAuthResumeState(handoff, session = null) {
   if (!handoff) return null
 
   return {
+    mode: 'login',
     email: handoff.email ?? '',
     password: '',
+    displayName: '',
+    confirmPassword: '',
+    agreeToTerms: false,
     handoffId: handoff.handoffId ?? handoff.summary?.handoffId ?? null,
     status: 'resume-ready',
     result: buildAuthResumeResult(handoff),
@@ -337,6 +341,7 @@ export function buildAuthResumeState(handoff, session = null) {
     continuation: buildSerializableAuthContinuation(handoff.continuation ?? session?.continuation ?? null),
     continuationFields: buildSerializableAuthContinuationFields(handoff.continuationFields ?? session?.continuationFields ?? null),
     draftSave: buildSerializableDraftSave(handoff.draftSave ?? session?.draftSave ?? null),
+    accountState: buildSerializableAuthAccountState(session?.accountState ?? null),
   }
 }
 

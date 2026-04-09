@@ -439,8 +439,12 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
   const session = { accountLabel: 'user@example.com' }
   const resumeState = buildAuthResumeState(handoff, session)
 
+  assert.equal(resumeState.mode, 'login')
   assert.equal(resumeState.email, 'user@example.com')
   assert.equal(resumeState.password, '')
+  assert.equal(resumeState.displayName, '')
+  assert.equal(resumeState.confirmPassword, '')
+  assert.equal(resumeState.agreeToTerms, false)
   assert.equal(resumeState.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(resumeState.status, 'resume-ready')
   assert.deepEqual(resumeState.result, {
@@ -484,6 +488,7 @@ test('buildAuthResumeState revives an interrupted login attempt from persisted h
     phone: '010-1234-5678',
   })
   assert.equal(resumeState.draftSave, null)
+  assert.equal(resumeState.accountState, null)
 })
 
 test('buildGuestDraftSessionSummary keeps the persisted post-login restore details serializable', () => {

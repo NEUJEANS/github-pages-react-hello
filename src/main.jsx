@@ -1077,7 +1077,18 @@ function App() {
         })
       }
 
-      if (persistedAuthHandoff || cancelled) return
+      if (persistedAuthHandoff) {
+        if (!cancelled) {
+          setLoginForm((current) => (
+            current.status === 'submitting'
+              ? current
+              : (buildAuthResumeState(persistedAuthHandoff, persistedAuthSession) ?? current)
+          ))
+          setLoginModalState('form')
+        }
+        return
+      }
+      if (cancelled) return
 
       const pendingResult = await readAuthPending({
         endpoint: authConfig.pendingEndpoint,
