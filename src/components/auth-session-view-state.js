@@ -30,7 +30,7 @@ function buildIntentCopy(intent) {
   return ` ${label}${draftCopy} 단계까지 이어서 진행할 수 있어요.`
 }
 
-function buildActionPayloadPreview(nextAction, { resumeToken = null, handoffId = null, connectionLabel = null, connectionEndpoint = null, draftSave = null } = {}) {
+function buildActionPayloadPreview(nextAction, { resumeToken = null, handoffId = null, connectionLabel = null, connectionEndpoint = null, continuationEndpoint = null, draftSave = null } = {}) {
   const payloadKeys = ['continuation', 'handoffId']
   const fieldKeys = []
 
@@ -51,10 +51,12 @@ function buildActionPayloadPreview(nextAction, { resumeToken = null, handoffId =
       break
   }
 
-  if (!handoffId && !resumeToken && !fieldKeys.length && !draftSave && !connectionEndpoint && !connectionLabel) return null
+  const normalizedContinuationEndpoint = continuationEndpoint ?? '/api/auth/continue'
+
+  if (!handoffId && !resumeToken && !fieldKeys.length && !draftSave && !connectionEndpoint && !connectionLabel && !normalizedContinuationEndpoint) return null
 
   return {
-    continuationEndpoint: '/api/auth/continue',
+    continuationEndpoint: normalizedContinuationEndpoint,
     connectionEndpoint: connectionEndpoint ?? null,
     targetLabel: connectionLabel ?? null,
     handoffId: handoffId ?? null,
@@ -269,6 +271,9 @@ export function buildAuthReadyPanelState(session = null, { actionConnection = nu
     handoffId: session.handoffId ?? null,
     connectionLabel,
     connectionEndpoint,
+    continuationEndpoint: shouldUseContinuationConnection(nextAction)
+      ? (actionConnection?.endpoint ?? null)
+      : null,
     draftSave: session.draftSave ?? null,
   })
 

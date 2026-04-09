@@ -2506,9 +2506,10 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
     'replace-with-account': '계정 상태로 전환해서 계속',
     'keep-guest': '현재 초안으로 계속',
   }
+  const continuationEndpointLabel = authContinuationPlan.endpoint ?? '/api/auth/continue'
   const mergeResolutionPreviewCopy = {
-    'replace-with-account': '계정에 저장된 상태를 우선 적용하고, 현재 게스트 handoff는 비교 문맥으로만 유지해 `/api/auth/continue` 재개 요청을 보냅니다.',
-    'keep-guest': '지금 보고 있던 게스트 초안을 우선 유지하고, 같은 handoff와 resume token으로 `/api/auth/continue` 재개 요청을 보냅니다.',
+    'replace-with-account': `계정에 저장된 상태를 우선 적용하고, 현재 게스트 handoff는 비교 문맥으로만 유지해 \`${continuationEndpointLabel}\` 재개 요청을 보냅니다.`,
+    'keep-guest': `지금 보고 있던 게스트 초안을 우선 유지하고, 같은 handoff와 resume token으로 \`${continuationEndpointLabel}\` 재개 요청을 보냅니다.`,
   }
 
   return (
@@ -2585,7 +2586,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <div className="inputWrap big">👤<input value={authContinuationFields.displayName} onChange={(event) => onChangeContinuationField('displayName', event.target.value)} placeholder="홍길동" /></div>
                     <label>연락처</label>
                     <div className="inputWrap big">📱<input value={authContinuationFields.phone} onChange={(event) => onChangeContinuationField('phone', event.target.value)} placeholder="010-1234-5678" /></div>
-                    <p className="muted">직렬화 가능한 최소 필드만 `/api/auth/continue`로 전달해 scaffold 응답과 세션 갱신을 확인합니다.</p>
+                    <p className="muted">직렬화 가능한 최소 필드만 <code>{continuationEndpointLabel}</code>로 전달해 scaffold 응답과 세션 갱신을 확인합니다.</p>
                   </div>
                 )}
                 {authReadyPanelState.nextAction === 'verify-email' && (
@@ -2593,13 +2594,13 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <strong>이메일 인증 payload</strong>
                     <label>인증 코드</label>
                     <div className="inputWrap big">✅<input value={authContinuationFields.verificationCode} onChange={(event) => onChangeContinuationField('verificationCode', event.target.value)} placeholder="123456" /></div>
-                    <p className="muted">실제 인증 UI 전 단계로, token을 유지한 채 최소 확인 payload만 `/api/auth/continue`로 보냅니다.</p>
+                    <p className="muted">실제 인증 UI 전 단계로, token을 유지한 채 최소 확인 payload만 <code>{continuationEndpointLabel}</code>로 보냅니다.</p>
                   </div>
                 )}
                 {authReadyPanelState.nextAction === 'confirm-merge-resolution' && (
                   <div className="loginGuardCard authPrepCard">
                     <strong>병합 방향 payload</strong>
-                    <p className="muted">이전에 멈춘 병합 확인을 같은 handoff / resume token으로 재개합니다. 프론트에서는 직렬화 가능한 mergeResolution 한 필드만 붙여 `/api/auth/continue`에 전달합니다.</p>
+                    <p className="muted">이전에 멈춘 병합 확인을 같은 handoff / resume token으로 재개합니다. 프론트에서는 직렬화 가능한 mergeResolution 한 필드만 붙여 <code>{continuationEndpointLabel}</code>에 전달합니다.</p>
                     <div className="footerButtons stackOnMobile">
                       <button className="ghost" onClick={() => onChangeContinuationField('mergeResolution', 'keep-guest')}>
                         {form.mergeResolution === 'keep-guest' ? '선택됨 · 현재 초안으로 계속' : '현재 초안으로 계속'}
@@ -2612,7 +2613,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                       <>
                         <p className="muted">병합 확정: {form.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하며 계속 진행' : '계정 상태를 우선 적용하며 계속 진행'}</p>
                         <p className="muted">재개 계약: {authReadyPanelState.nextAction}{authReadyPanelState.resumeToken ? ` · token ${authReadyPanelState.resumeToken}` : ''} · mergeResolution {form.mergeResolution}</p>
-                        <p className="muted">제출 대상: {authReadyPanelState.connectionLabel ?? authConnectionSummary.targetLabel}{authReadyPanelState.connectionEndpoint ? ` (${authReadyPanelState.connectionEndpoint})` : authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''} → /api/auth/continue</p>
+                        <p className="muted">제출 대상: {authReadyPanelState.connectionLabel ?? authConnectionSummary.targetLabel}{authReadyPanelState.connectionEndpoint ? ` (${authReadyPanelState.connectionEndpoint})` : authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''} → {continuationEndpointLabel}</p>
                       </>
                     )}
                   </div>
@@ -2724,7 +2725,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                   {isMergeContinuationPending && (
                     <div className="loginGuardCard authPrepCard">
                       <strong>병합 방향 payload · 병합 재개 payload 미리보기</strong>
-                      <p className="muted">이전에 멈춘 병합 확인을 같은 handoff / resume token으로 재개합니다. 프론트에서는 직렬화 가능한 mergeResolution 한 필드만 붙여 `/api/auth/continue`에 전달합니다.</p>
+                      <p className="muted">이전에 멈춘 병합 확인을 같은 handoff / resume token으로 재개합니다. 프론트에서는 직렬화 가능한 mergeResolution 한 필드만 붙여 <code>{continuationEndpointLabel}</code>에 전달합니다.</p>
                       <div className="footerButtons stackOnMobile">
                         <button className="ghost" onClick={() => onChangeForm('mergeResolution', 'keep-guest')}>
                           {form.mergeResolution === 'keep-guest' ? '선택됨 · 현재 초안으로 계속' : '현재 초안으로 계속'}
@@ -2737,7 +2738,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                         <>
                           <p className="muted">병합 확정: {form.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하며 계속 진행' : form.mergeResolution === 'replace-with-account' ? '계정 상태를 우선 적용하며 계속 진행' : form.mergeResolution}</p>
                           <p className="muted">재개 계약: {form.continuation?.nextAction ?? 'confirm-merge-resolution'}{form.continuation?.resumeToken ? ` · token ${form.continuation.resumeToken}` : ''} · mergeResolution {form.mergeResolution}</p>
-                          <p className="muted">제출 대상: {authConnectionSummary.targetLabel}{authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''} → /api/auth/continue</p>
+                          <p className="muted">제출 대상: {authConnectionSummary.targetLabel}{authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''} → {continuationEndpointLabel}</p>
                           <p className="muted">{mergeResolutionPreviewCopy[form.mergeResolution] ?? '선택한 병합 기준으로 현재 인증 handoff를 다시 이어갑니다.'}</p>
                         </>
                       )}

@@ -513,6 +513,31 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
   })
 })
 
+test('buildAuthReadyPanelState carries a configured continuation endpoint into the payload preview contract', () => {
+  const state = buildAuthReadyPanelState({
+    accountLabel: 'profile@example.com',
+    handoffId: 'auth-profile-123',
+    continuation: {
+      nextAction: 'complete-profile',
+      resumeToken: 'auth-profile-123:resume',
+      status: 'action-required',
+    },
+    connection: {
+      targetLabel: 'remote auth service',
+      endpoint: '/api/auth/login',
+    },
+  }, {
+    actionConnection: {
+      targetLabel: 'remote auth service',
+      endpoint: '/v2/auth/continue',
+    },
+  })
+
+  assert.equal(state.actionPayloadPreview.continuationEndpoint, '/v2/auth/continue')
+  assert.equal(state.connectionEndpoint, '/v2/auth/continue')
+  assert.deepEqual(state.actionPayloadPreview.fieldKeys, ['displayName', 'phone'])
+})
+
 test('shouldAutoOpenAuthReadyPanel reopens the login modal for action-required auth continuations', () => {
   assert.equal(shouldAutoOpenAuthReadyPanel(null), false)
   assert.equal(shouldAutoOpenAuthReadyPanel({ accountLabel: 'user@example.com' }), false)
