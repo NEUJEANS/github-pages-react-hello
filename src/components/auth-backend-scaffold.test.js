@@ -164,6 +164,29 @@ test('buildAuthScaffoldResponse derives an action-required blocker for complete-
   assert.equal(response.data.statusLabel, '프로필 보완 필요')
 })
 
+test('buildAuthScaffoldResponse can expose demo action-required blockers directly from login credentials', () => {
+  const profileResponse = buildAuthScaffoldResponse({
+    email: 'profile@example.com',
+    password: 'password123',
+    handoffId: 'auth-demo-profile-1234',
+  })
+  const verifyResponse = buildAuthScaffoldResponse({
+    email: 'verify@example.com',
+    password: 'password123',
+    handoffId: 'auth-demo-verify-1234',
+  })
+
+  assert.equal(profileResponse.status, 200)
+  assert.equal(profileResponse.data.nextAction, 'complete-profile')
+  assert.equal(profileResponse.data.status, 'action-required')
+  assert.equal(profileResponse.data.statusLabel, '프로필 보완 필요')
+
+  assert.equal(verifyResponse.status, 200)
+  assert.equal(verifyResponse.data.nextAction, 'verify-email')
+  assert.equal(verifyResponse.data.status, 'action-required')
+  assert.equal(verifyResponse.data.statusLabel, '이메일 인증 필요')
+})
+
 test('buildAuthScaffoldResponse returns 409 for the merge-conflict demo password', () => {
   const response = buildAuthScaffoldResponse({
     email: 'user@example.com',

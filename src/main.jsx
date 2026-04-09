@@ -42,6 +42,7 @@ import {
 import { buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './components/auth-session-view-state.js'
 import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
+import { shouldPreservePersistedAuthSessionOnBootstrapFailure } from './components/auth-bootstrap-state.js'
 import {
   canResumePostAuthIntent,
   resolvePostAuthScreen,
@@ -966,6 +967,18 @@ function App() {
       }
 
       if (!cancelled && persistedAuthSession) {
+        if (shouldPreservePersistedAuthSessionOnBootstrapFailure(result, persistedAuthSession)) {
+          setAuthSession(persistedAuthSession)
+          setAuthNoticeDismissed(false)
+          setLoginForm((current) => {
+            if (current.status === 'submitting') return current
+            return buildAuthReadyState(persistedAuthSession, {
+              intent: current.intent ?? persistedAuthSession.intent ?? null,
+            }) ?? current
+          })
+          return
+        }
+
         clearPersistedAuthSession(globalThis.localStorage)
         setAuthSession(null)
         setAuthNoticeDismissed(false)

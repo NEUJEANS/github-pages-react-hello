@@ -122,7 +122,18 @@ function normalizeIntentAction(action = '') {
   }
 }
 
-function buildScaffoldContinuation({ intent = null, mergeResolution = null, handoffId = null, continuation = null } = {}) {
+function resolveDemoAuthBlocker(email = '') {
+  switch (normalizeEmail(email)) {
+    case 'profile@example.com':
+      return 'complete-profile'
+    case 'verify@example.com':
+      return 'verify-email'
+    default:
+      return ''
+  }
+}
+
+function buildScaffoldContinuation({ email = '', intent = null, mergeResolution = null, handoffId = null, continuation = null } = {}) {
   const normalizedAction = normalizeIntentAction(typeof intent?.action === 'string' ? intent.action.trim() : '')
   const continuationAction = typeof continuation?.nextAction === 'string' ? continuation.nextAction.trim() : ''
   const continuationToken = typeof continuation?.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
@@ -131,7 +142,8 @@ function buildScaffoldContinuation({ intent = null, mergeResolution = null, hand
     : mergeResolution === 'keep-guest'
       ? 'resume-guest-draft'
       : 'resume-authenticated-flow'
-  const nextAction = normalizedAction || continuationAction || fallbackAction
+  const demoBlockerAction = resolveDemoAuthBlocker(email)
+  const nextAction = normalizedAction || continuationAction || demoBlockerAction || fallbackAction
 
   return {
     resumeToken: continuationToken || (handoffId ? `${handoffId}:resume` : null),
@@ -173,6 +185,7 @@ function buildDraftSaveState(request = {}, guestDraftSnapshot = null) {
 function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null, continuation = null, draftSave = null } = {}) {
   const safeSessionId = email.replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'guest'
   const continuationState = buildScaffoldContinuation({
+    email,
     intent,
     mergeResolution,
     handoffId,
