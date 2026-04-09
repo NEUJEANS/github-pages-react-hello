@@ -2561,6 +2561,21 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                 {guardPanelState.connectionLabel && (
                   <p className="muted">연결 대상: {guardPanelState.connectionLabel}{guardPanelState.connectionEndpoint ? ` (${guardPanelState.connectionEndpoint})` : ''} · {guardPanelState.connectionCredentialsMode ?? 'include'} credentials{guardPanelState.connectionSource ? ` · ${guardPanelState.connectionSource}` : ''}</p>
                 )}
+                {guardPanelState.submitPayloadPreview && (
+                  <div className="loginGuardCard authPrepCard">
+                    <strong>로그인 요청 payload 미리보기</strong>
+                    <p className="muted">{guardPanelState.submitPayloadPreview.targetLabel ?? '현재 인증 연결 대상'}{guardPanelState.submitPayloadPreview.endpoint ? ` (${guardPanelState.submitPayloadPreview.endpoint})` : ''} 대상으로 첫 로그인 요청을 보냅니다.</p>
+                    <div className="guardSummary compact">
+                      {guardPanelState.submitPayloadPreview.handoffId && <div><label>handoff</label><b>{guardPanelState.submitPayloadPreview.handoffId}</b></div>}
+                      <div><label>payload keys</label><b>{guardPanelState.submitPayloadPreview.payloadKeys.join(', ')}</b></div>
+                      <div><label>찜</label><b>{guardPanelState.submitPayloadPreview.wishlistCount}개</b></div>
+                      <div><label>장바구니</label><b>{guardPanelState.submitPayloadPreview.cartCount}개</b></div>
+                      <div><label>배치</label><b>{guardPanelState.submitPayloadPreview.layoutItemCount}개</b></div>
+                      {guardPanelState.submitPayloadPreview.draftSaveSelectedSpaceCount > 0 && <div><label>draftSave 공간</label><b>{guardPanelState.submitPayloadPreview.draftSaveSelectedSpaceCount}개</b></div>}
+                      {guardPanelState.submitPayloadPreview.draftSaveLayoutItemCount > 0 && <div><label>draftSave 배치</label><b>{guardPanelState.submitPayloadPreview.draftSaveLayoutItemCount}개</b></div>}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="footerButtons stackOnMobile">
                 <button className="ghost" onClick={onClose}>계속 둘러보기</button>
@@ -2757,6 +2772,17 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                       activePlan.summary.draftSave.layoutItemCount ? `저장 배치 ${activePlan.summary.draftSave.layoutItemCount}개` : null,
                     ].filter(Boolean).join(' · ')}</p>
                   )}
+                  <p className="muted">요청 미리보기: {authConnectionSummary.targetLabel}{authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''} 대상으로 {[
+                    'email',
+                    'password',
+                    'handoffId',
+                    (activePlan.summary.wishlistCount > 0 || activePlan.summary.cartCount > 0 || activePlan.summary.layoutItemCount > 0 || activePlan.summary.hasRecommendationDraft) ? 'guestDraftSnapshot' : null,
+                    activePlan.summary.intent ? 'intent' : null,
+                    activePlan.summary.continuation ? 'continuation' : null,
+                    activePlan.summary.mergeResolution ? 'mergeResolution' : null,
+                    activePlan.summary.draftSave ? 'draftSave' : null,
+                    'connection',
+                  ].filter(Boolean).join(', ')} 키를 준비합니다.</p>
                   <div className="guardSummary compact">
                     <div><label>handoff</label><b>{activePlan.summary.handoffId ?? '미생성'}</b></div>
                     <div><label>찜</label><b>{activePlan.summary.wishlistCount}개</b></div>

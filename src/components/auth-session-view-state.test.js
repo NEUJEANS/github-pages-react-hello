@@ -68,6 +68,17 @@ test('buildAuthGuardPanelState summarizes guarded login handoff context before s
     intentDraftLabel: '84A 거실',
     draftContextBits: ['래미안 포레스트 84A', '공간 2개', '거실 추천'],
     draftSaveBits: ['초안 84A 거실 보드', '래미안 포레스트 84A', '거실 추천', '선택 공간 3개', '저장 배치 5개'],
+    submitPayloadPreview: {
+      endpoint: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      payloadKeys: ['email', 'password', 'handoffId', 'guestDraftSnapshot', 'intent', 'draftSave', 'connection'],
+      handoffId: 'auth-20260409054000-abcd',
+      draftSaveLayoutItemCount: 5,
+      draftSaveSelectedSpaceCount: 3,
+      wishlistCount: 3,
+      cartCount: 2,
+      layoutItemCount: 5,
+    },
   })
 })
 

@@ -30,6 +30,33 @@ function buildIntentCopy(intent) {
   return ` ${label}${draftCopy} 단계까지 이어서 진행할 수 있어요.`
 }
 
+function buildSubmitPayloadPreview(authSummary = null, connection = null) {
+  if (!authSummary && !connection) return null
+
+  const payloadKeys = ['email', 'password', 'handoffId']
+
+  if ((authSummary?.wishlistCount ?? 0) > 0 || (authSummary?.cartCount ?? 0) > 0 || (authSummary?.layoutItemCount ?? 0) > 0 || authSummary?.hasRecommendationDraft) {
+    payloadKeys.push('guestDraftSnapshot')
+  }
+  if (authSummary?.mergeResolution) payloadKeys.push('mergeResolution')
+  if (authSummary?.intent) payloadKeys.push('intent')
+  if (authSummary?.continuation) payloadKeys.push('continuation')
+  if (authSummary?.draftSave) payloadKeys.push('draftSave')
+  if (connection) payloadKeys.push('connection')
+
+  return {
+    endpoint: connection?.endpoint ?? '/api/auth/login',
+    targetLabel: connection?.targetLabel ?? null,
+    payloadKeys,
+    handoffId: authSummary?.handoffId ?? null,
+    draftSaveLayoutItemCount: authSummary?.draftSave?.layoutItemCount ?? 0,
+    draftSaveSelectedSpaceCount: Array.isArray(authSummary?.draftSave?.selectedSpaceIds) ? authSummary.draftSave.selectedSpaceIds.length : 0,
+    wishlistCount: authSummary?.wishlistCount ?? 0,
+    cartCount: authSummary?.cartCount ?? 0,
+    layoutItemCount: authSummary?.layoutItemCount ?? 0,
+  }
+}
+
 function buildActionPayloadPreview(nextAction, { resumeToken = null, handoffId = null, connectionLabel = null, connectionEndpoint = null, continuationEndpoint = null, draftSave = null } = {}) {
   const payloadKeys = ['continuation', 'handoffId']
   const fieldKeys = []
@@ -214,6 +241,10 @@ export function buildAuthGuardPanelState({
     intentDraftLabel: intent?.draftLabel ?? null,
     draftContextBits,
     draftSaveBits,
+    submitPayloadPreview: buildSubmitPayloadPreview({
+      ...authSummary,
+      intent,
+    }, connection),
   }
 }
 
