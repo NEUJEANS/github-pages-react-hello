@@ -553,12 +553,30 @@ async function continuePastGuardIfPresent(page) {
   }
 }
 
-async function submitLogin(page, { email, password }) {
+async function fillLoginForm(page, { email, password }) {
   const loginForm = page.locator('.loginPanel .loginForm').last()
   const inputs = loginForm.locator('input')
   await inputs.nth(0).fill(email)
   await inputs.nth(1).fill(password)
+}
+
+async function submitLogin(page, { email, password }) {
+  const loginForm = page.locator('.loginPanel .loginForm').last()
+  await fillLoginForm(page, { email, password })
   await loginForm.getByRole('button', { name: '로그인', exact: true }).click()
+}
+
+async function readLoginConnectionPreview(page) {
+  const loginBenefits = page.locator('.loginBenefits')
+  const targetLine = loginBenefits.locator('div').filter({ hasText: '연결 대상' }).first()
+  const transportLine = loginBenefits.locator('div').filter({ hasText: '인증 전송' }).first()
+  const prepCard = page.locator('.loginForm .authPrepCard').first()
+
+  return {
+    target: (await targetLine.innerText().catch(() => '')).trim(),
+    transport: (await transportLine.innerText().catch(() => '')).trim(),
+    status: (await prepCard.locator('.muted').first().innerText().catch(() => '')).trim(),
+  }
 }
 
 async function waitForAuthReadySignal(page, { expectedAccountLabel = null, timeoutMs = 30000 } = {}) {
@@ -758,6 +776,37 @@ async function runBrowserSmoke(playwright) {
     await capture(verifyEmailPage, 'auth-login-verify-email-ready.png')
     await verifyEmailPage.close()
 
+    const queryOverridePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await resetBrowserScenario(queryOverridePage)
+    await queryOverridePage.goto(`${baseUrl}?authApiBaseUrl=${encodeURIComponent('https://auth-query.example.com')}&authLoginEndpoint=${encodeURIComponent('/v1/session/login')}&authCredentials=same-origin`, { waitUntil: 'domcontentloaded' })
+    await openLogin(queryOverridePage)
+    await fillLoginForm(queryOverridePage, {
+      email: 'user@example.com',
+      password: 'password123',
+    })
+    const queryOverridePreview = await readLoginConnectionPreview(queryOverridePage)
+    await capture(queryOverridePage, 'auth-login-query-override-preview.png')
+    await queryOverridePage.close()
+
+    const runtimeOverridePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await runtimeOverridePage.addInitScript(() => {
+      globalThis.__HAVENLY_AUTH_CONFIG__ = {
+        apiBaseUrl: 'https://auth-runtime.example.com',
+        loginEndpoint: '/v2/runtime/login',
+        credentialsMode: 'omit',
+      }
+    })
+    await resetBrowserScenario(runtimeOverridePage)
+    await runtimeOverridePage.goto(baseUrl, { waitUntil: 'domcontentloaded' })
+    await openLogin(runtimeOverridePage)
+    await fillLoginForm(runtimeOverridePage, {
+      email: 'user@example.com',
+      password: 'password123',
+    })
+    const runtimeOverridePreview = await readLoginConnectionPreview(runtimeOverridePage)
+    await capture(runtimeOverridePage, 'auth-login-runtime-override-preview.png')
+    await runtimeOverridePage.close()
+
     return {
       mode: 'browser',
       baseUrl,
@@ -800,6 +849,10 @@ async function runBrowserSmoke(playwright) {
         },
       },
       guardedMerge: { guardReasons, mergeError, mergeOptions, mergeReadyLabel, mergeStatus },
+      authTargetOverrides: {
+        query: queryOverridePreview,
+        runtime: runtimeOverridePreview,
+      },
     }
   } finally {
     await browser.close()
