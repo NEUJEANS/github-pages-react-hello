@@ -130,7 +130,8 @@ test('buildAuthReadyPanelState summarizes the authenticated resume panel for boo
     primaryActionDisabled: false,
     actionChecklist: null,
     actionPayloadPreview: {
-      endpoint: '/api/auth/login',
+      continuationEndpoint: '/api/auth/continue',
+      connectionEndpoint: '/api/auth/login',
       targetLabel: 'same-origin /api auth scaffold',
       handoffId: 'auth-20260406123000-2n9c',
       resumeToken: 'auth-20260406123000-2n9c:resume',
@@ -180,7 +181,8 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionDisabled: false,
     actionChecklist: null,
     actionPayloadPreview: {
-      endpoint: '/api/auth/continue',
+      continuationEndpoint: '/api/auth/continue',
+      connectionEndpoint: null,
       targetLabel: null,
       handoffId: null,
       resumeToken: 'auth-user-1234:resume',
@@ -226,7 +228,8 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionDisabled: false,
     actionChecklist: null,
     actionPayloadPreview: {
-      endpoint: '/api/auth/continue',
+      continuationEndpoint: '/api/auth/continue',
+      connectionEndpoint: null,
       targetLabel: null,
       handoffId: null,
       resumeToken: 'auth-user-1234:resume',
@@ -272,7 +275,8 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionDisabled: false,
     actionChecklist: null,
     actionPayloadPreview: {
-      endpoint: '/api/auth/continue',
+      continuationEndpoint: '/api/auth/continue',
+      connectionEndpoint: null,
       targetLabel: null,
       handoffId: null,
       resumeToken: 'auth-user-1234:resume',
@@ -327,7 +331,8 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
       ],
     },
     actionPayloadPreview: {
-      endpoint: '/api/auth/continue',
+      continuationEndpoint: '/api/auth/continue',
+      connectionEndpoint: null,
       targetLabel: null,
       handoffId: null,
       resumeToken: 'auth-user-1234:profile',
@@ -387,7 +392,8 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
       ],
     },
     actionPayloadPreview: {
-      endpoint: '/api/auth/continue',
+      continuationEndpoint: '/api/auth/continue',
+      connectionEndpoint: '/api/auth/continue',
       targetLabel: 'same-origin /api auth scaffold',
       handoffId: null,
       resumeToken: 'auth-user-1234:verify',
@@ -432,7 +438,8 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     primaryActionDisabled: false,
     actionChecklist: null,
     actionPayloadPreview: {
-      endpoint: '/api/auth/continue',
+      continuationEndpoint: '/api/auth/continue',
+      connectionEndpoint: null,
       targetLabel: null,
       handoffId: null,
       resumeToken: 'auth-user-1234:resume',
@@ -493,7 +500,8 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
       ],
     },
     actionPayloadPreview: {
-      endpoint: '/api/auth/continue',
+      continuationEndpoint: '/api/auth/continue',
+      connectionEndpoint: '/api/auth/continue',
       targetLabel: 'same-origin /api auth scaffold',
       handoffId: 'auth-merge-1234',
       resumeToken: 'auth-merge-1234:resume',

@@ -2604,7 +2604,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                 {authReadyPanelState.actionPayloadPreview && (
                   <div className="loginGuardCard authPrepCard">
                     <strong>계속 요청 payload 미리보기</strong>
-                    <p className="muted">{authReadyPanelState.actionPayloadPreview.targetLabel ?? '현재 인증 연결 대상'}{authReadyPanelState.actionPayloadPreview.endpoint ? ` → ${authReadyPanelState.actionPayloadPreview.endpoint}` : ''}로 `/api/auth/continue` 요청을 이어갑니다.</p>
+                    <p className="muted">{authReadyPanelState.actionPayloadPreview.targetLabel ?? '현재 인증 연결 대상'}{authReadyPanelState.actionPayloadPreview.connectionEndpoint ? ` (${authReadyPanelState.actionPayloadPreview.connectionEndpoint})` : ''} 대상으로 {authReadyPanelState.actionPayloadPreview.continuationEndpoint} 재개 요청을 이어갑니다.</p>
                     <div className="guardSummary compact">
                       {authReadyPanelState.actionPayloadPreview.handoffId && <div><label>handoff</label><b>{authReadyPanelState.actionPayloadPreview.handoffId}</b></div>}
                       {authReadyPanelState.actionPayloadPreview.resumeToken && <div><label>resume token</label><b>{authReadyPanelState.actionPayloadPreview.resumeToken}</b></div>}

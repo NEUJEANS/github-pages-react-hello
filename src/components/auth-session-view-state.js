@@ -54,7 +54,8 @@ function buildActionPayloadPreview(nextAction, { resumeToken = null, handoffId =
   if (!handoffId && !resumeToken && !fieldKeys.length && !draftSave && !connectionEndpoint && !connectionLabel) return null
 
   return {
-    endpoint: connectionEndpoint ?? '/api/auth/continue',
+    continuationEndpoint: '/api/auth/continue',
+    connectionEndpoint: connectionEndpoint ?? null,
     targetLabel: connectionLabel ?? null,
     handoffId: handoffId ?? null,
     resumeToken: resumeToken ?? null,
