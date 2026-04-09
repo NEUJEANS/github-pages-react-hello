@@ -538,6 +538,7 @@ async function resetBrowserScenario(page) {
   await resetBrowserAuthState()
   await page.context().clearCookies()
   await clearBrowserStorage(page)
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' })
 }
 
 async function openLogin(page) {
