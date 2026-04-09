@@ -31,6 +31,7 @@ import {
   buildSerializableAuthContinuationFields,
   buildSerializableAuthIntent,
   resolveAuthConnectionOverride,
+  resolvePersistedAuthConnection,
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
   clearPersistedAuthSession,
@@ -1454,6 +1455,7 @@ function App() {
       const result = await submitAuthContinuationPlan(authContinuationPlan, authConfig)
       const nextContinuation = buildSerializableAuthContinuation(result?.data)
       const nextConnection = resolveAuthConnectionOverride(result, authSession?.connection ?? authConnectionSummary)
+      const persistedConnection = resolvePersistedAuthConnection(result, authSession?.connection ?? authConnectionSummary)
       const nextIntent = authSession.intent ?? loginForm.intent ?? null
 
       if (result.ok) {
@@ -1474,7 +1476,7 @@ function App() {
         })
         const nextSession = buildPersistedAuthSession(nextResultSummary, {
           intent: nextIntent,
-          connection: nextConnection ?? nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
+          connection: persistedConnection ?? nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
           continuation: nextContinuation,
           continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
           accountState: result?.data?.accountState ?? authSession.accountState ?? null,
@@ -1617,7 +1619,7 @@ function App() {
         const nextSession = buildPersistedAuthSession(nextResultSummary, {
           guestDraftSnapshot,
           intent: submitPlan.summary.intent,
-          connection: nextConnection ?? nextResultSummary.connection ?? authConnectionSummary,
+          connection: persistedConnection ?? nextResultSummary.connection ?? authConnectionSummary,
           continuation: nextContinuation,
           continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
           accountState: result?.data?.accountState ?? null,

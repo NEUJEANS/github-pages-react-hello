@@ -10,6 +10,7 @@ import {
   buildGuestDraftSessionSummary,
   buildSerializableAuthConnection,
   resolveAuthConnectionOverride,
+  resolvePersistedAuthConnection,
   buildSerializableAuthContinuation,
   buildSerializableAuthContinuationFields,
   buildSerializableAuthIntent,
@@ -212,6 +213,80 @@ test('resolveAuthConnectionOverride prefers backend-returned auth wiring and fal
       method: 'POST',
       endpoint: '/api/auth/login',
       resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
+  )
+})
+
+test('resolvePersistedAuthConnection keeps the canonical login/session auth contract when continuation responses are action-specific', () => {
+  assert.deepEqual(
+    resolvePersistedAuthConnection({
+      data: {
+        connection: {
+          method: 'POST',
+          endpoint: '/api/auth/continue',
+          resolvedUrl: '/api/auth/continue',
+          targetLabel: 'same-origin /api auth scaffold',
+          isExternal: false,
+          isSameOriginScaffold: true,
+          credentialsMode: 'include',
+          source: 'default',
+        },
+      },
+    }, {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    }),
+    {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
+  )
+
+  assert.deepEqual(
+    resolvePersistedAuthConnection({
+      data: {
+        connection: {
+          method: 'GET',
+          endpoint: '/api/auth/session',
+          resolvedUrl: '/api/auth/session',
+          targetLabel: 'same-origin /api auth scaffold',
+          isExternal: false,
+          isSameOriginScaffold: true,
+          credentialsMode: 'include',
+          source: 'default',
+        },
+      },
+    }, {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    }),
+    {
+      method: 'GET',
+      endpoint: '/api/auth/session',
+      resolvedUrl: '/api/auth/session',
       targetLabel: 'same-origin /api auth scaffold',
       isExternal: false,
       isSameOriginScaffold: true,

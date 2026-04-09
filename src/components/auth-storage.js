@@ -53,6 +53,25 @@ export function resolveAuthConnectionOverride(result = null, fallbackConnection 
     ?? null
 }
 
+export function resolvePersistedAuthConnection(result = null, fallbackConnection = null) {
+  const resolvedConnection = buildSerializableAuthConnection(result?.data?.connection ?? result?.data?.authConnection ?? null)
+  const fallback = buildSerializableAuthConnection(fallbackConnection)
+
+  if (!resolvedConnection) return fallback ?? null
+  if (!fallback) return resolvedConnection
+
+  const resolvedEndpoint = typeof resolvedConnection.endpoint === 'string' ? resolvedConnection.endpoint.trim() : ''
+  const fallbackEndpoint = typeof fallback.endpoint === 'string' ? fallback.endpoint.trim() : ''
+  const continuationEndpoint = resolvedEndpoint.endsWith('/api/auth/continue') || resolvedEndpoint === '/api/auth/continue'
+  const canonicalSessionEndpoint = fallbackEndpoint.endsWith('/api/auth/login') || fallbackEndpoint.endsWith('/api/auth/session') || fallbackEndpoint === '/api/auth/login' || fallbackEndpoint === '/api/auth/session'
+
+  if (continuationEndpoint && canonicalSessionEndpoint) {
+    return fallback
+  }
+
+  return resolvedConnection
+}
+
 function normalizeAuthContinuationNextAction(nextAction = '') {
   switch (nextAction) {
     case 'login':
