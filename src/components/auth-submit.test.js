@@ -885,6 +885,71 @@ test('readAuthPending keeps absolute same-origin bootstrap targets canonical whe
   })
 })
 
+test('readAuthPending lifts serializable continuation fields, draft save, and guest draft summary from sparse pending payloads', async () => {
+  const result = await readAuthPending({
+    endpoint: '/api/auth/pending',
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        'content-type': 'application/json',
+      }),
+      json: async () => ({
+        submittedAt: '2026-04-09T23:10:00.000Z',
+        handoffId: 'auth-20260409231000-resume',
+        email: 'user@example.com',
+        status: 409,
+        request: {
+          fields: {
+            mergeResolution: 'keep-guest',
+          },
+          draftSave: {
+            draftLabel: '거실 보드',
+            apartmentLabel: '래미안 84A',
+            recommendationRoom: '거실',
+            selectedSpaceIds: ['living-room'],
+            layoutItems: [{ id: 'sofa', x: 10, y: 20 }],
+            layoutItemCount: 1,
+          },
+          guestDraftSnapshot: {
+            recommendationDraft: { room: '거실' },
+            spaceProfile: { spaces: ['living-room'] },
+            continuity: {
+              apartmentLabel: '래미안 84A',
+              selectedRooms: ['거실'],
+              wishlistIds: ['sku-1', 'sku-2'],
+              cartItems: [{ id: 'sku-3', qty: 1 }],
+              layoutItems: [{ id: 'sofa', x: 10, y: 20 }],
+            },
+          },
+        },
+      }),
+    }),
+  })
+
+  assert.deepEqual(result.data.continuationFields, {
+    mergeResolution: 'keep-guest',
+  })
+  assert.deepEqual(result.data.draftSave, {
+    draftLabel: '거실 보드',
+    apartmentLabel: '래미안 84A',
+    recommendationRoom: '거실',
+    selectedSpaceIds: ['living-room'],
+    layoutItems: [{ id: 'sofa', x: 10, y: 20 }],
+    layoutItemCount: 1,
+  })
+  assert.deepEqual(result.data.guestDraftSummary, {
+    apartmentLabel: '래미안 84A',
+    selectedRoomCount: 1,
+    selectedRooms: ['거실'],
+    selectedSpaceIds: ['living-room'],
+    recommendationRoom: '거실',
+    wishlistCount: 2,
+    cartCount: 1,
+    layoutItemCount: 1,
+  })
+})
+
 test('readAuthPending preserves the configured auth source label across pending bootstrap reads', async () => {
   const calls = []
   const result = await readAuthPending({

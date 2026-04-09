@@ -228,18 +228,108 @@ function readAuthConnection(data = {}, response = null, fallback = null) {
   }
 }
 
+function cloneJsonValue(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value))
+}
+
+function readSerializableContinuationFields(data = {}) {
+  if (data?.continuationFields && typeof data.continuationFields === 'object' && !Array.isArray(data.continuationFields)) {
+    return cloneJsonValue(data.continuationFields)
+  }
+
+  const requestFields = data?.request?.fields
+  if (requestFields && typeof requestFields === 'object' && !Array.isArray(requestFields)) {
+    return cloneJsonValue(requestFields)
+  }
+
+  return null
+}
+
+function readSerializableDraftSave(data = {}) {
+  if (data?.draftSave && typeof data.draftSave === 'object' && !Array.isArray(data.draftSave)) {
+    return cloneJsonValue(data.draftSave)
+  }
+
+  const requestDraftSave = data?.request?.draftSave
+  if (requestDraftSave && typeof requestDraftSave === 'object' && !Array.isArray(requestDraftSave)) {
+    return cloneJsonValue(requestDraftSave)
+  }
+
+  return null
+}
+
+function buildGuestDraftSummaryFromSnapshot(guestDraftSnapshot = null) {
+  if (!guestDraftSnapshot || typeof guestDraftSnapshot !== 'object') return null
+
+  const continuity = guestDraftSnapshot.continuity ?? {}
+  const selectedRooms = Array.isArray(continuity.selectedRooms)
+    ? [...continuity.selectedRooms]
+    : []
+
+  return {
+    apartmentLabel: continuity.apartmentLabel ?? null,
+    selectedRoomCount: selectedRooms.length,
+    selectedRooms,
+    selectedSpaceIds: Array.isArray(guestDraftSnapshot.spaceProfile?.spaces)
+      ? [...guestDraftSnapshot.spaceProfile.spaces]
+      : [],
+    recommendationRoom: guestDraftSnapshot.recommendationDraft?.room ?? null,
+    wishlistCount: Array.isArray(continuity.wishlistIds) ? continuity.wishlistIds.length : 0,
+    cartCount: Array.isArray(continuity.cartItems) ? continuity.cartItems.length : 0,
+    layoutItemCount: Array.isArray(continuity.layoutItems) ? continuity.layoutItems.length : 0,
+  }
+}
+
+function readGuestDraftSummary(data = {}) {
+  if (data?.guestDraftSummary && typeof data.guestDraftSummary === 'object' && !Array.isArray(data.guestDraftSummary)) {
+    return cloneJsonValue(data.guestDraftSummary)
+  }
+
+  const summary = data?.summary
+  if (summary && typeof summary === 'object' && !Array.isArray(summary)) {
+    const hasSummaryShape = summary.wishlistCount != null
+      || summary.cartCount != null
+      || summary.layoutItemCount != null
+      || summary.selectedRoomCount != null
+      || summary.recommendationRoom != null
+      || summary.apartmentLabel != null
+      || summary.selectedSpaceIds != null
+
+    if (hasSummaryShape) {
+      return {
+        apartmentLabel: summary.apartmentLabel ?? null,
+        selectedRoomCount: summary.selectedRoomCount ?? 0,
+        selectedRooms: Array.isArray(summary.selectedRooms) ? [...summary.selectedRooms] : [],
+        selectedSpaceIds: Array.isArray(summary.selectedSpaceIds) ? [...summary.selectedSpaceIds] : [],
+        recommendationRoom: summary.recommendationRoom ?? null,
+        wishlistCount: summary.wishlistCount ?? 0,
+        cartCount: summary.cartCount ?? 0,
+        layoutItemCount: summary.layoutItemCount ?? 0,
+      }
+    }
+  }
+
+  return buildGuestDraftSummaryFromSnapshot(data?.guestDraftSnapshot ?? data?.request?.guestDraftSnapshot ?? null)
+}
+
 function applyAuthResponseDecorators(data, response, { handoffIdFallback = null, connectionFallback = null } = {}) {
   const handoffId = readAuthHandoffId(data, response, handoffIdFallback)
   const continuation = readAuthContinuation(data, response)
   const connection = readAuthConnection(data, response, connectionFallback)
+  const continuationFields = readSerializableContinuationFields(data)
+  const draftSave = readSerializableDraftSave(data)
+  const guestDraftSummary = readGuestDraftSummary(data)
 
-  if (!handoffId && !continuation && !connection) return data
+  if (!handoffId && !continuation && !connection && !continuationFields && !draftSave && !guestDraftSummary) return data
 
   return {
     ...(data ?? {}),
     ...(handoffId ? { handoffId } : {}),
     ...(continuation ?? {}),
     ...(connection ? { connection } : {}),
+    ...(continuationFields ? { continuationFields } : {}),
+    ...(draftSave ? { draftSave } : {}),
+    ...(guestDraftSummary ? { guestDraftSummary } : {}),
   }
 }
 
