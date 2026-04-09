@@ -1056,6 +1056,7 @@ function App() {
           connection: resultSummary?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary ?? sessionConnection,
           continuation: buildSerializableAuthContinuation(result?.data),
           continuationFields: persistedAuthSession?.continuationFields ?? persistedAuthHandoff?.continuationFields ?? null,
+          draftSave: persistedAuthSession?.draftSave ?? persistedAuthHandoff?.draftSave ?? null,
           accountState: result?.data?.accountState ?? null,
         })
 
@@ -1362,6 +1363,7 @@ function App() {
         connection: submittedConnection ?? nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
         continuation: submittedContinuation,
         continuationFields: pickPersistedAuthContinuationFields(submittedContinuation, authContinuationFields),
+        draftSave: authSession.draftSave ?? authDraftSavePayload,
         accountState: result?.data?.accountState ?? authSession.accountState ?? null,
       })
 
@@ -1387,7 +1389,7 @@ function App() {
         },
       }))
     }
-  }, [authConfig, authConnectionSummary, authContinuationPlan, authSession, loginForm.continuation, loginForm.handoffId, loginForm.intent, navigate, screen])
+  }, [authConfig, authConnectionSummary, authContinuationPlan, authDraftSavePayload, authSession, loginForm.continuation, loginForm.handoffId, loginForm.intent, navigate, screen])
 
   const handleAuthContinuationFieldChange = React.useCallback((field, value) => {
     const nextFields = buildAuthContinuationFieldState({
@@ -1495,6 +1497,7 @@ function App() {
           connection: persistedConnection ?? nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
           continuation: nextContinuation,
           continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
+          draftSave: authSession.draftSave ?? authDraftSavePayload,
           accountState: result?.data?.accountState ?? authSession.accountState ?? null,
         })
         const nextScreen = canResumePostAuthIntent(nextIntent, screen, nextContinuation)
@@ -1545,7 +1548,7 @@ function App() {
         },
       }))
     }
-  }, [authConfig, authConnectionSummary, authContinuationPlan, authSession, loginForm.handoffId, loginForm.intent, navigate, screen])
+  }, [authConfig, authConnectionSummary, authContinuationPlan, authDraftSavePayload, authSession, loginForm.handoffId, loginForm.intent, navigate, screen])
 
   const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
     const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null
@@ -1639,6 +1642,7 @@ function App() {
           connection: persistedConnection ?? nextResultSummary.connection ?? authConnectionSummary,
           continuation: nextContinuation,
           continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
+          draftSave: authDraftSavePayload,
           accountState: result?.data?.accountState ?? null,
         })
 

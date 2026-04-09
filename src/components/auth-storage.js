@@ -339,10 +339,11 @@ function buildSerializableAuthAccountState(accountState = null) {
   }
 }
 
-export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null, connection = null, continuation = null, continuationFields = null, accountState = null } = {}) {
+export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null, connection = null, continuation = null, continuationFields = null, draftSave = null, accountState = null } = {}) {
+  const persistedDraftSave = buildSerializableDraftSave(draftSave ?? resultSummary?.draftSave ?? null)
   const derivedGuestDraftSummary = guestDraftSnapshot
     ? buildGuestDraftSessionSummary(guestDraftSnapshot)
-    : (resultSummary?.guestDraftSummary ?? buildGuestDraftSummaryFromDraftSave(resultSummary?.draftSave ?? null) ?? null)
+    : (resultSummary?.guestDraftSummary ?? buildGuestDraftSummaryFromDraftSave(persistedDraftSave) ?? null)
 
   return {
     savedAt,
@@ -366,7 +367,7 @@ export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = 
     continuation: buildSerializableAuthContinuation(continuation ?? resultSummary),
     continuationFields: buildSerializableAuthContinuationFields(continuationFields ?? resultSummary?.continuationFields ?? null),
     guestDraftSummary: derivedGuestDraftSummary,
-    draftSave: buildSerializableDraftSave(resultSummary?.draftSave ?? null),
+    draftSave: persistedDraftSave,
     accountState: buildSerializableAuthAccountState(accountState ?? resultSummary?.accountState ?? null),
   }
 }

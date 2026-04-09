@@ -1080,6 +1080,42 @@ test('buildPersistedAuthSession can derive restore-ready guest draft context fro
   })
 })
 
+test('buildPersistedAuthSession preserves the local draft-save handoff when backend-ready auth summaries stay sparse', () => {
+  const session = buildPersistedAuthSession({
+    sessionId: 'sess_sparse',
+    accountLabel: 'user@example.com',
+    handoffId: 'auth-sparse-1234',
+  }, {
+    draftSave: {
+      draftLabel: '안방 배치 보드',
+      apartmentLabel: '트리마제 101동',
+      recommendationRoom: '침실',
+      selectedSpaceIds: ['bed1'],
+      layoutItems: [{ id: 'layout-bed-1', sourceId: 'bed-1' }],
+      layoutItemCount: 1,
+    },
+  })
+
+  assert.deepEqual(session.guestDraftSummary, {
+    apartmentLabel: '트리마제 101동',
+    selectedRoomCount: 1,
+    selectedRooms: [],
+    selectedSpaceIds: ['bed1'],
+    recommendationRoom: '침실',
+    wishlistCount: 0,
+    cartCount: 0,
+    layoutItemCount: 1,
+  })
+  assert.deepEqual(session.draftSave, {
+    draftLabel: '안방 배치 보드',
+    apartmentLabel: '트리마제 101동',
+    recommendationRoom: '침실',
+    selectedSpaceIds: ['bed1'],
+    layoutItems: [{ id: 'layout-bed-1', sourceId: 'bed-1' }],
+    layoutItemCount: 1,
+  })
+})
+
 test('buildSerializableAuthIntent trims the guarded login handoff context down to serializable UI fields', () => {
   assert.deepEqual(buildSerializableAuthIntent({
     source: ' layout-editor ',
