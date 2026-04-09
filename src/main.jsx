@@ -882,9 +882,19 @@ function App() {
     [authSession],
   )
 
+  const authContinuationConnectionSummary = React.useMemo(
+    () => buildAuthConnectionSummary({
+      endpoint: authConfig.continueEndpoint,
+      method: 'POST',
+    }, authConfig),
+    [authConfig],
+  )
+
   const authReadyPanelState = React.useMemo(
-    () => buildAuthReadyPanelState(authSession),
-    [authSession],
+    () => buildAuthReadyPanelState(authSession, {
+      actionConnection: authContinuationConnectionSummary,
+    }),
+    [authContinuationConnectionSummary, authSession],
   )
 
   React.useEffect(() => {

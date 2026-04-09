@@ -232,6 +232,11 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
       targetLabel: 'same-origin /api auth scaffold',
       endpoint: '/api/auth/login',
     },
+  }, {
+    actionConnection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/continue',
+    },
   }), {
     title: 'user@example.com 계정 연결됨',
     subtitle: '현재 로그인 연결이 유지되고 있어요.',
@@ -250,7 +255,7 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     continuationStatusLabel: '이메일 인증 필요',
     returnScreen: null,
     connectionLabel: 'same-origin /api auth scaffold',
-    connectionEndpoint: '/api/auth/login',
+    connectionEndpoint: '/api/auth/continue',
     primaryActionLabel: '이메일 인증 확인',
     primaryActionHint: '인증 코드를 바로 제출하고, backend가 준비 완료를 돌려주면 원래 이어가려던 흐름으로 복귀할 수 있어요.',
     primaryActionDisabled: false,
@@ -259,7 +264,7 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
       description: '백엔드가 이메일 인증 단계를 기다리고 있어요. 실제 인증 화면이 붙기 전까지 필요한 handoff 계약을 먼저 노출합니다.',
       items: [
         'resume token auth-user-1234:verify 으로 인증 확인 조회를 재개하기',
-        '현재 인증 연결 대상 same-origin /api auth scaffold (/api/auth/login) 기준으로 폴링/재개 흐름 붙이기',
+        '현재 인증 연결 대상 same-origin /api auth scaffold (/api/auth/continue) 기준으로 폴링/재개 흐름 붙이기',
         '인증 완료 전에는 로그인 모달을 닫지 않고 상태만 갱신하기',
       ],
     },

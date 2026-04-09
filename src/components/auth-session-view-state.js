@@ -120,7 +120,11 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
   }
 }
 
-export function buildAuthReadyPanelState(session = null) {
+function shouldUseContinuationConnection(nextAction = null) {
+  return nextAction === 'complete-profile' || nextAction === 'verify-email'
+}
+
+export function buildAuthReadyPanelState(session = null, { actionConnection = null } = {}) {
   if (!session?.accountLabel) return null
 
   const restoredBits = []
@@ -146,8 +150,11 @@ export function buildAuthReadyPanelState(session = null) {
       ? '계정 상태로 전환된 상태예요.'
       : '현재 로그인 연결이 유지되고 있어요.'
 
-  const connectionLabel = session.connection?.targetLabel ?? null
-  const connectionEndpoint = session.connection?.endpoint ?? null
+  const preferredConnection = shouldUseContinuationConnection(nextAction) && actionConnection
+    ? actionConnection
+    : session.connection
+  const connectionLabel = preferredConnection?.targetLabel ?? null
+  const connectionEndpoint = preferredConnection?.endpoint ?? null
   const { primaryActionLabel, primaryActionHint, primaryActionDisabled } = resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen)
   const actionChecklist = buildActionChecklist(nextAction, {
     resumeToken,
