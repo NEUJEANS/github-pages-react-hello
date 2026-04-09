@@ -534,17 +534,48 @@ async function clearBrowserStorage(page) {
   })
 }
 
+async function ensureLoggedOutUi(page) {
+  const logoutButton = page.getByRole('button', { name: '로그아웃' }).first()
+  const loginButton = page.getByRole('button', { name: '로그인 열기' }).first()
+
+  if (await logoutButton.isVisible().catch(() => false)) {
+    await logoutButton.click()
+    await waitForLoggedOutSignal(page)
+  }
+
+  if (!await loginButton.isVisible().catch(() => false)) {
+    await clearBrowserStorage(page)
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' })
+  }
+
+  if (!await loginButton.isVisible().catch(() => false)) {
+    throw new Error('Browser auth reset did not surface the logged-out login trigger.')
+  }
+}
+
 async function resetBrowserScenario(page) {
   await resetBrowserAuthState()
   await page.context().clearCookies()
   await clearBrowserStorage(page)
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' })
+  await ensureLoggedOutUi(page)
+}
+
+async function waitForLoginModal(page) {
+  const loginPanel = page.locator('.loginPanel[data-auth-modal-state]')
+  await loginPanel.waitFor({ state: 'visible', timeout: 30000 })
+  await Promise.any([
+    page.getByRole('heading', { name: /로그인|회원가입|계정/ }).waitFor({ timeout: 10000 }),
+    page.locator('.loginPanel .overlayHeader').waitFor({ timeout: 10000 }),
+  ])
 }
 
 async function openLogin(page) {
   await ensureAppShellReady(page)
-  await page.getByRole('button', { name: '로그인 열기' }).click()
-  await page.getByRole('heading', { name: /로그인/ }).waitFor()
+  const loginTrigger = page.getByRole('button', { name: '로그인 열기' }).first()
+  await loginTrigger.waitFor({ state: 'visible', timeout: 15000 })
+  await loginTrigger.click()
+  await waitForLoginModal(page)
 }
 
 async function readGuardPanelPreview(page) {

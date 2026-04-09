@@ -2574,7 +2574,13 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
   return (
     <div className="overlayLayer" role="dialog" aria-modal="true" aria-labelledby="login-title">
       <div className="overlayScrim" onClick={onClose} />
-      <div className="loginPanel">
+      <div
+        className="loginPanel"
+        data-auth-modal-state={guarded ? 'guard' : form.status}
+        data-auth-mode={form.mode}
+        data-auth-next-action={authReadyPanelState?.nextAction ?? form.continuation?.nextAction ?? ''}
+        data-auth-target={authConnectionSummary?.targetLabel ?? ''}
+      >
         <div className="overlayHeader">
           <span>{guarded ? '로그인 전 확인' : 'HAVENLY 로그인'}</span>
           <button className="overlayClose" onClick={onClose}>✕</button>
