@@ -547,6 +547,37 @@ async function openLogin(page) {
   await page.getByRole('heading', { name: /로그인/ }).waitFor()
 }
 
+async function readGuardPanelPreview(page) {
+  const guardCards = page.locator('.loginGuardCard')
+  const draftCard = guardCards.nth(1)
+  const mutedLines = await draftCard.locator('.muted').allInnerTexts().catch(() => [])
+
+  return {
+    header: (await draftCard.locator('strong').first().innerText().catch(() => '')).trim(),
+    summary: await draftCard.locator('.guardSummary.compact').locator('div').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => []),
+    mutedLines: mutedLines.map((line) => line.trim()),
+  }
+}
+
+function assertGuardPanelPreview(preview) {
+  const flattened = [...(preview.summary ?? []), ...(preview.mutedLines ?? [])].join(' | ')
+  const expectedFragments = [
+    '선택 공간',
+    '추천',
+    '배치 아이템',
+    'handoff',
+    'draftSave handoff',
+    '로그인 목적',
+    '연결 대상',
+  ]
+
+  for (const fragment of expectedFragments) {
+    if (!flattened.includes(fragment)) {
+      throw new Error(`Guarded login preview is missing expected auth handoff detail: ${fragment}. Saw: ${flattened}`)
+    }
+  }
+}
+
 async function continuePastGuardIfPresent(page) {
   const guardButton = page.getByRole('button', { name: '그래도 로그인하기' })
   if (await guardButton.count()) {
@@ -709,6 +740,8 @@ async function runBrowserSmoke(playwright) {
 
     await mergePage.getByText('현재 감지된 진행 내역').waitFor()
     const guardReasons = await mergePage.locator('.loginReasonList span').allInnerTexts()
+    const guardPreview = await readGuardPanelPreview(mergePage)
+    assertGuardPanelPreview(guardPreview)
     await continuePastGuardIfPresent(mergePage)
     await mergePage.locator('.loginPanel .loginForm').last().getByRole('button', { name: '로그인', exact: true }).waitFor()
 
@@ -849,7 +882,7 @@ async function runBrowserSmoke(playwright) {
           resumedStatus: verifyEmailResumedStatus,
         },
       },
-      guardedMerge: { guardReasons, mergeError, mergeOptions, mergeReadyLabel, mergeStatus },
+      guardedMerge: { guardReasons, guardPreview, mergeError, mergeOptions, mergeReadyLabel, mergeStatus },
       authTargetOverrides: {
         query: queryOverridePreview,
         runtime: runtimeOverridePreview,
