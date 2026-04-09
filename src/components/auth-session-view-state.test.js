@@ -1,7 +1,75 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './auth-session-view-state.js'
+import { buildAuthGuardPanelState, buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './auth-session-view-state.js'
+
+test('buildAuthGuardPanelState summarizes guarded login handoff context before submit', () => {
+  assert.deepEqual(buildAuthGuardPanelState({
+    engagement: {
+      aiRequests: 2,
+      furniturePlacements: 4,
+      draftBoards: 1,
+      wishlistCount: 3,
+      cartCount: 2,
+    },
+    reasons: ['AI 추천 요청 2회', '장바구니 2개'],
+    guestDraftSnapshot: {
+      recommendationDraft: {
+        room: '거실',
+      },
+      spaceProfile: {
+        spaces: ['living', 'bed1', 'entry'],
+      },
+      continuity: {
+        apartmentLabel: '래미안 포레스트 84A',
+        selectedRooms: ['거실', '안방'],
+      },
+    },
+    authSummary: {
+      handoffId: 'auth-20260409054000-abcd',
+      wishlistCount: 3,
+      cartCount: 2,
+      layoutItemCount: 5,
+      draftSave: {
+        draftLabel: '84A 거실 보드',
+        apartmentLabel: '래미안 포레스트 84A',
+        recommendationRoom: '거실',
+        selectedSpaceIds: ['living', 'bed1', 'entry'],
+        layoutItemCount: 5,
+      },
+    },
+    connection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/login',
+      source: 'default',
+      credentialsMode: 'include',
+    },
+    intent: {
+      label: '로그인 후 보드 저장',
+      draftLabel: '84A 거실',
+    },
+  }), {
+    reasonCount: 2,
+    reasons: ['AI 추천 요청 2회', '장바구니 2개'],
+    aiRequests: 2,
+    furniturePlacements: 4,
+    draftBoards: 1,
+    wishlistCount: 3,
+    cartCount: 2,
+    layoutItemCount: 5,
+    selectedSpaceCount: 3,
+    recommendationRoom: '거실',
+    handoffId: 'auth-20260409054000-abcd',
+    connectionLabel: 'same-origin /api auth scaffold',
+    connectionEndpoint: '/api/auth/login',
+    connectionSource: 'default',
+    connectionCredentialsMode: 'include',
+    intentLabel: '로그인 후 보드 저장',
+    intentDraftLabel: '84A 거실',
+    draftContextBits: ['래미안 포레스트 84A', '공간 2개', '거실 추천'],
+    draftSaveBits: ['초안 84A 거실 보드', '래미안 포레스트 84A', '거실 추천', '선택 공간 3개', '저장 배치 5개'],
+  })
+})
 
 test('buildAuthReadyPanelState summarizes the authenticated resume panel for bootstrapped login state', () => {
   assert.deepEqual(buildAuthReadyPanelState({

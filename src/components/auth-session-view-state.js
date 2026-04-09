@@ -124,6 +124,57 @@ function shouldUseContinuationConnection(nextAction = null) {
   return nextAction === 'complete-profile' || nextAction === 'verify-email'
 }
 
+export function buildAuthGuardPanelState({
+  engagement = null,
+  reasons = [],
+  guestDraftSnapshot = null,
+  authSummary = null,
+  connection = null,
+  intent = null,
+} = {}) {
+  const normalizedReasons = Array.isArray(reasons)
+    ? reasons.filter((reason) => typeof reason === 'string' && reason.trim())
+    : []
+  const draftContextBits = buildDraftContextBits(buildGuestDraftSummary(guestDraftSnapshot))
+  const draftSaveBits = buildDraftSaveBits(authSummary?.draftSave ?? null)
+
+  return {
+    reasonCount: normalizedReasons.length,
+    reasons: normalizedReasons,
+    aiRequests: engagement?.aiRequests ?? 0,
+    furniturePlacements: engagement?.furniturePlacements ?? 0,
+    draftBoards: engagement?.draftBoards ?? 0,
+    wishlistCount: authSummary?.wishlistCount ?? engagement?.wishlistCount ?? 0,
+    cartCount: authSummary?.cartCount ?? engagement?.cartCount ?? 0,
+    layoutItemCount: authSummary?.layoutItemCount ?? 0,
+    selectedSpaceCount: Array.isArray(guestDraftSnapshot?.spaceProfile?.spaces)
+      ? guestDraftSnapshot.spaceProfile.spaces.length
+      : 0,
+    recommendationRoom: guestDraftSnapshot?.recommendationDraft?.room ?? null,
+    handoffId: authSummary?.handoffId ?? null,
+    connectionLabel: connection?.targetLabel ?? null,
+    connectionEndpoint: connection?.endpoint ?? null,
+    connectionSource: connection?.source ?? null,
+    connectionCredentialsMode: connection?.credentialsMode ?? null,
+    intentLabel: intent?.label ?? null,
+    intentDraftLabel: intent?.draftLabel ?? null,
+    draftContextBits,
+    draftSaveBits,
+  }
+}
+
+function buildGuestDraftSummary(guestDraftSnapshot = null) {
+  if (!guestDraftSnapshot) return null
+
+  return {
+    apartmentLabel: guestDraftSnapshot?.continuity?.apartmentLabel ?? null,
+    selectedRoomCount: Array.isArray(guestDraftSnapshot?.continuity?.selectedRooms)
+      ? guestDraftSnapshot.continuity.selectedRooms.length
+      : 0,
+    recommendationRoom: guestDraftSnapshot?.recommendationDraft?.room ?? null,
+  }
+}
+
 export function buildAuthReadyPanelState(session = null, { actionConnection = null } = {}) {
   if (!session?.accountLabel) return null
 

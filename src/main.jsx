@@ -39,7 +39,7 @@ import {
   readPersistedAuthHandoff,
   readPersistedAuthSession,
 } from './components/auth-storage.js'
-import { buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './components/auth-session-view-state.js'
+import { buildAuthGuardPanelState, buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './components/auth-session-view-state.js'
 import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
 import { shouldPreservePersistedAuthSessionOnBootstrapFailure } from './components/auth-bootstrap-state.js'
@@ -2399,6 +2399,14 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
   const allowedMergeResolutions = authErrorSummary?.allowedMergeResolutions ?? []
   const modeLabels = buildAuthModeLabels(form.mode)
   const activePlan = form.mode === 'signup' ? authSignupPlan : authSubmitPlan
+  const guardPanelState = buildAuthGuardPanelState({
+    engagement,
+    reasons,
+    guestDraftSnapshot,
+    authSummary: authSubmitPlan.summary,
+    connection: authConnectionSummary,
+    intent: form.intent,
+  })
   const mergeResolutionLabels = {
     'replace-with-account': '계정 상태로 전환',
     'keep-guest': '현재 초안으로 계속',
@@ -2435,10 +2443,23 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
               <div className="loginGuardCard">
                 <strong>로그인 시 함께 넘길 초안</strong>
                 <div className="guardSummary compact">
-                  <div><label>선택 공간</label><b>{guestDraftSnapshot.spaceProfile?.spaces.length ?? 0}개</b></div>
-                  <div><label>추천 초안</label><b>{guestDraftSnapshot.recommendationDraft?.room ?? '없음'}</b></div>
-                  <div><label>배치 아이템</label><b>{authSubmitPlan.summary.layoutItemCount}개</b></div>
+                  <div><label>선택 공간</label><b>{guardPanelState.selectedSpaceCount}개</b></div>
+                  <div><label>추천 초안</label><b>{guardPanelState.recommendationRoom ?? '없음'}</b></div>
+                  <div><label>배치 아이템</label><b>{guardPanelState.layoutItemCount}개</b></div>
+                  {guardPanelState.handoffId && <div><label>handoff</label><b>{guardPanelState.handoffId}</b></div>}
                 </div>
+                {guardPanelState.draftContextBits.length > 0 && (
+                  <p className="muted">현재 게스트 문맥: {guardPanelState.draftContextBits.join(' · ')}</p>
+                )}
+                {guardPanelState.draftSaveBits.length > 0 && (
+                  <p className="muted">draftSave handoff: {guardPanelState.draftSaveBits.join(' · ')}</p>
+                )}
+                {guardPanelState.intentLabel && (
+                  <p className="muted">로그인 목적: {guardPanelState.intentLabel}{guardPanelState.intentDraftLabel ? ` · ${guardPanelState.intentDraftLabel}` : ''}</p>
+                )}
+                {guardPanelState.connectionLabel && (
+                  <p className="muted">연결 대상: {guardPanelState.connectionLabel}{guardPanelState.connectionEndpoint ? ` (${guardPanelState.connectionEndpoint})` : ''} · {guardPanelState.connectionCredentialsMode ?? 'include'} credentials{guardPanelState.connectionSource ? ` · ${guardPanelState.connectionSource}` : ''}</p>
+                )}
               </div>
               <div className="footerButtons stackOnMobile">
                 <button className="ghost" onClick={onClose}>계속 둘러보기</button>
