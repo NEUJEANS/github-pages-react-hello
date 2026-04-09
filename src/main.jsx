@@ -1606,6 +1606,7 @@ function App() {
           : await submitAuthLoginPlan(submitPlan, authConfig)
       const nextContinuation = buildSerializableAuthContinuation(result?.data)
       const nextConnection = resolveAuthConnectionOverride(result, authConnectionSummary)
+      const persistedConnection = resolvePersistedAuthConnection(result, authConnectionSummary)
       const nextResultSummary = result.ok
         ? buildAuthResultSummary(result, {
             ...submitPlan.summary,
