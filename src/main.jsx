@@ -22,6 +22,7 @@ import {
 } from './components/auth-flow-state.js'
 import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan, submitAuthSignupPlan } from './components/auth-submit.js'
 import { resolveAuthConfig } from './components/auth-config.js'
+import { buildAuthWiringState } from './components/auth-wiring-state.js'
 import {
   buildAuthConnectionSummary,
   buildAuthReadyState,
@@ -839,6 +840,10 @@ function App() {
   const authConfig = React.useMemo(
     () => resolveAuthConfig({ env: import.meta.env }),
     [],
+  )
+  const authWiringState = React.useMemo(
+    () => buildAuthWiringState(authConfig),
+    [authConfig],
   )
 
   const authDraftSavePayload = React.useMemo(
@@ -1857,6 +1862,7 @@ function App() {
             authErrorSummary={authErrorSummary}
             authConnectionSummary={authConnectionSummary}
             authReadyPanelState={authReadyPanelState}
+            authWiringState={authWiringState}
             guestDraftSnapshot={guestDraftSnapshot}
             onChangeForm={handleLoginFormChange}
             onChangeContinuationField={handleAuthContinuationFieldChange}
@@ -2484,7 +2490,43 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
 }
 
 
-function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, authReadyPanelState, guestDraftSnapshot, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
+function AuthWiringCard({ wiring }) {
+  if (!wiring?.targets) return null
+
+  const orderedTargets = [
+    ['login', 'login'],
+    ['signup', 'signup'],
+    ['session', 'session'],
+    ['pending', 'pending'],
+    ['continue', 'continue'],
+    ['logout', 'logout'],
+  ]
+    .map(([key, label]) => ({ key, label, target: wiring.targets[key] }))
+    .filter((entry) => entry.target)
+
+  return (
+    <div className="loginGuardCard authPrepCard">
+      <strong>백엔드 auth wiring</strong>
+      <p className="muted">
+        {wiring.isConfigured ? '구성된 auth target 기준으로 frontend handoff를 준비하고 있어요.' : '기본 same-origin scaffold 기준으로 frontend handoff를 준비하고 있어요.'}
+        {' '}source {wiring.source} · credentials {wiring.credentialsMode}
+        {wiring.apiBaseUrl ? ` · api base ${wiring.apiBaseUrl}` : ''}
+        {wiring.appBasePath && wiring.appBasePath !== '/' ? ` · app base ${wiring.appBasePath}` : ''}
+      </p>
+      <div className="guardSummary compact">
+        {orderedTargets.map(({ key, label, target }) => (
+          <div key={key}>
+            <label>{label}</label>
+            <b>{target.endpoint}</b>
+            <span>{target.mode === 'remote' ? target.resolvedUrl : `${target.resolvedUrl} · same-origin`}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, authReadyPanelState, authWiringState, guestDraftSnapshot, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
   const guarded = state === 'guard'
   const allowedMergeResolutions = authErrorSummary?.allowedMergeResolutions ?? []
   const isMergeContinuationPending = form.continuation?.nextAction === 'confirm-merge-resolution'
@@ -2663,6 +2705,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     </div>
                   </div>
                 )}
+                <AuthWiringCard wiring={authWiringState} />
                 <div className="guardSummary compact">
                   <div><label>계정</label><b>{authReadyPanelState.accountLabel}</b></div>
                   {authReadyPanelState.sessionId && <div><label>세션</label><b>{authReadyPanelState.sessionId}</b></div>}
@@ -2800,6 +2843,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     {authResultSummary?.mergeMode && <div><label>추천 초안</label><b>{authResultSummary.restoredRecommendationDraft ? '복원됨' : '없음'}</b></div>}
                   </div>
                 </div>
+                <AuthWiringCard wiring={authWiringState} />
                 <div className="footerButtons stackOnMobile">
                   <button className="ghost" onClick={() => onChangeForm('mode', modeLabels.alternateMode)}>{modeLabels.alternateLabel}</button>
                   {form.status === 'resume-ready' && (
