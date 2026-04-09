@@ -33,6 +33,8 @@ import {
   buildSerializableAuthIntent,
   resolveAuthConnectionOverride,
   resolvePersistedAuthConnection,
+  hasAuthConnectionDrift,
+  buildAuthConnectionDriftSummary,
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
   clearPersistedAuthSession,
@@ -919,6 +921,15 @@ function App() {
       method: 'POST',
     }, authConfig),
     [authConfig],
+  )
+
+  const authConnectionDriftSummary = React.useMemo(
+    () => buildAuthConnectionDriftSummary(loginForm.connection, authConnectionSummary),
+    [authConnectionSummary, loginForm.connection],
+  )
+  const hasResumeConnectionDrift = React.useMemo(
+    () => loginForm.status === 'resume-ready' && hasAuthConnectionDrift(loginForm.connection, authConnectionSummary),
+    [authConnectionSummary, loginForm.connection, loginForm.status],
   )
 
   const authResultSummary = React.useMemo(
@@ -2775,8 +2786,8 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                   {form.continuation && (
                     <p className="muted">백엔드 재개 계약: {form.continuation.nextAction ?? 'next-action 미정'}{form.continuation.resumeToken ? ` · token ${form.continuation.resumeToken}` : ''}</p>
                   )}
-                  {form.status === 'resume-ready' && form.connection?.resolvedUrl && form.connection.resolvedUrl !== authConnectionSummary.resolvedUrl && (
-                    <p className="muted">현재 auth 설정은 {authConnectionSummary.targetLabel}{authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''}로 바뀌어 있어요. 재시도하면 새 대상에 맞춰 다시 연결합니다.</p>
+                  {hasResumeConnectionDrift && (
+                    <p className="muted">현재 auth 설정은 {authConnectionSummary.targetLabel}{authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''}로 바뀌어 있어요. 재시도하면 새 대상에 맞춰 다시 연결합니다.{authConnectionDriftSummary?.changes?.length ? ` 변경점: ${authConnectionDriftSummary.changes.join(' · ')}` : ''}</p>
                   )}
                   {authErrorSummary && (
                     <p className="muted">오류 분류: {authErrorSummary.tone === 'credentials' ? '자격 증명' : authErrorSummary.tone === 'merge' ? '초안 병합' : authErrorSummary.tone === 'service' ? '인증 서비스' : '기타'}</p>

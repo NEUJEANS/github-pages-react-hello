@@ -11,6 +11,8 @@ import {
   buildSerializableAuthConnection,
   resolveAuthConnectionOverride,
   resolvePersistedAuthConnection,
+  hasAuthConnectionDrift,
+  buildAuthConnectionDriftSummary,
   buildSerializableAuthContinuation,
   buildSerializableAuthContinuationFields,
   buildSerializableAuthIntent,
@@ -294,6 +296,117 @@ test('resolvePersistedAuthConnection keeps the canonical login/session auth cont
       source: 'default',
     },
   )
+})
+
+test('hasAuthConnectionDrift detects auth target, credential, and source drift between saved handoffs and current wiring', () => {
+  assert.equal(
+    hasAuthConnectionDrift(
+      {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: '/api/auth/login',
+        targetLabel: 'same-origin /api auth scaffold',
+        isExternal: false,
+        isSameOriginScaffold: true,
+        credentialsMode: 'include',
+        source: 'default',
+      },
+      {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: 'https://auth.example.com/api/auth/login',
+        targetLabel: 'auth.example.com',
+        isExternal: true,
+        isSameOriginScaffold: false,
+        credentialsMode: 'omit',
+        source: 'runtime',
+      },
+    ),
+    true,
+  )
+
+  assert.equal(
+    hasAuthConnectionDrift(
+      {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: '/api/auth/login',
+        targetLabel: 'same-origin /api auth scaffold',
+        isExternal: false,
+        isSameOriginScaffold: true,
+        credentialsMode: 'include',
+        source: 'default',
+      },
+      {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: '/api/auth/login',
+        targetLabel: 'same-origin /api auth scaffold',
+        isExternal: false,
+        isSameOriginScaffold: true,
+        credentialsMode: 'include',
+        source: 'default',
+      },
+    ),
+    false,
+  )
+})
+
+test('buildAuthConnectionDriftSummary lists concrete auth wiring changes for resume messaging', () => {
+  assert.deepEqual(
+    buildAuthConnectionDriftSummary(
+      {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: '/api/auth/login',
+        targetLabel: 'same-origin /api auth scaffold',
+        isExternal: false,
+        isSameOriginScaffold: true,
+        credentialsMode: 'include',
+        source: 'default',
+      },
+      {
+        method: 'POST',
+        endpoint: '/v2/runtime/login',
+        resolvedUrl: 'https://auth.example.com/v2/runtime/login',
+        targetLabel: 'auth.example.com',
+        isExternal: true,
+        isSameOriginScaffold: false,
+        credentialsMode: 'omit',
+        source: 'runtime',
+      },
+    ),
+    {
+      saved: {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: '/api/auth/login',
+        targetLabel: 'same-origin /api auth scaffold',
+        isExternal: false,
+        isSameOriginScaffold: true,
+        credentialsMode: 'include',
+        source: 'default',
+      },
+      active: {
+        method: 'POST',
+        endpoint: '/v2/runtime/login',
+        resolvedUrl: 'https://auth.example.com/v2/runtime/login',
+        targetLabel: 'auth.example.com',
+        isExternal: true,
+        isSameOriginScaffold: false,
+        credentialsMode: 'omit',
+        source: 'runtime',
+      },
+      changes: [
+        'target same-origin /api auth scaffold → auth.example.com',
+        'endpoint /api/auth/login → /v2/runtime/login',
+        'credentials include → omit',
+        'source default → runtime',
+      ],
+    },
+  )
+
+  assert.equal(buildAuthConnectionDriftSummary(null, null), null)
 })
 
 test('buildSerializableAuthContinuation keeps backend resume contract fields compact and serializable', () => {

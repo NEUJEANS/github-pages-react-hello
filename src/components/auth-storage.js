@@ -72,6 +72,49 @@ export function resolvePersistedAuthConnection(result = null, fallbackConnection
   return resolvedConnection
 }
 
+export function hasAuthConnectionDrift(savedConnection = null, activeConnection = null) {
+  const saved = buildSerializableAuthConnection(savedConnection)
+  const active = buildSerializableAuthConnection(activeConnection)
+
+  if (!saved || !active) return false
+
+  return [
+    'resolvedUrl',
+    'endpoint',
+    'targetLabel',
+    'credentialsMode',
+    'source',
+    'method',
+  ].some((key) => (saved[key] ?? null) !== (active[key] ?? null))
+}
+
+export function buildAuthConnectionDriftSummary(savedConnection = null, activeConnection = null) {
+  if (!hasAuthConnectionDrift(savedConnection, activeConnection)) return null
+
+  const saved = buildSerializableAuthConnection(savedConnection)
+  const active = buildSerializableAuthConnection(activeConnection)
+  const changes = []
+
+  if ((saved?.targetLabel ?? null) !== (active?.targetLabel ?? null)) {
+    changes.push(`target ${saved?.targetLabel ?? 'unknown'} → ${active?.targetLabel ?? 'unknown'}`)
+  }
+  if ((saved?.endpoint ?? null) !== (active?.endpoint ?? null)) {
+    changes.push(`endpoint ${saved?.endpoint ?? 'unknown'} → ${active?.endpoint ?? 'unknown'}`)
+  }
+  if ((saved?.credentialsMode ?? null) !== (active?.credentialsMode ?? null)) {
+    changes.push(`credentials ${saved?.credentialsMode ?? 'unknown'} → ${active?.credentialsMode ?? 'unknown'}`)
+  }
+  if ((saved?.source ?? null) !== (active?.source ?? null)) {
+    changes.push(`source ${saved?.source ?? 'unknown'} → ${active?.source ?? 'unknown'}`)
+  }
+
+  return {
+    saved,
+    active,
+    changes,
+  }
+}
+
 function normalizeAuthContinuationNextAction(nextAction = '') {
   switch (nextAction) {
     case 'login':
