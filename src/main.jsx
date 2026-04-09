@@ -859,37 +859,44 @@ function App() {
     draftSave: authDraftSavePayload,
   }), [authConfig.loginEndpoint, authDraftSavePayload, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password])
 
-  const authSignupPlan = React.useMemo(() => ({
-    canSubmit: loginForm.displayName.trim().length >= 2
-      && loginForm.email.includes('@')
-      && loginForm.password.trim().length >= 8
-      && loginForm.password === loginForm.confirmPassword
-      && loginForm.agreeToTerms,
-    endpoint: authConfig.signupEndpoint,
-    method: 'POST',
-    handoffId: loginForm.handoffId ?? null,
-    request: {
-      mode: 'signup',
-      displayName: loginForm.displayName.trim(),
-      email: loginForm.email.trim().toLowerCase(),
-      password: loginForm.password,
-      guestDraftSnapshot,
+  const authSignupPlan = React.useMemo(() => {
+    const serializableIntent = buildSerializableAuthIntent(loginForm.intent)
+    const serializableContinuation = buildSerializableAuthContinuation(loginForm.continuation)
+
+    return {
+      canSubmit: loginForm.displayName.trim().length >= 2
+        && loginForm.email.includes('@')
+        && loginForm.password.trim().length >= 8
+        && loginForm.password === loginForm.confirmPassword
+        && loginForm.agreeToTerms,
+      endpoint: authConfig.signupEndpoint,
+      method: 'POST',
       handoffId: loginForm.handoffId ?? null,
-      intent: buildSerializableAuthIntent(loginForm.intent),
-      draftSave: authDraftSavePayload,
-    },
-    summary: {
-      displayName: loginForm.displayName.trim(),
-      email: loginForm.email.trim().toLowerCase(),
-      handoffId: loginForm.handoffId ?? null,
-      wishlistCount: guestDraftSnapshot?.continuity?.wishlistIds?.length ?? 0,
-      cartCount: guestDraftSnapshot?.continuity?.cartItems?.length ?? 0,
-      layoutItemCount: guestDraftSnapshot?.continuity?.layoutItems?.length ?? 0,
-      hasRecommendationDraft: Boolean(guestDraftSnapshot?.recommendationDraft),
-      intent: buildSerializableAuthIntent(loginForm.intent),
-      draftSave: authDraftSavePayload,
-    },
-  }), [authConfig.signupEndpoint, authDraftSavePayload, guestDraftSnapshot, loginForm.agreeToTerms, loginForm.confirmPassword, loginForm.displayName, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.password])
+      request: {
+        mode: 'signup',
+        displayName: loginForm.displayName.trim(),
+        email: loginForm.email.trim().toLowerCase(),
+        password: loginForm.password,
+        guestDraftSnapshot,
+        handoffId: loginForm.handoffId ?? null,
+        intent: serializableIntent,
+        continuation: serializableContinuation,
+        draftSave: authDraftSavePayload,
+      },
+      summary: {
+        displayName: loginForm.displayName.trim(),
+        email: loginForm.email.trim().toLowerCase(),
+        handoffId: loginForm.handoffId ?? null,
+        wishlistCount: guestDraftSnapshot?.continuity?.wishlistIds?.length ?? 0,
+        cartCount: guestDraftSnapshot?.continuity?.cartItems?.length ?? 0,
+        layoutItemCount: guestDraftSnapshot?.continuity?.layoutItems?.length ?? 0,
+        hasRecommendationDraft: Boolean(guestDraftSnapshot?.recommendationDraft),
+        intent: serializableIntent,
+        continuation: serializableContinuation,
+        draftSave: authDraftSavePayload,
+      },
+    }
+  }, [authConfig.signupEndpoint, authDraftSavePayload, guestDraftSnapshot, loginForm.agreeToTerms, loginForm.confirmPassword, loginForm.continuation, loginForm.displayName, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.password])
 
   const activeAuthPlan = loginForm.mode === 'signup' ? authSignupPlan : authSubmitPlan
 
