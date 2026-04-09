@@ -227,12 +227,14 @@ export function buildAuthSubmitPlan({
   endpoint = '/api/auth/login',
   intent = null,
   continuation = null,
+  draftSave = null,
 } = {}) {
   const normalizedEmail = sanitizeEmail(email)
   const normalizedHandoffId = sanitizeAuthHandoffId(handoffId)
   const hasPassword = password.trim().length >= 8
   const hasGuestDraft = Boolean(guestDraftSnapshot)
   const serializableContinuation = buildSerializableContinuation(continuation)
+  const serializableDraftSave = buildSerializableDraftSaveHandoff(draftSave)
 
   return {
     canSubmit: normalizedEmail.includes('@') && hasPassword,
@@ -247,6 +249,7 @@ export function buildAuthSubmitPlan({
       handoffId: normalizedHandoffId || null,
       intent,
       continuation: serializableContinuation,
+      draftSave: serializableDraftSave,
     },
     summary: {
       email: normalizedEmail,
@@ -258,6 +261,8 @@ export function buildAuthSubmitPlan({
       mergeResolution,
       intent,
       continuation: serializableContinuation,
+      draftSave: serializableDraftSave,
+      hasDraftSave: Boolean(serializableDraftSave),
     },
   }
 }

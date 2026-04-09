@@ -816,6 +816,16 @@ function App() {
     [],
   )
 
+  const authDraftSavePayload = React.useMemo(
+    () => buildAuthDraftSavePayload(
+      loginForm.draftSave,
+      authSession?.draftSave ?? null,
+      guestDraftSnapshot,
+      authSession?.intent ?? loginForm.intent ?? null,
+    ),
+    [authSession?.draftSave, authSession?.intent, guestDraftSnapshot, loginForm.draftSave, loginForm.intent],
+  )
+
   const authSubmitPlan = React.useMemo(() => buildAuthSubmitPlan({
     email: loginForm.email,
     password: loginForm.password,
@@ -824,7 +834,8 @@ function App() {
     handoffId: loginForm.handoffId ?? null,
     endpoint: authConfig.loginEndpoint,
     intent: buildSerializableAuthIntent(loginForm.intent),
-  }), [authConfig.loginEndpoint, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password])
+    draftSave: authDraftSavePayload,
+  }), [authConfig.loginEndpoint, authDraftSavePayload, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password])
 
   const authConnectionSummary = React.useMemo(
     () => buildAuthConnectionSummary(authSubmitPlan, authConfig),
@@ -880,16 +891,6 @@ function App() {
     if (!shouldAutoOpenAuthReadyPanel(authSession, loginModalState)) return
     setLoginModalState('form')
   }, [authSession, loginModalState])
-
-  const authDraftSavePayload = React.useMemo(
-    () => buildAuthDraftSavePayload(
-      loginForm.draftSave,
-      authSession?.draftSave ?? null,
-      guestDraftSnapshot,
-      authSession?.intent ?? loginForm.intent ?? null,
-    ),
-    [authSession?.draftSave, authSession?.intent, guestDraftSnapshot, loginForm.draftSave, loginForm.intent],
-  )
 
   const authContinuationPlan = React.useMemo(() => buildAuthContinuationPlan({
     endpoint: authConfig.continueEndpoint,
@@ -1383,6 +1384,7 @@ function App() {
       endpoint: authConfig.loginEndpoint,
       intent: buildSerializableAuthIntent(loginForm.intent),
       continuation: buildSerializableAuthContinuation(loginForm.continuation),
+      draftSave: authDraftSavePayload,
     })
 
     const continuationPlan = shouldResolveMergeViaContinuation

@@ -223,6 +223,13 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request with handoff
     endpoint: '/internal/auth/login',
     intent: { action: 'save-layout-draft', label: '로그인 후 보드 저장' },
     continuation: { resumeToken: 'resume-123', nextAction: 'confirm-merge-resolution' },
+    draftSave: {
+      draftLabel: ' 거실 배치 보드 ',
+      apartmentLabel: ' 래미안 포레스트 84A ',
+      recommendationRoom: ' 거실 ',
+      selectedSpaceIds: ['living', 'bed1', 'living'],
+      layoutItems: [{ id: 'layout-1', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2 }],
+    },
     guestDraftSnapshot: {
       recommendationDraft: { room: '거실' },
       continuity: {
@@ -240,6 +247,14 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request with handoff
   assert.equal(plan.request.email, 'user@example.com')
   assert.equal(plan.request.handoffId, 'auth-20260406123000-2n9c')
   assert.deepEqual(plan.request.intent, { action: 'save-layout-draft', label: '로그인 후 보드 저장' })
+  assert.deepEqual(plan.request.draftSave, {
+    draftLabel: '거실 배치 보드',
+    apartmentLabel: '래미안 포레스트 84A',
+    recommendationRoom: '거실',
+    selectedSpaceIds: ['living', 'bed1'],
+    layoutItems: [{ id: 'layout-1', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2 }],
+    layoutItemCount: 1,
+  })
   assert.equal(plan.summary.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(plan.summary.wishlistCount, 2)
   assert.equal(plan.summary.cartCount, 1)
@@ -253,6 +268,15 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request with handoff
     status: null,
     statusLabel: null,
   })
+  assert.deepEqual(plan.summary.draftSave, {
+    draftLabel: '거실 배치 보드',
+    apartmentLabel: '래미안 포레스트 84A',
+    recommendationRoom: '거실',
+    selectedSpaceIds: ['living', 'bed1'],
+    layoutItems: [{ id: 'layout-1', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2 }],
+    layoutItemCount: 1,
+  })
+  assert.equal(plan.summary.hasDraftSave, true)
 })
 
 test('buildAuthResultSummary extracts backend auth response details without widening the login flow contract', () => {
