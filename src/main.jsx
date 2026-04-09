@@ -2528,6 +2528,12 @@ function AuthWiringCard({ wiring }) {
     .map(([key, label]) => ({ key, label, target: wiring.targets[key] }))
     .filter((entry) => entry.target)
 
+  const strategyCopy = wiring.scaffoldStrategy === 'same-origin-continuation-scaffold'
+    ? 'same-origin continue scaffold를 우선 사용해 blocker 이후 재개 요청까지 같은 auth 계약으로 묶습니다.'
+    : wiring.scaffoldStrategy === 'same-origin-login-scaffold'
+      ? 'same-origin login scaffold를 우선 사용해 첫 handoff를 프론트에서 바로 검증합니다.'
+      : '구성된 remote auth service 기준으로 login / continue handoff를 준비합니다.'
+
   return (
     <div className="loginGuardCard authPrepCard">
       <strong>백엔드 auth wiring</strong>
@@ -2537,12 +2543,21 @@ function AuthWiringCard({ wiring }) {
         {wiring.apiBaseUrl ? ` · api base ${wiring.apiBaseUrl}` : ''}
         {wiring.appBasePath && wiring.appBasePath !== '/' ? ` · app base ${wiring.appBasePath}` : ''}
       </p>
+      <p className="muted">{strategyCopy}</p>
       <div className="guardSummary compact">
         {orderedTargets.map(({ key, label, target }) => (
-          <div key={key}>
+          <div key={key} data-auth-wiring-target={key}>
             <label>{label}</label>
-            <b>{target.endpoint}</b>
-            <span>{target.mode === 'remote' ? target.resolvedUrl : `${target.resolvedUrl} · same-origin`}</span>
+            <b>{target.method} {target.endpoint}</b>
+            <span>{target.targetLabel} · {target.resolvedUrl}</span>
+            <span>
+              {[
+                target.expectsSerializableHandoff ? 'serializable handoff' : null,
+                target.carriesGuestDraftSnapshot ? 'guestDraftSnapshot' : null,
+                target.carriesDraftSave ? 'draftSave' : null,
+                target.carriesContinuation ? 'continuation' : null,
+              ].filter(Boolean).join(' · ')}
+            </span>
           </div>
         ))}
       </div>
