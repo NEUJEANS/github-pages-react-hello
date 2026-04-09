@@ -602,12 +602,29 @@ async function readLoginConnectionPreview(page) {
   const loginBenefits = page.locator('.loginBenefits')
   const targetLine = loginBenefits.locator('div').filter({ hasText: '연결 대상' }).first()
   const transportLine = loginBenefits.locator('div').filter({ hasText: '인증 전송' }).first()
-  const prepCard = page.locator('.loginForm .authPrepCard').first()
+  const prepCard = page.locator('.loginForm .authPrepCard').filter({ hasText: '로그인 요청 payload 미리보기' }).first()
 
   return {
     target: (await targetLine.innerText().catch(() => '')).trim(),
     transport: (await transportLine.innerText().catch(() => '')).trim(),
     status: (await prepCard.locator('.muted').first().innerText().catch(() => '')).trim(),
+    payloadPreview: await prepCard.locator('.guardSummary.compact div').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => []),
+  }
+}
+
+function assertLoginConnectionPreview(preview) {
+  const flattened = [preview.target, preview.transport, preview.status, ...(preview.payloadPreview ?? [])].join(' | ')
+  const expectedFragments = [
+    '/api/auth/login',
+    'payload keys',
+    'guestDraftSnapshot',
+    'connection',
+  ]
+
+  for (const fragment of expectedFragments) {
+    if (!flattened.includes(fragment)) {
+      throw new Error(`Login payload preview is missing expected auth contract detail: ${fragment}. Saw: ${flattened}`)
+    }
   }
 }
 
@@ -720,6 +737,8 @@ async function runBrowserSmoke(playwright) {
     await page.goto(baseUrl, { waitUntil: 'networkidle' })
 
     await openLogin(page)
+    const directLoginPreview = await readLoginConnectionPreview(page)
+    assertLoginConnectionPreview(directLoginPreview)
     await submitLogin(page, {
       email: 'user@example.com',
       password: 'password123',
@@ -905,6 +924,7 @@ async function runBrowserSmoke(playwright) {
       baseUrl,
       directSuccess: {
         status,
+        preview: directLoginPreview,
         notice,
         accountLabel,
         reloadedNotice,

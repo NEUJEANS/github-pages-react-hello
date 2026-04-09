@@ -205,6 +205,29 @@ function shouldUseContinuationConnection(nextAction = null) {
   return nextAction === 'complete-profile' || nextAction === 'verify-email' || nextAction === 'confirm-merge-resolution'
 }
 
+export function buildAuthLoginPanelState({
+  authSummary = null,
+  connection = null,
+  intent = null,
+} = {}) {
+  const draftSaveBits = buildDraftSaveBits(authSummary?.draftSave ?? null)
+
+  return {
+    handoffId: authSummary?.handoffId ?? null,
+    connectionLabel: connection?.targetLabel ?? null,
+    connectionEndpoint: connection?.endpoint ?? null,
+    connectionSource: connection?.source ?? null,
+    connectionCredentialsMode: connection?.credentialsMode ?? null,
+    intentLabel: intent?.label ?? null,
+    intentDraftLabel: intent?.draftLabel ?? null,
+    draftSaveBits,
+    submitPayloadPreview: buildSubmitPayloadPreview({
+      ...authSummary,
+      intent,
+    }, connection),
+  }
+}
+
 export function buildAuthGuardPanelState({
   engagement = null,
   reasons = [],

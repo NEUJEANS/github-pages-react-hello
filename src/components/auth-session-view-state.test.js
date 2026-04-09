@@ -1,7 +1,60 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildAuthGuardPanelState, buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './auth-session-view-state.js'
+import { buildAuthGuardPanelState, buildAuthLoginPanelState, buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './auth-session-view-state.js'
+
+test('buildAuthLoginPanelState mirrors the initial login payload contract for non-guard modal flows', () => {
+  assert.deepEqual(buildAuthLoginPanelState({
+    authSummary: {
+      handoffId: 'auth-20260409180000-login',
+      wishlistCount: 1,
+      cartCount: 2,
+      layoutItemCount: 4,
+      continuation: {
+        nextAction: 'confirm-merge-resolution',
+        resumeToken: 'auth-20260409180000-login:resume',
+      },
+      mergeResolution: 'keep-guest',
+      draftSave: {
+        draftLabel: '거실 배치 보드',
+        apartmentLabel: '래미안 포레스트 84A',
+        recommendationRoom: '거실',
+        selectedSpaceIds: ['living', 'bed1'],
+        layoutItemCount: 4,
+      },
+    },
+    connection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/login',
+      source: 'default',
+      credentialsMode: 'include',
+    },
+    intent: {
+      label: '로그인 후 주문 이어가기',
+      draftLabel: '카트 handoff',
+    },
+  }), {
+    handoffId: 'auth-20260409180000-login',
+    connectionLabel: 'same-origin /api auth scaffold',
+    connectionEndpoint: '/api/auth/login',
+    connectionSource: 'default',
+    connectionCredentialsMode: 'include',
+    intentLabel: '로그인 후 주문 이어가기',
+    intentDraftLabel: '카트 handoff',
+    draftSaveBits: ['초안 거실 배치 보드', '래미안 포레스트 84A', '거실 추천', '선택 공간 2개', '저장 배치 4개'],
+    submitPayloadPreview: {
+      endpoint: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      payloadKeys: ['email', 'password', 'handoffId', 'guestDraftSnapshot', 'mergeResolution', 'intent', 'continuation', 'draftSave', 'connection'],
+      handoffId: 'auth-20260409180000-login',
+      draftSaveLayoutItemCount: 4,
+      draftSaveSelectedSpaceCount: 2,
+      wishlistCount: 1,
+      cartCount: 2,
+      layoutItemCount: 4,
+    },
+  })
+})
 
 test('buildAuthGuardPanelState summarizes guarded login handoff context before submit', () => {
   assert.deepEqual(buildAuthGuardPanelState({

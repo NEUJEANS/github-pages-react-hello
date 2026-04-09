@@ -44,7 +44,7 @@ import {
   readPersistedAuthHandoff,
   readPersistedAuthSession,
 } from './components/auth-storage.js'
-import { buildAuthGuardPanelState, buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './components/auth-session-view-state.js'
+import { buildAuthGuardPanelState, buildAuthLoginPanelState, buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './components/auth-session-view-state.js'
 import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
 import { shouldPreservePersistedAuthSessionOnBootstrapFailure } from './components/auth-bootstrap-state.js'
@@ -2552,6 +2552,11 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
     connection: authConnectionSummary,
     intent: form.intent,
   })
+  const loginPanelState = buildAuthLoginPanelState({
+    authSummary: activePlan.summary,
+    connection: authConnectionSummary,
+    intent: form.intent,
+  })
   const mergeResolutionLabels = {
     'replace-with-account': '계정 상태로 전환',
     'keep-guest': '현재 초안으로 계속',
@@ -2817,26 +2822,24 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                   {form.intent?.label && (
                     <p className="muted">{form.mode === 'signup' ? '회원가입 후 이어갈 작업' : '로그인 후 이어갈 작업'}: {form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</p>
                   )}
-                  {activePlan.summary.draftSave && (
-                    <p className="muted">draftSave handoff: {[
-                      activePlan.summary.draftSave.draftLabel ? `초안 ${activePlan.summary.draftSave.draftLabel}` : null,
-                      activePlan.summary.draftSave.apartmentLabel,
-                      activePlan.summary.draftSave.recommendationRoom ? `${activePlan.summary.draftSave.recommendationRoom} 추천` : null,
-                      activePlan.summary.draftSave.selectedSpaceIds?.length ? `선택 공간 ${activePlan.summary.draftSave.selectedSpaceIds.length}개` : null,
-                      activePlan.summary.draftSave.layoutItemCount ? `저장 배치 ${activePlan.summary.draftSave.layoutItemCount}개` : null,
-                    ].filter(Boolean).join(' · ')}</p>
+                  {loginPanelState.draftSaveBits.length > 0 && (
+                    <p className="muted">draftSave handoff: {loginPanelState.draftSaveBits.join(' · ')}</p>
                   )}
-                  <p className="muted">요청 미리보기: {authConnectionSummary.targetLabel}{authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''} 대상으로 {[
-                    'email',
-                    'password',
-                    'handoffId',
-                    (activePlan.summary.wishlistCount > 0 || activePlan.summary.cartCount > 0 || activePlan.summary.layoutItemCount > 0 || activePlan.summary.hasRecommendationDraft) ? 'guestDraftSnapshot' : null,
-                    activePlan.summary.intent ? 'intent' : null,
-                    activePlan.summary.continuation ? 'continuation' : null,
-                    activePlan.summary.mergeResolution ? 'mergeResolution' : null,
-                    activePlan.summary.draftSave ? 'draftSave' : null,
-                    'connection',
-                  ].filter(Boolean).join(', ')} 키를 준비합니다.</p>
+                  {loginPanelState.submitPayloadPreview && (
+                    <div className="loginGuardCard authPrepCard">
+                      <strong>로그인 요청 payload 미리보기</strong>
+                      <p className="muted">{loginPanelState.submitPayloadPreview.targetLabel ?? '현재 인증 연결 대상'}{loginPanelState.submitPayloadPreview.endpoint ? ` (${loginPanelState.submitPayloadPreview.endpoint})` : ''} 대상으로 첫 로그인 요청을 보냅니다.</p>
+                      <div className="guardSummary compact">
+                        {loginPanelState.submitPayloadPreview.handoffId && <div><label>handoff</label><b>{loginPanelState.submitPayloadPreview.handoffId}</b></div>}
+                        <div><label>payload keys</label><b>{loginPanelState.submitPayloadPreview.payloadKeys.join(', ')}</b></div>
+                        <div><label>찜</label><b>{loginPanelState.submitPayloadPreview.wishlistCount}개</b></div>
+                        <div><label>장바구니</label><b>{loginPanelState.submitPayloadPreview.cartCount}개</b></div>
+                        <div><label>배치</label><b>{loginPanelState.submitPayloadPreview.layoutItemCount}개</b></div>
+                        {loginPanelState.submitPayloadPreview.draftSaveSelectedSpaceCount > 0 && <div><label>draftSave 공간</label><b>{loginPanelState.submitPayloadPreview.draftSaveSelectedSpaceCount}개</b></div>}
+                        {loginPanelState.submitPayloadPreview.draftSaveLayoutItemCount > 0 && <div><label>draftSave 배치</label><b>{loginPanelState.submitPayloadPreview.draftSaveLayoutItemCount}개</b></div>}
+                      </div>
+                    </div>
+                  )}
                   <div className="guardSummary compact">
                     <div><label>handoff</label><b>{activePlan.summary.handoffId ?? '미생성'}</b></div>
                     <div><label>찜</label><b>{activePlan.summary.wishlistCount}개</b></div>
