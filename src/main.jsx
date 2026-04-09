@@ -2404,6 +2404,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authCont
                   {authReadyPanelState.returnScreen && <div><label>복귀 화면</label><b>{authReadyPanelState.returnScreen}</b></div>}
                   {authReadyPanelState.restoredBits.map((bit) => <div key={bit}><label>복원</label><b>{bit}</b></div>)}
                   {authReadyPanelState.draftContextBits.map((bit) => <div key={bit}><label>초안</label><b>{bit}</b></div>)}
+                  {authReadyPanelState.draftSaveBits.map((bit) => <div key={bit}><label>draftSave</label><b>{bit}</b></div>)}
                 </div>
               </div>
               <div className="footerButtons stackOnMobile">
@@ -2458,6 +2459,15 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authCont
                   )}
                   {form.intent?.label && (
                     <p className="muted">로그인 후 이어갈 작업: {form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</p>
+                  )}
+                  {authSubmitPlan.summary.draftSave && (
+                    <p className="muted">draftSave handoff: {[
+                      authSubmitPlan.summary.draftSave.draftLabel ? `초안 ${authSubmitPlan.summary.draftSave.draftLabel}` : null,
+                      authSubmitPlan.summary.draftSave.apartmentLabel,
+                      authSubmitPlan.summary.draftSave.recommendationRoom ? `${authSubmitPlan.summary.draftSave.recommendationRoom} 추천` : null,
+                      authSubmitPlan.summary.draftSave.selectedSpaceIds?.length ? `선택 공간 ${authSubmitPlan.summary.draftSave.selectedSpaceIds.length}개` : null,
+                      authSubmitPlan.summary.draftSave.layoutItemCount ? `저장 배치 ${authSubmitPlan.summary.draftSave.layoutItemCount}개` : null,
+                    ].filter(Boolean).join(' · ')}</p>
                   )}
                   <div className="guardSummary compact">
                     <div><label>handoff</label><b>{authSubmitPlan.summary.handoffId ?? '미생성'}</b></div>

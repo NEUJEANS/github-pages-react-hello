@@ -8,6 +8,20 @@ function buildDraftContextBits(summary = null) {
   return bits
 }
 
+function buildDraftSaveBits(draftSave = null) {
+  if (!draftSave) return []
+
+  const bits = []
+  if (draftSave.draftLabel) bits.push(`초안 ${draftSave.draftLabel}`)
+  if (draftSave.apartmentLabel && draftSave.apartmentLabel !== draftSave.draftLabel) bits.push(draftSave.apartmentLabel)
+  if (draftSave.recommendationRoom) bits.push(`${draftSave.recommendationRoom} 추천`)
+  if (Array.isArray(draftSave.selectedSpaceIds) && draftSave.selectedSpaceIds.length > 0) {
+    bits.push(`선택 공간 ${draftSave.selectedSpaceIds.length}개`)
+  }
+  if ((draftSave.layoutItemCount ?? 0) > 0) bits.push(`저장 배치 ${draftSave.layoutItemCount}개`)
+  return bits
+}
+
 function buildIntentCopy(intent) {
   if (!intent?.label && !intent?.draftLabel) return ''
 
@@ -116,6 +130,7 @@ export function buildAuthReadyPanelState(session = null) {
   if (session.restoredRecommendationDraft) restoredBits.push('추천 초안')
 
   const draftContextBits = buildDraftContextBits(session.guestDraftSummary)
+  const draftSaveBits = buildDraftSaveBits(session.draftSave)
   const intentLabel = session.intent?.label ?? '저장한 작업'
   const intentDraftLabel = session.intent?.draftLabel ?? null
   const nextAction = session.continuation?.nextAction ?? null
@@ -145,6 +160,7 @@ export function buildAuthReadyPanelState(session = null) {
     subtitle,
     restoredBits,
     draftContextBits,
+    draftSaveBits,
     accountLabel: session.accountLabel,
     handoffId: session.handoffId ?? null,
     sessionId: session.sessionId ?? null,
@@ -187,6 +203,7 @@ export function buildAuthSessionNotice(session) {
   if (session.restoredRecommendationDraft) restoredBits.push('추천 초안')
 
   const draftContextBits = buildDraftContextBits(session.guestDraftSummary)
+  const draftSaveBits = buildDraftSaveBits(session.draftSave)
 
   const mergeLabel = session.mergeMode === 'merged'
     ? '게스트 초안을 계정에 이어붙였어요.'
@@ -198,6 +215,9 @@ export function buildAuthSessionNotice(session) {
 
   const draftContextCopy = draftContextBits.length
     ? ` ${draftContextBits.join(' · ')} 기준으로 이어졌어요.`
+    : ''
+  const draftSaveCopy = draftSaveBits.length
+    ? ` 로그인 요청에는 ${draftSaveBits.join(' · ')} handoff를 함께 실어뒀어요.`
     : ''
   const handoffCopy = session.handoffId ? ` handoff ${session.handoffId} 기준으로 이어졌어요.` : ''
   const transportCopy = session.authMode === 'scaffold'
@@ -211,9 +231,10 @@ export function buildAuthSessionNotice(session) {
   return {
     title: `${session.accountLabel} 계정 연결됨`,
     body: restoredBits.length
-      ? `${mergeLabel}${draftContextCopy}${handoffCopy}${transportCopy}${connectionCopy}${intentCopy} ${restoredBits.join(' · ')} 복원 내용을 이번 세션에 반영했어요.`.trim()
-      : `${mergeLabel}${draftContextCopy}${handoffCopy}${transportCopy}${connectionCopy}${intentCopy}`.trim(),
+      ? `${mergeLabel}${draftContextCopy}${draftSaveCopy}${handoffCopy}${transportCopy}${connectionCopy}${intentCopy} ${restoredBits.join(' · ')} 복원 내용을 이번 세션에 반영했어요.`.trim()
+      : `${mergeLabel}${draftContextCopy}${draftSaveCopy}${handoffCopy}${transportCopy}${connectionCopy}${intentCopy}`.trim(),
     restoredBits,
     draftContextBits,
+    draftSaveBits,
   }
 }
