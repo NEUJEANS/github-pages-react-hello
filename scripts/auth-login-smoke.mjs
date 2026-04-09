@@ -794,10 +794,21 @@ async function runBrowserSmoke(playwright) {
     const mergeOptions = await mergePage.locator('.footerButtons button.ghost').evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim()).filter(Boolean))
 
     await mergePage.getByRole('button', { name: '현재 초안으로 계속' }).click()
+    const mergePreviewCard = mergePage.locator('.loginForm .authPrepCard').filter({ hasText: '병합 재개 payload 미리보기' }).first()
+    await mergePreviewCard.waitFor()
+    const mergePreviewLines = await mergePreviewCard.locator('.muted').allInnerTexts()
     const mergeReadyAction = mergePage.locator('.loginPanel .footerButtons .cta').last()
     await mergeReadyAction.waitFor()
     const mergeReadyLabel = (await mergeReadyAction.innerText()).trim()
     const mergeStatus = await mergePage.locator('.authPrepCard .muted').first().innerText()
+    if (!mergePreviewLines.some((line) => line.includes('mergeResolution keep-guest'))) {
+      throw new Error(`Merge continuation preview did not expose the selected merge resolution before submit. Saw: ${mergePreviewLines.join(' | ')}`)
+    }
+    if (!mergePreviewLines.some((line) => line.includes('/api/auth/continue'))) {
+      throw new Error(`Merge continuation preview did not expose the continuation endpoint before submit. Saw: ${mergePreviewLines.join(' | ')}`)
+    }
+    await mergeReadyAction.click()
+    const mergeReadySignal = await waitForAuthReadySignal(mergePage, { expectedAccountLabel: 'merge@example.com' })
     await capture(mergePage, 'auth-login-guarded-merge.png')
     await mergePage.close()
 
@@ -921,7 +932,7 @@ async function runBrowserSmoke(playwright) {
           resumedStatus: verifyEmailResumedStatus,
         },
       },
-      guardedMerge: { guardReasons, guardPreview, mergeError, mergeOptions, mergeReadyLabel, mergeStatus },
+      guardedMerge: { guardReasons, guardPreview, mergeError, mergeOptions, mergePreviewLines, mergeReadyLabel, mergeStatus, mergeReadySignal },
       authTargetOverrides: {
         query: queryOverridePreview,
         runtime: runtimeOverridePreview,
