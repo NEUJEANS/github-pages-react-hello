@@ -30,6 +30,7 @@ import {
   buildSerializableAuthContinuation,
   buildSerializableAuthContinuationFields,
   buildSerializableAuthIntent,
+  resolveAuthConnectionOverride,
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
   clearPersistedAuthSession,
@@ -1292,12 +1293,14 @@ function App() {
     try {
       const result = await submitAuthContinuationPlan(authContinuationPlan, authConfig)
       const submittedContinuation = buildSerializableAuthContinuation(result?.data)
+      const submittedConnection = resolveAuthConnectionOverride(result, authSession?.connection ?? authConnectionSummary)
 
       if (!result.ok) {
         setLoginForm((current) => ({
           ...current,
           status: 'error',
           result,
+          connection: submittedConnection,
           continuation: submittedContinuation,
         }))
         return
@@ -1320,7 +1323,7 @@ function App() {
       })
       const nextSession = buildPersistedAuthSession(nextResultSummary, {
         intent: authSession.intent ?? loginForm.intent ?? null,
-        connection: nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
+        connection: submittedConnection ?? nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
         continuation: submittedContinuation,
         continuationFields: pickPersistedAuthContinuationFields(submittedContinuation, authContinuationFields),
         accountState: result?.data?.accountState ?? authSession.accountState ?? null,
@@ -1332,6 +1335,7 @@ function App() {
         ...current,
         status: 'ready',
         result,
+        connection: submittedConnection,
         continuation: submittedContinuation,
       }))
       setLoginModalState('closed')
@@ -1430,6 +1434,7 @@ function App() {
     try {
       const result = await submitAuthContinuationPlan(authContinuationPlan, authConfig)
       const nextContinuation = buildSerializableAuthContinuation(result?.data)
+      const nextConnection = resolveAuthConnectionOverride(result, authSession?.connection ?? authConnectionSummary)
       const nextIntent = authSession.intent ?? loginForm.intent ?? null
 
       if (result.ok) {
@@ -1450,7 +1455,7 @@ function App() {
         })
         const nextSession = buildPersistedAuthSession(nextResultSummary, {
           intent: nextIntent,
-          connection: nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
+          connection: nextConnection ?? nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
           continuation: nextContinuation,
           continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
           accountState: result?.data?.accountState ?? authSession.accountState ?? null,
@@ -1468,6 +1473,7 @@ function App() {
           handoffId: nextSession.handoffId ?? current.handoffId ?? null,
           status: 'ready',
           result,
+          connection: nextConnection,
           continuation: nextContinuation,
         }))
 
@@ -1488,6 +1494,7 @@ function App() {
         ...current,
         status: 'error',
         result,
+        connection: nextConnection,
         continuation: nextContinuation,
       }))
     } catch {
@@ -1577,6 +1584,7 @@ function App() {
           ? await submitAuthSignupPlan(submitPlan, authConfig)
           : await submitAuthLoginPlan(submitPlan, authConfig)
       const nextContinuation = buildSerializableAuthContinuation(result?.data)
+      const nextConnection = resolveAuthConnectionOverride(result, authConnectionSummary)
       const nextResultSummary = result.ok
         ? buildAuthResultSummary(result, {
             ...submitPlan.summary,
@@ -1590,7 +1598,7 @@ function App() {
         const nextSession = buildPersistedAuthSession(nextResultSummary, {
           guestDraftSnapshot,
           intent: submitPlan.summary.intent,
-          connection: nextResultSummary.connection ?? authConnectionSummary,
+          connection: nextConnection ?? nextResultSummary.connection ?? authConnectionSummary,
           continuation: nextContinuation,
           continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
           accountState: result?.data?.accountState ?? null,
@@ -1618,7 +1626,7 @@ function App() {
         persistAuthHandoff(
           globalThis.sessionStorage,
           buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
-            connection: authConnectionSummary,
+            connection: nextConnection,
             continuation: nextContinuation,
             continuationFields: shouldResolveMergeViaContinuation
               ? { mergeResolution: nextMergeResolution }
@@ -1632,6 +1640,7 @@ function App() {
         ...current,
         status: result.ok ? 'ready' : 'error',
         result,
+        connection: nextConnection,
         continuation: nextContinuation,
         mergeResolution: result.ok ? null : nextMergeResolution,
       }))

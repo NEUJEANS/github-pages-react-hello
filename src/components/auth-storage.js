@@ -47,6 +47,12 @@ export function buildSerializableAuthConnection(connection = null) {
   }
 }
 
+export function resolveAuthConnectionOverride(result = null, fallbackConnection = null) {
+  return buildSerializableAuthConnection(result?.data?.connection ?? result?.data?.authConnection ?? null)
+    ?? buildSerializableAuthConnection(fallbackConnection)
+    ?? null
+}
+
 function normalizeAuthContinuationNextAction(nextAction = '') {
   switch (nextAction) {
     case 'login':

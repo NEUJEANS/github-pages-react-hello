@@ -9,6 +9,7 @@ import {
   buildAuthResumeState,
   buildGuestDraftSessionSummary,
   buildSerializableAuthConnection,
+  resolveAuthConnectionOverride,
   buildSerializableAuthContinuation,
   buildSerializableAuthContinuationFields,
   buildSerializableAuthIntent,
@@ -157,6 +158,67 @@ test('buildSerializableAuthConnection trims auth target metadata down to seriali
     credentialsMode: 'include',
     source: 'runtime',
   })
+})
+
+test('resolveAuthConnectionOverride prefers backend-returned auth wiring and falls back safely', () => {
+  assert.deepEqual(
+    resolveAuthConnectionOverride({
+      data: {
+        connection: {
+          method: 'POST',
+          endpoint: '/api/auth/login',
+          resolvedUrl: 'https://api.example.com/api/auth/login',
+          targetLabel: 'api.example.com',
+          isExternal: true,
+          isSameOriginScaffold: false,
+          credentialsMode: 'include',
+          source: 'env/runtime-configured',
+        },
+      },
+    }, {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    }),
+    {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: 'https://api.example.com/api/auth/login',
+      targetLabel: 'api.example.com',
+      isExternal: true,
+      isSameOriginScaffold: false,
+      credentialsMode: 'include',
+      source: 'env/runtime-configured',
+    },
+  )
+
+  assert.deepEqual(
+    resolveAuthConnectionOverride(null, {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    }),
+    {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
+  )
 })
 
 test('buildSerializableAuthContinuation keeps backend resume contract fields compact and serializable', () => {
