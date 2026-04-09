@@ -1381,6 +1381,43 @@ function App() {
     }
   }, [authContinuationFields, authSession])
 
+  const handleLoginFormChange = React.useCallback((field, value) => {
+    setLoginForm((current) => ({
+      ...current,
+      [field]: value,
+      status: 'idle',
+      result: null,
+      mergeResolution: field === 'mergeResolution' ? value : null,
+    }))
+
+    if (field !== 'mergeResolution') return
+
+    setAuthContinuationFields((current) => {
+      const next = buildAuthContinuationFieldState({
+        ...current,
+        mergeResolution: value,
+      })
+      return JSON.stringify(current) === JSON.stringify(next) ? current : next
+    })
+
+    const currentHandoff = readPersistedAuthHandoff(globalThis.sessionStorage)
+    if (!currentHandoff) return
+
+    const nextContinuationFields = buildSerializableAuthContinuationFields({
+      ...(currentHandoff.continuationFields ?? {}),
+      mergeResolution: value,
+    })
+
+    persistAuthHandoff(globalThis.sessionStorage, {
+      ...currentHandoff,
+      continuationFields: nextContinuationFields,
+      summary: {
+        ...(currentHandoff.summary ?? {}),
+        mergeResolution: value,
+      },
+    })
+  }, [])
+
   const handleAuthContinuationSubmit = React.useCallback(async () => {
     if (!authSession || !authContinuationPlan.canSubmit) return
 
@@ -1789,13 +1826,7 @@ function App() {
             authConnectionSummary={authConnectionSummary}
             authReadyPanelState={authReadyPanelState}
             guestDraftSnapshot={guestDraftSnapshot}
-            onChangeForm={(field, value) => setLoginForm((current) => ({
-              ...current,
-              [field]: value,
-              status: 'idle',
-              result: null,
-              mergeResolution: field === 'mergeResolution' ? value : null,
-            }))}
+            onChangeForm={handleLoginFormChange}
             onChangeContinuationField={handleAuthContinuationFieldChange}
             onClose={handleCloseLoginModal}
             onProceed={() => {
