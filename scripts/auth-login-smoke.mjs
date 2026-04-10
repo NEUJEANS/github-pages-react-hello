@@ -5,10 +5,12 @@ import { buildAuthContinuationPlan, buildAuthSubmitPlan, buildAuthResultSummary,
 import { readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan, submitAuthSignupPlan } from '../src/components/auth-submit.js'
 import { buildAuthConnectionSummary, buildPersistedAuthSession } from '../src/components/auth-storage.js'
 import { buildPostAuthContinuityPatch } from '../src/components/auth-session-merge.js'
+import { startAuthHttpServer } from '../server/auth-http-server.js'
 
 const cliArgs = process.argv.slice(2)
 const requireBrowser = cliArgs.includes('--require-browser')
-const positionalArgs = cliArgs.filter((arg) => arg !== '--require-browser')
+const useProxyBackend = cliArgs.includes('--via-proxy')
+const positionalArgs = cliArgs.filter((arg) => arg !== '--require-browser' && arg !== '--via-proxy')
 const defaultBaseUrl = positionalArgs[0] || 'http://127.0.0.1:4174/github-pages-react-hello/'
 let baseUrl = defaultBaseUrl
 let base = new URL(baseUrl)
@@ -148,13 +150,14 @@ async function runCommand(command, args, { cwd = process.cwd() } = {}) {
   })
 }
 
-async function startPreviewServer(url) {
+async function startPreviewServer(url, { extraEnv = {} } = {}) {
   const previewArgs = ['run', 'preview', '--', '--host', base.hostname, '--port', base.port || '4173']
   const preview = spawn('npm', previewArgs, {
     cwd: process.cwd(),
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...process.env,
+      ...extraEnv,
       CI: process.env.CI ?? '1',
     },
   })
@@ -197,7 +200,7 @@ function isAppShellStartupError(error) {
   return error instanceof Error && error.message.includes('App shell did not render before auth smoke started')
 }
 
-async function ensureBrowserBaseUrl(url, { forcePreview = true } = {}) {
+async function ensureBrowserBaseUrl(url, { forcePreview = true, extraEnv = {} } = {}) {
   if (!forcePreview && await isBaseUrlReachable(url)) {
     return {
       process: null,
@@ -208,7 +211,7 @@ async function ensureBrowserBaseUrl(url, { forcePreview = true } = {}) {
 
   await runCommand('npm', ['run', 'build'])
   await fs.mkdir(outDir, { recursive: true })
-  const { process: previewProcess, started } = await startPreviewServer(url)
+  const { process: previewProcess, started } = await startPreviewServer(url, { extraEnv })
 
   return {
     process: previewProcess,
@@ -1281,11 +1284,18 @@ const playwright = await loadPlaywright()
 
 let result
 let previewServer = null
+let authProxyServer = null
+const previewEnv = {}
 
 try {
+  if (useProxyBackend) {
+    authProxyServer = await startAuthHttpServer()
+    previewEnv.HAVENLY_AUTH_PROXY_BASE_URL = authProxyServer.url
+  }
+
   if (playwright.module) {
     try {
-      const ensuredBaseUrl = await ensureBrowserBaseUrl(baseUrl)
+      const ensuredBaseUrl = await ensureBrowserBaseUrl(baseUrl, { extraEnv: previewEnv })
       previewServer = ensuredBaseUrl.process
       setActiveBaseUrl(ensuredBaseUrl.url)
 
@@ -1294,6 +1304,7 @@ try {
           ...(await runBrowserSmoke(playwright.module)),
           browserServerStarted: ensuredBaseUrl.started,
           browserBaseUrl: baseUrl,
+          authProxyBaseUrl: authProxyServer?.url ?? null,
         }
       } catch (error) {
         const canRetryWithFreshPreview = !ensuredBaseUrl.started && isAppShellStartupError(error)
@@ -1301,7 +1312,7 @@ try {
         if (!canRetryWithFreshPreview) throw error
 
         const fallbackBaseUrl = buildFallbackBaseUrl(defaultBaseUrl)
-        const fallbackPreview = await ensureBrowserBaseUrl(fallbackBaseUrl)
+        const fallbackPreview = await ensureBrowserBaseUrl(fallbackBaseUrl, { extraEnv: previewEnv })
         previewServer = fallbackPreview.process ?? previewServer
         setActiveBaseUrl(fallbackPreview.url)
 
@@ -1311,6 +1322,7 @@ try {
           browserBaseUrl: baseUrl,
           browserRecoveredFromStaleBase: true,
           browserOriginalBaseUrl: defaultBaseUrl,
+          authProxyBaseUrl: authProxyServer?.url ?? null,
         }
       }
     } catch (error) {
@@ -1347,5 +1359,8 @@ try {
     previewServer.kill('SIGTERM')
     await delay(500)
     if (!previewServer.killed) previewServer.kill('SIGKILL')
+  }
+  if (authProxyServer) {
+    await authProxyServer.close().catch(() => null)
   }
 }
