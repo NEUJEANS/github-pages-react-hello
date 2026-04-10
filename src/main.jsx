@@ -1880,16 +1880,15 @@ function App() {
         <div className="authSessionNotice" role="status" aria-live="polite">
           <div>
             <strong>{authSessionNotice.title}</strong>
-            <p>{authSessionNotice.body}</p>
           </div>
           <div className="authSessionNoticeActions">
             {authReadyPanelState && (
               <button className="ghost minor" onClick={() => openLogin(authSession?.intent ?? null)}>
                 {authReadyPanelState.nextAction === 'complete-profile'
-                  ? '프로필 이어서 입력'
+                  ? '프로필 입력'
                   : authReadyPanelState.nextAction === 'verify-email'
-                    ? '이메일 인증 이어가기'
-                    : '인증 상태 보기'}
+                    ? '이메일 인증'
+                    : '인증 상태'}
               </button>
             )}
             <button className="ghost minor" onClick={handleLogout}>로그아웃</button>
@@ -2033,9 +2032,7 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
       <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
       <div className="twoCol">
         <aside className="panel leftPanel">
-          <div className="stepDots"><b className="on">1</b><span /><b className="done">2</b><span /><b>3</b></div>
           <h2>AI가 공간에 맞는 가구를 추천해드릴게요</h2>
-          <p className="muted">아파트 타입, 원하는 공간, 선호 스타일을 직접 바꾸면 추천 문구와 강조 상태가 함께 반영됩니다.</p>
           <label>아파트 검색</label>
           <button
             type="button"
@@ -2088,7 +2085,6 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
               )
             })}
           </div>
-          <p className="fieldHint">{roomHint}</p>
           <label>선호 스타일</label>
           <div className="styleGrid">
             {styleOptions.map((style) => (
@@ -2138,7 +2134,6 @@ function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearc
               )
             })}
           </div>
-          <p className="fieldHint">선택한 우선 기준과 라이프스타일이 오른쪽 추천 결과 요약과 AI 코멘트에 바로 반영돼요.</p>
           <label>추가 요청</label>
           <textarea value={form.extraRequest} onChange={(event) => setForm((current) => ({ ...current, extraRequest: event.target.value }))} />
           <div className="footerButtons stackOnMobile aiFooterButtons">
@@ -2196,10 +2191,7 @@ function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearc
       <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
       <section className="cardStage">
         <div className="cardSurface">
-          <div className="progressBar"><span className="fill wide" /></div>
-          <p className="tinyPill">평면도 기반 선택</p>
           <h2>어떤 공간을 먼저 꾸밀까요?</h2>
-          <p className="muted">평면도 영역과 오른쪽 요약 패널이 같은 선택 상태를 공유합니다. 최소 1개 이상 선택할 수 있어요.</p>
           <SpaceSelectionBoard
             zones={baseZones}
             selectedIds={selectedSpaces}
@@ -2339,10 +2331,6 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
               <button className={`metaToggle ${editor.snapOn ? 'on' : ''}`} onClick={() => editor.setSnapOn((current) => !current)}>{editor.snapOn ? '스냅 ON' : '스냅 OFF'}</button>
               <span>{editor.notice}</span>
             </div>
-            <div className="editorHintRow">
-              <span className="editorHintBadge">{editorHint.badge}</span>
-              <p>{editorHint.description}</p>
-            </div>
             <div className="editorRoomFrame">
               <div className={`editorRoom ${editor.dragState ? 'is-dragging' : ''}`}>
                 <div className="grid" />
@@ -2400,7 +2388,6 @@ function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSear
           <div className="propBlock"><label>위치</label><div className="split"><span>X {propertyPanelState.selectionSnapshot.position.x}</span><span>Y {propertyPanelState.selectionSnapshot.position.y}</span></div></div>
           <div className="propBlock"><label>컬러</label><div className="colorDots">{propertyPanelState.colorOptions.map((option) => <button key={option.color} className={`colorDot ${option.isActive ? 'active' : ''}`} style={{ background: option.color }} onClick={() => editor.setSelectedColor(option.index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
           <div className="propBlock"><label>배치 메모</label><p>{propertyPanelState.selectionSnapshot.selectedBlurb}</p></div>
-          <div className="propBlock"><label>이동 방식</label><p>{propertyPanelState.movementNote}</p></div>
           <div className="propBlock actionBlock">
             {!authSession && (
               <button
@@ -2488,7 +2475,7 @@ function FurnitureHomeScreen({ navigate, openOverlay, openCart, cartCount, onSea
         <div>
           <div className="eyebrow darkEyebrow">FURNITURE FIRST</div>
           <h2>먼저 가구를 찾고, <em>내 공간 적합도</em>를 확인하세요</h2>
-          <p>홈 → 카테고리 → 배치하기 흐름이 새 페이지 로딩처럼 느껴지지 않도록 유지하면서, 검색/장바구니/빠른 연결 요소들을 실제로 반응하게 만들었습니다.</p>
+          <p>가구를 먼저 둘러보고 내 공간에 바로 연결해보세요.</p>
           <div className="heroActions"><button className="cta" onClick={() => navigate('beds')}>지금 둘러보기</button><button className="ghost" onClick={() => { trackBoardProgress(); openOverlay('address') }}>내 공간 연결</button></div>
         </div>
         <div className="heroCards">
@@ -2591,50 +2578,22 @@ function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, 
 }
 
 
-function AuthWiringCard({ wiring }) {
-  if (!wiring?.targets) return null
+function AuthWiringCard({ wiringState = null }) {
+  if (!wiringState?.targets) return null
 
-  const orderedTargets = [
-    ['login', 'login'],
-    ['signup', 'signup'],
-    ['session', 'session'],
-    ['pending', 'pending'],
-    ['continue', 'continue'],
-    ['logout', 'logout'],
-  ]
-    .map(([key, label]) => ({ key, label, target: wiring.targets[key] }))
-    .filter((entry) => entry.target)
-
-  const strategyCopy = wiring.scaffoldStrategy === 'same-origin-continuation-scaffold'
-    ? 'same-origin continue scaffold를 우선 사용해 blocker 이후 재개 요청까지 같은 auth 계약으로 묶습니다.'
-    : wiring.scaffoldStrategy === 'same-origin-login-scaffold'
-      ? 'same-origin login scaffold를 우선 사용해 첫 handoff를 프론트에서 바로 검증합니다.'
-      : '구성된 remote auth service 기준으로 login / continue handoff를 준비합니다.'
+  const targetEntries = Object.entries(wiringState.targets)
 
   return (
-    <div className="loginGuardCard authPrepCard">
-      <strong>백엔드 auth wiring</strong>
+    <div className="loginGuardCard authPrepCard" data-auth-preview="auth-wiring-state">
+      <strong>인증 연결 wiring</strong>
       <p className="muted">
-        {wiring.isConfigured ? '구성된 auth target 기준으로 frontend handoff를 준비하고 있어요.' : '기본 same-origin scaffold 기준으로 frontend handoff를 준비하고 있어요.'}
-        {' '}source {wiring.source} · credentials {wiring.credentialsMode}
-        {wiring.apiBaseUrl ? ` · api base ${wiring.apiBaseUrl}` : ''}
-        {wiring.appBasePath && wiring.appBasePath !== '/' ? ` · app base ${wiring.appBasePath}` : ''}
+        source {wiringState.source ?? 'default'} · credentials {wiringState.credentialsMode ?? 'include'} · 전략 {wiringState.scaffoldStrategy ?? 'unknown'}
       </p>
-      <p className="muted">{strategyCopy}</p>
       <div className="guardSummary compact">
-        {orderedTargets.map(({ key, label, target }) => (
-          <div key={key} data-auth-wiring-target={key}>
-            <label>{label}</label>
-            <b>{target.method} {target.endpoint}</b>
-            <span>{target.targetLabel} · {target.resolvedUrl}</span>
-            <span>
-              {[
-                target.expectsSerializableHandoff ? 'serializable handoff' : null,
-                target.carriesGuestDraftSnapshot ? 'guestDraftSnapshot' : null,
-                target.carriesDraftSave ? 'draftSave' : null,
-                target.carriesContinuation ? 'continuation' : null,
-              ].filter(Boolean).join(' · ')}
-            </span>
+        {targetEntries.map(([key, target]) => (
+          <div key={key}>
+            <label>{key}</label>
+            <b>{target.targetLabel}{target.endpoint ? ` (${target.endpoint})` : ''}</b>
           </div>
         ))}
       </div>
@@ -2662,6 +2621,8 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
     connection: authConnectionSummary,
     intent: form.intent,
   })
+  const continuationPreview = authReadyPanelState?.actionPayloadPreview ?? null
+  const continuationChecklist = authReadyPanelState?.actionChecklist ?? null
   const mergeResolutionLabels = {
     'replace-with-account': '계정 상태로 전환',
     'keep-guest': '현재 초안으로 계속',
@@ -2693,7 +2654,6 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
         <div className="loginContent">
           <div className="loginBadge">{guarded ? 'ACCOUNT' : modeLabels.badge}</div>
           <h2 id="login-title">{guarded ? '진행 중인 작업이 있어요. 그대로 로그인할까요?' : modeLabels.title}</h2>
-          <p className="muted">{guarded ? '게스트 상태에서 만든 초안과 활동이 있어 먼저 안내해드려요. 계속하면 계정과 연결하거나 새 상태로 전환될 수 있습니다.' : form.mode === 'signup' ? '현재 초안과 추천 상태를 유지한 채 새 계정을 만들고 바로 이어갈 수 있게 연결합니다.' : '페이지를 떠나지 않고 바로 계정을 연결하는 온보딩 블록입니다. 저장한 보드, AI 추천 이력, 찜 목록을 한 번에 이어볼 수 있어요.'}</p>
 
           {guarded ? (
             <>
@@ -2757,14 +2717,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
               <div className="loginGuardCard authPrepCard">
                 <strong>{authReadyPanelState.title}</strong>
                 <p className="muted">{authReadyPanelState.subtitle}</p>
-                <p className="muted">이어갈 작업: {authReadyPanelState.intentLabel}{authReadyPanelState.intentDraftLabel ? ` · ${authReadyPanelState.intentDraftLabel}` : ''}</p>
-                {authReadyPanelState.primaryActionHint && <p className="muted">{authReadyPanelState.primaryActionHint}</p>}
-                {authReadyPanelState.primaryActionDisabled && (
-                  <p className="muted">이 단계는 아직 별도 화면까지 붙지 않았지만, backend 재개 계약과 필요한 handoff 정보를 여기서 바로 확인하고 최소 payload로 다음 단계를 시험 연결할 수 있어요.</p>
-                )}
-                {(authReadyPanelState.nextAction || authReadyPanelState.continuationStatusLabel || authReadyPanelState.continuationStatus) && (
-                  <p className="muted">백엔드 다음 액션: {authReadyPanelState.nextAction ?? 'next-action 미정'}{authReadyPanelState.resumeToken ? ` · token ${authReadyPanelState.resumeToken}` : ''}{authReadyPanelState.continuationStatusLabel ? ` · ${authReadyPanelState.continuationStatusLabel}` : authReadyPanelState.continuationStatus ? ` · ${authReadyPanelState.continuationStatus}` : ''}</p>
-                )}
+                <p className="muted">{authReadyPanelState.intentLabel}{authReadyPanelState.intentDraftLabel ? ` · ${authReadyPanelState.intentDraftLabel}` : ''}</p>
                 {authReadyPanelState.nextAction === 'complete-profile' && (
                   <div className="loginGuardCard authPrepCard">
                     <strong>프로필 보완 payload</strong>
@@ -2772,7 +2725,6 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <div className="inputWrap big">👤<input value={authContinuationFields.displayName} onChange={(event) => onChangeContinuationField('displayName', event.target.value)} placeholder="홍길동" /></div>
                     <label>연락처</label>
                     <div className="inputWrap big">📱<input value={authContinuationFields.phone} onChange={(event) => onChangeContinuationField('phone', event.target.value)} placeholder="010-1234-5678" /></div>
-                    <p className="muted">직렬화 가능한 최소 필드만 <code>{continuationEndpointLabel}</code>로 전달해 scaffold 응답과 세션 갱신을 확인합니다.</p>
                   </div>
                 )}
                 {authReadyPanelState.nextAction === 'verify-email' && (
@@ -2780,13 +2732,11 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <strong>이메일 인증 payload</strong>
                     <label>인증 코드</label>
                     <div className="inputWrap big">✅<input value={authContinuationFields.verificationCode} onChange={(event) => onChangeContinuationField('verificationCode', event.target.value)} placeholder="123456" /></div>
-                    <p className="muted">실제 인증 UI 전 단계로, token을 유지한 채 최소 확인 payload만 <code>{continuationEndpointLabel}</code>로 보냅니다.</p>
                   </div>
                 )}
                 {authReadyPanelState.nextAction === 'confirm-merge-resolution' && (
                   <div className="loginGuardCard authPrepCard">
-                    <strong>병합 방향 payload</strong>
-                    <p className="muted">이전에 멈춘 병합 확인을 같은 handoff / resume token으로 재개합니다. 프론트에서는 직렬화 가능한 mergeResolution 한 필드만 붙여 <code>{continuationEndpointLabel}</code>에 전달합니다.</p>
+                    <strong>병합 방향 선택</strong>
                     <div className="footerButtons stackOnMobile">
                       <button className="ghost" onClick={() => onChangeContinuationField('mergeResolution', 'keep-guest')}>
                         {form.mergeResolution === 'keep-guest' ? '선택됨 · 현재 초안으로 계속' : '현재 초안으로 계속'}
@@ -2797,9 +2747,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     </div>
                     {form.mergeResolution && (
                       <>
-                        <p className="muted">병합 확정: {form.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하며 계속 진행' : '계정 상태를 우선 적용하며 계속 진행'}</p>
-                        <p className="muted">재개 계약: {authReadyPanelState.nextAction}{authReadyPanelState.resumeToken ? ` · token ${authReadyPanelState.resumeToken}` : ''} · mergeResolution {form.mergeResolution}</p>
-                        <p className="muted">제출 대상: {authReadyPanelState.connectionLabel ?? authConnectionSummary.targetLabel}{authReadyPanelState.connectionEndpoint ? ` (${authReadyPanelState.connectionEndpoint})` : authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''} → {continuationEndpointLabel}</p>
+                        <p className="muted">{form.mergeResolution === 'keep-guest' ? '현재 초안으로 계속합니다.' : '계정 상태로 전환합니다.'}</p>
                       </>
                     )}
                   </div>
@@ -2807,34 +2755,30 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                 {authContinuationPlan.summary.missingFields.length > 0 && (
                   <p className="muted">계속하려면 {authContinuationPlan.summary.missingFields.join(', ')} 필드를 먼저 채워주세요.</p>
                 )}
-                {authReadyPanelState.connectionLabel && (
-                  <p className="muted">연결 대상: {authReadyPanelState.connectionLabel}{authReadyPanelState.connectionEndpoint ? ` (${authReadyPanelState.connectionEndpoint})` : ''}</p>
-                )}
-                {authReadyPanelState.actionChecklist && (
+                {continuationChecklist && (
                   <div className="loginGuardCard authPrepCard">
-                    <strong>{authReadyPanelState.actionChecklist.title}</strong>
-                    <p className="muted">{authReadyPanelState.actionChecklist.description}</p>
+                    <strong>{continuationChecklist.title}</strong>
+                    <p className="muted">{continuationChecklist.description}</p>
                     <ul className="authChecklist">
-                      {authReadyPanelState.actionChecklist.items.map((item) => <li key={item}>{item}</li>)}
+                      {continuationChecklist.items.map((item) => <li key={item}>{item}</li>)}
                     </ul>
                   </div>
                 )}
-                {authReadyPanelState.actionPayloadPreview && (
+                {continuationPreview && (
                   <div className="loginGuardCard authPrepCard" data-auth-preview="continuation-submit-payload">
-                    <strong>계속 요청 payload 미리보기</strong>
-                    <p className="muted">{authReadyPanelState.actionPayloadPreview.targetLabel ?? '현재 인증 연결 대상'}{authReadyPanelState.actionPayloadPreview.connectionEndpoint ? ` (${authReadyPanelState.actionPayloadPreview.connectionEndpoint})` : ''} 대상으로 {authReadyPanelState.actionPayloadPreview.continuationEndpoint} 재개 요청을 이어갑니다.</p>
+                    <strong>재개 요청 payload 미리보기</strong>
+                    <p className="muted">{continuationPreview.targetLabel ?? '현재 인증 연결 대상'}{continuationPreview.connectionEndpoint ? ` (${continuationPreview.connectionEndpoint})` : ''} 기준으로 <code>{continuationPreview.continuationEndpoint}</code> 재개 요청을 보냅니다.</p>
                     <div className="guardSummary compact">
-                      {authReadyPanelState.actionPayloadPreview.handoffId && <div><label>handoff</label><b>{authReadyPanelState.actionPayloadPreview.handoffId}</b></div>}
-                      {authReadyPanelState.actionPayloadPreview.resumeToken && <div><label>resume token</label><b>{authReadyPanelState.actionPayloadPreview.resumeToken}</b></div>}
-                      <div><label>payload keys</label><b>{authReadyPanelState.actionPayloadPreview.payloadKeys.join(', ')}</b></div>
-                      <div><label>response keys</label><b>{authReadyPanelState.actionPayloadPreview.expectedResponseKeys.join(', ')}</b></div>
-                      {authReadyPanelState.actionPayloadPreview.fieldKeys.length > 0 && <div><label>field keys</label><b>{authReadyPanelState.actionPayloadPreview.fieldKeys.join(', ')}</b></div>}
-                      {authReadyPanelState.actionPayloadPreview.draftSaveSelectedSpaceCount > 0 && <div><label>draftSave 공간</label><b>{authReadyPanelState.actionPayloadPreview.draftSaveSelectedSpaceCount}개</b></div>}
-                      {authReadyPanelState.actionPayloadPreview.draftSaveLayoutItemCount > 0 && <div><label>draftSave 배치</label><b>{authReadyPanelState.actionPayloadPreview.draftSaveLayoutItemCount}개</b></div>}
+                      {continuationPreview.handoffId && <div><label>handoff</label><b>{continuationPreview.handoffId}</b></div>}
+                      {continuationPreview.resumeToken && <div><label>resume token</label><b>{continuationPreview.resumeToken}</b></div>}
+                      <div><label>payload keys</label><b>{continuationPreview.payloadKeys.join(', ')}</b></div>
+                      <div><label>field keys</label><b>{continuationPreview.fieldKeys.join(', ') || '없음'}</b></div>
+                      <div><label>response keys</label><b>{continuationPreview.expectedResponseKeys.join(', ')}</b></div>
+                      {continuationPreview.draftSaveSelectedSpaceCount > 0 && <div><label>draftSave 공간</label><b>{continuationPreview.draftSaveSelectedSpaceCount}개</b></div>}
+                      {continuationPreview.draftSaveLayoutItemCount > 0 && <div><label>draftSave 배치</label><b>{continuationPreview.draftSaveLayoutItemCount}개</b></div>}
                     </div>
                   </div>
                 )}
-                <AuthWiringCard wiring={authWiringState} />
                 <div className="guardSummary compact">
                   <div><label>계정</label><b>{authReadyPanelState.accountLabel}</b></div>
                   {authReadyPanelState.sessionId && <div><label>세션</label><b>{authReadyPanelState.sessionId}</b></div>}
@@ -2869,14 +2813,20 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                 <button className={form.mode === 'login' ? 'solid mini' : 'mini'} onClick={() => onChangeForm('mode', 'login')}>로그인</button>
                 <button className={form.mode === 'signup' ? 'solid mini' : 'mini'} onClick={() => onChangeForm('mode', 'signup')}>회원가입</button>
               </div>
-              <div className="loginBenefits">
-                <div><strong>AI 이력 저장</strong><span>공간별 추천 결과를 다시 불러올 수 있어요.</span></div>
-                <div><strong>보드 이어서 작업</strong><span>배치 중인 가구와 평면도 초안을 계정에 연결합니다.</span></div>
-                {form.intent?.label && <div><strong>이번 로그인 목적</strong><span>{form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</span></div>}
-                <div><strong>백엔드 전달 준비</strong><span>{activePlan.endpoint} 요청에 게스트 초안과 intent handoff를 같이 묶도록 구조를 맞췄어요.</span></div>
-                <div data-auth-connection-line="target"><strong>연결 대상</strong><span>{authConnectionSummary.targetLabel} · {authConnectionSummary.method} {authConnectionSummary.endpoint}</span></div>
-                <div data-auth-connection-line="transport"><strong>인증 전송</strong><span>{authConnectionSummary.credentialsMode} credentials · {authConnectionSummary.source === 'default' ? '기본 same-origin scaffold' : authConnectionSummary.source}</span></div>
-              </div>
+              {(form.intent?.label || loginPanelState.connectionLabel || loginPanelState.submitPayloadPreview) && (
+                <div className="loginBenefits">
+                  {form.intent?.label && (
+                    <div><strong>이번 로그인 목적</strong><span>{form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</span></div>
+                  )}
+                  {loginPanelState.connectionLabel && (
+                    <div data-auth-connection-line="target"><strong>인증 연결 대상</strong><span>{loginPanelState.connectionLabel}{loginPanelState.connectionEndpoint ? ` (${loginPanelState.connectionEndpoint})` : ''}</span></div>
+                  )}
+                  <div data-auth-connection-line="transport"><strong>전송 방식</strong><span>{loginPanelState.connectionCredentialsMode ?? 'include'} credentials{loginPanelState.connectionSource ? ` · ${loginPanelState.connectionSource}` : ''}</span></div>
+                  {loginPanelState.draftSaveBits.length > 0 && (
+                    <div><strong>draftSave handoff</strong><span>{loginPanelState.draftSaveBits.join(' · ')}</span></div>
+                  )}
+                </div>
+              )}
               <div className="loginForm">
                 {form.mode === 'signup' && (
                   <>
@@ -2895,22 +2845,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <label className="authCheckbox"><input type="checkbox" checked={form.agreeToTerms} onChange={(event) => onChangeForm('agreeToTerms', event.target.checked)} /> <span>이 데모 계정을 만들고 현재 초안을 계정에 연결하는 데 동의합니다.</span></label>
                   </>
                 )}
-                <div className="loginGuardCard authPrepCard" data-auth-preview="login-connection-status">
-                  <strong>연결 준비 상태</strong>
-                  <p className="muted">{authStatusMessage}</p>
-                  {form.handoff && (
-                    <p className="muted">이전 시도: {form.handoff.submittedAt} · handoff {form.handoff.handoffId || form.handoff.summary?.handoffId || '미생성'} · 이메일 {form.handoff.email || '미입력'}{form.connection?.targetLabel ? ` · 대상 ${form.connection.targetLabel}${form.connection.endpoint ? ` (${form.connection.endpoint})` : ''}` : ''}</p>
-                  )}
-                  {form.continuation && (
-                    <p className="muted">백엔드 재개 계약: {form.continuation.nextAction ?? 'next-action 미정'}{form.continuation.resumeToken ? ` · token ${form.continuation.resumeToken}` : ''}</p>
-                  )}
-                  {hasResumeConnectionDrift && (
-                    <p className="muted">현재 auth 설정은 {authConnectionSummary.targetLabel}{authConnectionSummary.endpoint ? ` (${authConnectionSummary.endpoint})` : ''}로 바뀌어 있어요. 재시도하면 새 대상에 맞춰 다시 연결합니다.{authConnectionDriftSummary?.changes?.length ? ` 변경점: ${authConnectionDriftSummary.changes.join(' · ')}` : ''}</p>
-                  )}
-                  {authErrorSummary && (
-                    <p className="muted">오류 분류: {authErrorSummary.tone === 'credentials' ? '자격 증명' : authErrorSummary.tone === 'merge' ? '초안 병합' : authErrorSummary.tone === 'service' ? '인증 서비스' : '기타'}</p>
-                  )}
-                  {isMergeContinuationPending && (
+                {isMergeContinuationPending && (
                     <div className="loginGuardCard authPrepCard" data-auth-preview="merge-continuation-payload">
                       <strong>병합 방향 payload · 병합 재개 payload 미리보기</strong>
                       <p className="muted">이전에 멈춘 병합 확인을 같은 handoff / resume token으로 재개합니다. 프론트에서는 직렬화 가능한 mergeResolution 한 필드만 붙여 <code>{continuationEndpointLabel}</code>에 전달합니다.</p>
@@ -2938,13 +2873,10 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                   {form.intent?.label && (
                     <p className="muted">{form.mode === 'signup' ? '회원가입 후 이어갈 작업' : '로그인 후 이어갈 작업'}: {form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</p>
                   )}
-                  {loginPanelState.draftSaveBits.length > 0 && (
-                    <p className="muted">draftSave handoff: {loginPanelState.draftSaveBits.join(' · ')}</p>
-                  )}
                   {loginPanelState.submitPayloadPreview && (
                     <div className="loginGuardCard authPrepCard" data-auth-preview="login-submit-payload">
-                      <strong>로그인 요청 payload 미리보기</strong>
-                      <p className="muted">{loginPanelState.submitPayloadPreview.targetLabel ?? '현재 인증 연결 대상'}{loginPanelState.submitPayloadPreview.endpoint ? ` (${loginPanelState.submitPayloadPreview.endpoint})` : ''} 대상으로 첫 로그인 요청을 보냅니다.</p>
+                      <strong>{form.mode === 'signup' ? '회원가입 요청 payload 미리보기' : '로그인 요청 payload 미리보기'}</strong>
+                      <p className="muted">{loginPanelState.submitPayloadPreview.targetLabel ?? '현재 인증 연결 대상'}{loginPanelState.submitPayloadPreview.endpoint ? ` (${loginPanelState.submitPayloadPreview.endpoint})` : ''} 대상으로 첫 인증 요청을 보냅니다.</p>
                       <div className="guardSummary compact">
                         {loginPanelState.submitPayloadPreview.handoffId && <div><label>handoff</label><b>{loginPanelState.submitPayloadPreview.handoffId}</b></div>}
                         <div><label>payload keys</label><b>{loginPanelState.submitPayloadPreview.payloadKeys.join(', ')}</b></div>
@@ -2957,6 +2889,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                       </div>
                     </div>
                   )}
+                  <AuthWiringCard wiringState={authWiringState} />
                   <div className="guardSummary compact">
                     <div><label>handoff</label><b>{activePlan.summary.handoffId ?? '미생성'}</b></div>
                     <div><label>찜</label><b>{activePlan.summary.wishlistCount}개</b></div>
@@ -2974,7 +2907,6 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     {authResultSummary?.mergeMode && <div><label>추천 초안</label><b>{authResultSummary.restoredRecommendationDraft ? '복원됨' : '없음'}</b></div>}
                   </div>
                 </div>
-                <AuthWiringCard wiring={authWiringState} />
                 <div className="footerButtons stackOnMobile">
                   <button className="ghost" onClick={() => onChangeForm('mode', modeLabels.alternateMode)}>{modeLabels.alternateLabel}</button>
                   {form.status === 'resume-ready' && (
@@ -3000,7 +2932,6 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                         : modeLabels.submitLabel}
                   </button>
                 </div>
-              </div>
             </>
           )}
         </div>
