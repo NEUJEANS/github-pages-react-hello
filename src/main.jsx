@@ -1154,11 +1154,23 @@ function App() {
 
       if (!pendingResult.ok || cancelled) return
 
-      persistAuthHandoff(globalThis.sessionStorage, pendingResult.data)
+      const bootstrappedPendingHandoff = {
+        ...pendingResult.data,
+        connection: pendingResult.data?.connection
+          ?? persistedAuthHandoff?.connection
+          ?? persistedAuthSession?.connection
+          ?? authLoginConnectionSummary,
+        actionConnection: pendingResult.data?.actionConnection
+          ?? persistedAuthHandoff?.actionConnection
+          ?? persistedAuthSession?.actionConnection
+          ?? authContinuationConnectionSummary,
+      }
+
+      persistAuthHandoff(globalThis.sessionStorage, bootstrappedPendingHandoff)
       setLoginForm((current) => (
         current.status === 'submitting'
           ? current
-          : (buildAuthResumeState(pendingResult.data, persistedAuthSession) ?? current)
+          : (buildAuthResumeState(bootstrappedPendingHandoff, persistedAuthSession) ?? current)
       ))
       setLoginModalState('form')
     })()
