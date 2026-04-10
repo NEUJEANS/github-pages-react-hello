@@ -1087,8 +1087,14 @@ function App() {
           connection: resultSummary?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary ?? sessionConnection,
           actionConnection: persistedAuthSession?.actionConnection ?? persistedAuthHandoff?.actionConnection ?? authContinuationConnectionSummary,
           continuation: buildSerializableAuthContinuation(result?.data),
-          continuationFields: persistedAuthSession?.continuationFields ?? persistedAuthHandoff?.continuationFields ?? null,
-          draftSave: persistedAuthSession?.draftSave ?? persistedAuthHandoff?.draftSave ?? null,
+          continuationFields: result?.data?.continuationFields
+            ?? persistedAuthSession?.continuationFields
+            ?? persistedAuthHandoff?.continuationFields
+            ?? null,
+          draftSave: result?.data?.draftSave
+            ?? persistedAuthSession?.draftSave
+            ?? persistedAuthHandoff?.draftSave
+            ?? null,
           accountState: result?.data?.accountState ?? null,
         })
 
