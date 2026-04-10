@@ -625,7 +625,7 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
 })
 
 test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
-  assert.match(
+  assert.equal(
     buildAuthStatusCopy(
       'resume-ready',
       { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 0, cartCount: 0, layoutItemCount: 0 },
@@ -637,10 +637,10 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
       null,
       { targetLabel: 'api.example.com', endpoint: '/api/auth/login' },
     ),
-    /handoff auth-20260406123000-2n9c.*api\.example\.com.*\/api\/auth\/login.*resume-layout-checkout.*resume-123.*프로필 보완 필요/,
+    '이전 로그인 시도가 남아 있어요. 이어서 로그인할 수 있어요.',
   )
 
-  assert.match(
+  assert.equal(
     buildAuthStatusCopy(
       'ready',
       { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
@@ -656,10 +656,10 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
         authTransport: 'same-origin-middleware',
       },
     ),
-    /user@example.com 계정과 연결 준비됨.*handoff auth-20260406123000-2n9c.*session-1.*게스트 초안 병합 완료.*same-origin scaffold로 응답 확인.*resume-layout-checkout.*resume-123.*프로필 보완 필요/,
+    'user@example.com 계정으로 로그인됐어요.',
   )
 
-  assert.match(
+  assert.equal(
     buildAuthStatusCopy(
       'error',
       { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
@@ -676,6 +676,6 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
         },
       },
     ),
-    /Guest draft merge confirmation required.*초안 병합 방향 확인 필요.*찜 2개.*장바구니 1개.*배치 3개.*병합 후보 미리보기 찜 5개.*장바구니 3개.*배치 7개.*추천 초안 복원 포함/,
+    'Guest draft merge confirmation required',
   )
 })

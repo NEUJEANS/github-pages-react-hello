@@ -393,48 +393,29 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
 
 export function buildAuthStatusCopy(status, summary, resultSummary = null, errorSummary = null, connectionSummary = null) {
   if (status === 'resume-ready') {
-    const baseCopy = summary.handoffId
-      ? `이전 로그인 시도가 남아 있어요. handoff ${summary.handoffId} 기준으로 입력한 이메일과 게스트 초안을 그대로 이어서 다시 연결할 수 있어요.`
-      : '이전 로그인 시도가 남아 있어요. 입력한 이메일과 게스트 초안을 그대로 이어서 다시 연결할 수 있어요.'
-    const connectionCopy = connectionSummary?.targetLabel
-      ? ` 이전 연결 대상은 ${connectionSummary.targetLabel}${connectionSummary.endpoint ? ` (${connectionSummary.endpoint})` : ''}로 기록돼 있어요.`
-      : ''
-    const continuationCopy = resultSummary?.resumeToken || resultSummary?.nextAction || resultSummary?.continuationStatusLabel
-      ? ` 백엔드 재개 계약은${resultSummary?.nextAction ? ` ${resultSummary.nextAction}` : ' 미정'}${resultSummary?.resumeToken ? ` · token ${resultSummary.resumeToken}` : ''}${resultSummary?.continuationStatusLabel ? ` · ${resultSummary.continuationStatusLabel}` : resultSummary?.continuationStatus ? ` · ${resultSummary.continuationStatus}` : ''} 상태예요.`
-      : ''
-    return `${baseCopy}${connectionCopy}${continuationCopy}`
+    return '이전 로그인 시도가 남아 있어요. 이어서 로그인할 수 있어요.'
   }
-  if (status === 'submitting') return '계정 연결 준비 중… 게스트 초안을 함께 묶고 있어요.'
+
+  if (status === 'submitting') return '로그인 중…'
+
   if (status === 'ready') {
-    const accountCopy = resultSummary?.accountLabel ? ` · ${resultSummary.accountLabel} 계정과 연결 준비됨` : ''
-    const handoffCopy = resultSummary?.handoffId ? ` · handoff ${resultSummary.handoffId}` : ''
-    const sessionCopy = resultSummary?.sessionId ? ` · 세션 ${resultSummary.sessionId}` : ''
-    const mergeCopy = resultSummary?.mergeMode
-      ? ` · ${resultSummary.mergeMode === 'merged' ? '게스트 초안 병합 완료' : resultSummary.mergeMode === 'replaced' ? '계정 상태로 전환됨' : `병합 상태 ${resultSummary.mergeMode}`}`
-      : ''
-    const modeCopy = resultSummary?.authMode === 'scaffold'
-      ? ` · ${resultSummary.authTransport === 'same-origin-middleware' ? 'same-origin scaffold로 응답 확인' : 'local scaffold로 연결 유지'}`
-      : ''
-    const continuationCopy = resultSummary?.nextAction || resultSummary?.resumeToken || resultSummary?.continuationStatusLabel
-      ? ` · backend ${resultSummary?.nextAction ?? 'next-action 없음'}${resultSummary?.resumeToken ? ` (${resultSummary.resumeToken})` : ''}${resultSummary?.continuationStatusLabel ? ` · ${resultSummary.continuationStatusLabel}` : resultSummary?.continuationStatus ? ` · ${resultSummary.continuationStatus}` : ''}`
-      : ''
-    return `백엔드 연결 준비 완료${accountCopy}${handoffCopy}${sessionCopy}${mergeCopy}${modeCopy}${continuationCopy} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개를 함께 전달할 수 있어요.`
+    if (resultSummary?.nextAction === 'complete-profile') return '프로필을 마저 입력하면 계속할 수 있어요.'
+    if (resultSummary?.nextAction === 'verify-email') return '이메일 인증을 마치면 계속할 수 있어요.'
+    if (resultSummary?.nextAction === 'confirm-merge-resolution') return '어떤 초안을 이어갈지 선택해 주세요.'
+    return resultSummary?.accountLabel
+      ? `${resultSummary.accountLabel} 계정으로 로그인됐어요.`
+      : '로그인됐어요.'
   }
+
   if (status === 'error') {
-    if (errorSummary?.tone === 'credentials') return `${errorSummary.message} · 게스트 초안은 유지되어 다시 시도할 수 있어요.`
-    if (errorSummary?.tone === 'merge') {
-      const mergedDraftCopy = errorSummary.mergedDraft
-        ? ` · 병합 후보 미리보기 찜 ${errorSummary.mergedDraft.wishlistCount}개 · 장바구니 ${errorSummary.mergedDraft.cartCount}개 · 배치 ${errorSummary.mergedDraft.layoutItemCount}개${errorSummary.mergedDraft.recommendationDraftRestored ? ' · 추천 초안 복원 포함' : ''}`
-        : ''
-      return `${errorSummary.message}${errorSummary.continuationStatusLabel ? ` · ${errorSummary.continuationStatusLabel}` : errorSummary.continuationStatus ? ` · ${errorSummary.continuationStatus}` : ''} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개 handoff 기록을 유지합니다.${mergedDraftCopy} 계속 진행하면 같은 초안으로 병합 방향을 확정할 수 있어요.`
-    }
+    if (errorSummary?.tone === 'credentials') return errorSummary.message ?? '이메일 또는 비밀번호를 다시 확인해 주세요.'
+    if (errorSummary?.tone === 'merge') return errorSummary.message ?? '어떤 초안을 이어갈지 선택해 주세요.'
     if (errorSummary?.tone === 'service') {
-      if (connectionSummary?.isSameOriginScaffold) {
-        return `${errorSummary.message} · 현재는 ${connectionSummary.targetLabel} 대상만 준비되어 있어서, auth base URL 또는 백엔드 라우트가 연결되면 같은 초안으로 다시 이어갈 수 있어요.`
-      }
-      return `${errorSummary.message} · 인증 API가 준비되면 같은 초안으로 다시 연결할 수 있어요.`
+      if (connectionSummary?.isSameOriginScaffold) return '인증 연결을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.'
+      return errorSummary.message ?? '인증 연결을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.'
     }
-    return `${errorSummary?.message ?? '로그인 연결에 실패했어요.'} 잠시 후 다시 시도하거나 백엔드 인증 설정을 확인해주세요.`
+    return errorSummary?.message ?? '로그인에 실패했어요. 다시 시도해 주세요.'
   }
-  return '로그인하면 게스트 상태의 추천, 보드, 찜, 장바구니를 계정에 이어붙일 준비를 시작합니다.'
+
+  return '로그인하면 저장한 작업을 이어서 볼 수 있어요.'
 }

@@ -1901,26 +1901,6 @@ function App() {
 
   return (
     <main className="appShell">
-      {authSessionNotice && !authNoticeDismissed && (
-        <div className="authSessionNotice" role="status" aria-live="polite">
-          <div>
-            <strong>{authSessionNotice.title}</strong>
-          </div>
-          <div className="authSessionNoticeActions">
-            {authReadyPanelState && (
-              <button className="ghost minor" onClick={() => openLogin(authSession?.intent ?? null)}>
-                {authReadyPanelState.nextAction === 'complete-profile'
-                  ? '프로필 입력'
-                  : authReadyPanelState.nextAction === 'verify-email'
-                    ? '이메일 인증'
-                    : '인증 상태'}
-              </button>
-            )}
-            <button className="ghost minor" onClick={handleLogout}>로그아웃</button>
-            <button className="ghost minor" onClick={() => setAuthNoticeDismissed(true)}>닫기</button>
-          </div>
-        </div>
-      )}
       <section className={`screenStage ${overlay ? 'overlayOpen' : ''}`}>
         <StageTransition screen={screen} direction={direction}>
           {(visibleScreen) => renderScreen(visibleScreen, { ...shared, ...screenProps[visibleScreen] })}
