@@ -93,3 +93,108 @@ test('auth http server preserves continuation headers for merge blockers', async
     }
   })
 })
+
+test('auth http server completes merge continuation through cookies and persists the resulting session in sqlite', async () => {
+  await withTempCwd(async () => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { startAuthHttpServer } = await import(moduleUrl)
+    const authServer = await startAuthHttpServer()
+
+    try {
+      const loginResponse = await fetch(`${authServer.url}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: 'merge@example.com',
+          password: 'merge-conflict',
+          handoffId: 'proxy-merge-continue-001',
+          guestDraftSnapshot: {
+            continuity: {
+              apartmentLabel: '래미안 포레스트 84A',
+              selectedRooms: ['거실', '안방'],
+              wishlistIds: ['sofa-001', 'table-001'],
+              cartItems: [{ id: 'bed-001', qty: 1 }],
+              layoutItems: [{ id: 'placed-sofa', sourceId: 'sofa-001', x: 10, y: 16 }],
+            },
+            recommendationDraft: {
+              room: '거실',
+              style: 'minimal',
+              priority: 'flow',
+              lifestyle: ['기본'],
+              extraRequest: '',
+            },
+            spaceProfile: {
+              spaces: ['living', 'bed1'],
+            },
+          },
+          intent: {
+            action: 'save-layout-draft',
+            label: '보드 저장 이어가기',
+            returnScreen: 'layout',
+          },
+        }),
+      })
+
+      assert.equal(loginResponse.status, 409)
+      const handoffCookie = loginResponse.headers.getSetCookie().find((value) => value.startsWith('havenly_auth_handoff='))
+      assert.ok(handoffCookie)
+
+      const blockedPayload = await loginResponse.json()
+      assert.equal(blockedPayload.nextAction, 'confirm-merge-resolution')
+      assert.ok(blockedPayload.resumeToken)
+
+      const continueResponse = await fetch(`${authServer.url}/api/auth/continue`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie: handoffCookie,
+        },
+        body: JSON.stringify({
+          handoffId: 'proxy-merge-continue-001',
+          continuation: {
+            nextAction: 'confirm-merge-resolution',
+            resumeToken: blockedPayload.resumeToken,
+          },
+          intent: {
+            action: 'save-layout-draft',
+            label: '보드 저장 이어가기',
+            returnScreen: 'layout',
+          },
+          fields: {
+            mergeResolution: 'keep-guest',
+          },
+        }),
+      })
+
+      assert.equal(continueResponse.status, 200)
+      const sessionCookie = continueResponse.headers.getSetCookie().find((value) => value.startsWith('havenly_auth_session='))
+      assert.ok(sessionCookie)
+
+      const continuedPayload = await continueResponse.json()
+      assert.equal(continuedPayload.nextAction, 'save-layout-draft')
+      assert.equal(continuedPayload.status, 'ready')
+      assert.equal(continuedPayload.user.email, 'merge@example.com')
+      assert.equal(continuedPayload.accountState.wishlistIds.length, 2)
+      assert.equal(continuedPayload.accountState.cartItems.length, 1)
+      assert.equal(continuedPayload.accountState.layoutItems.length, 1)
+      assert.equal(continuedPayload.accountState.recommendationDraft?.room, '거실')
+
+      const sessionResponse = await fetch(`${authServer.url}/api/auth/session`, {
+        headers: {
+          cookie: sessionCookie,
+        },
+      })
+
+      assert.equal(sessionResponse.status, 200)
+      const sessionPayload = await sessionResponse.json()
+      assert.equal(sessionPayload.user.email, 'merge@example.com')
+      assert.equal(sessionPayload.nextAction, 'save-layout-draft')
+      assert.equal(sessionPayload.accountState.wishlistIds.length, 2)
+      assert.equal(sessionPayload.accountState.layoutItems.length, 1)
+    } finally {
+      await authServer.close()
+    }
+  })
+})
