@@ -670,32 +670,37 @@ async function openLogin(page) {
 }
 
 async function readGuardPanelPreview(page) {
-  const guardCards = page.locator('.loginGuardCard')
-  const draftCard = guardCards.nth(1)
-  const mutedLines = await draftCard.locator('.muted').allInnerTexts().catch(() => [])
+  const guardCard = page.locator('.loginGuardCard').first()
+  const mutedLines = await guardCard.locator('.muted').allInnerTexts().catch(() => [])
 
   return {
-    header: (await draftCard.locator('strong').first().innerText().catch(() => '')).trim(),
-    summary: await draftCard.locator('.guardSummary.compact').locator('div').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => []),
+    header: (await guardCard.locator('strong').first().innerText().catch(() => '')).trim(),
+    summary: await guardCard.locator('.guardSummary.compact').locator('div').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => []),
     mutedLines: mutedLines.map((line) => line.trim()),
   }
 }
 
 function assertGuardPanelPreview(preview) {
-  const flattened = [...(preview.summary ?? []), ...(preview.mutedLines ?? [])].join(' | ')
+  const flattened = [preview?.header ?? '', ...(preview.summary ?? []), ...(preview.mutedLines ?? [])].join(' | ')
   const expectedFragments = [
+    '계속 이어질 내용',
     '선택 공간',
-    '추천',
+    '추천 초안',
     '배치 아이템',
-    'handoff',
-    'draftSave handoff',
-    '로그인 목적',
-    '연결 대상',
+    '찜',
+    '장바구니',
   ]
+  const forbiddenFragments = ['handoff', 'draftSave handoff', '연결 대상', 'payload', 'debug', 'checklist']
 
   for (const fragment of expectedFragments) {
     if (!flattened.includes(fragment)) {
-      throw new Error(`Guarded login preview is missing expected auth handoff detail: ${fragment}. Saw: ${flattened}`)
+      throw new Error(`Guarded login preview is missing expected customer-facing continuity detail: ${fragment}. Saw: ${flattened}`)
+    }
+  }
+
+  for (const fragment of forbiddenFragments) {
+    if (flattened.includes(fragment)) {
+      throw new Error(`Guarded login preview exposed debug/log-style auth detail that should stay out of the product UI: ${fragment}. Saw: ${flattened}`)
     }
   }
 }
@@ -719,15 +724,15 @@ async function continuePastGuardIfPresent(page) {
 
 async function fillLoginForm(page, { email, password }) {
   const loginForm = page.locator('.loginPanel .loginForm').last()
-  const inputs = loginForm.locator('input')
-  await inputs.nth(0).fill(email)
-  await inputs.nth(1).fill(password)
+  await loginForm.getByPlaceholder('name@example.com').fill(email)
+  await loginForm.getByPlaceholder('8자 이상 입력').fill(password)
 }
 
 async function submitLogin(page, { email, password }) {
-  const loginForm = page.locator('.loginPanel .loginForm').last()
   await fillLoginForm(page, { email, password })
-  await loginForm.getByRole('button', { name: '로그인', exact: true }).click()
+  const loginButton = page.locator('.loginPanel .footerButtons .cta').last()
+  await loginButton.waitFor({ state: 'visible', timeout: 15000 })
+  await loginButton.click()
 }
 
 async function readLoginConnectionPreview(page) {
@@ -920,7 +925,7 @@ async function runBrowserSmoke(playwright) {
     await saveDraftPage.getByRole('button', { name: '보드 저장 이어가기' }).waitFor()
     const saveDraftStatus = await saveDraftPage.locator('.authPrepCard .muted').first().innerText()
     const saveDraftReadyCard = await readAuthReadyCard(saveDraftPage)
-    const saveDraftNotice = await saveDraftPage.locator('.authSessionNotice p').innerText()
+    const saveDraftNotice = await saveDraftPage.locator('.authSessionNotice p').innerText().catch(() => null)
     await saveDraftPage.getByRole('button', { name: '보드 저장 이어가기' }).click()
     await saveDraftPage.locator('.loginPanel').waitFor({ state: 'hidden' })
     const saveDraftHashAfterResume = await saveDraftPage.evaluate(() => globalThis.location.hash)
@@ -942,12 +947,12 @@ async function runBrowserSmoke(playwright) {
     await openCartButton.click({ force: true })
     await mergePage.getByRole('dialog').getByRole('button', { name: '로그인 후 주문 이어가기' }).click()
 
-    await mergePage.getByText('현재 감지된 진행 내역').waitFor()
+    await mergePage.getByText('계속 이어질 내용').waitFor()
     const guardReasons = await mergePage.locator('.loginReasonList span').allInnerTexts()
     const guardPreview = await readGuardPanelPreview(mergePage)
     assertGuardPanelPreview(guardPreview)
     await continuePastGuardIfPresent(mergePage)
-    await mergePage.locator('.loginPanel .loginForm').last().getByRole('button', { name: '로그인', exact: true }).waitFor()
+    await mergePage.locator('.loginPanel .loginForm').last().waitFor({ state: 'visible', timeout: 15000 })
 
     await submitLogin(mergePage, {
       email: 'merge@example.com',
@@ -955,7 +960,10 @@ async function runBrowserSmoke(playwright) {
     })
 
     await mergePage.getByText('Guest draft merge confirmation required').waitFor()
-    const mergeError = await mergePage.locator('.authPrepCard .muted').nth(1).innerText()
+    const mergeError = await mergePage.locator('.authPrepCard .muted').nth(1).innerText().catch(async () => {
+      const mutedLines = await mergePage.locator('.authPrepCard .muted').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => [])
+      return mutedLines.at(-1) ?? null
+    })
     const mergeOptions = await mergePage.locator('.footerButtons button.ghost').evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim()).filter(Boolean))
 
     await mergePage.getByRole('button', { name: '현재 초안으로 계속' }).click()
