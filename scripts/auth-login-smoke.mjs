@@ -111,6 +111,13 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+let currentSmokeStage = 'boot'
+
+function markSmokeStage(stage) {
+  currentSmokeStage = stage
+  console.error(`[auth-smoke] ${stage}`)
+}
+
 async function isBaseUrlReachable(url, { fetchImpl = fetch } = {}) {
   try {
     const response = await fetchImpl(url, { redirect: 'follow' })
@@ -967,8 +974,10 @@ async function waitForLoggedOutSignal(page, { timeoutMs = 15000 } = {}) {
 
 async function runBrowserSmoke(playwright) {
   const { chromium } = playwright
+  markSmokeStage('browser-launch')
   const browser = await chromium.launch({ headless: true })
   try {
+    markSmokeStage('signup-scenario:start')
     const signupPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(signupPage)
     await signupPage.goto(`${baseUrl}#layout`, { waitUntil: 'domcontentloaded' })
@@ -997,6 +1006,7 @@ async function runBrowserSmoke(playwright) {
     await capture(signupPage, 'auth-signup-save-layout-ready.png')
     await signupPage.close()
 
+    markSmokeStage('direct-login-scenario:start')
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(page)
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded' })
@@ -1032,6 +1042,7 @@ async function runBrowserSmoke(playwright) {
     await capture(page, 'auth-login-direct-success.png')
     await page.close()
 
+    markSmokeStage('save-draft-scenario:start')
     const saveDraftPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(saveDraftPage)
     await saveDraftPage.goto(`${baseUrl}#layout`, { waitUntil: 'domcontentloaded' })
@@ -1056,6 +1067,7 @@ async function runBrowserSmoke(playwright) {
     await capture(saveDraftPage, 'auth-login-save-layout-ready.png')
     await saveDraftPage.close()
 
+    markSmokeStage('merge-scenario:start')
     const mergePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(mergePage)
     await mergePage.goto(baseUrl, { waitUntil: 'domcontentloaded' })
@@ -1104,6 +1116,7 @@ async function runBrowserSmoke(playwright) {
     await capture(mergePage, 'auth-login-guarded-merge.png')
     await mergePage.close()
 
+    markSmokeStage('complete-profile-scenario:start')
     const completeProfilePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(completeProfilePage)
     await completeProfilePage.goto(baseUrl, { waitUntil: 'domcontentloaded' })
@@ -1138,6 +1151,7 @@ async function runBrowserSmoke(playwright) {
     await capture(completeProfilePage, 'auth-login-complete-profile-ready.png')
     await completeProfilePage.close()
 
+    markSmokeStage('verify-email-scenario:start')
     const verifyEmailPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(verifyEmailPage)
     await verifyEmailPage.goto(baseUrl, { waitUntil: 'domcontentloaded' })
@@ -1170,6 +1184,7 @@ async function runBrowserSmoke(playwright) {
     await capture(verifyEmailPage, 'auth-login-verify-email-ready.png')
     await verifyEmailPage.close()
 
+    markSmokeStage('query-override-scenario:start')
     const queryOverridePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     const queryContinueEndpoint = '/v1/session/continue'
     await resetBrowserScenario(queryOverridePage)
@@ -1193,6 +1208,7 @@ async function runBrowserSmoke(playwright) {
     const queryOverrideReadyCard = await readAuthReadyCard(queryOverridePage)
     await queryOverridePage.close()
 
+    markSmokeStage('runtime-override-scenario:start')
     const runtimeOverridePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     const runtimeContinueEndpoint = '/v2/runtime/continue'
     await runtimeOverridePage.addInitScript((continueEndpoint) => {
@@ -1229,6 +1245,7 @@ async function runBrowserSmoke(playwright) {
       throw new Error(`Runtime auth override login flow did not reach the expected verification continuation state. Saw: ${JSON.stringify(runtimeOverrideReadyCard)}`)
     }
 
+    markSmokeStage('browser-scenarios:done')
     return {
       mode: 'browser',
       baseUrl,
@@ -1315,9 +1332,11 @@ try {
 
   if (playwright.module) {
     try {
+      markSmokeStage('preview-build-and-start')
       const ensuredBaseUrl = await ensureBrowserBaseUrl(baseUrl, { extraEnv: previewEnv })
       previewServer = ensuredBaseUrl.process
       setActiveBaseUrl(ensuredBaseUrl.url)
+      markSmokeStage(`preview-ready:${ensuredBaseUrl.url}`)
 
       try {
         result = {
@@ -1332,6 +1351,7 @@ try {
         if (!canRetryWithFreshPreview) throw error
 
         const fallbackBaseUrl = buildFallbackBaseUrl(defaultBaseUrl)
+        markSmokeStage(`preview-retry:${fallbackBaseUrl}`)
         const fallbackPreview = await ensureBrowserBaseUrl(fallbackBaseUrl, { extraEnv: previewEnv })
         previewServer = fallbackPreview.process ?? previewServer
         setActiveBaseUrl(fallbackPreview.url)
@@ -1374,7 +1394,11 @@ try {
   }
 
   console.log(JSON.stringify(result, null, 2))
+} catch (error) {
+  console.error(`[auth-smoke] failed at ${currentSmokeStage}`)
+  throw error
 } finally {
+  console.error(`[auth-smoke] cleanup at ${currentSmokeStage}`)
   if (previewServer) {
     await terminateChildProcess(previewServer).catch(() => null)
   }
