@@ -106,6 +106,9 @@ import {
   buildVisibleLibrary,
   layoutLibraryCategoryTabs,
 } from './components/layout-library-state.js'
+import { AiRecommendPage, SpaceSelectPage } from './pages/ai-flow-pages.jsx'
+import { LayoutEditorPage } from './pages/layout-editor-page.jsx'
+import { BedsCategoryPage, FurnitureHomePage } from './pages/commerce-pages.jsx'
 import './styles.css'
 
 const initialEngagement = {
@@ -552,6 +555,21 @@ function useEditorState() {
 }
 
 const LOGIN_BUTTON_LABEL = '로그인'
+
+function buildAuthContinuationFieldLabel(field = '') {
+  switch (field) {
+    case 'displayName':
+      return '닉네임'
+    case 'phone':
+      return '연락처'
+    case 'verificationCode':
+      return '인증 코드'
+    case 'mergeResolution':
+      return '병합 기준'
+    default:
+      return field
+  }
+}
 
 function buildEmptyLoginForm(intent = null) {
   return {
@@ -2009,501 +2027,59 @@ function App() {
 function renderScreen(screen, props) {
   switch (screen) {
     case 'ai':
-      return <AiRecommendScreen {...props} />
+      return (
+        <AiRecommendPage
+          Header={Header}
+          roomOptions={roomOptions}
+          styleOptions={styleOptions}
+          priorityOptions={priorityOptions}
+          lifestyleOptions={lifestyleOptions}
+          apartmentSearchResults={apartmentSearchResults}
+          aiProducts={aiProducts}
+          {...props}
+        />
+      )
     case 'space':
-      return <SpaceSelectScreen {...props} />
+      return (
+        <SpaceSelectPage
+          Header={Header}
+          SpaceSelectionBoard={SpaceSelectionBoard}
+          baseZones={baseZones}
+          toggleRequiredSelection={toggleRequiredSelection}
+          {...props}
+        />
+      )
     case 'layout':
-      return <LayoutEditorScreen {...props} />
+      return (
+        <LayoutEditorPage
+          Header={Header}
+          libraryItems={libraryItems}
+          aiProducts={aiProducts}
+          buildVisibleLibrary={buildVisibleLibrary}
+          buildLibraryEmptyState={buildLibraryEmptyState}
+          layoutLibraryCategoryTabs={layoutLibraryCategoryTabs}
+          buildLayoutEditorToolbarButtons={buildLayoutEditorToolbarButtons}
+          buildLayoutEditorInfoPills={buildLayoutEditorInfoPills}
+          buildLayoutEditorPropertyPanelState={buildLayoutEditorPropertyPanelState}
+          buildLayoutEditorHint={buildLayoutEditorHint}
+          findLibraryItemMeta={findLibraryItemMeta}
+          resolveRoomClickTarget={resolveRoomClickTarget}
+          createLayoutEditorToolbarHandlers={createLayoutEditorToolbarHandlers}
+          createLayoutEditorActionHandlers={createLayoutEditorActionHandlers}
+          buildLayoutEditorToolbarCommands={buildLayoutEditorToolbarCommands}
+          buildLayoutEditorActionCommands={buildLayoutEditorActionCommands}
+          runLayoutEditorCommands={runLayoutEditorCommands}
+          buildPlacedItemClassName={buildPlacedItemClassName}
+          buildPlacedItemStyle={buildPlacedItemStyle}
+          {...props}
+        />
+      )
     case 'beds':
-      return <BedsCategoryScreen {...props} />
+      return <BedsCategoryPage Header={Header} {...props} />
     case 'home':
     default:
-      return <FurnitureHomeScreen {...props} />
+      return <FurnitureHomePage Header={Header} aiProducts={aiProducts} bedProducts={bedProducts} {...props} />
   }
-}
-
-function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, brief, summary, selectedSpaceSummary, onRecommend, onApplyToLayout, onOpenLogin, authSession }) {
-  const availableRooms = selectedSpaceSummary.availableRooms ?? roomOptions
-  const unavailableRoomCount = roomOptions.length - availableRooms.length
-  const roomHint = unavailableRoomCount > 0
-    ? `연결된 공간 프로필에 맞춰 ${availableRooms.join(' · ')} 추천만 바로 선택할 수 있어요.`
-    : '연결된 공간 프로필과 AI 추천 방 선택이 같은 상태로 유지돼요.'
-  const currentStyle = styleOptions.find((item) => item.id === form.style)
-  const selectedApartment = apartmentSearchResults.find((item) => item.id === form.apartmentSelectionId)
-  const apartmentLabel = brief.apartmentLabel || '아파트명을 선택해보세요'
-  const apartmentMeta = brief.apartmentMeta || `전용 84㎡ · ${form.apartmentType} · 4Bay · 거실 확장형`
-
-  return (
-    <div className="screenCanvas warmBg">
-      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
-      <div className="twoCol">
-        <aside className="panel leftPanel">
-          <h2>AI가 공간에 맞는 가구를 추천해드릴게요</h2>
-          <label>아파트 검색</label>
-          <button
-            type="button"
-            className="searchSelectButton"
-            onClick={() => openOverlay('address')}
-          >
-            <span className="searchSelectIcon" aria-hidden="true">🔎</span>
-            <span className="searchSelectText">
-              <strong>{apartmentLabel}</strong>
-              <small>아파트명 또는 평면도를 선택해 공간 정보를 불러오세요</small>
-            </span>
-            <span className="searchSelectAction">불러오기</span>
-          </button>
-          <div className="resultCard">
-            <strong>{selectedApartment ? (<><span className="apartmentBrand">{selectedApartment.brand}</span> <span>{selectedApartment.complex}</span></>) : apartmentLabel}</strong>
-            <span>{apartmentMeta}</span>
-          </div>
-          <div className="spaceProfileCard">
-            <div className="spaceProfileCardHead">
-              <div>
-                <strong>연결된 공간 프로필</strong>
-                <p>{selectedSpaceSummary.caption}</p>
-              </div>
-              <button className="ghost minor" onClick={() => openOverlay('address')}>수정</button>
-            </div>
-            <div className="spaceProfileChips">
-              {selectedSpaceSummary.chips.map((zone) => (
-                <span key={zone.id} className="spaceProfileChip">{zone.icon} {zone.name}</span>
-              ))}
-            </div>
-          </div>
-          <label>공간 선택</label>
-          <div className="chipRow roomChipRow">
-            {roomOptions.map((room) => {
-              const isAvailable = availableRooms.includes(room)
-              return (
-                <button
-                  key={room}
-                  className={form.room === room ? 'solid' : ''}
-                  disabled={!isAvailable}
-                  aria-disabled={!isAvailable}
-                  title={isAvailable ? `${room} 추천 보기` : '현재 연결된 공간 프로필에 없는 공간이에요.'}
-                  onClick={() => {
-                    if (!isAvailable) return
-                    setForm((current) => ({ ...current, room }))
-                  }}
-                >
-                  {room}
-                </button>
-              )
-            })}
-          </div>
-          <label>선호 스타일</label>
-          <div className="styleGrid">
-            {styleOptions.map((style) => (
-              <button key={style.id} className={`styleBox ${form.style === style.id ? 'selected' : ''}`} onClick={() => setForm((current) => ({ ...current, style: style.id }))}>
-                <span>{style.emoji}</span>{style.label}
-              </button>
-            ))}
-          </div>
-          <label>우선 기준</label>
-          <div className="chipRow preferenceRow">
-            {priorityOptions.map((option) => (
-              <button
-                key={option.id}
-                className={form.priority === option.id ? 'solid' : ''}
-                onClick={() => setForm((current) => ({ ...current, priority: option.id }))}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <label>라이프스타일</label>
-          <div className="chipRow preferenceRow">
-            {lifestyleOptions.map((item) => {
-              const isSelected = form.lifestyle.includes(item)
-              return (
-                <button
-                  key={item}
-                  className={isSelected ? 'solid' : ''}
-                  onClick={() => setForm((current) => {
-                    if (item === '기본') {
-                      return { ...current, lifestyle: ['기본'] }
-                    }
-
-                    const nextLifestyle = current.lifestyle.filter((value) => value !== '기본')
-                    const updated = isSelected
-                      ? nextLifestyle.filter((value) => value !== item)
-                      : [...nextLifestyle, item]
-
-                    return {
-                      ...current,
-                      lifestyle: updated.length ? updated : ['기본'],
-                    }
-                  })}
-                >
-                  {item}
-                </button>
-              )
-            })}
-          </div>
-          <label>추가 요청</label>
-          <textarea value={form.extraRequest} onChange={(event) => setForm((current) => ({ ...current, extraRequest: event.target.value }))} />
-          <div className="footerButtons stackOnMobile aiFooterButtons">
-            <button className="cta" onClick={onRecommend}>추천받기</button>
-          </div>
-        </aside>
-        <div className="panel resultPanel">
-          <div className="badge">AI 추천 결과</div>
-          <h3>{form.room} 배치안 + 상품 추천</h3>
-          <p className="resultSummary"><b>{currentStyle?.label}</b> 무드 기준 · {summary}</p>
-          <div className="resultInputMeta">
-            <span>{brief.priorityLabel}</span>
-            <span>{brief.lifestyleLabel}</span>
-            <span>{brief.apartmentMeta}</span>
-          </div>
-          <div className="floorplanViewport">
-            <div className="floorplanFrame">
-              <div className={`floorplan theme-${form.style}`}>
-                <div className="grid" />
-                <div className="roomBorder">
-                  <div className="windowMark">창문</div>
-                  <div className="doorMark">현관</div>
-                  <div className="furn sofa">{form.room === '침실' ? '침대' : '3인 소파'}</div>
-                  <div className="furn rug">러그</div>
-                  <div className="furn table">테이블</div>
-                  <div className="furn tv">TV장</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="productRow">
-            {aiProducts.map((item) => (
-              <article key={item.id} className="productMini">
-                <div className="emojiCard">{item.emoji}</div>
-                <strong>{item.name}</strong>
-                <span>{item.priceLabel}</span>
-                <small>적합도 {item.fitScore}%</small>
-                <div className="cardActions two">
-                  <button className="ghost minor" onClick={() => addToCart(item)}>담기</button>
-                  <button onClick={() => onApplyToLayout(item)}>배치에 담기</button>
-                </div>
-              </article>
-            ))}
-          </div>
-          <div className="reasonBox"><strong>AI 코멘트</strong> {summary}</div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, selectedSpaces, setSelectedSpaces, onOpenLogin, authSession }) {
-  return (
-    <div className="screenCanvas sandBg">
-      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
-      <section className="cardStage">
-        <div className="cardSurface">
-          <h2>어떤 공간을 먼저 꾸밀까요?</h2>
-          <SpaceSelectionBoard
-            zones={baseZones}
-            selectedIds={selectedSpaces}
-            onToggle={(zoneId) => setSelectedSpaces((current) => toggleRequiredSelection(current, zoneId))}
-          />
-          <div className="footerButtons">
-            <button className="ghost" onClick={() => navigate('ai')}>이전</button>
-            <button className="cta small" onClick={() => navigate('layout')}>다음 단계 →</button>
-          </div>
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary, onOpenLogin, onAddProductToLayout, authSession }) {
-  const selectedMeta = React.useMemo(
-    () => findLibraryItemMeta(libraryItems, editor.selected?.sourceId),
-    [editor.selected?.sourceId],
-  )
-  const [activeCategory, setActiveCategory] = React.useState('전체')
-  const [librarySearch, setLibrarySearch] = React.useState('')
-  const roomFrameRef = React.useRef(null)
-
-  const visibleLibrary = React.useMemo(
-    () => buildVisibleLibrary(libraryItems, activeCategory, librarySearch),
-    [activeCategory, librarySearch],
-  )
-  const libraryEmptyState = React.useMemo(
-    () => buildLibraryEmptyState(activeCategory, librarySearch),
-    [activeCategory, librarySearch],
-  )
-  const toolbarButtons = React.useMemo(
-    () => buildLayoutEditorToolbarButtons(editor.activeTool, { canUndo: editor.canUndo }),
-    [editor.activeTool, editor.canUndo],
-  )
-  const infoPills = React.useMemo(
-    () => buildLayoutEditorInfoPills({
-      snapOn: editor.snapOn,
-      itemCount: editor.items.length,
-    }),
-    [editor.items.length, editor.snapOn],
-  )
-  const propertyPanelState = React.useMemo(
-    () => buildLayoutEditorPropertyPanelState(editor.selected, selectedMeta),
-    [editor.selected, selectedMeta],
-  )
-  const editorHint = React.useMemo(
-    () => buildLayoutEditorHint({ snapOn: editor.snapOn }),
-    [editor.snapOn],
-  )
-
-  const handlePointerMove = React.useCallback((event) => {
-    editor.updateDrag(event)
-  }, [editor])
-
-  const handlePointerUp = React.useCallback((event) => {
-    if (editor.dragState && event?.pointerId === editor.dragState.pointerId) {
-      roomFrameRef.current?.releasePointerCapture?.(event.pointerId)
-    }
-    editor.endDrag()
-  }, [editor])
-
-  const handleRoomClick = React.useCallback((event) => {
-    if (event.target !== event.currentTarget) return
-    if (editor.activeTool !== 'move' || editor.dragState || !editor.selected) return
-
-    const bounds = roomFrameRef.current?.getBoundingClientRect()
-    if (!bounds?.width || !bounds?.height) return
-
-    const percentX = ((event.clientX - bounds.left) / bounds.width) * 100
-    const percentY = ((event.clientY - bounds.top) / bounds.height) * 100
-    const target = resolveRoomClickTarget(percentX, percentY, editor.selected)
-    editor.moveSelectedTo(target.x, target.y)
-  }, [editor])
-
-  const toolbarCommandHandlers = React.useMemo(
-    () => createLayoutEditorToolbarHandlers(editor),
-    [editor],
-  )
-  const actionCommandHandlers = React.useMemo(
-    () => createLayoutEditorActionHandlers({ navigate, openOverlay, addToCart, editor, selectedMeta }),
-    [addToCart, editor, navigate, openOverlay, selectedMeta],
-  )
-
-  const handleToolbarAction = React.useCallback((toolId) => {
-    runLayoutEditorCommands(buildLayoutEditorToolbarCommands(toolId), toolbarCommandHandlers)
-  }, [toolbarCommandHandlers])
-
-  const handleActionButton = React.useCallback((action) => {
-    runLayoutEditorCommands(buildLayoutEditorActionCommands(action), actionCommandHandlers)
-  }, [actionCommandHandlers])
-
-  return (
-    <div className="screenCanvas editorBg">
-      <Header dark active="내가 배치하기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
-      <section className="editorLayout">
-        <aside className="editorSide left">
-          <div className="sideHead"><h3>가구 라이브러리</h3><input value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="가구 검색" /></div>
-          <div className="tabRow">
-            {layoutLibraryCategoryTabs.map((tab) => <button key={tab} className={`mini ${activeCategory === tab ? 'solid' : ''}`} onClick={() => setActiveCategory(tab)}>{tab}</button>)}
-          </div>
-          {visibleLibrary.length > 0 ? (
-            <div className="dragGrid">
-              {visibleLibrary.map((item) => (
-                <button key={item.id} className="dragCard buttonCard" onClick={() => onAddProductToLayout(item)}>
-                  <span>{item.emoji}</span><strong>{item.name}</strong><small>{item.size}</small>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="emptyState compact editorLibraryEmptyState">
-              <div>
-                <div className="emptyEmoji">{libraryEmptyState.emoji}</div>
-                <strong>{libraryEmptyState.title}</strong>
-                <p>{libraryEmptyState.description}</p>
-              </div>
-            </div>
-          )}
-        </aside>
-        <div className="editorCenter">
-          <div className="toolbar">
-            {toolbarButtons.map((tool) => (
-              <button
-                key={tool.id}
-                className={`tool ${tool.isActive ? 'active' : ''}`}
-                disabled={tool.disabled}
-                onClick={() => handleToolbarAction(tool.id)}
-              >
-                {tool.label}
-              </button>
-            ))}
-          </div>
-          <div className="editorCanvasShell">
-            <div className="editorCanvasMeta">
-              <span>{addressSummary}</span>
-              <button className={`metaToggle ${editor.snapOn ? 'on' : ''}`} onClick={() => editor.setSnapOn((current) => !current)}>{editor.snapOn ? '스냅 ON' : '스냅 OFF'}</button>
-              <span>{editor.notice}</span>
-            </div>
-            <div className="editorRoomFrame">
-              <div className={`editorRoom ${editor.dragState ? 'is-dragging' : ''}`}>
-                <div className="grid" />
-                <div
-                  ref={roomFrameRef}
-                  className="roomFrame"
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
-                  onPointerCancel={handlePointerUp}
-                  onLostPointerCapture={handlePointerUp}
-                  onClick={handleRoomClick}
-                >
-                  {editor.items.map((item) => {
-                    const itemMeta = findLibraryItemMeta(libraryItems, item.sourceId)
-                    const isDragging = editor.dragState?.itemId === item.id
-                    return (
-                      <button
-                        key={item.id}
-                        className={buildPlacedItemClassName({
-                          isSelected: editor.selectedId === item.id,
-                          isCircle: item.circle,
-                          isDragging,
-                        })}
-                        style={buildPlacedItemStyle(item, itemMeta)}
-                        onClick={() => editor.setSelectedId(item.id)}
-                        onPointerDown={(event) => {
-                          if (event.button !== 0) return
-                          const bounds = roomFrameRef.current?.getBoundingClientRect()
-                          if (!bounds) return
-                          event.preventDefault()
-                          roomFrameRef.current?.setPointerCapture?.(event.pointerId)
-                          editor.beginDrag(item.id, event, bounds)
-                        }}
-                      >
-                        {item.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="infoPills">{infoPills.map((pill) => <span key={pill}>{pill}</span>)}</div>
-          <div className="recommendStrip">
-            {aiProducts.map((item) => (
-              <button key={item.id} className="recommendCard buttonCard" onClick={() => onAddProductToLayout(item)}>
-                <div>{item.emoji}</div><strong>{item.name}</strong><small>{item.priceLabel}</small>
-              </button>
-            ))}
-          </div>
-        </div>
-        <aside className="editorSide right">
-          <div className="sideHead"><h3>속성 패널</h3></div>
-          <div className="propBlock"><label>선택 오브젝트</label><strong>{propertyPanelState.selectionSnapshot.selectedName}</strong></div>
-          <div className="propBlock"><label>위치</label><div className="split"><span>X {propertyPanelState.selectionSnapshot.position.x}</span><span>Y {propertyPanelState.selectionSnapshot.position.y}</span></div></div>
-          <div className="propBlock"><label>컬러</label><div className="colorDots">{propertyPanelState.colorOptions.map((option) => <button key={option.color} className={`colorDot ${option.isActive ? 'active' : ''}`} style={{ background: option.color }} onClick={() => editor.setSelectedColor(option.index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
-          <div className="propBlock"><label>배치 메모</label><p>{propertyPanelState.selectionSnapshot.selectedBlurb}</p></div>
-          <div className="propBlock actionBlock">
-            {!authSession && (
-              <button
-                className="ghost"
-                onClick={() => onOpenLogin({
-                  source: 'layout-editor',
-                  action: 'save-layout-draft',
-                  label: '로그인 후 보드 저장',
-                  draftLabel: addressSummary,
-                  returnScreen: 'layout',
-                })}
-              >
-                로그인 후 보드 저장
-              </button>
-            )}
-            {propertyPanelState.actionButtons.map((button) => (
-              <button
-                key={button.id}
-                className={button.tone}
-                disabled={button.disabled}
-                onClick={() => handleActionButton(button.action)}
-              >
-                {button.label}
-              </button>
-            ))}
-          </div>
-        </aside>
-      </section>
-    </div>
-  )
-}
-
-function BedsCategoryScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, quickViewOpen, addToCart, filters, setFilters, items, wishlistedIds, toggleWishlist, onOpenLogin, authSession }) {
-  const filterGroups = {
-    size: ['전체', '슈퍼싱글', '퀸', '킹'],
-    color: ['전체', '아이보리', '베이지', '우드', '그레이'],
-    material: ['전체', '패브릭', '원목', '리넨', '합성패브릭'],
-    fit: ['전체', '85', '90'],
-  }
-
-  return (
-    <div className="screenCanvas plainBg">
-      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
-      <div className="subnav">전체 · 소파 · 테이블 · 수납 · <b>침대</b> · 조명 · 패브릭</div>
-      <section className="catalogWrap">
-        <aside className="filterCol">
-          <h3>필터</h3>
-          <div className="inputWrap compactInput">🔎<input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="제품명/색상 검색" /></div>
-          {Object.entries(filterGroups).map(([key, options]) => (
-            <div key={key} className="filterBox">
-              <strong>{key === 'fit' ? 'AI 적합도' : key === 'size' ? '사이즈' : key === 'color' ? '색상' : '소재'}</strong>
-              <div className="filterChips">
-                {options.map((option) => (
-                  <button key={option} className={filters[key] === option ? 'solid mini' : 'mini'} onClick={() => setFilters((current) => ({ ...current, [key]: option }))}>{key === 'fit' && option !== '전체' ? `${option}%+` : option}</button>
-                ))}
-              </div>
-            </div>
-          ))}
-          <button className="ghost full" onClick={() => setFilters({ search: '', sorts: 'recommended', size: '전체', color: '전체', material: '전체', fit: '전체' })}>필터 초기화</button>
-        </aside>
-        <div className="catalogMain">
-          <div className="catalogHero">
-            <div><p className="breadcrumb">가구 먼저 찾기 / 침실 / 침대</p><h2>침대 <em>{items.length}개</em></h2><p className="muted">검색, 필터, 정렬, 찜, 빠른 보기까지 프론트 상태로 연결해 두었습니다.</p></div>
-            <div className="sorts"><button className={`mini ${filters.sorts === 'recommended' ? 'solid' : ''}`} onClick={() => setFilters((current) => ({ ...current, sorts: 'recommended' }))}>추천순</button><button className={`mini ${filters.sorts === 'priceLow' ? 'solid' : ''}`} onClick={() => setFilters((current) => ({ ...current, sorts: 'priceLow' }))}>낮은 가격순</button><button className={`mini ${filters.sorts === 'fit' ? 'solid' : ''}`} onClick={() => setFilters((current) => ({ ...current, sorts: 'fit' }))}>AI 적합도</button></div>
-          </div>
-          <div className="productGrid3">
-            {items.map((item) => (
-              <article key={item.id} className="shopCard">
-                <div className="shopVisual"><span className="badgeTag">{item.badge}</span><button className={`wish ${wishlistedIds.includes(item.id) ? 'active' : ''}`} onClick={() => toggleWishlist(item.id)}>{wishlistedIds.includes(item.id) ? '♥' : '♡'}</button><div className="bigEmoji">{item.emoji}</div><div className="fitTag">{item.fit}</div></div>
-                <div className="shopInfo"><small>HAVENLY SELECT</small><h4>{item.name}</h4><p>{item.review} · {item.color} · {item.material}</p><div className="priceLine"><strong>{item.priceLabel}</strong></div><div className="cardActions"><button onClick={() => quickViewOpen(item)}>빠른 보기</button><button className="ghost minor" onClick={() => addToCart(item)}>담기</button></div></div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function FurnitureHomeScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, onOpenLogin, trackBoardProgress, authSession }) {
-  return (
-    <div className="screenCanvas plainBg">
-      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
-      <section className="heroBanner">
-        <div>
-          <div className="eyebrow darkEyebrow">FURNITURE FIRST</div>
-          <h2>먼저 가구를 찾고, <em>내 공간 적합도</em>를 확인하세요</h2>
-          <p>가구를 먼저 둘러보고 내 공간에 바로 연결해보세요.</p>
-          <div className="heroActions"><button className="cta" onClick={() => navigate('beds')}>지금 둘러보기</button><button className="ghost" onClick={() => { trackBoardProgress(); openOverlay('address') }}>내 공간 연결</button></div>
-        </div>
-        <div className="heroCards">
-          <div className="floatingCard"><span>🛋️</span><strong>웜 베이지 소파</strong><small>AI 적합도 96%</small><button className="ghost minor" onClick={() => addToCart(aiProducts[0])}>담기</button></div>
-          <div className="floatingCard lifted"><span>🛏️</span><strong>패브릭 침대</strong><small>침실 추천</small><button className="ghost minor" onClick={() => navigate('beds')}>보러가기</button></div>
-        </div>
-      </section>
-      <section className="aiStrip"><div><strong>AI 매칭</strong><span>내 공간 정보로 가구 사이즈/동선 적합도를 바로 확인</span></div><button className="ghost dark" onClick={() => navigate('ai')}>AI 추천 시작</button></section>
-      <section className="iconCategories">
-        {['소파','침대','테이블','수납','조명','패브릭'].map((name, i) => <button key={name} className={`iconCat ${i===1?'active':''}`} onClick={() => navigate(i === 1 ? 'beds' : 'home')}><div>{['🛋️','🛏️','🪑','🗄️','💡','🧺'][i]}</div><span>{name}</span></button>)}
-      </section>
-      <section className="collections">
-        <button className="collection large buttonCard" onClick={() => navigate('ai')}><div>🏡</div><div><strong>내추럴 리빙 컬렉션</strong><span>24 products</span></div></button>
-        <button className="collection buttonCard" onClick={() => navigate('beds')}><div>🌙</div><div><strong>호텔라이크 침실</strong></div></button>
-        <button className="collection buttonCard" onClick={() => { trackBoardProgress(); openOverlay('address') }}><div>☁️</div><div><strong>소프트 모노톤</strong></div></button>
-        <button className="collection buttonCard" onClick={() => navigate('layout')}><div>🌿</div><div><strong>우드 & 플랜트</strong></div></button>
-      </section>
-      <section className="hScrollProducts">
-        {bedProducts.slice(0,5).map((item) => <article key={item.id} className="scrollCard"><div className="bigEmoji">{item.emoji}</div><small>HAVENLY SELECT</small><strong>{item.name}</strong><span>{item.priceLabel}</span><button onClick={() => addToCart(item)}>장바구니 담기</button></article>)}
-      </section>
-    </div>
-  )
 }
 
 function CartDrawer({ cart, authSession, onOpenLogin, onClose }) {
@@ -2514,7 +2090,7 @@ function CartDrawer({ cart, authSession, onOpenLogin, onClose }) {
         <div className="overlayHeader"><span>장바구니</span><button className="overlayClose" onClick={onClose}>✕</button></div>
         <div className="drawerBody">
           {!cart.items.length ? (
-            <div className="emptyState"><div className="emptyEmoji">🛒</div><strong>장바구니가 비어있어요</strong><p>추천 상품에서 ‘담기’를 눌러 프론트 전용 장바구니 흐름을 테스트해보세요.</p></div>
+            <div className="emptyState"><div className="emptyEmoji">🛒</div><strong>장바구니가 비어있어요</strong><p>마음에 드는 상품을 담아두고 로그인 후 이어갈 수 있어요.</p></div>
           ) : (
             <>
               <div className="cartList">
@@ -2552,43 +2128,8 @@ function CartDrawer({ cart, authSession, onOpenLogin, onClose }) {
   )
 }
 
-function SearchDrawer({ query, setQuery, results, queryLabel, isEmpty, onClose, onPick }) {
-  return (
-    <div className="drawerLayer" role="dialog" aria-modal="true">
-      <div className="overlayScrim" onClick={onClose} />
-      <aside className="drawerPanel searchDrawer">
-        <div className="overlayHeader"><span>통합 검색</span><button className="overlayClose" onClick={onClose}>✕</button></div>
-        <div className="drawerBody">
-          <div className="inputWrap big">🔎<input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="가구명, 소재, 컬러, 카테고리를 검색해보세요" /></div>
-          <div className="searchResults">
-            {isEmpty ? (
-              <div className="emptyState compact">
-                <div>
-                  <div className="emptyEmoji">🔎</div>
-                  <strong>{`"${queryLabel}"에 맞는 결과가 아직 없어요`}</strong>
-                  <p>가구명, 소재, 컬러 키워드로 다시 찾아보거나 검색어를 지워 전체 추천을 확인해보세요.</p>
-                </div>
-              </div>
-            ) : results.map((item) => (
-              <button key={item.id} className="searchResult" onClick={() => onPick(item)}>
-                <span>{item.emoji}</span>
-                <div><strong>{item.name}</strong><small>{item.searchMeta || item.priceLabel || formatPrice(item.price)}</small></div>
-                <small>{item.priceLabel ?? formatPrice(item.price)}</small>
-              </button>
-            ))}
-          </div>
-        </div>
-      </aside>
-    </div>
-  )
-}
-
-
-function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authErrorSummary, authReadyPanelState, guestDraftSnapshot, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authErrorSummary, authConnectionSummary, authReadyPanelState, guestDraftSnapshot, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
   const guarded = state === 'guard'
-  const allowedMergeResolutions = authErrorSummary?.allowedMergeResolutions ?? []
-  const isMergeContinuationPending = form.continuation?.nextAction === 'confirm-merge-resolution'
-  const hasSelectedMergeResolution = Boolean(form.mergeResolution)
   const modeLabels = buildAuthModeLabels(form.mode)
   const activePlan = form.mode === 'signup' ? authSignupPlan : authSubmitPlan
   const guardPanelState = buildAuthGuardPanelState({
@@ -2596,42 +2137,34 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
     reasons,
     guestDraftSnapshot,
     authSummary: authSubmitPlan.summary,
+    connection: authConnectionSummary,
     intent: form.intent,
   })
   const loginPanelState = buildAuthLoginPanelState({
     authSummary: activePlan.summary,
+    connection: authConnectionSummary,
     intent: form.intent,
   })
+  const isMergeContinuationPending = form.continuation?.nextAction === 'confirm-merge-resolution'
+  const showReadyPanel = form.status === 'ready' && authReadyPanelState
+  const allowedMergeResolutions = authErrorSummary?.allowedMergeResolutions ?? []
   const mergeResolutionLabels = {
-    'replace-with-account': '계정 상태로 전환',
     'keep-guest': '현재 초안으로 계속',
+    'replace-with-account': '계정 상태 우선',
   }
-  const mergeResolutionCtaLabels = {
-    'replace-with-account': '계정 상태로 전환해서 계속',
-    'keep-guest': '현재 초안으로 계속',
-  }
-  const readyBits = [
-    ...(authReadyPanelState?.restoredBits ?? []),
-    ...(authReadyPanelState?.draftContextBits ?? []),
-    ...(authReadyPanelState?.draftSaveBits ?? []),
-  ].filter(Boolean)
+  const readyDisabled = Boolean(authReadyPanelState?.primaryActionDisabled || form.status === 'submitting')
 
   return (
     <div className="overlayLayer" role="dialog" aria-modal="true" aria-labelledby="login-title">
       <div className="overlayScrim" onClick={onClose} />
-      <div
-        className="loginPanel"
-        data-auth-modal-state={guarded ? 'guard' : form.status}
-        data-auth-mode={form.mode}
-        data-auth-next-action={authReadyPanelState?.nextAction ?? form.continuation?.nextAction ?? ''}
-      >
+      <div className="loginPanel" data-auth-modal-state={guarded ? 'guard' : form.status}>
         <div className="overlayHeader">
           <span>{guarded ? '로그인 전 확인' : 'HAVENLY 로그인'}</span>
           <button className="overlayClose" onClick={onClose}>✕</button>
         </div>
         <div className="loginContent">
           <div className="loginBadge">{guarded ? 'ACCOUNT' : modeLabels.badge}</div>
-          <h2 id="login-title">{guarded ? '지금까지 담아둔 내용을 계정으로 이어갈까요?' : modeLabels.title}</h2>
+          <h2 id="login-title">{guarded ? '진행 중인 작업을 로그인 후에도 이어갈까요?' : modeLabels.title}</h2>
 
           {guarded ? (
             <>
@@ -2644,11 +2177,14 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                   <div><label>선택 공간</label><b>{guardPanelState.selectedSpaceCount}개</b></div>
                   <div><label>추천 초안</label><b>{guardPanelState.recommendationRoom ?? '없음'}</b></div>
                   <div><label>배치 아이템</label><b>{guardPanelState.layoutItemCount}개</b></div>
-                  <div><label>찜</label><b>{guardPanelState.wishlistCount}개</b></div>
-                  <div><label>장바구니</label><b>{guardPanelState.cartCount}개</b></div>
+                  <div><label>찜</label><b>{engagement.wishlistCount}개</b></div>
+                  <div><label>장바구니</label><b>{engagement.cartCount}개</b></div>
                 </div>
+                {guardPanelState.draftContextBits.length > 0 && (
+                  <p className="muted">{guardPanelState.draftContextBits.join(' · ')}</p>
+                )}
                 {guardPanelState.intentLabel && (
-                  <p className="muted">로그인 후 {guardPanelState.intentLabel}{guardPanelState.intentDraftLabel ? ` · ${guardPanelState.intentDraftLabel}` : ''} 작업으로 이어집니다.</p>
+                  <p className="muted">{guardPanelState.intentLabel}{guardPanelState.intentDraftLabel ? ` · ${guardPanelState.intentDraftLabel}` : ''}</p>
                 )}
               </div>
               <div className="footerButtons stackOnMobile">
@@ -2656,19 +2192,15 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                 <button className="cta" onClick={onProceed}>로그인 계속하기</button>
               </div>
             </>
-          ) : form.status === 'ready' && authReadyPanelState ? (
+          ) : showReadyPanel ? (
             <div className="loginForm">
               <div className="loginGuardCard authPrepCard">
                 <strong>{authReadyPanelState.title}</strong>
                 <p className="muted">{authReadyPanelState.subtitle}</p>
                 {authReadyPanelState.intentLabel && (
-                  <p className="muted">이어서 진행: {authReadyPanelState.intentLabel}{authReadyPanelState.intentDraftLabel ? ` · ${authReadyPanelState.intentDraftLabel}` : ''}</p>
+                  <p className="muted">{authReadyPanelState.intentLabel}{authReadyPanelState.intentDraftLabel ? ` · ${authReadyPanelState.intentDraftLabel}` : ''}</p>
                 )}
-                {readyBits.length > 0 && (
-                  <div className="loginReasonList">
-                    {readyBits.map((bit) => <span key={bit}>{bit}</span>)}
-                  </div>
-                )}
+
                 {authReadyPanelState.nextAction === 'complete-profile' && (
                   <>
                     <label>닉네임</label>
@@ -2677,30 +2209,38 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <div className="inputWrap big">📱<input value={authContinuationFields.phone} onChange={(event) => onChangeContinuationField('phone', event.target.value)} placeholder="010-1234-5678" /></div>
                   </>
                 )}
+
                 {authReadyPanelState.nextAction === 'verify-email' && (
                   <>
                     <label>인증 코드</label>
                     <div className="inputWrap big">✅<input value={authContinuationFields.verificationCode} onChange={(event) => onChangeContinuationField('verificationCode', event.target.value)} placeholder="123456" /></div>
                   </>
                 )}
+
                 {authReadyPanelState.nextAction === 'confirm-merge-resolution' && (
-                  <div className="footerButtons stackOnMobile">
-                    <button className="ghost" onClick={() => onChangeContinuationField('mergeResolution', 'keep-guest')}>
-                      {form.mergeResolution === 'keep-guest' ? '선택됨 · 현재 초안으로 계속' : '현재 초안으로 계속'}
-                    </button>
-                    <button className="ghost" onClick={() => onChangeContinuationField('mergeResolution', 'replace-with-account')}>
-                      {form.mergeResolution === 'replace-with-account' ? '선택됨 · 계정 상태로 전환' : '계정 상태로 전환'}
-                    </button>
-                  </div>
+                  <>
+                    <div className="footerButtons stackOnMobile">
+                      <button className="ghost" onClick={() => onChangeContinuationField('mergeResolution', 'keep-guest')}>
+                        {authContinuationFields.mergeResolution === 'keep-guest' ? '선택됨 · 현재 초안으로 계속' : '현재 초안으로 계속'}
+                      </button>
+                      <button className="ghost" onClick={() => onChangeContinuationField('mergeResolution', 'replace-with-account')}>
+                        {authContinuationFields.mergeResolution === 'replace-with-account' ? '선택됨 · 계정 상태로 계속' : '계정 상태로 계속'}
+                      </button>
+                    </div>
+                    {authContinuationFields.mergeResolution && (
+                      <p className="muted">{authContinuationFields.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하고 이어갑니다.' : '계정에 저장된 상태를 우선 적용하고 이어갑니다.'}</p>
+                    )}
+                  </>
                 )}
+
                 {authContinuationPlan.summary.missingFields.length > 0 && (
-                  <p className="muted">계속하려면 {authContinuationPlan.summary.missingFields.join(', ')} 항목을 입력해주세요.</p>
+                  <p className="muted">계속하려면 {authContinuationPlan.summary.missingFields.map(buildAuthContinuationFieldLabel).join(', ')} 항목을 먼저 채워주세요.</p>
                 )}
               </div>
               <div className="footerButtons stackOnMobile">
                 <button className="ghost" onClick={onClose}>닫기</button>
                 {authReadyPanelState.nextAction === 'complete-profile' || authReadyPanelState.nextAction === 'verify-email' || authReadyPanelState.nextAction === 'confirm-merge-resolution' ? (
-                  <button className="cta" disabled={!authContinuationPlan.canSubmit || form.status === 'submitting'} onClick={onSubmitContinuation}>
+                  <button className="cta" disabled={readyDisabled || !authContinuationPlan.canSubmit} onClick={onSubmitContinuation}>
                     {form.status === 'submitting' ? '연결 중…' : authReadyPanelState.primaryActionLabel}
                   </button>
                 ) : (
@@ -2722,7 +2262,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <div><strong>이번 로그인 목적</strong><span>{form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</span></div>
                   )}
                   {loginPanelState.draftSaveBits.length > 0 && (
-                    <div><strong>이어지는 초안</strong><span>{loginPanelState.draftSaveBits.join(' · ')}</span></div>
+                    <div><strong>이어질 보드</strong><span>{loginPanelState.draftSaveBits.join(' · ')}</span></div>
                   )}
                 </div>
               )}
@@ -2741,75 +2281,41 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                   <>
                     <label>비밀번호 확인</label>
                     <div className="inputWrap big">✅<input type="password" value={form.confirmPassword} onChange={(event) => onChangeForm('confirmPassword', event.target.value)} placeholder="비밀번호를 한 번 더 입력" /></div>
-                    <label className="authCheckbox"><input type="checkbox" checked={form.agreeToTerms} onChange={(event) => onChangeForm('agreeToTerms', event.target.checked)} /> <span>현재 초안과 계정을 연결하는 데 동의합니다.</span></label>
+                    <label className="authCheckbox"><input type="checkbox" checked={form.agreeToTerms} onChange={(event) => onChangeForm('agreeToTerms', event.target.checked)} /> <span>현재 초안을 계정에 안전하게 연결하는 데 동의합니다.</span></label>
                   </>
                 )}
                 {isMergeContinuationPending && (
                   <div className="loginGuardCard authPrepCard">
-                    <strong>이어갈 방식 선택</strong>
-                    {authErrorSummary?.mergedDraft && (
-                      <p className="muted">찜 {authErrorSummary.mergedDraft.wishlistCount}개 · 장바구니 {authErrorSummary.mergedDraft.cartCount}개 · 배치 {authErrorSummary.mergedDraft.layoutItemCount}개가 걸려 있어요.</p>
-                    )}
+                    <strong>초안 병합 방향을 선택해 주세요</strong>
+                    <p className="muted">{authErrorSummary?.message ?? '현재 게스트 초안과 계정 상태 중 어떤 쪽을 이어갈지 선택해 주세요.'}</p>
                     <div className="footerButtons stackOnMobile">
-                      <button className="ghost" onClick={() => onChangeForm('mergeResolution', 'keep-guest')}>
-                        {form.mergeResolution === 'keep-guest' ? '선택됨 · 현재 초안으로 계속' : '현재 초안으로 계속'}
-                      </button>
-                      <button className="ghost" onClick={() => onChangeForm('mergeResolution', 'replace-with-account')}>
-                        {form.mergeResolution === 'replace-with-account' ? '선택됨 · 계정 상태로 전환' : '계정 상태로 전환'}
-                      </button>
+                      {(allowedMergeResolutions.length > 0 ? allowedMergeResolutions : ['keep-guest', 'replace-with-account']).map((resolution) => (
+                        <button key={resolution} className="ghost" onClick={() => onChangeForm('mergeResolution', resolution)}>
+                          {form.mergeResolution === resolution ? `선택됨 · ${mergeResolutionLabels[resolution] ?? resolution}` : (mergeResolutionLabels[resolution] ?? resolution)}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
-                {authErrorSummary?.message && form.status === 'error' && (
-                  <p className="muted">{authErrorSummary.message}</p>
-                )}
+                {authStatusMessage?.body && !isMergeContinuationPending && <p className="muted">{authStatusMessage.body}</p>}
               </div>
               <div className="footerButtons stackOnMobile">
                 <button className="ghost" onClick={() => onChangeForm('mode', modeLabels.alternateMode)}>{modeLabels.alternateLabel}</button>
-                {form.status === 'resume-ready' && (
-                  <button className="ghost" onClick={onDismissResume}>이전 로그인 시도 지우기</button>
-                )}
-                {(authErrorSummary?.tone === 'merge' || isMergeContinuationPending) && !isMergeContinuationPending && form.status !== 'ready' && allowedMergeResolutions.map((resolution) => (
-                  <button key={resolution} className="ghost" onClick={() => onChangeForm('mergeResolution', resolution)}>
-                    {form.mergeResolution === resolution ? `선택됨 · ${mergeResolutionLabels[resolution] ?? resolution}` : (mergeResolutionLabels[resolution] ?? resolution)}
-                  </button>
-                ))}
+                {form.status === 'resume-ready' && <button className="ghost" onClick={onDismissResume}>이전 로그인 시도 지우기</button>}
                 <button
                   className="cta"
-                  disabled={(!activePlan.canSubmit && !(isMergeContinuationPending && hasSelectedMergeResolution)) || form.status === 'submitting'}
+                  disabled={(!activePlan.canSubmit && !(isMergeContinuationPending && Boolean(form.mergeResolution))) || form.status === 'submitting'}
                   onClick={() => onSubmit()}
                 >
                   {form.status === 'submitting'
                     ? '준비 중…'
-                    : isMergeContinuationPending && hasSelectedMergeResolution
-                      ? (mergeResolutionCtaLabels[form.mergeResolution] ?? `${mergeResolutionLabels[form.mergeResolution] ?? form.mergeResolution}로 계속`)
+                    : isMergeContinuationPending && form.mergeResolution
+                      ? (mergeResolutionLabels[form.mergeResolution] ?? form.mergeResolution)
                       : modeLabels.submitLabel}
                 </button>
               </div>
             </>
           )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function QuickViewModal({ product, onClose, onAddToCart, onApplyToLayout }) {
-  return (
-    <div className="overlayLayer" role="dialog" aria-modal="true">
-      <div className="overlayScrim" onClick={onClose} />
-      <div className="quickViewPanel">
-        <div className="overlayHeader"><span>빠른 보기</span><button className="overlayClose" onClick={onClose}>✕</button></div>
-        <div className="quickViewContent">
-          <div className="quickHero">{product.emoji}</div>
-          <div>
-            <p className="tinyPill">{product.badge ?? '추천 상품'}</p>
-            <h3>{product.name}</h3>
-            <p className="muted">{product.blurb ?? '공간에 맞는 배치 정보와 상품 요약을 바로 확인할 수 있어요.'}</p>
-            <div className="quickMeta"><span>{product.fit ?? `AI 적합도 ${product.fitScore}%`}</span><span>{product.material ?? product.category}</span><span>{product.size ?? '배치 가능'}</span></div>
-            <strong className="quickPrice">{product.priceLabel ?? formatPrice(product.price)}</strong>
-            <div className="footerButtons stackOnMobile"><button className="ghost" onClick={() => onApplyToLayout(product)}>배치안에 적용</button><button className="cta" onClick={() => onAddToCart(product)}>장바구니 담기</button></div>
-          </div>
         </div>
       </div>
     </div>

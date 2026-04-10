@@ -888,8 +888,8 @@ async function readAuthReadyCard(page) {
 
 function assertLoginConnectionPreview(preview) {
   const rows = preview?.rows ?? []
-  if (rows.length > 0 && rows.some((row) => /payload|response keys|debug|checklist/i.test(row))) {
-    throw new Error(`Login panel exposed debug/log-style auth copy that should stay out of the product UI. Saw: ${JSON.stringify(rows)}`)
+  if (rows.length > 0 && rows.some((row) => /payload|response keys|debug|checklist|same-origin \/api auth scaffold|auth target|connection/i.test(row))) {
+    throw new Error(`Login panel exposed technical/debug-style auth copy that should stay out of the product UI. Saw: ${JSON.stringify(rows)}`)
   }
 }
 

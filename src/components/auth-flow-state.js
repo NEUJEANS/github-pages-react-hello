@@ -26,6 +26,25 @@ function readAllowedMergeResolutions(data = {}) {
     .filter((value, index, array) => array.indexOf(value) === index)
 }
 
+function normalizeAuthErrorMessage(message = '', { tone = 'unknown' } = {}) {
+  const normalized = typeof message === 'string' ? message.trim() : ''
+
+  if (!normalized) return ''
+
+  if (tone === 'merge') {
+    if (normalized === 'Guest draft merge confirmation required' || normalized === 'Merge resolution required') {
+      return '현재 게스트 초안과 계정 상태 중 어떤 쪽을 이어갈지 선택해 주세요.'
+    }
+  }
+
+  if (tone === 'action-required') {
+    if (normalized === 'Profile completion fields required') return '프로필 보완에 필요한 항목을 먼저 입력해 주세요.'
+    if (normalized === 'Verification code required') return '인증 코드를 먼저 입력해 주세요.'
+  }
+
+  return normalized
+}
+
 export function buildGuestDraftSnapshot({
   engagement,
   aiForm,
@@ -334,7 +353,7 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
     const mergedDraft = readMergeDraft(data)
     return {
       tone: 'merge',
-      message: message ?? '게스트 초안 병합 확인이 필요해요. 현재 초안은 그대로 보관되어 있어요.',
+      message: normalizeAuthErrorMessage(message, { tone: 'merge' }) || '게스트 초안 병합 확인이 필요해요. 현재 초안은 그대로 보관되어 있어요.',
       summary: buildFallbackSummary(fallbackSummary),
       allowedMergeResolutions: readAllowedMergeResolutions(data),
       resumeToken: data.resumeToken ?? null,

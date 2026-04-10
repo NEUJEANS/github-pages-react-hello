@@ -600,7 +600,7 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
     }),
     {
       tone: 'merge',
-      message: 'Guest draft merge confirmation required',
+      message: '현재 게스트 초안과 계정 상태 중 어떤 쪽을 이어갈지 선택해 주세요.',
       summary: {
         handoffId: 'auth-20260406123000-2n9c',
         wishlistCount: 2,
