@@ -1587,14 +1587,9 @@ function App() {
           continuation: nextContinuation,
         }))
 
-        if (nextScreen) {
-          setLoginModalState('closed')
-          navigate(nextScreen)
-          return
-        }
-
         if (shouldCloseLoginModalAfterAuth(result, nextIntent, nextContinuation)) {
           setLoginModalState('closed')
+          if (nextScreen) navigate(nextScreen)
         }
 
         return
