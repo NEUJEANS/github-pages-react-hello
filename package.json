@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:auth-server": "node ./server/auth-http-server.js",
+    "dev:auth-proxy": "HAVENLY_AUTH_PROXY_BASE_URL=${HAVENLY_AUTH_PROXY_BASE_URL:-http://127.0.0.1:4175} vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test src/components/*.test.js server/*.test.js",

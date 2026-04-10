@@ -1,4 +1,5 @@
 import http from 'node:http'
+import { pathToFileURL } from 'node:url'
 import {
   AUTH_CONNECTION_CREDENTIALS_HEADER,
   AUTH_CONNECTION_ENDPOINT_HEADER,
@@ -11,7 +12,7 @@ import {
   AUTH_STATUS_HEADER,
   AUTH_STATUS_LABEL_HEADER,
 } from '../src/components/auth-submit.js'
-import { handleAuthRequest } from './auth-persistent-store.js'
+import { handleAuthRequest, readAuthStorePaths } from './auth-persistent-store.js'
 
 function readRequestBody(req) {
   return new Promise((resolve, reject) => {
@@ -218,6 +219,40 @@ async function handleHttpRequest(req, res) {
   }
 }
 
+export function resolveAuthHttpServerOptions({
+  env = process.env,
+  args = process.argv.slice(2),
+} = {}) {
+  const parsed = {
+    host: typeof env.HAVENLY_AUTH_HOST === 'string' && env.HAVENLY_AUTH_HOST.trim()
+      ? env.HAVENLY_AUTH_HOST.trim()
+      : '127.0.0.1',
+    port: Number.parseInt(env.HAVENLY_AUTH_PORT ?? '', 10),
+  }
+
+  if (!Number.isFinite(parsed.port) || parsed.port < 0) parsed.port = 4175
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index]
+    const nextValue = args[index + 1]
+
+    if (arg === '--host' && typeof nextValue === 'string' && nextValue.trim()) {
+      parsed.host = nextValue.trim()
+      index += 1
+      continue
+    }
+
+    if (arg === '--port' && typeof nextValue === 'string' && nextValue.trim()) {
+      const nextPort = Number.parseInt(nextValue.trim(), 10)
+      if (Number.isFinite(nextPort) && nextPort >= 0) parsed.port = nextPort
+      index += 1
+      continue
+    }
+  }
+
+  return parsed
+}
+
 export async function startAuthHttpServer({ port = 0, host = '127.0.0.1' } = {}) {
   const server = http.createServer((req, res) => {
     handleHttpRequest(req, res)
@@ -250,4 +285,40 @@ export async function startAuthHttpServer({ port = 0, host = '127.0.0.1' } = {})
       })
     },
   }
+}
+
+async function runCli() {
+  const serverOptions = resolveAuthHttpServerOptions()
+  const authServer = await startAuthHttpServer(serverOptions)
+  const storePaths = readAuthStorePaths()
+
+  console.log(`[havenly-auth] listening on ${authServer.url}`)
+  console.log(`[havenly-auth] sqlite ${storePaths.sqlitePath}`)
+
+  const shutdown = async (signal) => {
+    try {
+      await authServer.close()
+      console.log(`[havenly-auth] stopped on ${signal}`)
+      process.exit(0)
+    } catch (error) {
+      console.error(`[havenly-auth] shutdown failed on ${signal}:`, error)
+      process.exit(1)
+    }
+  }
+
+  process.on('SIGINT', () => {
+    shutdown('SIGINT')
+  })
+  process.on('SIGTERM', () => {
+    shutdown('SIGTERM')
+  })
+}
+
+const isDirectExecution = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
+
+if (isDirectExecution) {
+  runCli().catch((error) => {
+    console.error('[havenly-auth] failed to start:', error)
+    process.exit(1)
+  })
 }

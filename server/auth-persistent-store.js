@@ -1,706 +1,431 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import crypto from 'node:crypto'
-import { DatabaseSync } from 'node:sqlite'
-
-const dataDir = path.resolve('.data')
-const sqlitePath = path.join(dataDir, 'havenly-auth-store.sqlite')
-const legacyJsonPath = path.join(dataDir, 'havenly-auth-store.json')
-const sessionCookieName = 'havenly_auth_session'
-const handoffCookieName = 'havenly_auth_handoff'
-
-let database = null
-
-function ensureDataDir() {
-  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true })
-}
-
-function clone(value) {
-  return value == null ? value : JSON.parse(JSON.stringify(value))
-}
-
-function serializeJson(value) {
-  return JSON.stringify(value ?? null)
-}
-
-function parseJson(value, fallback = null) {
-  if (typeof value !== 'string' || !value.trim()) return clone(fallback)
-
-  try {
-    return JSON.parse(value)
-  } catch {
-    return clone(fallback)
-  }
-}
-
-function hashPassword(password = '') {
-  const salt = crypto.randomBytes(16).toString('hex')
-  const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex')
-  return `scrypt$${salt}$${derivedKey}`
-}
-
-function isPasswordHash(password = '') {
-  return typeof password === 'string' && password.startsWith('scrypt$')
-}
-
-function ensureStoredPassword(password = '') {
-  return isPasswordHash(password) ? password : hashPassword(password)
-}
-
-function verifyPassword(password = '', storedPassword = '') {
-  if (!storedPassword) return false
-
-  if (!isPasswordHash(storedPassword)) {
-    return password === storedPassword
-  }
-
-  const [, salt, expectedKey] = storedPassword.split('$')
-  if (!salt || !expectedKey) return false
-
-  const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex')
-  const expectedBuffer = Buffer.from(expectedKey, 'hex')
-  const derivedBuffer = Buffer.from(derivedKey, 'hex')
-
-  return expectedBuffer.length === derivedBuffer.length
-    && crypto.timingSafeEqual(expectedBuffer, derivedBuffer)
-}
-
-function buildUser({ email, password, name, createdAt = new Date().toISOString(), profile = null, verifiedAt = null, accountState = null }) {
-  return {
-    email,
-    password,
-    name,
-    createdAt,
-    profile,
-    verifiedAt,
-    accountState: accountState ?? {
-      wishlistIds: [],
-      cartItems: [],
-      layoutItems: [],
-      recommendationDraft: null,
-    },
-  }
-}
-
-function seedUsers() {
-  return {
-    'user@example.com': buildUser({ email: 'user@example.com', password: 'password123', name: 'user@example.com' }),
-    'merge@example.com': buildUser({ email: 'merge@example.com', password: 'merge-conflict', name: 'merge@example.com' }),
-    'board@example.com': buildUser({ email: 'board@example.com', password: 'password123', name: 'board@example.com' }),
-    'profile@example.com': buildUser({ email: 'profile@example.com', password: 'password123', name: 'profile@example.com' }),
-    'verify@example.com': buildUser({ email: 'verify@example.com', password: 'password123', name: 'verify@example.com' }),
-  }
-}
-
-function ensureDatabase() {
-  if (database) return database
-
-  ensureDataDir()
-  database = new DatabaseSync(sqlitePath)
-  database.exec(`
-    PRAGMA journal_mode = WAL;
-    CREATE TABLE IF NOT EXISTS users (
-      email TEXT PRIMARY KEY,
-      password TEXT NOT NULL,
-      name TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      profile_json TEXT,
-      verified_at TEXT,
-      account_state_json TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS sessions (
-      id TEXT PRIMARY KEY,
-      user_email TEXT NOT NULL,
-      payload_json TEXT NOT NULL,
-      saved_at TEXT NOT NULL,
-      FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS pending (
-      handoff_id TEXT PRIMARY KEY,
-      payload_json TEXT NOT NULL,
-      saved_at TEXT NOT NULL
-    );
-  `)
-
-  const hasUsers = database.prepare('SELECT 1 FROM users LIMIT 1').get()
-  if (!hasUsers) {
-    const legacyStore = readLegacyJsonStore()
-    const initialUsers = legacyStore?.users && Object.keys(legacyStore.users).length > 0
-      ? legacyStore.users
-      : seedUsers()
-
-    const insertUser = database.prepare(`
-      INSERT OR REPLACE INTO users (email, password, name, created_at, profile_json, verified_at, account_state_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `)
-    const insertSession = database.prepare(`
-      INSERT OR REPLACE INTO sessions (id, user_email, payload_json, saved_at)
-      VALUES (?, ?, ?, ?)
-    `)
-    const insertPending = database.prepare(`
-      INSERT OR REPLACE INTO pending (handoff_id, payload_json, saved_at)
-      VALUES (?, ?, ?)
-    `)
-
-    try {
-      database.exec('BEGIN')
-
-      Object.values(initialUsers).forEach((user) => {
-        const normalized = buildUser(user)
-        insertUser.run(
-          normalized.email,
-          ensureStoredPassword(normalized.password),
-          normalized.name,
-          normalized.createdAt,
-          serializeJson(normalized.profile),
-          normalized.verifiedAt,
-          serializeJson(normalized.accountState),
-        )
-      })
-
-      Object.entries(legacyStore?.sessions ?? {}).forEach(([id, session]) => {
-        insertSession.run(
-          id,
-          session.userEmail,
-          serializeJson(session.payload),
-          session.savedAt ?? new Date().toISOString(),
-        )
-      })
-
-      Object.entries(legacyStore?.pending ?? {}).forEach(([handoffId, pending]) => {
-        insertPending.run(
-          handoffId,
-          serializeJson(pending),
-          pending.submittedAt ?? new Date().toISOString(),
-        )
-      })
-
-      database.exec('COMMIT')
-    } catch (error) {
-      database.exec('ROLLBACK')
-      throw error
-    }
-  }
-
-  return database
-}
-
-function readLegacyJsonStore() {
-  if (!fs.existsSync(legacyJsonPath)) return null
-
-  try {
-    const parsed = JSON.parse(fs.readFileSync(legacyJsonPath, 'utf8'))
-    return {
-      users: parsed?.users && typeof parsed.users === 'object' ? parsed.users : seedUsers(),
-      sessions: parsed?.sessions && typeof parsed.sessions === 'object' ? parsed.sessions : {},
-      pending: parsed?.pending && typeof parsed.pending === 'object' ? parsed.pending : {},
-    }
-  } catch {
-    return null
-  }
-}
-
-function readUser(email) {
-  const db = ensureDatabase()
-  const row = db.prepare(`
-    SELECT email, password, name, created_at, profile_json, verified_at, account_state_json
-    FROM users
-    WHERE email = ?
-  `).get(email)
-
-  if (!row) return null
-
-  return buildUser({
-    email: row.email,
-    password: row.password,
-    name: row.name,
-    createdAt: row.created_at,
-    profile: parseJson(row.profile_json, null),
-    verifiedAt: row.verified_at ?? null,
-    accountState: parseJson(row.account_state_json, { wishlistIds: [], cartItems: [], layoutItems: [], recommendationDraft: null }),
-  })
-}
-
-function saveUser(user) {
-  const db = ensureDatabase()
-  db.prepare(`
-    INSERT INTO users (email, password, name, created_at, profile_json, verified_at, account_state_json)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(email) DO UPDATE SET
-      password = excluded.password,
-      name = excluded.name,
-      created_at = excluded.created_at,
-      profile_json = excluded.profile_json,
-      verified_at = excluded.verified_at,
-      account_state_json = excluded.account_state_json
-  `).run(
-    user.email,
-    ensureStoredPassword(user.password),
-    user.name,
-    user.createdAt,
-    serializeJson(user.profile),
-    user.verifiedAt,
-    serializeJson(user.accountState),
-  )
-}
-
-function readSessionRecord(sessionId) {
-  const db = ensureDatabase()
-  const row = db.prepare('SELECT id, user_email, payload_json, saved_at FROM sessions WHERE id = ?').get(sessionId)
-  if (!row) return null
-
-  return {
-    id: row.id,
-    userEmail: row.user_email,
-    payload: parseJson(row.payload_json, null),
-    savedAt: row.saved_at,
-  }
-}
-
-function saveSessionRecord(sessionId, { userEmail, payload, savedAt = new Date().toISOString() }) {
-  const db = ensureDatabase()
-  db.prepare(`
-    INSERT INTO sessions (id, user_email, payload_json, saved_at)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      user_email = excluded.user_email,
-      payload_json = excluded.payload_json,
-      saved_at = excluded.saved_at
-  `).run(sessionId, userEmail, serializeJson(payload), savedAt)
-}
-
-function deleteSessionRecord(sessionId) {
-  if (!sessionId) return
-  const db = ensureDatabase()
-  db.prepare('DELETE FROM sessions WHERE id = ?').run(sessionId)
-}
-
-function readPendingRecord(handoffId) {
-  const db = ensureDatabase()
-  const row = db.prepare('SELECT handoff_id, payload_json, saved_at FROM pending WHERE handoff_id = ?').get(handoffId)
-  if (!row) return null
-
-  return parseJson(row.payload_json, null)
-}
-
-function savePendingRecord(handoffId, payload, { savedAt = payload?.submittedAt ?? new Date().toISOString() } = {}) {
-  const db = ensureDatabase()
-  db.prepare(`
-    INSERT INTO pending (handoff_id, payload_json, saved_at)
-    VALUES (?, ?, ?)
-    ON CONFLICT(handoff_id) DO UPDATE SET
-      payload_json = excluded.payload_json,
-      saved_at = excluded.saved_at
-  `).run(handoffId, serializeJson(payload), savedAt)
-}
-
-function deletePendingRecord(handoffId) {
-  if (!handoffId) return
-  const db = ensureDatabase()
-  db.prepare('DELETE FROM pending WHERE handoff_id = ?').run(handoffId)
-}
-
-function normalizeEmail(email = '') {
-  return typeof email === 'string' ? email.trim().toLowerCase() : ''
-}
-
-function readCookies(req) {
-  const cookieHeader = req.headers.cookie ?? ''
-  return Object.fromEntries(cookieHeader.split(';').map((entry) => entry.trim()).filter(Boolean).map((entry) => {
-    const index = entry.indexOf('=')
-    if (index === -1) return [entry, '']
-    return [entry.slice(0, index), decodeURIComponent(entry.slice(index + 1))]
-  }))
-}
-
-function serializeCookie(name, value, { maxAge = null } = {}) {
-  const parts = [`${name}=${encodeURIComponent(value)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax']
-  if (maxAge != null) parts.push(`Max-Age=${maxAge}`)
-  return parts.join('; ')
-}
-
-function randomId(prefix) {
-  return `${prefix}_${crypto.randomBytes(12).toString('hex')}`
-}
-
-function buildMergedGuestDraft(guestDraftSnapshot = null, { mode = 'merged', resolution = null } = {}) {
-  const continuity = guestDraftSnapshot?.continuity ?? {}
-  const layoutItems = Array.isArray(continuity.layoutItems) ? continuity.layoutItems : []
-  const wishlistIds = Array.isArray(continuity.wishlistIds) ? continuity.wishlistIds : []
-  const cartItems = Array.isArray(continuity.cartItems) ? continuity.cartItems : []
-
-  return {
-    mode,
-    resolution,
-    count: layoutItems.length,
-    wishlistCount: wishlistIds.length,
-    cartCount: cartItems.length,
-    layoutItemCount: layoutItems.length,
-    recommendationDraftRestored: Boolean(guestDraftSnapshot?.recommendationDraft),
-  }
-}
-
-function buildGuestDraftSummary(guestDraftSnapshot = null) {
-  if (!guestDraftSnapshot) return null
-  const continuity = guestDraftSnapshot.continuity ?? {}
-  const selectedRooms = Array.isArray(continuity.selectedRooms) ? [...continuity.selectedRooms] : []
-
-  return {
-    apartmentLabel: continuity.apartmentLabel ?? null,
-    selectedRoomCount: selectedRooms.length,
-    selectedRooms,
-    selectedSpaceIds: Array.isArray(guestDraftSnapshot.spaceProfile?.spaces) ? [...guestDraftSnapshot.spaceProfile.spaces] : [],
-    recommendationRoom: guestDraftSnapshot.recommendationDraft?.room ?? null,
-    wishlistCount: Array.isArray(continuity.wishlistIds) ? continuity.wishlistIds.length : 0,
-    cartCount: Array.isArray(continuity.cartItems) ? continuity.cartItems.length : 0,
-    layoutItemCount: Array.isArray(continuity.layoutItems) ? continuity.layoutItems.length : 0,
-  }
-}
-
-function buildDraftSaveState(request = {}, guestDraftSnapshot = null) {
-  const requestDraftSave = request?.draftSave && typeof request.draftSave === 'object' && !Array.isArray(request.draftSave)
-    ? request.draftSave
-    : null
-  const continuity = guestDraftSnapshot?.continuity ?? {}
-  const layoutItems = Array.isArray(requestDraftSave?.layoutItems)
-    ? requestDraftSave.layoutItems.map((item) => ({ ...item }))
-    : (Array.isArray(continuity.layoutItems) ? continuity.layoutItems.map((item) => ({ ...item })) : [])
-  const selectedSpaceIds = Array.isArray(requestDraftSave?.selectedSpaceIds)
-    ? [...requestDraftSave.selectedSpaceIds]
-    : (Array.isArray(guestDraftSnapshot?.spaceProfile?.spaces) ? [...guestDraftSnapshot.spaceProfile.spaces] : [])
-
-  if (!requestDraftSave && !layoutItems.length && !selectedSpaceIds.length && !continuity.apartmentLabel && !guestDraftSnapshot?.recommendationDraft?.room) {
-    return null
-  }
-
-  return {
-    draftLabel: requestDraftSave?.draftLabel ?? continuity.apartmentLabel ?? null,
-    apartmentLabel: requestDraftSave?.apartmentLabel ?? continuity.apartmentLabel ?? null,
-    recommendationRoom: requestDraftSave?.recommendationRoom ?? guestDraftSnapshot?.recommendationDraft?.room ?? null,
-    selectedSpaceIds,
-    layoutItems,
-    layoutItemCount: layoutItems.length,
-  }
-}
-
-function resolveDemoAuthBlocker(email = '') {
-  switch (normalizeEmail(email)) {
-    case 'profile@example.com':
-      return 'complete-profile'
-    case 'verify@example.com':
-      return 'verify-email'
-    default:
-      return ''
-  }
-}
-
-function normalizeIntentAction(action = '') {
-  switch (action) {
-    case 'login':
-      return 'resume-authenticated-flow'
-    case 'checkout':
-      return 'checkout-cart'
-    case 'checkout-cart':
-    case 'save-layout-draft':
-    case 'resume-layout-checkout':
-    case 'resume-guest-draft':
-    case 'resume-account-state':
-    case 'resume-authenticated-flow':
-    case 'complete-profile':
-    case 'verify-email':
-      return action
-    default:
-      return ''
-  }
-}
-
-function continuationStatus(nextAction) {
-  switch (nextAction) {
-    case 'complete-profile':
-      return { status: 'action-required', statusLabel: '프로필 보완 필요' }
-    case 'verify-email':
-      return { status: 'action-required', statusLabel: '이메일 인증 필요' }
-    case 'confirm-merge-resolution':
-      return { status: 'action-required', statusLabel: '초안 병합 방향 확인 필요' }
-    default:
-      return { status: 'ready', statusLabel: '인증 준비 완료' }
-  }
-}
-
-function buildSessionPayload({ user, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null, continuation = null, draftSave = null, connection = null, actionConnection = null }) {
-  const normalizedIntentAction = normalizeIntentAction(typeof intent?.action === 'string' ? intent.action.trim() : '')
-  const blocker = continuation?.nextAction || normalizedIntentAction || resolveDemoAuthBlocker(user.email) || (mergeResolution === 'replace-with-account' ? 'resume-account-state' : 'resume-authenticated-flow')
-  const derivedContinuation = blocker === 'resume-authenticated-flow' || blocker === 'resume-account-state' || blocker === 'checkout-cart' || blocker === 'save-layout-draft'
-    ? { nextAction: blocker, status: 'ready', statusLabel: '인증 준비 완료' }
-    : { nextAction: blocker, ...continuationStatus(blocker) }
-
-  return {
-    ok: true,
-    sessionId: `session_${normalizeEmail(user.email).replace(/[^a-z0-9]+/g, '-')}`,
-    handoffId,
-    user: {
-      email: user.email,
-      name: user.name,
-    },
-    mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot, {
-      mode: mergeResolution === 'keep-guest' ? 'merge-confirmed' : mergeResolution === 'replace-with-account' ? 'replaced' : 'merged',
-      resolution: mergeResolution,
-    }),
-    guestDraftSummary: buildGuestDraftSummary(guestDraftSnapshot),
-    draftSave: buildDraftSaveState({ draftSave }, guestDraftSnapshot),
-    intent: intent ? clone(intent) : null,
-    accountState: clone(user.accountState),
-    resumeToken: continuation?.resumeToken ?? (handoffId ? `${handoffId}:resume` : null),
-    nextAction: derivedContinuation.nextAction,
-    status: derivedContinuation.status,
-    statusLabel: derivedContinuation.statusLabel,
-    connection,
-    actionConnection,
-    profile: clone(user.profile),
-    verifiedAt: user.verifiedAt,
-  }
-}
-
-function mergeGuestDraftIntoAccount(user, guestDraftSnapshot = null, mergeResolution = null) {
-  if (!guestDraftSnapshot || mergeResolution === 'replace-with-account') return
-  const continuity = guestDraftSnapshot.continuity ?? {}
-  user.accountState = {
-    wishlistIds: Array.isArray(continuity.wishlistIds) ? [...continuity.wishlistIds] : [],
-    cartItems: Array.isArray(continuity.cartItems) ? clone(continuity.cartItems) : [],
-    layoutItems: Array.isArray(continuity.layoutItems) ? clone(continuity.layoutItems) : [],
-    recommendationDraft: guestDraftSnapshot.recommendationDraft ? clone(guestDraftSnapshot.recommendationDraft) : null,
-  }
-}
-
-export function handleAuthRequest(req, { connection = null, actionConnection = null, body = {}, pathName = '', handoffHeader = null, resumeTokenHeader = null } = {}) {
-  ensureDatabase()
-  const cookies = readCookies(req)
-  const sessionId = cookies[sessionCookieName] || ''
-  const handoffCookie = cookies[handoffCookieName] || ''
-  const handoffId = body.handoffId ?? handoffHeader ?? handoffCookie ?? null
-  const sessionRecord = sessionId ? readSessionRecord(sessionId) : null
-
-  const cookieHeaders = []
-
-  if (pathName === '/api/auth/session') {
-    if (!sessionRecord) return { status: 401, data: { message: 'No auth session', nextAction: 'login-required' }, cookies: cookieHeaders }
-    return { status: 200, data: clone(sessionRecord.payload), cookies: cookieHeaders }
-  }
-
-  if (pathName === '/api/auth/pending') {
-    const pending = handoffId ? readPendingRecord(handoffId) : null
-    if (!pending) return { status: 404, data: { message: 'No scaffold auth handoff', nextAction: 'login-required' }, cookies: cookieHeaders }
-    return { status: 200, data: clone(pending), cookies: cookieHeaders }
-  }
-
-  if (pathName === '/api/auth/logout') {
-    if (sessionId) deleteSessionRecord(sessionId)
-    if (handoffCookie) deletePendingRecord(handoffCookie)
-    cookieHeaders.push(serializeCookie(sessionCookieName, '', { maxAge: 0 }))
-    cookieHeaders.push(serializeCookie(handoffCookieName, '', { maxAge: 0 }))
-    return { status: 200, data: { ok: true, nextAction: 'login-required', connection, actionConnection }, cookies: cookieHeaders }
-  }
-
-  if (pathName === '/api/auth/signup') {
-    const email = normalizeEmail(body.email)
-    if (!email || !email.includes('@') || typeof body.password !== 'string' || body.password.trim().length < 8) {
-      return { status: 422, data: { message: 'Invalid signup payload', handoffId, nextAction: 'retry-signup', resumeToken: handoffId ? `${handoffId}:retry` : null, connection, actionConnection }, cookies: cookieHeaders }
-    }
-    if (readUser(email)) {
-      return { status: 409, data: { message: 'Account already exists', handoffId, nextAction: 'retry-login', resumeToken: handoffId ? `${handoffId}:login` : null, connection, actionConnection }, cookies: cookieHeaders }
-    }
-    const displayName = typeof body.displayName === 'string' ? body.displayName.trim() : ''
-    if (displayName.length < 2) {
-      return { status: 422, data: { message: 'Display name required', handoffId, nextAction: 'retry-signup', resumeToken: handoffId ? `${handoffId}:retry` : null, connection, actionConnection }, cookies: cookieHeaders }
-    }
-
-    saveUser(buildUser({ email, password: body.password, name: displayName }))
-  }
-
-  if (pathName === '/api/auth/login' || pathName === '/api/auth/signup') {
-    const email = normalizeEmail(body.email)
-    const password = typeof body.password === 'string' ? body.password : ''
-    const user = readUser(email)
-
-    if (!user || !verifyPassword(password, user.password)) {
-      return { status: 401, data: { message: 'Invalid credentials', handoffId, nextAction: 'retry-login', resumeToken: handoffId ? `${handoffId}:retry` : null, connection, actionConnection }, cookies: cookieHeaders }
-    }
-
-    if (!isPasswordHash(user.password)) {
-      user.password = ensureStoredPassword(password)
-      saveUser(user)
-    }
-
-    if (password === 'merge-conflict' && !['keep-guest', 'replace-with-account'].includes(body.mergeResolution)) {
-      const pending = {
-        submittedAt: new Date().toISOString(),
-        handoffId,
-        email,
-        request: clone(body),
-        summary: {
-          email,
-          handoffId,
-          wishlistCount: body.guestDraftSnapshot?.continuity?.wishlistIds?.length ?? 0,
-          cartCount: body.guestDraftSnapshot?.continuity?.cartItems?.length ?? 0,
-          layoutItemCount: body.guestDraftSnapshot?.continuity?.layoutItems?.length ?? 0,
-          hasRecommendationDraft: Boolean(body.guestDraftSnapshot?.recommendationDraft),
-          mergeResolution: null,
-          intent: clone(body.intent ?? null),
-        },
-        connection,
-        actionConnection,
-        continuation: {
-          resumeToken: handoffId ? `${handoffId}:merge` : randomId('resume'),
-          nextAction: 'confirm-merge-resolution',
-          status: 'action-required',
-          statusLabel: '초안 병합 방향 확인 필요',
-        },
-        continuationFields: null,
-        draftSave: buildDraftSaveState(body, body.guestDraftSnapshot ?? null),
-        guestDraftSnapshot: clone(body.guestDraftSnapshot ?? null),
-        guestDraftSummary: buildGuestDraftSummary(body.guestDraftSnapshot ?? null),
-        allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
-        error: 'Guest draft merge confirmation required',
-        status: 409,
-      }
-      if (handoffId) savePendingRecord(handoffId, pending)
-      if (handoffId) cookieHeaders.push(serializeCookie(handoffCookieName, handoffId, { maxAge: 60 * 60 * 24 * 7 }))
-      return {
-        status: 409,
-        data: {
-          message: 'Guest draft merge confirmation required',
-          handoffId,
-          resumeToken: pending.continuation.resumeToken,
-          nextAction: 'confirm-merge-resolution',
-          status: 'action-required',
-          statusLabel: '초안 병합 방향 확인 필요',
-          allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
-          mergedGuestDraft: buildMergedGuestDraft(body.guestDraftSnapshot ?? null),
-          connection,
-          actionConnection,
-        },
-        cookies: cookieHeaders,
-      }
-    }
-
-    mergeGuestDraftIntoAccount(user, body.guestDraftSnapshot ?? null, body.mergeResolution ?? null)
-    saveUser(user)
-    const payload = buildSessionPayload({
-      user,
-      handoffId,
-      guestDraftSnapshot: body.guestDraftSnapshot ?? null,
-      mergeResolution: body.mergeResolution ?? null,
-      intent: body.intent ?? null,
-      continuation: {
-        resumeToken: handoffId ? `${handoffId}:resume` : randomId('resume'),
-        nextAction: resolveDemoAuthBlocker(user.email) || normalizeIntentAction(typeof body.intent?.action === 'string' ? body.intent.action : '') || 'resume-authenticated-flow',
-      },
-      draftSave: body.draftSave ?? null,
-      connection,
-      actionConnection,
-    })
-    const newSessionId = randomId('session')
-    saveSessionRecord(newSessionId, {
-      userEmail: email,
-      payload,
-      savedAt: new Date().toISOString(),
-    })
-    if (handoffId) deletePendingRecord(handoffId)
-    cookieHeaders.push(serializeCookie(sessionCookieName, newSessionId, { maxAge: 60 * 60 * 24 * 30 }))
-    cookieHeaders.push(serializeCookie(handoffCookieName, handoffId ?? '', { maxAge: handoffId ? 60 * 60 * 24 * 7 : 0 }))
-    return { status: 200, data: payload, cookies: cookieHeaders }
-  }
-
-  if (pathName === '/api/auth/continue') {
-    const effectiveHandoffId = handoffId ?? handoffCookie ?? null
-    const pending = effectiveHandoffId ? readPendingRecord(effectiveHandoffId) : null
-    const continuation = body.continuation ?? {}
-    const nextAction = typeof continuation.nextAction === 'string' && continuation.nextAction.trim()
-      ? continuation.nextAction.trim()
-      : (pending?.continuation?.nextAction ?? sessionRecord?.payload?.nextAction ?? '')
-    const fields = body.fields && typeof body.fields === 'object' && !Array.isArray(body.fields) ? body.fields : {}
-
-    if (nextAction === 'confirm-merge-resolution') {
-      const mergeResolution = typeof fields.mergeResolution === 'string' ? fields.mergeResolution.trim() : ''
-      if (!pending) return { status: 401, data: { message: 'No auth handoff to continue', nextAction: 'login-required', connection, actionConnection }, cookies: cookieHeaders }
-      if (!['keep-guest', 'replace-with-account'].includes(mergeResolution)) {
-        return { status: 422, data: { message: 'Merge resolution required', handoffId: effectiveHandoffId, resumeToken: pending.continuation?.resumeToken ?? resumeTokenHeader ?? null, nextAction: 'confirm-merge-resolution', allowedMergeResolutions: ['keep-guest', 'replace-with-account'], connection, actionConnection }, cookies: cookieHeaders }
-      }
-      const user = readUser(pending.email)
-      if (!user) return { status: 404, data: { message: 'User not found', nextAction: 'login-required', connection, actionConnection }, cookies: cookieHeaders }
-      mergeGuestDraftIntoAccount(user, pending.guestDraftSnapshot ?? null, mergeResolution)
-      saveUser(user)
-      const payload = buildSessionPayload({
-        user,
-        handoffId: effectiveHandoffId,
-        guestDraftSnapshot: pending.guestDraftSnapshot ?? null,
-        mergeResolution,
-        intent: body.intent ?? pending.summary?.intent ?? null,
-        continuation: { resumeToken: pending.continuation?.resumeToken ?? resumeTokenHeader ?? null, nextAction: normalizeIntentAction(typeof (body.intent ?? pending.summary?.intent)?.action === 'string' ? (body.intent ?? pending.summary?.intent).action : '') || 'resume-authenticated-flow' },
-        draftSave: body.draftSave ?? pending.draftSave ?? null,
-        connection: pending.connection ?? connection,
-        actionConnection: pending.actionConnection ?? actionConnection,
-      })
-      const newSessionId = randomId('session')
-      saveSessionRecord(newSessionId, { userEmail: user.email, payload, savedAt: new Date().toISOString() })
-      deletePendingRecord(effectiveHandoffId)
-      cookieHeaders.push(serializeCookie(sessionCookieName, newSessionId, { maxAge: 60 * 60 * 24 * 30 }))
-      cookieHeaders.push(serializeCookie(handoffCookieName, effectiveHandoffId, { maxAge: 60 * 60 * 24 * 7 }))
-      return { status: 200, data: payload, cookies: cookieHeaders }
-    }
-
-    if (!sessionRecord) {
-      return { status: 401, data: { message: 'No auth session', nextAction: 'login-required', connection, actionConnection }, cookies: cookieHeaders }
-    }
-
-    const payload = clone(sessionRecord.payload)
-    if (nextAction === 'complete-profile') {
-      const displayName = typeof fields.displayName === 'string' ? fields.displayName.trim() : ''
-      const phone = typeof fields.phone === 'string' ? fields.phone.trim() : ''
-      if (!displayName || !phone) {
-        return { status: 422, data: { ...payload, message: 'Profile completion fields required', nextAction: 'complete-profile', status: 'action-required', statusLabel: '프로필 보완 필요', connection: payload.connection ?? connection, actionConnection: payload.actionConnection ?? actionConnection }, cookies: cookieHeaders }
-      }
-      const user = readUser(sessionRecord.userEmail)
-      if (user) {
-        user.profile = { displayName, phone }
-        user.name = displayName
-        saveUser(user)
-      }
-      payload.user.name = displayName
-      payload.profile = { displayName, phone }
-      payload.nextAction = normalizeIntentAction(typeof (body.intent ?? payload.intent)?.action === 'string' ? (body.intent ?? payload.intent).action : '') || 'resume-authenticated-flow'
-      payload.status = 'ready'
-      payload.statusLabel = '프로필 준비 완료'
-    } else if (nextAction === 'verify-email') {
-      const verificationCode = typeof fields.verificationCode === 'string' ? fields.verificationCode.trim() : ''
-      if (!verificationCode) {
-        return { status: 202, data: { ...payload, nextAction: 'verify-email', status: 'action-required', statusLabel: '이메일 인증 필요', connection: payload.connection ?? connection, actionConnection: payload.actionConnection ?? actionConnection }, cookies: cookieHeaders }
-      }
-      const user = readUser(sessionRecord.userEmail)
-      const verifiedAt = new Date().toISOString()
-      if (user) {
-        user.verifiedAt = verifiedAt
-        saveUser(user)
-      }
-      payload.verifiedAt = user?.verifiedAt ?? verifiedAt
-      payload.nextAction = normalizeIntentAction(typeof (body.intent ?? payload.intent)?.action === 'string' ? (body.intent ?? payload.intent).action : '') || 'resume-authenticated-flow'
-      payload.status = 'ready'
-      payload.statusLabel = '이메일 인증 완료'
-    } else {
-      payload.nextAction = nextAction || payload.nextAction || 'resume-authenticated-flow'
-      payload.status = 'ready'
-      payload.statusLabel = '인증 준비 완료'
-    }
-
-    if (body.intent) payload.intent = clone(body.intent)
-    if (body.draftSave) payload.draftSave = clone(body.draftSave)
-    saveSessionRecord(sessionId, {
-      userEmail: sessionRecord.userEmail,
-      payload,
-      savedAt: new Date().toISOString(),
-    })
-    return { status: 200, data: payload, cookies: cookieHeaders }
-  }
-
-  return { status: 404, data: { message: 'Not found' }, cookies: cookieHeaders }
-}
+# Gemini Review
+
+- Generated: Fri Apr 10 11:10:03 PM UTC 2026
+- Branch: havenly/parallel-loop-2026-04-04
+- Base: origin/main
+
+## havenly/parallel-loop-2026-04-04...origin/havenly/parallel-loop-2026-04-04 [ahead 4]
+ M dist/index.html
+ M package.json
+ M server/auth-http-server.js
+ M server/auth-http-server.test.js
+ M server/auth-persistent-store.js
+ M server/auth-persistent-store.test.js
+?? docs/HAVENLY_PAGE_01_AI_FLOW.md
+?? docs/HAVENLY_PAGE_02_LAYOUT_EDITOR.md
+?? docs/HAVENLY_PAGE_03_COMMERCE.md
+?? docs/HAVENLY_PAGE_RECOMPOSITION_GUIDE.md
+?? docs/HAVENLY_PAGE_SPLIT_ARCHITECTURE.md
+?? notes/2026-04-10-auth-standalone-dev-checkpoint.md
+?? src/pages/
+
+## Changed files
+
+.gitignore
+CHECKPOINT_PLAN_2026-04-04.md
+WORKFLOW_PARALLEL_LOOP.md
+ai-reviews/gemini-review-2026-04-05_1127UTC.md
+ai-reviews/gemini-review-2026-04-06_0703UTC.md
+dist/index.html
+docs/assets/index-D6n2aJa8.css
+docs/assets/index-DArgC09m.js
+docs/assets/index-DltTpeTB.js
+docs/assets/index-W7M3e0EU.css
+docs/index.html
+notes/2026-04-04-input-structure-checkpoint.md
+notes/2026-04-04-priority-lifestyle-controls-checkpoint.md
+notes/2026-04-04-runtime-brief-checkpoint.md
+notes/2026-04-05-ai-apply-to-layout-checkpoint.md
+notes/2026-04-05-ai-recommendation-state-checkpoint.md
+notes/2026-04-05-ai-room-availability-checkpoint.md
+notes/2026-04-05-ai-space-summary-checkpoint.md
+notes/2026-04-05-app-state-checkpoint.md
+notes/2026-04-05-bed-filter-state-checkpoint.md
+notes/2026-04-05-cart-state-checkpoint.md
+notes/2026-04-05-editor-state-checkpoint.md
+notes/2026-04-05-editor-state-consumers-checkpoint.md
+notes/2026-04-05-layout-add-to-layout-handler-checkpoint.md
+notes/2026-04-05-layout-editor-action-metadata-checkpoint.md
+notes/2026-04-05-layout-editor-color-options-checkpoint.md
+notes/2026-04-05-layout-editor-command-helpers-checkpoint.md
+notes/2026-04-05-layout-editor-command-runner-checkpoint.md
+notes/2026-04-05-layout-editor-consumer-wiring-checkpoint.md
+notes/2026-04-05-layout-editor-hint-state-checkpoint.md
+notes/2026-04-05-layout-editor-property-panel-actions-checkpoint.md
+notes/2026-04-05-layout-editor-property-panel-state-checkpoint.md
+notes/2026-04-05-layout-editor-render-state-checkpoint.md
+notes/2026-04-05-layout-editor-selection-snapshot-checkpoint.md
+notes/2026-04-05-layout-editor-toolbar-checkpoint.md
+notes/2026-04-05-layout-editor-undo-availability-checkpoint.md
+notes/2026-04-05-layout-editor-unhandled-command-warning-checkpoint.md
+notes/2026-04-05-layout-editor-view-state-checkpoint.md
+notes/2026-04-05-layout-library-empty-state-checkpoint.md
+notes/2026-04-05-layout-library-import-fix-checkpoint.md
+notes/2026-04-05-layout-library-state-checkpoint.md
+notes/2026-04-05-login-guard-continuity-checkpoint.md
+notes/2026-04-05-navigation-state-checkpoint.md
+notes/2026-04-05-product-flow-state-checkpoint.md
+notes/2026-04-05-search-drawer-polish-checkpoint.md
+notes/2026-04-05-search-drawer-wiring-checkpoint.md
+notes/2026-04-05-shared-space-profile-checkpoint.md
+notes/2026-04-05-space-profile-component-checkpoint.md
+notes/2026-04-05-space-profile-module-checkpoint.md
+notes/2026-04-05-space-profile-state-checkpoint.md
+notes/2026-04-05-space-summary-coverage-checkpoint.md
+notes/2026-04-05-wishlist-state-checkpoint.md
+notes/2026-04-06-auth-backend-scaffold-checkpoint.md
+notes/2026-04-06-auth-bootstrap-connection-checkpoint.md
+notes/2026-04-06-auth-bootstrap-logout-smoke-checkpoint.md
+notes/2026-04-06-auth-config-checkpoint.md
+notes/2026-04-06-auth-connection-context-checkpoint.md
+notes/2026-04-06-auth-continuation-scaffold-checkpoint.md
+notes/2026-04-06-auth-login-smoke-checkpoint.md
+notes/2026-04-06-auth-merge-confirmation-checkpoint.md
+notes/2026-04-06-auth-merge-options-contract-checkpoint.md
+notes/2026-04-06-auth-merge-replace-checkpoint.md
+notes/2026-04-06-auth-restore-summary-checkpoint.md
+notes/2026-04-06-auth-resume-connection-checkpoint.md
+notes/2026-04-06-auth-resume-contract-checkpoint.md
+notes/2026-04-06-auth-session-banner-checkpoint.md
+notes/2026-04-06-auth-session-bootstrap-checkpoint.md
+notes/2026-04-06-auth-session-draft-context-checkpoint.md
+notes/2026-04-06-auth-session-modal-bootstrap-checkpoint.md
+notes/2026-04-06-auth-session-replace-hydration-checkpoint.md
+notes/2026-04-06-auth-session-reset-checkpoint.md
+notes/2026-04-06-auth-storage-checkpoint.md
+notes/2026-04-06-auth-submit-scaffold-fallback-checkpoint.md
+notes/2026-04-06-layout-editor-command-handler-map-checkpoint.md
+notes/2026-04-06-login-auth-handoff-checkpoint.md
+notes/2026-04-06-login-resume-error-state-checkpoint.md
+notes/2026-04-07-auth-action-required-ready-panel-checkpoint.md
+notes/2026-04-07-auth-continuation-retry-checkpoint.md
+notes/2026-04-07-auth-ready-next-action-checkpoint.md
+notes/2026-04-07-auth-ready-panel-resume-checkpoint.md
+notes/2026-04-07-auth-same-origin-connection-checkpoint.md
+notes/2026-04-08-auth-action-required-modal-resume-checkpoint.md
+notes/2026-04-08-auth-action-required-smoke-checkpoint.md
+notes/2026-04-08-auth-basepath-connection-summary-checkpoint.md
+notes/2026-04-08-auth-blocker-only-resume-checkpoint.md
+notes/2026-04-08-auth-bootstrap-password-shape-checkpoint.md
+notes/2026-04-08-auth-browser-smoke-resilience-checkpoint.md
+notes/2026-04-08-auth-continuation-account-fallback-checkpoint.md
+notes/2026-04-08-auth-continue-middleware-checkpoint.md
+notes/2026-04-08-auth-header-encoding-checkpoint.md
+notes/2026-04-08-auth-keep-resumable-login-modal-open-checkpoint.md
+notes/2026-04-08-auth-scaffold-handoff-header-fix-checkpoint.md
+notes/2026-04-09-auth-browser-ready-signal-checkpoint.md
+notes/2026-04-09-auth-connection-drift-checkpoint.md
+notes/2026-04-09-auth-continuation-endpoint-preview-checkpoint.md
+notes/2026-04-09-auth-draftsave-ui-handoff-checkpoint.md
+notes/2026-04-09-auth-guard-browser-smoke-checkpoint.md
+notes/2026-04-09-auth-guard-handoff-visibility-checkpoint.md
+notes/2026-04-09-auth-login-draftsave-submit-checkpoint.md
+notes/2026-04-09-auth-login-panel-preview-checkpoint.md
+notes/2026-04-09-auth-login-payload-preview-checkpoint.md
+notes/2026-04-09-auth-merge-blocker-status-checkpoint.md
+notes/2026-04-09-auth-response-contract-preview-checkpoint.md
+notes/2026-04-09-auth-resume-modal-reopen-checkpoint.md
+notes/2026-04-09-auth-wiring-card-checkpoint.md
+notes/2026-04-10-auth-action-connection-smoke-reload-checkpoint.md
+notes/2026-04-10-auth-browser-override-smoke-stability-checkpoint.md
+notes/2026-04-10-auth-logout-keepalive-checkpoint.md
+notes/2026-04-10-auth-merge-resume-cta-state-checkpoint.md
+notes/2026-04-10-auth-no-log-ui-browser-smoke-checkpoint.md
+notes/2026-04-10-auth-override-continuation-smoke-checkpoint.md
+notes/2026-04-10-auth-pending-bootstrap-action-connection-checkpoint.md
+notes/2026-04-10-auth-persisted-continuation-connection-checkpoint.md
+notes/2026-04-10-auth-proxy-backend-checkpoint.md
+notes/2026-04-10-auth-proxy-forwarded-origin-checkpoint.md
+notes/2026-04-10-auth-proxy-smoke-trace-checkpoint.md
+notes/2026-04-10-auth-smoke-domcontentloaded-no-wiring-prop-checkpoint.md
+notes/2026-04-10-auth-vite-proxy-checkpoint.md
+package.json
+scripts/auth-login-smoke.mjs
+scripts/gemini-review.sh
+server/auth-http-server.js
+server/auth-http-server.test.js
+server/auth-persistent-store.js
+server/auth-persistent-store.test.js
+src/components/ai-recommendation-state.js
+src/components/ai-recommendation-state.test.js
+src/components/app-state.js
+src/components/app-state.test.js
+src/components/auth-backend-scaffold.js
+src/components/auth-backend-scaffold.test.js
+src/components/auth-bootstrap-state.js
+src/components/auth-bootstrap-state.test.js
+src/components/auth-config.js
+src/components/auth-config.test.js
+src/components/auth-flow-state.js
+src/components/auth-flow-state.test.js
+src/components/auth-intent-state.js
+src/components/auth-intent-state.test.js
+src/components/auth-session-merge.js
+src/components/auth-session-merge.test.js
+src/components/auth-session-restore.js
+src/components/auth-session-restore.test.js
+src/components/auth-session-view-state.js
+src/components/auth-session-view-state.test.js
+src/components/auth-storage.js
+src/components/auth-storage.test.js
+src/components/auth-submit.js
+src/components/auth-submit.test.js
+src/components/auth-wiring-state.js
+src/components/auth-wiring-state.test.js
+src/components/bed-filter-state.js
+src/components/bed-filter-state.test.js
+src/components/cart-state.js
+src/components/cart-state.test.js
+src/components/editor-state.js
+src/components/editor-state.test.js
+src/components/layout-editor-command-handlers.js
+src/components/layout-editor-command-handlers.test.js
+src/components/layout-editor-command-runner.js
+src/components/layout-editor-command-runner.test.js
+src/components/layout-editor-view-state.js
+src/components/layout-editor-view-state.test.js
+src/components/layout-library-state.js
+src/components/layout-library-state.test.js
+src/components/login-guard.js
+src/components/login-guard.test.js
+src/components/navigation-state.js
+src/components/navigation-state.test.js
+src/components/product-flow-state.js
+src/components/product-flow-state.test.js
+src/components/search-drawer.js
+src/components/search-drawer.test.js
+src/components/space-profile-state.js
+src/components/space-profile-state.test.js
+src/components/space-profile.jsx
+src/components/space-summary.js
+src/components/space-summary.test.js
+src/components/wishlist-state.js
+src/components/wishlist-state.test.js
+src/main.jsx
+src/styles.css
+vite.config.js
+
+## Untracked files
+
+docs/HAVENLY_PAGE_01_AI_FLOW.md
+docs/HAVENLY_PAGE_02_LAYOUT_EDITOR.md
+docs/HAVENLY_PAGE_03_COMMERCE.md
+docs/HAVENLY_PAGE_RECOMPOSITION_GUIDE.md
+docs/HAVENLY_PAGE_SPLIT_ARCHITECTURE.md
+notes/2026-04-10-auth-standalone-dev-checkpoint.md
+src/pages/ai-flow-pages.jsx
+src/pages/commerce-pages.jsx
+src/pages/layout-editor-page.jsx
+
+## Diffstat
+
+ .gitignore                                         |    2 +
+ CHECKPOINT_PLAN_2026-04-04.md                      |   70 +
+ WORKFLOW_PARALLEL_LOOP.md                          |  134 ++
+ ai-reviews/gemini-review-2026-04-05_1127UTC.md     |   50 +
+ ai-reviews/gemini-review-2026-04-06_0703UTC.md     |  225 ++
+ dist/index.html                                    |    4 +-
+ docs/assets/index-D6n2aJa8.css                     |    1 +
+ docs/assets/index-DArgC09m.js                      |    9 +
+ docs/assets/index-DltTpeTB.js                      |    9 -
+ docs/assets/index-W7M3e0EU.css                     |    1 -
+ docs/index.html                                    |    4 +-
+ notes/2026-04-04-input-structure-checkpoint.md     |   29 +
+ ...04-04-priority-lifestyle-controls-checkpoint.md |   21 +
+ notes/2026-04-04-runtime-brief-checkpoint.md       |   17 +
+ notes/2026-04-05-ai-apply-to-layout-checkpoint.md  |   23 +
+ ...026-04-05-ai-recommendation-state-checkpoint.md |   24 +
+ .../2026-04-05-ai-room-availability-checkpoint.md  |   23 +
+ notes/2026-04-05-ai-space-summary-checkpoint.md    |   23 +
+ notes/2026-04-05-app-state-checkpoint.md           |   22 +
+ notes/2026-04-05-bed-filter-state-checkpoint.md    |   22 +
+ notes/2026-04-05-cart-state-checkpoint.md          |   21 +
+ notes/2026-04-05-editor-state-checkpoint.md        |   21 +
+ ...2026-04-05-editor-state-consumers-checkpoint.md |   21 +
+ ...4-05-layout-add-to-layout-handler-checkpoint.md |   27 +
+ ...-05-layout-editor-action-metadata-checkpoint.md |   21 +
+ ...04-05-layout-editor-color-options-checkpoint.md |   22 +
+ ...-05-layout-editor-command-helpers-checkpoint.md |   27 +
+ ...4-05-layout-editor-command-runner-checkpoint.md |   21 +
+ ...-05-layout-editor-consumer-wiring-checkpoint.md |   24 +
+ ...26-04-05-layout-editor-hint-state-checkpoint.md |   23 +
+ ...out-editor-property-panel-actions-checkpoint.md |   24 +
+ ...ayout-editor-property-panel-state-checkpoint.md |   21 +
+ ...-04-05-layout-editor-render-state-checkpoint.md |   23 +
+ ...-layout-editor-selection-snapshot-checkpoint.md |   25 +
+ .../2026-04-05-layout-editor-toolbar-checkpoint.md |   22 +
+ ...5-layout-editor-undo-availability-checkpoint.md |   26 +
+ ...-editor-unhandled-command-warning-checkpoint.md |   21 +
+ ...26-04-05-layout-editor-view-state-checkpoint.md |   22 +
+ ...-04-05-layout-library-empty-state-checkpoint.md |   23 +
+ ...6-04-05-layout-library-import-fix-checkpoint.md |   21 +
+ .../2026-04-05-layout-library-state-checkpoint.md  |   22 +
+ ...2026-04-05-login-guard-continuity-checkpoint.md |   24 +
+ notes/2026-04-05-navigation-state-checkpoint.md    |   21 +
+ notes/2026-04-05-product-flow-state-checkpoint.md  |   25 +
+ .../2026-04-05-search-drawer-polish-checkpoint.md  |   25 +
+ .../2026-04-05-search-drawer-wiring-checkpoint.md  |   23 +
+ .../2026-04-05-shared-space-profile-checkpoint.md  |   22 +
+ ...026-04-05-space-profile-component-checkpoint.md |   22 +
+ .../2026-04-05-space-profile-module-checkpoint.md  |   23 +
+ notes/2026-04-05-space-profile-state-checkpoint.md |   24 +
+ ...2026-04-05-space-summary-coverage-checkpoint.md |   24 +
+ notes/2026-04-05-wishlist-state-checkpoint.md      |   23 +
+ .../2026-04-06-auth-backend-scaffold-checkpoint.md |   27 +
+ ...6-04-06-auth-bootstrap-connection-checkpoint.md |   26 +
+ ...04-06-auth-bootstrap-logout-smoke-checkpoint.md |   28 +
+ notes/2026-04-06-auth-config-checkpoint.md         |   24 +
+ ...026-04-06-auth-connection-context-checkpoint.md |   22 +
+ ...-04-06-auth-continuation-scaffold-checkpoint.md |   23 +
+ notes/2026-04-06-auth-login-smoke-checkpoint.md    |   23 +
+ ...026-04-06-auth-merge-confirmation-checkpoint.md |   26 +
+ ...04-06-auth-merge-options-contract-checkpoint.md |   21 +
+ notes/2026-04-06-auth-merge-replace-checkpoint.md  |   24 +
+ .../2026-04-06-auth-restore-summary-checkpoint.md  |   26 +
+ ...2026-04-06-auth-resume-connection-checkpoint.md |   22 +
+ .../2026-04-06-auth-resume-contract-checkpoint.md  |   22 +
+ notes/2026-04-06-auth-session-banner-checkpoint.md |   22 +
+ ...2026-04-06-auth-session-bootstrap-checkpoint.md |   26 +
+ ...-04-06-auth-session-draft-context-checkpoint.md |   26 +
+ ...4-06-auth-session-modal-bootstrap-checkpoint.md |   20 +
+ ...06-auth-session-replace-hydration-checkpoint.md |   30 +
+ notes/2026-04-06-auth-session-reset-checkpoint.md  |   30 +
+ notes/2026-04-06-auth-storage-checkpoint.md        |   24 +
+ ...-06-auth-submit-scaffold-fallback-checkpoint.md |   15 +
+ ...layout-editor-command-handler-map-checkpoint.md |   21 +
+ notes/2026-04-06-login-auth-handoff-checkpoint.md  |   25 +
+ ...26-04-06-login-resume-error-state-checkpoint.md |   20 +
+ ...-auth-action-required-ready-panel-checkpoint.md |   23 +
+ ...026-04-07-auth-continuation-retry-checkpoint.md |    5 +
+ ...2026-04-07-auth-ready-next-action-checkpoint.md |   23 +
+ ...026-04-07-auth-ready-panel-resume-checkpoint.md |   25 +
+ ...04-07-auth-same-origin-connection-checkpoint.md |   18 +
+ ...auth-action-required-modal-resume-checkpoint.md |   24 +
+ ...-04-08-auth-action-required-smoke-checkpoint.md |   26 +
+ ...-auth-basepath-connection-summary-checkpoint.md |   24 +
+ ...26-04-08-auth-blocker-only-resume-checkpoint.md |   25 +
+ ...-08-auth-bootstrap-password-shape-checkpoint.md |   24 +
+ ...-08-auth-browser-smoke-resilience-checkpoint.md |   21 +
+ ...uth-continuation-account-fallback-checkpoint.md |   23 +
+ ...26-04-08-auth-continue-middleware-checkpoint.md |   30 +
+ .../2026-04-08-auth-header-encoding-checkpoint.md  |   20 +
+ ...h-keep-resumable-login-modal-open-checkpoint.md |   20 +
+ ...-auth-scaffold-handoff-header-fix-checkpoint.md |   19 +
+ ...6-04-09-auth-browser-ready-signal-checkpoint.md |   20 +
+ .../2026-04-09-auth-connection-drift-checkpoint.md |   17 +
+ ...uth-continuation-endpoint-preview-checkpoint.md |   19 +
+ ...6-04-09-auth-draftsave-ui-handoff-checkpoint.md |   22 +
+ ...26-04-09-auth-guard-browser-smoke-checkpoint.md |   17 +
+ ...-09-auth-guard-handoff-visibility-checkpoint.md |   18 +
+ ...04-09-auth-login-draftsave-submit-checkpoint.md |   17 +
+ ...26-04-09-auth-login-panel-preview-checkpoint.md |   20 +
+ ...-04-09-auth-login-payload-preview-checkpoint.md |   19 +
+ ...6-04-09-auth-merge-blocker-status-checkpoint.md |   25 +
+ ...09-auth-response-contract-preview-checkpoint.md |   30 +
+ ...26-04-09-auth-resume-modal-reopen-checkpoint.md |   22 +
+ notes/2026-04-09-auth-wiring-card-checkpoint.md    |   18 +
+ ...th-action-connection-smoke-reload-checkpoint.md |   20 +
+ ...-browser-override-smoke-stability-checkpoint.md |   22 +
+ .../2026-04-10-auth-logout-keepalive-checkpoint.md |   18 +
+ ...04-10-auth-merge-resume-cta-state-checkpoint.md |   20 +
+ ...4-10-auth-no-log-ui-browser-smoke-checkpoint.md |   15 +
+ ...-auth-override-continuation-smoke-checkpoint.md |   22 +
+ ...nding-bootstrap-action-connection-checkpoint.md |   17 +
+ ...persisted-continuation-connection-checkpoint.md |   18 +
+ notes/2026-04-10-auth-proxy-backend-checkpoint.md  |   22 +
+ ...04-10-auth-proxy-forwarded-origin-checkpoint.md |   17 +
+ ...2026-04-10-auth-proxy-smoke-trace-checkpoint.md |   23 +
+ ...e-domcontentloaded-no-wiring-prop-checkpoint.md |   19 +
+ notes/2026-04-10-auth-vite-proxy-checkpoint.md     |   17 +
+ package.json                                       |   10 +-
+ scripts/auth-login-smoke.mjs                       | 1437 ++++++++++++
+ scripts/gemini-review.sh                           |   69 +
+ server/auth-http-server.js                         |  324 +++
+ server/auth-http-server.test.js                    |  259 +++
+ server/auth-persistent-store.js                    |  730 +++++++
+ server/auth-persistent-store.test.js               |  268 +++
+ src/components/ai-recommendation-state.js          |   43 +
+ src/components/ai-recommendation-state.test.js     |  120 +
+ src/components/app-state.js                        |   23 +
+ src/components/app-state.test.js                   |   91 +
+ src/components/auth-backend-scaffold.js            |  805 +++++++
+ src/components/auth-backend-scaffold.test.js       | 1084 ++++++++++
+ src/components/auth-bootstrap-state.js             |   16 +
+ src/components/auth-bootstrap-state.test.js        |   38 +
+ src/components/auth-config.js                      |  163 ++
+ src/components/auth-config.test.js                 |  208 ++
+ src/components/auth-flow-state.js                  |  421 ++++
+ src/components/auth-flow-state.test.js             |  681 ++++++
+ src/components/auth-intent-state.js                |   90 +
+ src/components/auth-intent-state.test.js           |   73 +
+ src/components/auth-session-merge.js               |   38 +
+ src/components/auth-session-merge.test.js          |   48 +
+ src/components/auth-session-restore.js             |   63 +
+ src/components/auth-session-restore.test.js        |   56 +
+ src/components/auth-session-view-state.js          |  520 +++++
+ src/components/auth-session-view-state.test.js     |  910 ++++++++
+ src/components/auth-storage.js                     |  518 +++++
+ src/components/auth-storage.test.js                | 1186 ++++++++++
+ src/components/auth-submit.js                      |  752 +++++++
+ src/components/auth-submit.test.js                 | 1207 +++++++++++
+ src/components/auth-wiring-state.js                |   77 +
+ src/components/auth-wiring-state.test.js           |  215 ++
+ src/components/bed-filter-state.js                 |   21 +
+ src/components/bed-filter-state.test.js            |   59 +
+ src/components/cart-state.js                       |   25 +
+ src/components/cart-state.test.js                  |   57 +
+ src/components/editor-state.js                     |   74 +
+ src/components/editor-state.test.js                |   87 +
+ src/components/layout-editor-command-handlers.js   |   19 +
+ .../layout-editor-command-handlers.test.js         |   69 +
+ src/components/layout-editor-command-runner.js     |   18 +
+ .../layout-editor-command-runner.test.js           |   70 +
+ src/components/layout-editor-view-state.js         |  145 ++
+ src/components/layout-editor-view-state.test.js    |  250 +++
+ src/components/layout-library-state.js             |   35 +
+ src/components/layout-library-state.test.js        |   58 +
+ src/components/login-guard.js                      |   35 +
+ src/components/login-guard.test.js                 |   68 +
+ src/components/navigation-state.js                 |   37 +
+ src/components/navigation-state.test.js            |   34 +
+ src/components/product-flow-state.js               |   16 +
+ src/components/product-flow-state.test.js          |   37 +
+ src/components/search-drawer.js                    |   33 +
+ src/components/search-drawer.test.js               |   39 +
+ src/components/space-profile-state.js              |   59 +
+ src/components/space-profile-state.test.js         |  105 +
+ src/components/space-profile.jsx                   |  123 ++
+ src/components/space-summary.js                    |   22 +
+ src/components/space-summary.test.js               |   40 +
+ src/components/wishlist-state.js                   |    5 +
+ src/components/wishlist-state.test.js              |   19 +
+ src/main.jsx                                       | 2286 ++++++++++++++------
+ src/styles.css                                     |   49 +-
+ vite.config.js                                     |  317 ++-
+ 183 files changed, 19096 insertions(+), 642 deletions(-)
+
+## Gemini Output
+
+### 1. Summary
+This is a massive update focused primarily on implementing a comprehensive authentication system, state management modularization, and a new mock backend for auth. It introduces numerous individual state controllers (auth, editor, cart, layout), extensive test coverage for these modules, and significant architectural documentation. `src/main.jsx` underwent a major rewrite to wire up all the new state and components.
+
+### 2. What improved
+*   **Comprehensive Auth System:** Introduced a robust, multi-layered auth system including session management, connection status, persistence, intent tracking, and merge handling (`src/components/auth-*.js`).
+*   **Backend Scaffolding:** Added a local mock authentication server (`server/auth-http-server.js`) and persistent store for end-to-end local development and testing.
+*   **State Modularization:** Extracted state logic into discrete, testable modules (e.g., `app-state.js`, `editor-state.js`, `cart-state.js`, `layout-editor-view-state.js`).
+*   **Test Coverage:** Nearly every new component and state module is accompanied by a dedicated test file.
+*   **Testing Tooling:** Added a detailed smoke testing script for auth flows (`scripts/auth-login-smoke.mjs`).
+
+### 3. Risks / regressions to check
+*   **Monolithic Wiring:** `src/main.jsx` has over 2,200 insertions and 600 deletions. A change of this size in the main entry point carries a high risk of regressions in existing routing, context providers, or layout structure.
+*   **Untracked Files:** Critical architectural docs (`docs/HAVENLY_PAGE_*.md`) and new page components (`src/pages/*.jsx`) are untracked and missing from the commit. If `main.jsx` relies on these new page components, the build will fail.
+*   **Vite Configuration:** Changes to `vite.config.js` (+317 lines) likely include proxies for the new local auth server. Ensure these don't inadvertently impact production builds or other mock endpoints.
+
+### 4. Small next checkpoint (smallest sensible next commit)
+Add and commit the untracked files in `docs/` and `src/pages/`. Alternatively, if the `src/pages/*.jsx` files are intended to replace parts of the massive `src/main.jsx` file, complete that refactor to reduce the footprint of `main.jsx` before merging.
+
+### 5. Test suggestions
+*   Run the new `scripts/auth-login-smoke.mjs` to validate the complex auth flow changes end-to-end against the dev server.
+*   Run the full test suite (`npm test`) to verify all the new `.test.js` files pass.
+*   Manually test the core layout editor and commerce flows to ensure the massive `main.jsx` refactor did not break existing un-refactored logic.
+*   Run a production build (`npm run build`) to ensure the `vite.config.js` changes don't introduce build-time errors.

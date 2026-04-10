@@ -236,3 +236,24 @@ test('auth http server completes merge continuation through cookies and persists
     }
   })
 })
+
+test('auth http server cli options prefer explicit args over env defaults', async () => {
+  await withTempCwd(async () => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { resolveAuthHttpServerOptions } = await import(moduleUrl)
+
+    assert.deepEqual(
+      resolveAuthHttpServerOptions({
+        env: {
+          HAVENLY_AUTH_HOST: '0.0.0.0',
+          HAVENLY_AUTH_PORT: '4999',
+        },
+        args: ['--host', '127.0.0.1', '--port', '4777'],
+      }),
+      {
+        host: '127.0.0.1',
+        port: 4777,
+      },
+    )
+  })
+})

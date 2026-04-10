@@ -27,6 +27,32 @@ function buildRequest({ cookie = '' } = {}) {
   }
 }
 
+async function withEnv(envPatch, run) {
+  const original = new Map(Object.keys(envPatch).map((key) => [key, process.env[key]]))
+
+  Object.entries(envPatch).forEach(([key, value]) => {
+    if (value == null) {
+      delete process.env[key]
+      return
+    }
+
+    process.env[key] = value
+  })
+
+  try {
+    await run()
+  } finally {
+    original.forEach((value, key) => {
+      if (value == null) {
+        delete process.env[key]
+        return
+      }
+
+      process.env[key] = value
+    })
+  }
+}
+
 test('signup persists a hashed password and login upgrades legacy plaintext passwords', async () => {
   await withTempCwd(async (tempDir) => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
@@ -205,5 +231,38 @@ test('verify-email continuation persists verification state across subsequent se
     assert.equal(session.data.nextAction, 'checkout-cart')
     assert.equal(session.data.statusLabel, '이메일 인증 완료')
     assert.equal(session.data.verifiedAt, continuation.data.verifiedAt)
+  })
+})
+
+test('auth persistent store honors custom data-dir and sqlite path env overrides', async () => {
+  await withTempCwd(async (tempDir) => {
+    const customDataDir = path.join(tempDir, 'custom-auth-data')
+    const customSqlitePath = path.join(tempDir, 'custom-db', 'havenly-auth.sqlite')
+
+    await fs.mkdir(path.dirname(customSqlitePath), { recursive: true })
+
+    await withEnv({
+      HAVENLY_AUTH_DATA_DIR: customDataDir,
+      HAVENLY_AUTH_SQLITE_PATH: customSqlitePath,
+    }, async () => {
+      const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+      const { handleAuthRequest, readAuthStorePaths } = await import(moduleUrl)
+
+      const signup = handleAuthRequest(buildRequest(), {
+        pathName: '/api/auth/signup',
+        body: {
+          email: 'custom-store@example.com',
+          password: 'password123',
+          displayName: 'Custom Store User',
+        },
+      })
+
+      assert.equal(signup.status, 200)
+      assert.equal(readAuthStorePaths().dataDir, customDataDir)
+      assert.equal(readAuthStorePaths().sqlitePath, customSqlitePath)
+
+      const dbStat = await fs.stat(customSqlitePath)
+      assert.ok(dbStat.isFile())
+    })
   })
 })
