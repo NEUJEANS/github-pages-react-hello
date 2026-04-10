@@ -77,3 +77,133 @@ test('signup persists a hashed password and login upgrades legacy plaintext pass
     db.close()
   })
 })
+
+test('complete-profile continuation persists profile data into the sqlite-backed auth session', async () => {
+  await withTempCwd(async () => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { handleAuthRequest } = await import(moduleUrl)
+
+    const login = handleAuthRequest(buildRequest(), {
+      pathName: '/api/auth/login',
+      body: {
+        email: 'profile@example.com',
+        password: 'password123',
+        handoffId: 'profile-handoff-001',
+        intent: {
+          action: 'complete-profile',
+          label: '프로필 마무리',
+          returnScreen: 'home',
+        },
+      },
+    })
+
+    assert.equal(login.status, 200)
+    assert.equal(login.data.nextAction, 'complete-profile')
+
+    const sessionCookie = login.cookies.find((value) => value.startsWith('havenly_auth_session='))
+    assert.ok(sessionCookie)
+
+    const continuation = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
+      pathName: '/api/auth/continue',
+      body: {
+        handoffId: 'profile-handoff-001',
+        continuation: {
+          nextAction: 'complete-profile',
+          resumeToken: login.data.resumeToken,
+        },
+        intent: {
+          action: 'save-layout-draft',
+          label: '보드 저장 이어가기',
+          returnScreen: 'layout',
+        },
+        fields: {
+          displayName: 'Havenly User',
+          phone: '010-1234-5678',
+        },
+      },
+    })
+
+    assert.equal(continuation.status, 200)
+    assert.equal(continuation.data.nextAction, 'save-layout-draft')
+    assert.equal(continuation.data.status, 'ready')
+    assert.equal(continuation.data.statusLabel, '프로필 준비 완료')
+    assert.equal(continuation.data.user.name, 'Havenly User')
+    assert.deepEqual(continuation.data.profile, {
+      displayName: 'Havenly User',
+      phone: '010-1234-5678',
+    })
+
+    const session = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
+      pathName: '/api/auth/session',
+    })
+
+    assert.equal(session.status, 200)
+    assert.equal(session.data.user.name, 'Havenly User')
+    assert.deepEqual(session.data.profile, {
+      displayName: 'Havenly User',
+      phone: '010-1234-5678',
+    })
+    assert.equal(session.data.nextAction, 'save-layout-draft')
+  })
+})
+
+test('verify-email continuation persists verification state across subsequent session reads', async () => {
+  await withTempCwd(async () => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { handleAuthRequest } = await import(moduleUrl)
+
+    const login = handleAuthRequest(buildRequest(), {
+      pathName: '/api/auth/login',
+      body: {
+        email: 'verify@example.com',
+        password: 'password123',
+        handoffId: 'verify-handoff-001',
+        intent: {
+          action: 'verify-email',
+          label: '이메일 인증 이어가기',
+          returnScreen: 'home',
+        },
+      },
+    })
+
+    assert.equal(login.status, 200)
+    assert.equal(login.data.nextAction, 'verify-email')
+
+    const sessionCookie = login.cookies.find((value) => value.startsWith('havenly_auth_session='))
+    assert.ok(sessionCookie)
+
+    const continuation = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
+      pathName: '/api/auth/continue',
+      body: {
+        handoffId: 'verify-handoff-001',
+        continuation: {
+          nextAction: 'verify-email',
+          resumeToken: login.data.resumeToken,
+        },
+        intent: {
+          action: 'checkout-cart',
+          label: '주문 이어가기',
+          returnScreen: 'home',
+        },
+        fields: {
+          verificationCode: '123456',
+        },
+      },
+    })
+
+    assert.equal(continuation.status, 200)
+    assert.equal(continuation.data.nextAction, 'checkout-cart')
+    assert.equal(continuation.data.status, 'ready')
+    assert.equal(continuation.data.statusLabel, '이메일 인증 완료')
+    assert.ok(typeof continuation.data.verifiedAt === 'string' && continuation.data.verifiedAt.length > 0)
+
+    const session = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
+      pathName: '/api/auth/session',
+    })
+
+    assert.equal(session.status, 200)
+    assert.equal(session.data.nextAction, 'checkout-cart')
+    assert.equal(session.data.statusLabel, '이메일 인증 완료')
+    assert.equal(session.data.verifiedAt, continuation.data.verifiedAt)
+  })
+})

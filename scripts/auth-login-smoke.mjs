@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { buildAuthContinuationPlan, buildAuthSubmitPlan, buildAuthResultSummary, buildGuestDraftSnapshot, buildAuthErrorSummary } from '../src/components/auth-flow-state.js'
-import { readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan } from '../src/components/auth-submit.js'
+import { readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan, submitAuthSignupPlan } from '../src/components/auth-submit.js'
 import { buildAuthConnectionSummary, buildPersistedAuthSession } from '../src/components/auth-storage.js'
 import { buildPostAuthContinuityPatch } from '../src/components/auth-session-merge.js'
 
@@ -217,6 +217,9 @@ async function ensureBrowserBaseUrl(url, { forcePreview = true } = {}) {
   }
 }
 
+const smokeRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+const smokeSignupEmail = `smoke-signup-${smokeRunId}@example.com`
+
 const guestDraftSnapshot = buildGuestDraftSnapshot({
   engagement: {
     aiRequests: 2,
@@ -301,6 +304,60 @@ async function loadPlaywright() {
 }
 
 async function runHttpSmoke() {
+  const signupPlan = {
+    canSubmit: true,
+    endpoint: '/api/auth/signup',
+    method: 'POST',
+    handoffId: 'auth-smoke-signup-0001',
+    request: {
+      mode: 'signup',
+      displayName: 'Smoke Signup',
+      email: smokeSignupEmail,
+      password: 'password123',
+      guestDraftSnapshot,
+      handoffId: 'auth-smoke-signup-0001',
+      intent: {
+        source: 'smoke',
+        action: 'save-layout-draft',
+        label: '회원가입 후 보드 저장',
+        returnScreen: 'layout',
+        draftLabel: '회원가입 스모크',
+      },
+      draftSave: {
+        draftLabel: '회원가입 스모크',
+        apartmentLabel: '래미안 포레스트 84A',
+        recommendationRoom: '거실',
+        selectedSpaceIds: ['living', 'kitchen'],
+        layoutItems: guestDraftSnapshot.continuity.layoutItems,
+      },
+    },
+    summary: {
+      displayName: 'Smoke Signup',
+      email: smokeSignupEmail,
+      handoffId: 'auth-smoke-signup-0001',
+      wishlistCount: guestDraftSnapshot?.continuity?.wishlistIds?.length ?? 0,
+      cartCount: guestDraftSnapshot?.continuity?.cartItems?.length ?? 0,
+      layoutItemCount: guestDraftSnapshot?.continuity?.layoutItems?.length ?? 0,
+      hasRecommendationDraft: Boolean(guestDraftSnapshot?.recommendationDraft),
+      intent: {
+        source: 'smoke',
+        action: 'save-layout-draft',
+        label: '회원가입 후 보드 저장',
+        returnScreen: 'layout',
+        draftLabel: '회원가입 스모크',
+      },
+      draftSave: {
+        draftLabel: '회원가입 스모크',
+        apartmentLabel: '래미안 포레스트 84A',
+        recommendationRoom: '거실',
+        selectedSpaceIds: ['living', 'kitchen'],
+        layoutItems: guestDraftSnapshot.continuity.layoutItems,
+      },
+    },
+  }
+  const signup = await submitAuthSignupPlan(signupPlan, authConfig)
+  const signupResultSummary = signup.ok ? buildAuthResultSummary(signup, signupPlan.summary) : null
+
   const directPlan = buildPlan({
     email: 'user@example.com',
     password: 'password123',
@@ -446,6 +503,17 @@ async function runHttpSmoke() {
   return {
     mode: 'http-fallback',
     baseUrl,
+    signupSuccess: {
+      ok: signup.ok,
+      status: signup.status,
+      authMode: signupResultSummary?.authMode ?? null,
+      authTransport: signupResultSummary?.authTransport ?? null,
+      sessionId: signupResultSummary?.sessionId ?? null,
+      handoffId: signupResultSummary?.handoffId ?? null,
+      accountLabel: signupResultSummary?.accountLabel ?? null,
+      nextAction: signupResultSummary?.nextAction ?? null,
+      resumeToken: signupResultSummary?.resumeToken ?? null,
+    },
     directSuccess: {
       ok: direct.result.ok,
       status: direct.result.status,
@@ -878,6 +946,34 @@ async function runBrowserSmoke(playwright) {
   const { chromium } = playwright
   const browser = await chromium.launch({ headless: true })
   try {
+    const signupPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await resetBrowserScenario(signupPage)
+    await signupPage.goto(`${baseUrl}#layout`, { waitUntil: 'networkidle' })
+    await signupPage.getByRole('button', { name: '로그인 후 보드 저장' }).click()
+    await continuePastGuardIfPresent(signupPage)
+    await signupPage.locator('.authModeSwitch').getByRole('button', { name: '회원가입' }).click()
+    await signupPage.getByPlaceholder('홍길동').fill('Smoke Signup')
+    await signupPage.getByPlaceholder('name@example.com').fill(smokeSignupEmail)
+    await signupPage.getByPlaceholder('8자 이상 입력').fill('password123')
+    await signupPage.getByPlaceholder('비밀번호를 한 번 더 입력').fill('password123')
+    await signupPage.getByRole('checkbox').check()
+    await signupPage.locator('.loginPanel .footerButtons .cta').last().click()
+    const signupReadySignal = await waitForAuthReadySignal(signupPage, { expectedAccountLabel: smokeSignupEmail })
+    const signupReadyCard = await readAuthReadyCard(signupPage).catch(() => null)
+    const signupNotice = signupReadySignal.notice ?? await signupPage.locator('.authSessionNotice p').innerText().catch(() => null)
+    const signupResumeButton = signupPage.getByRole('button', { name: '보드 저장 이어가기' })
+    if (await signupResumeButton.isVisible().catch(() => false)) {
+      await signupResumeButton.click()
+      await signupPage.locator('.loginPanel').waitFor({ state: 'hidden' })
+    }
+    const signupHashAfterResume = await signupPage.evaluate(() => globalThis.location.hash)
+    await signupPage.reload({ waitUntil: 'networkidle' })
+    const signupReloadedReady = await waitForAuthReadySignal(signupPage, { expectedAccountLabel: smokeSignupEmail })
+    const signupReloadedNotice = signupReloadedReady.notice ?? null
+    const signupReloadedAccountLabel = signupReloadedReady.accountLabel ?? await readVisibleAccountLabel(signupPage)
+    await capture(signupPage, 'auth-signup-save-layout-ready.png')
+    await signupPage.close()
+
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(page)
     await page.goto(baseUrl, { waitUntil: 'networkidle' })
@@ -1113,6 +1209,13 @@ async function runBrowserSmoke(playwright) {
     return {
       mode: 'browser',
       baseUrl,
+      signupSuccess: {
+        readyCard: signupReadyCard,
+        notice: signupNotice,
+        hashAfterResume: signupHashAfterResume,
+        reloadedNotice: signupReloadedNotice,
+        reloadedAccountLabel: signupReloadedAccountLabel,
+      },
       directSuccess: {
         status,
         preview: directLoginPreview,
