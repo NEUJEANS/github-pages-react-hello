@@ -157,9 +157,104 @@ function normalizeAuthScaffoldPath(pathname = "") {
   return pathname
 }
 
+function readAuthProxyBaseUrl() {
+  const raw = process.env.HAVENLY_AUTH_PROXY_BASE_URL
+    ?? process.env.VITE_AUTH_PROXY_BASE_URL
+    ?? ""
+  const normalized = typeof raw === "string" ? raw.trim().replace(/\/$/, "") : ""
+  return normalized || null
+}
+
+async function proxyAuthRequest(req, res, requestPath, { proxyBaseUrl }) {
+  const requestBody = req.method === "GET" || req.method === "HEAD"
+    ? undefined
+    : await readRequestBody(req)
+  const targetUrl = `${proxyBaseUrl}${requestPath}`
+  const forwardedHeaders = {
+    accept: req.headers.accept ?? "application/json",
+    [AUTH_CONNECTION_METHOD_HEADER]: req.headers[AUTH_CONNECTION_METHOD_HEADER] ?? req.method ?? "GET",
+    [AUTH_CONNECTION_ENDPOINT_HEADER]: req.headers[AUTH_CONNECTION_ENDPOINT_HEADER] ?? requestPath,
+    [AUTH_CONNECTION_TARGET_HEADER]: req.headers[AUTH_CONNECTION_TARGET_HEADER] ?? new URL(proxyBaseUrl).host,
+    [AUTH_CONNECTION_CREDENTIALS_HEADER]: req.headers[AUTH_CONNECTION_CREDENTIALS_HEADER] ?? "include",
+    [AUTH_CONNECTION_SOURCE_HEADER]: req.headers[AUTH_CONNECTION_SOURCE_HEADER] ?? "vite-proxy",
+    [AUTH_HANDOFF_HEADER]: req.headers[AUTH_HANDOFF_HEADER] ?? "",
+    [AUTH_RESUME_TOKEN_HEADER]: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? "",
+    [AUTH_NEXT_ACTION_HEADER]: req.headers[AUTH_NEXT_ACTION_HEADER] ?? "",
+  }
+
+  if (req.headers.cookie) {
+    forwardedHeaders.cookie = req.headers.cookie
+  }
+
+  if (requestBody !== undefined) {
+    forwardedHeaders["content-type"] = "application/json"
+  }
+
+  const response = await fetch(targetUrl, {
+    method: req.method,
+    headers: forwardedHeaders,
+    redirect: "manual",
+    body: requestBody !== undefined ? JSON.stringify(requestBody) : undefined,
+  })
+
+  res.statusCode = response.status
+
+  const contentType = response.headers.get("content-type") ?? "application/json"
+  res.setHeader("content-type", contentType)
+
+  const setCookie = typeof response.headers.getSetCookie === "function"
+    ? response.headers.getSetCookie()
+    : []
+  if (setCookie.length > 0) {
+    res.setHeader("set-cookie", setCookie)
+  }
+
+  ;[
+    AUTH_HANDOFF_HEADER,
+    AUTH_RESUME_TOKEN_HEADER,
+    AUTH_NEXT_ACTION_HEADER,
+    AUTH_STATUS_HEADER,
+    AUTH_STATUS_LABEL_HEADER,
+    AUTH_CONNECTION_METHOD_HEADER,
+    AUTH_CONNECTION_ENDPOINT_HEADER,
+    AUTH_CONNECTION_TARGET_HEADER,
+    AUTH_CONNECTION_CREDENTIALS_HEADER,
+    AUTH_CONNECTION_SOURCE_HEADER,
+  ].forEach((headerName) => {
+    const value = response.headers.get(headerName)
+    if (value) res.setHeader(headerName, value)
+  })
+
+  const responseText = await response.text()
+  res.end(responseText)
+}
+
 function havenlyAuthScaffoldPlugin() {
+  const authProxyBaseUrl = readAuthProxyBaseUrl()
+
   const handler = async (req, res, next) => {
     const requestPath = normalizeAuthScaffoldPath(readRequestPath(req))
+    const isSupportedAuthPath = [
+      "/api/auth/login",
+      "/api/auth/signup",
+      "/api/auth/session",
+      "/api/auth/pending",
+      "/api/auth/logout",
+      "/api/auth/continue",
+    ].includes(requestPath)
+
+    if (authProxyBaseUrl && isSupportedAuthPath) {
+      try {
+        await proxyAuthRequest(req, res, requestPath, { proxyBaseUrl: authProxyBaseUrl })
+      } catch (error) {
+        writeJson(res, 502, {
+          message: "Auth proxy request failed",
+          detail: error instanceof Error ? error.message : String(error),
+          proxyBaseUrl: authProxyBaseUrl,
+        }, { "x-havenly-auth-scaffold": "proxy-error" })
+      }
+      return
+    }
 
     if (req.method === "GET" && requestPath === "/api/auth/session") {
       const response = readAuthScaffoldSession()
