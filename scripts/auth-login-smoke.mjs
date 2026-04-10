@@ -276,6 +276,7 @@ async function ensureBrowserBaseUrl(url, { forcePreview = true, extraEnv = {}, m
 
 const smokeRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const smokeSignupEmail = `smoke-signup-${smokeRunId}@example.com`
+const smokeSignupDisplayName = 'Smoke Signup'
 
 const guestDraftSnapshot = buildGuestDraftSnapshot({
   engagement: {
@@ -1011,13 +1012,13 @@ async function runBrowserSmoke(playwright) {
     await signupPage.getByRole('button', { name: '로그인 후 보드 저장' }).click()
     await continuePastGuardIfPresent(signupPage)
     await signupPage.locator('.authModeSwitch').getByRole('button', { name: '회원가입' }).click()
-    await signupPage.getByPlaceholder('홍길동').fill('Smoke Signup')
+    await signupPage.getByPlaceholder('홍길동').fill(smokeSignupDisplayName)
     await signupPage.getByPlaceholder('name@example.com').fill(smokeSignupEmail)
     await signupPage.getByPlaceholder('8자 이상 입력').fill('password123')
     await signupPage.getByPlaceholder('비밀번호를 한 번 더 입력').fill('password123')
     await signupPage.getByRole('checkbox').check()
     await signupPage.locator('.loginPanel .footerButtons .cta').last().click()
-    const signupReadySignal = await waitForAuthReadySignal(signupPage, { expectedAccountLabel: smokeSignupEmail })
+    const signupReadySignal = await waitForAuthReadySignal(signupPage, { expectedAccountLabel: smokeSignupDisplayName })
     const signupReadyCard = await readAuthReadyCard(signupPage).catch(() => null)
     const signupNotice = signupReadySignal.notice ?? await signupPage.locator('.authSessionNotice p').innerText().catch(() => null)
     const signupResumeButton = signupPage.getByRole('button', { name: '보드 저장 이어가기' })
@@ -1027,7 +1028,7 @@ async function runBrowserSmoke(playwright) {
     }
     const signupHashAfterResume = await signupPage.evaluate(() => globalThis.location.hash)
     await signupPage.reload({ waitUntil: 'domcontentloaded' })
-    const signupReloadedReady = await waitForAuthReadySignal(signupPage, { expectedAccountLabel: smokeSignupEmail })
+    const signupReloadedReady = await waitForAuthReadySignal(signupPage, { expectedAccountLabel: smokeSignupDisplayName })
     const signupReloadedNotice = signupReloadedReady.notice ?? null
     const signupReloadedAccountLabel = signupReloadedReady.accountLabel ?? await readVisibleAccountLabel(signupPage)
     await capture(signupPage, 'auth-signup-save-layout-ready.png')
