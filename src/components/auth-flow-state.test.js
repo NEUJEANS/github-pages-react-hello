@@ -583,6 +583,13 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
         nextAction: 'confirm-merge-resolution',
         status: 'action-required',
         statusLabel: '초안 병합 방향 확인 필요',
+        mergedGuestDraft: {
+          mode: 'merged',
+          wishlistCount: 5,
+          cartCount: 3,
+          layoutItemCount: 7,
+          recommendationDraftRestored: true,
+        },
       },
     }, {
       handoffId: 'auth-20260406123000-2n9c',
@@ -606,6 +613,13 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
       nextAction: 'confirm-merge-resolution',
       continuationStatus: 'action-required',
       continuationStatusLabel: '초안 병합 방향 확인 필요',
+      mergedDraft: {
+        mode: 'merged',
+        wishlistCount: 5,
+        cartCount: 3,
+        layoutItemCount: 7,
+        recommendationDraftRestored: true,
+      },
     },
   )
 })
@@ -654,8 +668,14 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
         tone: 'merge',
         message: 'Guest draft merge confirmation required',
         continuationStatusLabel: '초안 병합 방향 확인 필요',
+        mergedDraft: {
+          wishlistCount: 5,
+          cartCount: 3,
+          layoutItemCount: 7,
+          recommendationDraftRestored: true,
+        },
       },
     ),
-    /Guest draft merge confirmation required.*초안 병합 방향 확인 필요.*찜 2개.*장바구니 1개.*배치 3개/,
+    /Guest draft merge confirmation required.*초안 병합 방향 확인 필요.*찜 2개.*장바구니 1개.*배치 3개.*병합 후보 미리보기 찜 5개.*장바구니 3개.*배치 7개.*추천 초안 복원 포함/,
   )
 })

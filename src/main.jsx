@@ -2890,6 +2890,9 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                     <div className="loginGuardCard authPrepCard" data-auth-preview="merge-continuation-payload">
                       <strong>병합 방향 payload · 병합 재개 payload 미리보기</strong>
                       <p className="muted">이전에 멈춘 병합 확인을 같은 handoff / resume token으로 재개합니다. 프론트에서는 직렬화 가능한 mergeResolution 한 필드만 붙여 <code>{continuationEndpointLabel}</code>에 전달합니다.</p>
+                      {authErrorSummary?.mergedDraft && (
+                        <p className="muted">병합 후보 미리보기: 찜 {authErrorSummary.mergedDraft.wishlistCount}개 · 장바구니 {authErrorSummary.mergedDraft.cartCount}개 · 배치 {authErrorSummary.mergedDraft.layoutItemCount}개{authErrorSummary.mergedDraft.recommendationDraftRestored ? ' · 추천 초안 복원 포함' : ''}</p>
+                      )}
                       <div className="footerButtons stackOnMobile">
                         <button className="ghost" onClick={() => onChangeForm('mergeResolution', 'keep-guest')}>
                           {form.mergeResolution === 'keep-guest' ? '선택됨 · 현재 초안으로 계속' : '현재 초안으로 계속'}

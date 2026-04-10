@@ -331,6 +331,7 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
   }
 
   if (status === 409) {
+    const mergedDraft = readMergeDraft(data)
     return {
       tone: 'merge',
       message: message ?? '게스트 초안 병합 확인이 필요해요. 현재 초안은 그대로 보관되어 있어요.',
@@ -340,6 +341,17 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
       nextAction: normalizeContinuationNextAction(data.nextAction ?? null),
       continuationStatus: data.status ?? null,
       continuationStatusLabel: data.statusLabel ?? null,
+      mergedDraft: mergedDraft
+        ? {
+            mode: mergedDraft.mode ?? mergedDraft.status ?? null,
+            wishlistCount: readMergeCount(mergedDraft.wishlistCount, fallbackSummary.wishlistCount ?? 0),
+            cartCount: readMergeCount(mergedDraft.cartCount, fallbackSummary.cartCount ?? 0),
+            layoutItemCount: readMergeCount(mergedDraft.layoutItemCount, fallbackSummary.layoutItemCount ?? 0),
+            recommendationDraftRestored: typeof mergedDraft.recommendationDraftRestored === 'boolean'
+              ? mergedDraft.recommendationDraftRestored
+              : (fallbackSummary.hasRecommendationDraft ?? false),
+          }
+        : null,
     }
   }
 
@@ -391,7 +403,12 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
   }
   if (status === 'error') {
     if (errorSummary?.tone === 'credentials') return `${errorSummary.message} · 게스트 초안은 유지되어 다시 시도할 수 있어요.`
-    if (errorSummary?.tone === 'merge') return `${errorSummary.message}${errorSummary.continuationStatusLabel ? ` · ${errorSummary.continuationStatusLabel}` : errorSummary.continuationStatus ? ` · ${errorSummary.continuationStatus}` : ''} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개 handoff 기록을 유지합니다. 계속 진행하면 같은 초안으로 병합 방향을 확정할 수 있어요.`
+    if (errorSummary?.tone === 'merge') {
+      const mergedDraftCopy = errorSummary.mergedDraft
+        ? ` · 병합 후보 미리보기 찜 ${errorSummary.mergedDraft.wishlistCount}개 · 장바구니 ${errorSummary.mergedDraft.cartCount}개 · 배치 ${errorSummary.mergedDraft.layoutItemCount}개${errorSummary.mergedDraft.recommendationDraftRestored ? ' · 추천 초안 복원 포함' : ''}`
+        : ''
+      return `${errorSummary.message}${errorSummary.continuationStatusLabel ? ` · ${errorSummary.continuationStatusLabel}` : errorSummary.continuationStatus ? ` · ${errorSummary.continuationStatus}` : ''} · 찜 ${summary.wishlistCount}개 · 장바구니 ${summary.cartCount}개 · 배치 ${summary.layoutItemCount}개 handoff 기록을 유지합니다.${mergedDraftCopy} 계속 진행하면 같은 초안으로 병합 방향을 확정할 수 있어요.`
+    }
     if (errorSummary?.tone === 'service') {
       if (connectionSummary?.isSameOriginScaffold) {
         return `${errorSummary.message} · 현재는 ${connectionSummary.targetLabel} 대상만 준비되어 있어서, auth base URL 또는 백엔드 라우트가 연결되면 같은 초안으로 다시 이어갈 수 있어요.`
