@@ -971,7 +971,7 @@ async function runBrowserSmoke(playwright) {
   try {
     const signupPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(signupPage)
-    await signupPage.goto(`${baseUrl}#layout`, { waitUntil: 'networkidle' })
+    await signupPage.goto(`${baseUrl}#layout`, { waitUntil: 'domcontentloaded' })
     await signupPage.getByRole('button', { name: '로그인 후 보드 저장' }).click()
     await continuePastGuardIfPresent(signupPage)
     await signupPage.locator('.authModeSwitch').getByRole('button', { name: '회원가입' }).click()
@@ -990,7 +990,7 @@ async function runBrowserSmoke(playwright) {
       await signupPage.locator('.loginPanel').waitFor({ state: 'hidden' })
     }
     const signupHashAfterResume = await signupPage.evaluate(() => globalThis.location.hash)
-    await signupPage.reload({ waitUntil: 'networkidle' })
+    await signupPage.reload({ waitUntil: 'domcontentloaded' })
     const signupReloadedReady = await waitForAuthReadySignal(signupPage, { expectedAccountLabel: smokeSignupEmail })
     const signupReloadedNotice = signupReloadedReady.notice ?? null
     const signupReloadedAccountLabel = signupReloadedReady.accountLabel ?? await readVisibleAccountLabel(signupPage)
@@ -999,7 +999,7 @@ async function runBrowserSmoke(playwright) {
 
     const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(page)
-    await page.goto(baseUrl, { waitUntil: 'networkidle' })
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' })
 
     await openLogin(page)
     await continuePastGuardIfPresent(page)
@@ -1018,14 +1018,14 @@ async function runBrowserSmoke(playwright) {
         : 'account-badge-updated-after-direct-login'
     const notice = directReady.notice ?? null
     const accountLabel = directReady.accountLabel ?? await page.locator('.accountTrigger span').last().innerText()
-    await page.reload({ waitUntil: 'networkidle' })
+    await page.reload({ waitUntil: 'domcontentloaded' })
     const directReloadReady = await waitForAuthReadySignal(page, { expectedAccountLabel: 'user@example.com' })
     const reloadedNotice = directReloadReady.notice ?? null
     const reloadedAccountLabel = directReloadReady.accountLabel ?? await page.locator('.accountTrigger span').last().innerText()
     await page.getByRole('button', { name: '로그아웃' }).click()
     const loggedOut = await waitForLoggedOutSignal(page)
     const postLogoutLabel = loggedOut.accountLabel
-    await page.reload({ waitUntil: 'networkidle' })
+    await page.reload({ waitUntil: 'domcontentloaded' })
     const postLogoutTrigger = getAccountTrigger(page)
     await postLogoutTrigger.waitFor()
     const postLogoutReloadedLabel = await postLogoutTrigger.innerText()
@@ -1034,7 +1034,7 @@ async function runBrowserSmoke(playwright) {
 
     const saveDraftPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(saveDraftPage)
-    await saveDraftPage.goto(`${baseUrl}#layout`, { waitUntil: 'networkidle' })
+    await saveDraftPage.goto(`${baseUrl}#layout`, { waitUntil: 'domcontentloaded' })
     await saveDraftPage.getByRole('button', { name: '로그인 후 보드 저장' }).click()
     await continuePastGuardIfPresent(saveDraftPage)
     await submitLogin(saveDraftPage, {
@@ -1048,7 +1048,7 @@ async function runBrowserSmoke(playwright) {
     await saveDraftPage.getByRole('button', { name: '보드 저장 이어가기' }).click()
     await saveDraftPage.locator('.loginPanel').waitFor({ state: 'hidden' })
     const saveDraftHashAfterResume = await saveDraftPage.evaluate(() => globalThis.location.hash)
-    await saveDraftPage.reload({ waitUntil: 'networkidle' })
+    await saveDraftPage.reload({ waitUntil: 'domcontentloaded' })
     await saveDraftPage.locator('.authSessionNotice').waitFor()
     await getAccountTrigger(saveDraftPage).click()
     await saveDraftPage.getByRole('button', { name: '보드 저장 이어가기' }).waitFor()
@@ -1058,7 +1058,7 @@ async function runBrowserSmoke(playwright) {
 
     const mergePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(mergePage)
-    await mergePage.goto(baseUrl, { waitUntil: 'networkidle' })
+    await mergePage.goto(baseUrl, { waitUntil: 'domcontentloaded' })
 
     await mergePage.getByRole('button', { name: '장바구니 담기' }).first().click()
     const openCartButton = mergePage.getByRole('button', { name: '장바구니 열기' })
@@ -1094,7 +1094,7 @@ async function runBrowserSmoke(playwright) {
     if (!mergeReadyCard.primaryAction.includes('현재 초안으로 계속')) {
       throw new Error(`Merge continuation state did not preserve the selected keep-guest path. Saw: ${JSON.stringify(mergeReadyCard)}`)
     }
-    await mergePage.reload({ waitUntil: 'networkidle' })
+    await mergePage.reload({ waitUntil: 'domcontentloaded' })
     const mergeReloadedReadyCard = await readAuthReadyCard(mergePage)
     if (mergeReloadedReadyCard.primaryAction !== mergeReadyCard.primaryAction) {
       throw new Error(`Merge continuation action changed across reload. Before: ${JSON.stringify(mergeReadyCard)} After: ${JSON.stringify(mergeReloadedReadyCard)}`)
@@ -1106,7 +1106,7 @@ async function runBrowserSmoke(playwright) {
 
     const completeProfilePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(completeProfilePage)
-    await completeProfilePage.goto(baseUrl, { waitUntil: 'networkidle' })
+    await completeProfilePage.goto(baseUrl, { waitUntil: 'domcontentloaded' })
     await openLogin(completeProfilePage)
     await continuePastGuardIfPresent(completeProfilePage)
     await submitLogin(completeProfilePage, {
@@ -1119,7 +1119,7 @@ async function runBrowserSmoke(playwright) {
     const completeProfileReadyDisabled = await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).isDisabled()
     await completeProfilePage.getByPlaceholder('홍길동').fill('Havenly User')
     await completeProfilePage.getByPlaceholder('010-1234-5678').fill('010-1234-5678')
-    await completeProfilePage.reload({ waitUntil: 'networkidle' })
+    await completeProfilePage.reload({ waitUntil: 'domcontentloaded' })
     await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).waitFor()
     const completeProfileReloadedStatus = await completeProfilePage.locator('.authPrepCard .muted').first().innerText()
     const completeProfileReloadedReadyCard = await readAuthReadyCard(completeProfilePage)
@@ -1140,7 +1140,7 @@ async function runBrowserSmoke(playwright) {
 
     const verifyEmailPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(verifyEmailPage)
-    await verifyEmailPage.goto(baseUrl, { waitUntil: 'networkidle' })
+    await verifyEmailPage.goto(baseUrl, { waitUntil: 'domcontentloaded' })
     await openLogin(verifyEmailPage)
     await continuePastGuardIfPresent(verifyEmailPage)
     await submitLogin(verifyEmailPage, {
@@ -1152,7 +1152,7 @@ async function runBrowserSmoke(playwright) {
     const verifyEmailReadyCard = await readAuthReadyCard(verifyEmailPage)
     const verifyEmailReadyDisabled = await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).isDisabled()
     await verifyEmailPage.getByPlaceholder('123456').fill('123456')
-    await verifyEmailPage.reload({ waitUntil: 'networkidle' })
+    await verifyEmailPage.reload({ waitUntil: 'domcontentloaded' })
     await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).waitFor()
     const verifyEmailReloadedStatus = await verifyEmailPage.locator('.authPrepCard .muted').first().innerText()
     const verifyEmailReloadedReadyCard = await readAuthReadyCard(verifyEmailPage)

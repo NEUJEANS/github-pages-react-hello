@@ -22,7 +22,6 @@ import {
 } from './components/auth-flow-state.js'
 import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan, submitAuthSignupPlan } from './components/auth-submit.js'
 import { resolveAuthConfig } from './components/auth-config.js'
-import { buildAuthWiringState } from './components/auth-wiring-state.js'
 import {
   buildAuthConnectionSummary,
   buildAuthReadyState,
@@ -864,11 +863,6 @@ function App() {
     () => resolveAuthConfig({ env: import.meta.env }),
     [],
   )
-  const authWiringState = React.useMemo(
-    () => buildAuthWiringState(authConfig),
-    [authConfig],
-  )
-
   const authDraftSavePayload = React.useMemo(
     () => buildAuthDraftSavePayload(
       loginForm.draftSave,
@@ -1957,7 +1951,6 @@ function App() {
             hasResumeConnectionDrift={hasResumeConnectionDrift}
             authConnectionDriftSummary={authConnectionDriftSummary}
             authReadyPanelState={activeAuthReadyPanelState}
-            authWiringState={authWiringState}
             guestDraftSnapshot={guestDraftSnapshot}
             onChangeForm={handleLoginFormChange}
             onChangeContinuationField={handleAuthContinuationFieldChange}
