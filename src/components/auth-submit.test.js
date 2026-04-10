@@ -1009,6 +1009,7 @@ test('signOutAuthSession posts to the configured logout endpoint with credential
     options: {
       method: 'POST',
       credentials: 'same-origin',
+      keepalive: true,
       headers: {
         [AUTH_CONNECTION_METHOD_HEADER]: 'POST',
         [AUTH_CONNECTION_ENDPOINT_HEADER]: '/api/auth/logout',

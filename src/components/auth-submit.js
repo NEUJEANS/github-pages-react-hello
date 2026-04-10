@@ -718,6 +718,7 @@ export async function signOutAuthSession({
     const { response, data, treatAsDocumentFallback, meta } = await requestAuthJson(resolvedEndpoint, {
       method: 'POST',
       credentials: credentialsMode,
+      keepalive: true,
       headers: connectionHeaders,
     }, { fetchImpl })
 
