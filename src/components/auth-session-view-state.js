@@ -148,6 +148,40 @@ function buildActionChecklist(nextAction, { resumeToken = null, connectionLabel 
   }
 }
 
+function buildContinuationSubtitle(nextAction = null, mergeMode = null) {
+  switch (nextAction) {
+    case 'complete-profile':
+      return '로그인은 연결됐지만 프로필 보완이 남아 있어요.'
+    case 'verify-email':
+      return '로그인은 연결됐지만 이메일 인증 확인이 남아 있어요.'
+    case 'confirm-merge-resolution':
+      return '로그인은 연결됐지만 초안 병합 방향 확인이 남아 있어요.'
+    default:
+      return mergeMode === 'merged'
+        ? '게스트 초안을 계정에 이어붙인 상태예요.'
+        : mergeMode === 'replaced'
+          ? '계정 상태로 전환된 상태예요.'
+          : '현재 로그인 연결이 유지되고 있어요.'
+  }
+}
+
+function buildContinuationNoticeCopy(nextAction = null, statusLabel = null) {
+  const explicitLabel = typeof statusLabel === 'string' ? statusLabel.trim() : ''
+
+  if (explicitLabel) return ` 현재 단계: ${explicitLabel}.`
+
+  switch (nextAction) {
+    case 'complete-profile':
+      return ' 현재 단계: 프로필 보완 필요.'
+    case 'verify-email':
+      return ' 현재 단계: 이메일 인증 필요.'
+    case 'confirm-merge-resolution':
+      return ' 현재 단계: 초안 병합 방향 확인 필요.'
+    default:
+      return ''
+  }
+}
+
 function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
   switch (nextAction) {
     case 'save-layout-draft':
@@ -333,11 +367,7 @@ function buildAuthContinuationPanelState({
   const returnScreen = intent?.returnScreen ?? null
 
   const title = `${accountLabel} 계정 연결됨`
-  const subtitle = mergeMode === 'merged'
-    ? '게스트 초안을 계정에 이어붙인 상태예요.'
-    : mergeMode === 'replaced'
-      ? '계정 상태로 전환된 상태예요.'
-      : '현재 로그인 연결이 유지되고 있어요.'
+  const subtitle = buildContinuationSubtitle(nextAction, mergeMode)
 
   const preferredConnection = shouldUseContinuationConnection(nextAction) && actionConnection
     ? actionConnection
@@ -478,13 +508,14 @@ export function buildAuthSessionNotice(session) {
   const connectionCopy = session.connection?.targetLabel
     ? ` 로그인 요청 대상은 ${session.connection.targetLabel}${session.connection.endpoint ? ` (${session.connection.endpoint})` : ''}로 기록해뒀어요.`
     : ''
+  const continuationCopy = buildContinuationNoticeCopy(session.continuation?.nextAction ?? null, session.continuation?.statusLabel ?? null)
   const intentCopy = buildIntentCopy(session.intent)
 
   return {
     title: `${session.accountLabel} 계정 연결됨`,
     body: restoredBits.length
-      ? `${mergeLabel}${draftContextCopy}${draftSaveCopy}${handoffCopy}${transportCopy}${connectionCopy}${intentCopy} ${restoredBits.join(' · ')} 복원 내용을 이번 세션에 반영했어요.`.trim()
-      : `${mergeLabel}${draftContextCopy}${draftSaveCopy}${handoffCopy}${transportCopy}${connectionCopy}${intentCopy}`.trim(),
+      ? `${mergeLabel}${draftContextCopy}${draftSaveCopy}${handoffCopy}${transportCopy}${connectionCopy}${continuationCopy}${intentCopy} ${restoredBits.join(' · ')} 복원 내용을 이번 세션에 반영했어요.`.trim()
+      : `${mergeLabel}${draftContextCopy}${draftSaveCopy}${handoffCopy}${transportCopy}${connectionCopy}${continuationCopy}${intentCopy}`.trim(),
     restoredBits,
     draftContextBits,
     draftSaveBits,

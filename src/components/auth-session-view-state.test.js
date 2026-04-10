@@ -371,7 +371,7 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     },
   }), {
     title: 'user@example.com 계정 연결됨',
-    subtitle: '현재 로그인 연결이 유지되고 있어요.',
+    subtitle: '로그인은 연결됐지만 프로필 보완이 남아 있어요.',
     restoredBits: [],
     draftContextBits: [],
     draftSaveBits: [],
@@ -433,7 +433,7 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     },
   }), {
     title: 'user@example.com 계정 연결됨',
-    subtitle: '현재 로그인 연결이 유지되고 있어요.',
+    subtitle: '로그인은 연결됐지만 이메일 인증 확인이 남아 있어요.',
     restoredBits: [],
     draftContextBits: [],
     draftSaveBits: [],
@@ -543,7 +543,7 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     },
   }), {
     title: 'merge@example.com 계정 연결됨',
-    subtitle: '현재 로그인 연결이 유지되고 있어요.',
+    subtitle: '로그인은 연결됐지만 초안 병합 방향 확인이 남아 있어요.',
     restoredBits: [],
     draftContextBits: [],
     draftSaveBits: [],
@@ -623,7 +623,7 @@ test('buildAuthResumePanelState exposes pending action-required handoffs without
     },
   }), {
     title: 'verify@example.com 계정 연결됨',
-    subtitle: '현재 로그인 연결이 유지되고 있어요.',
+    subtitle: '로그인은 연결됐지만 이메일 인증 확인이 남아 있어요.',
     restoredBits: [],
     draftContextBits: ['래미안 포레스트 84A', '공간 1개', '거실 추천'],
     draftSaveBits: ['초안 거실 저장 초안', '선택 공간 1개', '저장 배치 2개'],
@@ -836,4 +836,22 @@ test('buildAuthSessionNotice falls back gracefully when nothing was restored', (
   })
 
   assert.equal(buildAuthSessionNotice(null), null)
+})
+
+test('buildAuthSessionNotice surfaces backend continuation blockers in the restored session copy', () => {
+  assert.deepEqual(buildAuthSessionNotice({
+    accountLabel: 'verify@example.com',
+    mergeMode: 'merged',
+    continuation: {
+      nextAction: 'verify-email',
+      status: 'action-required',
+      statusLabel: '이메일 인증 필요',
+    },
+  }), {
+    title: 'verify@example.com 계정 연결됨',
+    body: '게스트 초안을 계정에 이어붙였어요. 현재 단계: 이메일 인증 필요.',
+    restoredBits: [],
+    draftContextBits: [],
+    draftSaveBits: [],
+  })
 })
