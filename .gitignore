@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.data/
 playwright-artifacts/
 live-test-artifacts-*/
 test-artifacts-*/
