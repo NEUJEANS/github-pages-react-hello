@@ -1085,6 +1085,7 @@ function App() {
         const resultSummary = buildAuthResultSummary(result, bootstrapFallbackSummary)
         const nextSession = buildPersistedAuthSession(resultSummary, {
           connection: resultSummary?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary ?? sessionConnection,
+          actionConnection: persistedAuthSession?.actionConnection ?? persistedAuthHandoff?.actionConnection ?? authContinuationConnectionSummary,
           continuation: buildSerializableAuthContinuation(result?.data),
           continuationFields: persistedAuthSession?.continuationFields ?? persistedAuthHandoff?.continuationFields ?? null,
           draftSave: persistedAuthSession?.draftSave ?? persistedAuthHandoff?.draftSave ?? null,
@@ -1159,7 +1160,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [authConfig, authLoginConnectionSummary, persistedAuthHandoff, persistedAuthSession])
+  }, [authConfig, authContinuationConnectionSummary, authLoginConnectionSummary, persistedAuthHandoff, persistedAuthSession])
 
   React.useEffect(() => {
     setAuthNoticeDismissed(false)
@@ -1392,6 +1393,7 @@ function App() {
       const nextSession = buildPersistedAuthSession(nextResultSummary, {
         intent: authSession.intent ?? loginForm.intent ?? null,
         connection: submittedConnection ?? nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
+        actionConnection: authSession.actionConnection ?? authContinuationConnectionSummary,
         continuation: submittedContinuation,
         continuationFields: pickPersistedAuthContinuationFields(submittedContinuation, authContinuationFields),
         draftSave: authSession.draftSave ?? authDraftSavePayload,
@@ -1543,6 +1545,7 @@ function App() {
         const nextSession = buildPersistedAuthSession(nextResultSummary, {
           intent: nextIntent,
           connection: persistedConnection ?? nextResultSummary.connection ?? currentAuthSession?.connection ?? currentHandoff?.connection ?? authConnectionSummary,
+          actionConnection: currentAuthSession?.actionConnection ?? currentHandoff?.actionConnection ?? authContinuationConnectionSummary,
           continuation: nextContinuation,
           continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
           draftSave: currentAuthSession?.draftSave ?? currentHandoff?.draftSave ?? authDraftSavePayload,
@@ -1608,7 +1611,7 @@ function App() {
         },
       }))
     }
-  }, [authConfig, authConnectionSummary, authContinuationFields, authContinuationPlan, authDraftSavePayload, authSession, loginForm.handoff, loginForm.handoffId, loginForm.intent, navigate, persistedAuthSession, screen])
+  }, [authConfig, authConnectionSummary, authContinuationConnectionSummary, authContinuationFields, authContinuationPlan, authDraftSavePayload, authSession, loginForm.handoff, loginForm.handoffId, loginForm.intent, navigate, persistedAuthSession, screen])
 
   const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
     const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null
@@ -1661,6 +1664,7 @@ function App() {
       globalThis.sessionStorage,
       buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
         connection: authConnectionSummary,
+        actionConnection: authContinuationConnectionSummary,
         continuation: shouldResolveMergeViaContinuation ? loginForm.continuation : null,
         continuationFields: shouldResolveMergeViaContinuation
           ? { mergeResolution: nextMergeResolution }
@@ -1700,6 +1704,7 @@ function App() {
           guestDraftSnapshot,
           intent: submitPlan.summary.intent,
           connection: persistedConnection ?? nextResultSummary.connection ?? authConnectionSummary,
+          actionConnection: authContinuationConnectionSummary,
           continuation: nextContinuation,
           continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
           draftSave: authDraftSavePayload,
@@ -1729,6 +1734,7 @@ function App() {
           globalThis.sessionStorage,
           buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
             connection: nextConnection,
+            actionConnection: authContinuationConnectionSummary,
             continuation: nextContinuation,
             continuationFields: shouldResolveMergeViaContinuation
               ? { mergeResolution: nextMergeResolution }
@@ -1769,7 +1775,7 @@ function App() {
         mergeResolution: nextMergeResolution,
       }))
     }
-  }, [authConfig, authConnectionSummary, authContinuationFields, authDraftSavePayload, authSignupPlan, cart, editor, guestDraftSnapshot, loginForm.continuation, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.mode, loginForm.password, screen])
+  }, [authConfig, authConnectionSummary, authContinuationConnectionSummary, authContinuationFields, authDraftSavePayload, authSignupPlan, cart, editor, guestDraftSnapshot, loginForm.continuation, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.mode, loginForm.password, screen])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),

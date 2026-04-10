@@ -579,6 +579,16 @@ test('buildPersistedAuthHandoff keeps the serialized draft-save handoff alongsid
       spaceProfile: { spaces: ['living', 'bed1'] },
     },
     {
+      actionConnection: {
+        method: 'POST',
+        endpoint: '/api/auth/continue',
+        resolvedUrl: 'https://api.example.com/api/auth/continue',
+        targetLabel: 'api.example.com',
+        credentialsMode: 'include',
+        source: 'runtime',
+        isExternal: true,
+        isSameOriginScaffold: false,
+      },
       draftSave: {
         draftLabel: ' 거실 배치 보드 ',
         apartmentLabel: ' 래미안 포레스트 84A ',
@@ -589,6 +599,16 @@ test('buildPersistedAuthHandoff keeps the serialized draft-save handoff alongsid
     },
   )
 
+  assert.deepEqual(handoff.actionConnection, {
+    method: 'POST',
+    endpoint: '/api/auth/continue',
+    resolvedUrl: 'https://api.example.com/api/auth/continue',
+    targetLabel: 'api.example.com',
+    credentialsMode: 'include',
+    source: 'runtime',
+    isExternal: true,
+    isSameOriginScaffold: false,
+  })
   assert.deepEqual(handoff.draftSave, {
     draftLabel: '거실 배치 보드',
     apartmentLabel: '래미안 포레스트 84A',
@@ -790,6 +810,7 @@ test('buildAuthReadyState revives a bootstrapped scaffold session into the login
       credentialsMode: 'include',
       source: 'default',
     },
+    actionConnection: null,
     continuation: {
       resumeToken: 'resume-session-123',
       nextAction: 'resume-layout-checkout',
@@ -942,6 +963,16 @@ test('persistAuthSession stores the latest successful auth summary for the front
       credentialsMode: 'include',
       source: 'default',
     },
+    actionConnection: {
+      method: 'POST',
+      endpoint: '/api/auth/continue',
+      resolvedUrl: '/api/auth/continue',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
     continuationFields: {
       displayName: '홍길동',
       phone: '010-1234-5678',
@@ -975,6 +1006,16 @@ test('persistAuthSession stores the latest successful auth summary for the front
     method: 'POST',
     endpoint: '/api/auth/login',
     resolvedUrl: '/api/auth/login',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode: 'include',
+    source: 'default',
+  })
+  assert.deepEqual(session.actionConnection, {
+    method: 'POST',
+    endpoint: '/api/auth/continue',
+    resolvedUrl: '/api/auth/continue',
     targetLabel: 'same-origin /api auth scaffold',
     isExternal: false,
     isSameOriginScaffold: true,

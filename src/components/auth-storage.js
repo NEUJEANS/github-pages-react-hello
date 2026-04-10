@@ -223,7 +223,7 @@ function buildSerializableAuthHandoffResult(result = null) {
   }
 }
 
-export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedAt = new Date().toISOString(), connection = null, continuation = null, continuationFields = null, draftSave = null, result = null } = {}) {
+export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedAt = new Date().toISOString(), connection = null, actionConnection = null, continuation = null, continuationFields = null, draftSave = null, result = null } = {}) {
   return {
     submittedAt,
     handoffId: plan.handoffId ?? plan.summary?.handoffId ?? null,
@@ -235,6 +235,7 @@ export function buildPersistedAuthHandoff(plan, guestDraftSnapshot, { submittedA
       intent: buildSerializableAuthIntent(plan.summary?.intent),
     },
     connection: buildSerializableAuthConnection(connection),
+    actionConnection: buildSerializableAuthConnection(actionConnection),
     continuation: buildSerializableAuthContinuation(continuation),
     continuationFields: buildSerializableAuthContinuationFields(continuationFields),
     draftSave: buildSerializableDraftSave(draftSave),
@@ -339,7 +340,7 @@ function buildSerializableAuthAccountState(accountState = null) {
   }
 }
 
-export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null, connection = null, continuation = null, continuationFields = null, draftSave = null, accountState = null } = {}) {
+export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = null, savedAt = new Date().toISOString(), intent = null, connection = null, actionConnection = null, continuation = null, continuationFields = null, draftSave = null, accountState = null } = {}) {
   const persistedDraftSave = buildSerializableDraftSave(draftSave ?? resultSummary?.draftSave ?? null)
   const derivedGuestDraftSummary = guestDraftSnapshot
     ? buildGuestDraftSessionSummary(guestDraftSnapshot)
@@ -364,6 +365,7 @@ export function buildPersistedAuthSession(resultSummary, { guestDraftSnapshot = 
     authTransport: resultSummary?.authTransport ?? 'network',
     intent: buildSerializableAuthIntent(intent ?? resultSummary?.intent ?? null),
     connection: buildSerializableAuthConnection(connection),
+    actionConnection: buildSerializableAuthConnection(actionConnection),
     continuation: buildSerializableAuthContinuation(continuation ?? resultSummary),
     continuationFields: buildSerializableAuthContinuationFields(continuationFields ?? resultSummary?.continuationFields ?? null),
     guestDraftSummary: derivedGuestDraftSummary,
@@ -423,6 +425,7 @@ export function buildAuthResumeState(handoff, session = null) {
     mergeResolution: handoff.summary?.mergeResolution ?? null,
     intent: buildSerializableAuthIntent(handoff.summary?.intent ?? session?.intent ?? null),
     connection: buildSerializableAuthConnection(handoff.connection ?? session?.connection ?? null),
+    actionConnection: buildSerializableAuthConnection(handoff.actionConnection ?? session?.actionConnection ?? null),
     continuation: buildSerializableAuthContinuation(handoff.continuation ?? session?.continuation ?? null),
     continuationFields: buildSerializableAuthContinuationFields(handoff.continuationFields ?? session?.continuationFields ?? null),
     draftSave: buildSerializableDraftSave(handoff.draftSave ?? session?.draftSave ?? null),
@@ -449,6 +452,7 @@ export function buildAuthReadyState(session = null, { intent = null } = {}) {
     mergeResolution: null,
     intent: buildSerializableAuthIntent(intent ?? session.intent ?? null),
     connection: buildSerializableAuthConnection(session.connection ?? null),
+    actionConnection: buildSerializableAuthConnection(session.actionConnection ?? null),
     continuation: buildSerializableAuthContinuation(session.continuation ?? null),
     continuationFields: buildSerializableAuthContinuationFields(session.continuationFields ?? null),
     draftSave: buildSerializableDraftSave(session.draftSave ?? null),

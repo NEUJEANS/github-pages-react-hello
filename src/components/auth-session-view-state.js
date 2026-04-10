@@ -405,7 +405,7 @@ export function buildAuthReadyPanelState(session = null, { actionConnection = nu
     connection: session.connection ?? null,
     guestDraftSummary: session.guestDraftSummary ?? null,
     draftSave: session.draftSave ?? null,
-  }, { actionConnection })
+  }, { actionConnection: actionConnection ?? session.actionConnection ?? null })
 }
 
 export function buildAuthResumePanelState(handoff = null, { session = null, actionConnection = null } = {}) {
@@ -429,7 +429,7 @@ export function buildAuthResumePanelState(handoff = null, { session = null, acti
     connection: handoff.connection ?? session?.connection ?? null,
     guestDraftSummary: handoff.guestDraftSummary ?? handoff.summary ?? session?.guestDraftSummary ?? null,
     draftSave: handoff.draftSave ?? session?.draftSave ?? null,
-  }, { actionConnection })
+  }, { actionConnection: actionConnection ?? handoff?.actionConnection ?? session?.actionConnection ?? null })
 }
 
 export function shouldAutoOpenAuthReadyPanel(session = null, modalState = 'closed') {

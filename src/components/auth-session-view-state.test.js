@@ -700,6 +700,51 @@ test('buildAuthReadyPanelState carries a configured continuation endpoint into t
   assert.deepEqual(state.actionPayloadPreview.fieldKeys, ['displayName', 'phone'])
 })
 
+test('buildAuthReadyPanelState falls back to the persisted action connection for action-required backend resumes', () => {
+  const state = buildAuthReadyPanelState({
+    accountLabel: 'verify@example.com',
+    handoffId: 'auth-verify-123',
+    continuation: {
+      nextAction: 'verify-email',
+      resumeToken: 'auth-verify-123:resume',
+      status: 'action-required',
+    },
+    connection: {
+      targetLabel: 'remote auth service',
+      endpoint: '/api/auth/login',
+    },
+    actionConnection: {
+      targetLabel: 'remote auth service',
+      endpoint: '/persisted/auth/continue',
+    },
+  })
+
+  assert.equal(state.actionPayloadPreview.continuationEndpoint, '/persisted/auth/continue')
+  assert.equal(state.connectionEndpoint, '/persisted/auth/continue')
+  assert.equal(state.connectionLabel, 'remote auth service')
+})
+
+
+test('buildAuthResumePanelState falls back to the persisted handoff action connection for merge confirmation resumes', () => {
+  const state = buildAuthResumePanelState({
+    email: 'merge@example.com',
+    handoffId: 'auth-merge-123',
+    actionConnection: {
+      targetLabel: 'remote auth service',
+      endpoint: '/persisted/auth/continue',
+    },
+    continuation: {
+      nextAction: 'confirm-merge-resolution',
+      resumeToken: 'auth-merge-123:merge',
+      status: 'action-required',
+    },
+  })
+
+  assert.equal(state.actionPayloadPreview.continuationEndpoint, '/persisted/auth/continue')
+  assert.equal(state.connectionEndpoint, '/persisted/auth/continue')
+  assert.deepEqual(state.actionPayloadPreview.fieldKeys, ['mergeResolution'])
+})
+
 test('shouldAutoOpenAuthReadyPanel reopens the login modal for action-required auth continuations', () => {
   assert.equal(shouldAutoOpenAuthReadyPanel(null), false)
   assert.equal(shouldAutoOpenAuthReadyPanel({ accountLabel: 'user@example.com' }), false)
