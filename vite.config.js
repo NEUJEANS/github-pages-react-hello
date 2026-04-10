@@ -174,6 +174,8 @@ async function proxyAuthRequest(req, res, requestPath, { proxyBaseUrl }) {
     [AUTH_HANDOFF_HEADER]: req.headers[AUTH_HANDOFF_HEADER] ?? "",
     [AUTH_RESUME_TOKEN_HEADER]: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? "",
     [AUTH_NEXT_ACTION_HEADER]: req.headers[AUTH_NEXT_ACTION_HEADER] ?? "",
+    "x-forwarded-host": req.headers.host ?? "",
+    "x-forwarded-proto": req.headers['x-forwarded-proto'] ?? "http",
   }
 
   if (req.headers.cookie) {

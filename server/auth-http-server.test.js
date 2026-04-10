@@ -94,6 +94,44 @@ test('auth http server preserves continuation headers for merge blockers', async
   })
 })
 
+test('auth http server prefers forwarded host/proto for action continuation metadata', async () => {
+  await withTempCwd(async () => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { startAuthHttpServer } = await import(moduleUrl)
+    const authServer = await startAuthHttpServer()
+
+    try {
+      const response = await fetch(`${authServer.url}/api/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-forwarded-host': '127.0.0.1:4176',
+          'x-forwarded-proto': 'http',
+        },
+        body: JSON.stringify({
+          email: 'forwarded-user@example.com',
+          password: 'password123',
+          displayName: 'Forwarded User',
+          handoffId: 'forwarded-host-001',
+          intent: {
+            action: 'save-layout-draft',
+            label: '보드 저장 이어가기',
+            returnScreen: 'layout',
+          },
+        }),
+      })
+
+      assert.equal(response.status, 200)
+      const payload = await response.json()
+      assert.equal(payload.actionConnection?.endpoint, '/api/auth/continue')
+      assert.equal(payload.actionConnection?.targetLabel, '127.0.0.1:4176')
+      assert.equal(payload.actionConnection?.resolvedUrl, 'http://127.0.0.1:4176/api/auth/continue')
+    } finally {
+      await authServer.close()
+    }
+  })
+})
+
 test('auth http server completes merge continuation through cookies and persists the resulting session in sqlite', async () => {
   await withTempCwd(async () => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`

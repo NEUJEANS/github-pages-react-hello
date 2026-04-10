@@ -112,14 +112,24 @@ function readAuthConnection(req, requestPath) {
   }
 }
 
+function readForwardedOrigin(req) {
+  const host = req.headers['x-forwarded-host'] ?? req.headers.host ?? '127.0.0.1'
+  const protocol = req.headers['x-forwarded-proto'] ?? 'http'
+
+  return {
+    host,
+    protocol: typeof protocol === 'string' && protocol.trim() ? protocol.trim() : 'http',
+  }
+}
+
 function buildActionConnection(req) {
-  const host = req.headers.host ?? '127.0.0.1'
+  const forwardedOrigin = readForwardedOrigin(req)
 
   return {
     method: 'POST',
     endpoint: '/api/auth/continue',
-    resolvedUrl: `http://${host}/api/auth/continue`,
-    targetLabel: host,
+    resolvedUrl: `${forwardedOrigin.protocol}://${forwardedOrigin.host}/api/auth/continue`,
+    targetLabel: forwardedOrigin.host,
     isExternal: false,
     isSameOriginScaffold: false,
     credentialsMode: req.headers[AUTH_CONNECTION_CREDENTIALS_HEADER] ?? 'include',
