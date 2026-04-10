@@ -33,6 +33,38 @@ function parseJson(value, fallback = null) {
   }
 }
 
+function hashPassword(password = '') {
+  const salt = crypto.randomBytes(16).toString('hex')
+  const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex')
+  return `scrypt$${salt}$${derivedKey}`
+}
+
+function isPasswordHash(password = '') {
+  return typeof password === 'string' && password.startsWith('scrypt$')
+}
+
+function ensureStoredPassword(password = '') {
+  return isPasswordHash(password) ? password : hashPassword(password)
+}
+
+function verifyPassword(password = '', storedPassword = '') {
+  if (!storedPassword) return false
+
+  if (!isPasswordHash(storedPassword)) {
+    return password === storedPassword
+  }
+
+  const [, salt, expectedKey] = storedPassword.split('$')
+  if (!salt || !expectedKey) return false
+
+  const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex')
+  const expectedBuffer = Buffer.from(expectedKey, 'hex')
+  const derivedBuffer = Buffer.from(derivedKey, 'hex')
+
+  return expectedBuffer.length === derivedBuffer.length
+    && crypto.timingSafeEqual(expectedBuffer, derivedBuffer)
+}
+
 function buildUser({ email, password, name, createdAt = new Date().toISOString(), profile = null, verifiedAt = null, accountState = null }) {
   return {
     email,
@@ -110,12 +142,14 @@ function ensureDatabase() {
       VALUES (?, ?, ?)
     `)
 
-    const seedTransaction = database.transaction(() => {
+    try {
+      database.exec('BEGIN')
+
       Object.values(initialUsers).forEach((user) => {
         const normalized = buildUser(user)
         insertUser.run(
           normalized.email,
-          normalized.password,
+          ensureStoredPassword(normalized.password),
           normalized.name,
           normalized.createdAt,
           serializeJson(normalized.profile),
@@ -140,9 +174,12 @@ function ensureDatabase() {
           pending.submittedAt ?? new Date().toISOString(),
         )
       })
-    })
 
-    seedTransaction()
+      database.exec('COMMIT')
+    } catch (error) {
+      database.exec('ROLLBACK')
+      throw error
+    }
   }
 
   return database
@@ -198,7 +235,7 @@ function saveUser(user) {
       account_state_json = excluded.account_state_json
   `).run(
     user.email,
-    user.password,
+    ensureStoredPassword(user.password),
     user.name,
     user.createdAt,
     serializeJson(user.profile),
@@ -485,8 +522,13 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
     const password = typeof body.password === 'string' ? body.password : ''
     const user = readUser(email)
 
-    if (!user || user.password !== password) {
+    if (!user || !verifyPassword(password, user.password)) {
       return { status: 401, data: { message: 'Invalid credentials', handoffId, nextAction: 'retry-login', resumeToken: handoffId ? `${handoffId}:retry` : null, connection, actionConnection }, cookies: cookieHeaders }
+    }
+
+    if (!isPasswordHash(user.password)) {
+      user.password = ensureStoredPassword(password)
+      saveUser(user)
     }
 
     if (password === 'merge-conflict' && !['keep-guest', 'replace-with-account'].includes(body.mergeResolution)) {

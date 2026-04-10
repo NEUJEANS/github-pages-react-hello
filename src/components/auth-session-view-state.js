@@ -484,40 +484,23 @@ export function buildAuthSessionNotice(session) {
   if ((session.restoredLayoutItemCount ?? 0) > 0) restoredBits.push(`배치 ${session.restoredLayoutItemCount}개`)
   if (session.restoredRecommendationDraft) restoredBits.push('추천 초안')
 
-  const draftContextBits = buildDraftContextBits(session.guestDraftSummary)
-  const draftSaveBits = buildDraftSaveBits(session.draftSave)
-
+  const continuationLabel = typeof session.continuation?.statusLabel === 'string' ? session.continuation.statusLabel.trim() : ''
   const mergeLabel = session.mergeMode === 'merged'
-    ? '게스트 초안을 계정에 이어붙였어요.'
+    ? '게스트 초안을 계정에 연결했어요.'
     : session.mergeMode === 'replaced'
-      ? '계정 상태로 전환했어요.'
-      : session.mergeMode
-        ? `병합 상태 ${session.mergeMode}로 연결했어요.`
-        : '계정 연결이 준비됐어요.'
-
-  const draftContextCopy = draftContextBits.length
-    ? ` ${draftContextBits.join(' · ')} 기준으로 이어졌어요.`
-    : ''
-  const draftSaveCopy = draftSaveBits.length
-    ? ` 로그인 요청에는 ${draftSaveBits.join(' · ')} handoff를 함께 실어뒀어요.`
-    : ''
-  const handoffCopy = session.handoffId ? ` handoff ${session.handoffId} 기준으로 이어졌어요.` : ''
-  const transportCopy = session.authMode === 'scaffold'
-    ? ` ${session.authTransport === 'same-origin-middleware' ? '현재는 same-origin scaffold 응답으로 연결 상태를 확인 중이에요.' : '현재는 local scaffold로 연결 흐름을 유지하고 있어요.'}`
-    : ''
-  const connectionCopy = session.connection?.targetLabel
-    ? ` 로그인 요청 대상은 ${session.connection.targetLabel}${session.connection.endpoint ? ` (${session.connection.endpoint})` : ''}로 기록해뒀어요.`
-    : ''
-  const continuationCopy = buildContinuationNoticeCopy(session.continuation?.nextAction ?? null, session.continuation?.statusLabel ?? null)
-  const intentCopy = buildIntentCopy(session.intent)
+      ? '계정에 저장된 상태로 전환했어요.'
+      : '로그인이 완료됐어요.'
 
   return {
     title: `${session.accountLabel} 계정 연결됨`,
-    body: restoredBits.length
-      ? `${mergeLabel}${draftContextCopy}${draftSaveCopy}${handoffCopy}${transportCopy}${connectionCopy}${continuationCopy}${intentCopy} ${restoredBits.join(' · ')} 복원 내용을 이번 세션에 반영했어요.`.trim()
-      : `${mergeLabel}${draftContextCopy}${draftSaveCopy}${handoffCopy}${transportCopy}${connectionCopy}${continuationCopy}${intentCopy}`.trim(),
+    body: [
+      mergeLabel,
+      restoredBits.length ? `복원됨: ${restoredBits.join(' · ')}.` : '',
+      continuationLabel ? `현재 단계: ${continuationLabel}.` : '',
+      buildIntentCopy(session.intent),
+    ].filter(Boolean).join(' ').replace(/\s{2,}/g, ' ').trim(),
     restoredBits,
-    draftContextBits,
-    draftSaveBits,
+    draftContextBits: buildDraftContextBits(session.guestDraftSummary),
+    draftSaveBits: buildDraftSaveBits(session.draftSave),
   }
 }
