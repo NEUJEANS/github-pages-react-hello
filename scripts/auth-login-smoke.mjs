@@ -180,7 +180,10 @@ async function terminateChildProcess(child, { forceAfterMs = 1000 } = {}) {
 }
 
 async function startPreviewServer(url, { extraEnv = {} } = {}) {
-  const previewArgs = [viteBinPath, 'preview', '--host', base.hostname, '--port', base.port || '4173']
+  const requestedUrl = new URL(url)
+  const requestedHost = requestedUrl.hostname
+  const requestedPort = requestedUrl.port || '4173'
+  const previewArgs = [viteBinPath, 'preview', '--host', requestedHost, '--port', requestedPort, '--strictPort']
   const preview = spawn(process.execPath, previewArgs, {
     cwd: process.cwd(),
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -193,6 +196,8 @@ async function startPreviewServer(url, { extraEnv = {} } = {}) {
 
   let stdout = ''
   let stderr = ''
+  let exited = false
+  let exitCode = null
 
   preview.stdout.on('data', (chunk) => {
     stdout += chunk.toString()
@@ -200,15 +205,29 @@ async function startPreviewServer(url, { extraEnv = {} } = {}) {
   preview.stderr.on('data', (chunk) => {
     stderr += chunk.toString()
   })
+  preview.once('exit', (code) => {
+    exited = true
+    exitCode = code
+  })
 
-  const ready = await waitForBaseUrl(url)
-  if (ready) {
-    return {
-      process: preview,
-      started: true,
-      stdout,
-      stderr,
+  const startedAt = Date.now()
+  const timeoutMs = 30000
+
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await isBaseUrlReachable(url)) {
+      return {
+        process: preview,
+        started: true,
+        stdout,
+        stderr,
+      }
     }
+
+    if (exited) {
+      throw new Error(`Preview server exited before becoming ready at ${url} (code ${exitCode ?? 'unknown'}). stdout: ${stdout || '(empty)'} stderr: ${stderr || '(empty)'}`)
+    }
+
+    await delay(250)
   }
 
   await terminateChildProcess(preview)
@@ -227,7 +246,7 @@ function isAppShellStartupError(error) {
   return error instanceof Error && error.message.includes('App shell did not render before auth smoke started')
 }
 
-async function ensureBrowserBaseUrl(url, { forcePreview = true, extraEnv = {} } = {}) {
+async function ensureBrowserBaseUrl(url, { forcePreview = true, extraEnv = {}, maxPortHops = 5 } = {}) {
   if (!forcePreview && await isBaseUrlReachable(url)) {
     return {
       process: null,
@@ -236,14 +255,22 @@ async function ensureBrowserBaseUrl(url, { forcePreview = true, extraEnv = {} } 
     }
   }
 
+  let candidateUrl = url
+  let remainingHops = maxPortHops
+
+  while (forcePreview && remainingHops > 0 && await isBaseUrlReachable(candidateUrl)) {
+    candidateUrl = buildFallbackBaseUrl(candidateUrl)
+    remainingHops -= 1
+  }
+
   await runCommand('npm', ['run', 'build'])
   await fs.mkdir(outDir, { recursive: true })
-  const { process: previewProcess, started } = await startPreviewServer(url, { extraEnv })
+  const { process: previewProcess, started } = await startPreviewServer(candidateUrl, { extraEnv })
 
   return {
     process: previewProcess,
     started,
-    url,
+    url: candidateUrl,
   }
 }
 
@@ -1346,9 +1373,11 @@ try {
           authProxyBaseUrl: authProxyServer?.url ?? null,
         }
       } catch (error) {
+        const startupMessage = error instanceof Error ? error.message : String(error)
         const canRetryWithFreshPreview = !ensuredBaseUrl.started && isAppShellStartupError(error)
+        const canRetryWithFallbackPort = /Preview server exited before becoming ready|strictPort|EADDRINUSE|Address already in use|port .* already in use/i.test(startupMessage)
 
-        if (!canRetryWithFreshPreview) throw error
+        if (!canRetryWithFreshPreview && !canRetryWithFallbackPort) throw error
 
         const fallbackBaseUrl = buildFallbackBaseUrl(defaultBaseUrl)
         markSmokeStage(`preview-retry:${fallbackBaseUrl}`)
