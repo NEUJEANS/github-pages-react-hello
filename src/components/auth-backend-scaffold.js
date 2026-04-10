@@ -157,6 +157,26 @@ function buildScaffoldContinuation({ email = '', intent = null, mergeResolution 
   }
 }
 
+function buildScaffoldActionConnection(connection = null) {
+  const credentialsMode = typeof connection?.credentialsMode === 'string' && connection.credentialsMode.trim()
+    ? connection.credentialsMode.trim()
+    : 'include'
+  const source = typeof connection?.source === 'string' && connection.source.trim()
+    ? connection.source.trim()
+    : 'default'
+
+  return {
+    method: 'POST',
+    endpoint: '/api/auth/continue',
+    resolvedUrl: '/api/auth/continue',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode,
+    source,
+  }
+}
+
 function buildDraftSaveState(request = {}, guestDraftSnapshot = null) {
   const requestDraftSave = request?.draftSave && typeof request.draftSave === 'object' && !Array.isArray(request.draftSave)
     ? request.draftSave
@@ -245,17 +265,19 @@ export function resetAuthScaffoldState() {
   scaffoldState.pending = null
 }
 
-export function submitAuthScaffoldRequest({ request = {}, connection = null, submittedAt = new Date().toISOString() } = {}) {
+export function submitAuthScaffoldRequest({ request = {}, connection = null, actionConnection = null, submittedAt = new Date().toISOString() } = {}) {
   const requestConnection = request?.connection && typeof request.connection === 'object' && !Array.isArray(request.connection)
     ? cloneValue(request.connection)
     : null
   const response = buildAuthScaffoldResponse(request)
   const resolvedConnection = cloneValue(connection ?? requestConnection)
+  const resolvedActionConnection = cloneValue(actionConnection ?? buildScaffoldActionConnection(resolvedConnection))
 
   if (response.status >= 200 && response.status < 300) {
     scaffoldState.session = {
       ...cloneValue(response.data),
       connection: resolvedConnection,
+      actionConnection: resolvedActionConnection,
     }
     scaffoldState.pending = null
 
@@ -274,6 +296,7 @@ export function submitAuthScaffoldRequest({ request = {}, connection = null, sub
       },
       response,
       connection: resolvedConnection,
+      actionConnection: resolvedActionConnection,
     })
   }
 
@@ -291,7 +314,7 @@ export function readAuthScaffoldPending() {
   return buildAuthScaffoldPendingResponse(cloneValue(scaffoldState.pending))
 }
 
-export function submitAuthScaffoldContinuation({ request = {}, connection = null } = {}) {
+export function submitAuthScaffoldContinuation({ request = {}, connection = null, actionConnection = null } = {}) {
   const continuation = request.continuation ?? {}
   const nextAction = typeof continuation.nextAction === 'string' ? continuation.nextAction.trim() : ''
   const resumeToken = typeof continuation.resumeToken === 'string' ? continuation.resumeToken.trim() : ''
@@ -304,6 +327,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
   const pendingSession = cloneValue(scaffoldState.pending)
   const currentSession = cloneValue(scaffoldState.session)
   const mergeResolution = readMergeResolution(fields?.mergeResolution)
+  const resolvedActionConnection = cloneValue(actionConnection ?? currentSession?.actionConnection ?? pendingSession?.actionConnection ?? buildScaffoldActionConnection(connection ?? currentSession?.connection ?? pendingSession?.connection ?? null))
 
   if (!currentSession) {
     if (nextAction === 'confirm-merge-resolution' && pendingSession) {
@@ -317,6 +341,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
             nextAction: 'confirm-merge-resolution',
             allowedMergeResolutions: ['keep-guest', 'replace-with-account'],
             ...(connection ?? pendingSession.connection ? { connection: cloneValue(connection ?? pendingSession.connection) } : {}),
+            ...(resolvedActionConnection ? { actionConnection: cloneValue(resolvedActionConnection) } : {}),
           },
         }
       }
@@ -344,6 +369,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
         scaffoldState.session = {
           ...cloneValue(resumedResponse.data),
           connection: cloneValue(connection ?? pendingSession.connection ?? null),
+          actionConnection: cloneValue(resolvedActionConnection),
         }
         scaffoldState.pending = null
 
@@ -357,6 +383,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
         request: resumedRequest,
         response: resumedResponse,
         connection: cloneValue(connection ?? pendingSession.connection ?? null),
+        actionConnection: cloneValue(resolvedActionConnection),
       })
 
       return {
@@ -371,11 +398,13 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
         message: 'No scaffold auth session',
         nextAction: 'login-required',
         ...(connection ? { connection } : {}),
+        ...(resolvedActionConnection ? { actionConnection: resolvedActionConnection } : {}),
       },
     }
   }
 
   const sessionConnection = cloneValue(currentSession.connection ?? connection ?? null)
+  const sessionActionConnection = cloneValue(currentSession.actionConnection ?? resolvedActionConnection)
 
   if (nextAction === 'complete-profile') {
     const displayName = typeof fields?.displayName === 'string' ? fields.displayName.trim() : ''
@@ -392,6 +421,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
           status: 'action-required',
           statusLabel: '프로필 보완 필요',
           ...(sessionConnection ? { connection: sessionConnection } : {}),
+          ...(sessionActionConnection ? { actionConnection: sessionActionConnection } : {}),
         },
       }
     }
@@ -409,6 +439,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
       status: 'ready',
       statusLabel: '프로필 준비 완료',
       connection: sessionConnection,
+      actionConnection: sessionActionConnection,
     }
     scaffoldState.session = nextSession
     return {
@@ -430,6 +461,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
           status: 'action-required',
           statusLabel: '이메일 인증 필요',
           ...(sessionConnection ? { connection: sessionConnection } : {}),
+          ...(sessionActionConnection ? { actionConnection: sessionActionConnection } : {}),
         },
       }
     }
@@ -444,6 +476,7 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
       status: 'ready',
       statusLabel: '이메일 인증 완료',
       connection: sessionConnection,
+      actionConnection: sessionActionConnection,
     }
     scaffoldState.session = nextSession
     return {
@@ -462,12 +495,14 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
       resumeToken: resumeToken || currentSession.resumeToken || null,
       nextAction: nextAction || currentSession.nextAction || normalizeIntentAction(typeof requestIntent?.action === 'string' ? requestIntent.action.trim() : '') || 'resume-authenticated-flow',
       ...(sessionConnection ? { connection: sessionConnection } : {}),
+      ...(sessionActionConnection ? { actionConnection: sessionActionConnection } : {}),
     },
   }
 }
 
 export function signOutAuthScaffoldSession() {
   const connection = cloneValue(scaffoldState.session?.connection ?? scaffoldState.pending?.connection ?? null)
+  const actionConnection = cloneValue(scaffoldState.session?.actionConnection ?? scaffoldState.pending?.actionConnection ?? null)
   resetAuthScaffoldState()
 
   return {
@@ -476,6 +511,7 @@ export function signOutAuthScaffoldSession() {
       ok: true,
       nextAction: 'login-required',
       ...(connection ? { connection } : {}),
+      ...(actionConnection ? { actionConnection } : {}),
     },
   }
 }
@@ -497,7 +533,7 @@ export function buildAuthScaffoldSessionResponse(session = null) {
   }
 }
 
-export function buildAuthScaffoldPendingHandoff({ request = {}, response = {}, connection = null, submittedAt = new Date().toISOString() } = {}) {
+export function buildAuthScaffoldPendingHandoff({ request = {}, response = {}, connection = null, actionConnection = null, submittedAt = new Date().toISOString() } = {}) {
   const guestDraftSnapshot = request.guestDraftSnapshot ?? null
   const summary = buildGuestDraftSessionSummary(guestDraftSnapshot)
   const continuation = {
@@ -531,6 +567,7 @@ export function buildAuthScaffoldPendingHandoff({ request = {}, response = {}, c
       intent: request.intent ?? null,
     },
     connection,
+    actionConnection: actionConnection ?? buildScaffoldActionConnection(connection),
     continuation,
     continuationFields,
     draftSave,

@@ -223,6 +223,16 @@ test('readAuthSession, readAuthPending, and signOutAuthSession share the same lo
   assert.equal(pending.meta.authMode, 'scaffold')
   assert.equal(pending.data.handoffId, 'auth-20260406123000-2n9c')
   assert.equal(pending.data.connection.targetLabel, 'same-origin /api auth scaffold')
+  assert.deepEqual(pending.data.actionConnection, {
+    method: 'POST',
+    endpoint: '/api/auth/continue',
+    resolvedUrl: '/api/auth/continue',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode: 'include',
+    source: 'default',
+  })
 
   await submitAuthLoginPlan({
     endpoint: '/api/auth/login',
@@ -264,6 +274,7 @@ test('readAuthSession, readAuthPending, and signOutAuthSession share the same lo
   assert.equal(session.meta.authTransport, 'local-fallback')
   assert.equal(session.data.user.email, 'merge@example.com')
   assert.equal(session.data.connection.resolvedUrl, 'https://havenly.example.com/api/auth/login')
+  assert.equal(session.data.actionConnection?.endpoint, '/api/auth/continue')
 
   const logout = await signOutAuthSession({
     endpoint: '/api/auth/logout',

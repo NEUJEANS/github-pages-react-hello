@@ -542,6 +542,16 @@ test('buildAuthScaffoldPendingHandoff keeps guest draft counts and continuation 
       credentialsMode: 'include',
       source: 'default',
     },
+    actionConnection: {
+      method: 'POST',
+      endpoint: '/api/auth/continue',
+      resolvedUrl: '/api/auth/continue',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
+      credentialsMode: 'include',
+      source: 'default',
+    },
     continuation: {
       resumeToken: 'auth-20260407002000-abcd:merge',
       nextAction: 'confirm-merge-resolution',
@@ -699,6 +709,16 @@ test('buildAuthScaffoldPendingHandoff lifts serializable draft-save and continua
   assert.deepEqual(pending.continuationFields, {
     displayName: 'Havenly User',
     phone: '010-1234-5678',
+  })
+  assert.deepEqual(pending.actionConnection, {
+    method: 'POST',
+    endpoint: '/api/auth/continue',
+    resolvedUrl: '/api/auth/continue',
+    targetLabel: 'same-origin /api auth scaffold',
+    isExternal: false,
+    isSameOriginScaffold: true,
+    credentialsMode: 'include',
+    source: 'default',
   })
   assert.deepEqual(pending.draftSave, {
     draftLabel: '거실 배치 보드',

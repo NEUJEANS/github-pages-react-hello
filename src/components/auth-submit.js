@@ -17,6 +17,11 @@ export const AUTH_CONNECTION_ENDPOINT_HEADER = 'x-havenly-auth-connection-endpoi
 export const AUTH_CONNECTION_TARGET_HEADER = 'x-havenly-auth-connection-target'
 export const AUTH_CONNECTION_CREDENTIALS_HEADER = 'x-havenly-auth-connection-credentials'
 export const AUTH_CONNECTION_SOURCE_HEADER = 'x-havenly-auth-connection-source'
+export const AUTH_ACTION_CONNECTION_METHOD_HEADER = 'x-havenly-auth-action-connection-method'
+export const AUTH_ACTION_CONNECTION_ENDPOINT_HEADER = 'x-havenly-auth-action-connection-endpoint'
+export const AUTH_ACTION_CONNECTION_TARGET_HEADER = 'x-havenly-auth-action-connection-target'
+export const AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER = 'x-havenly-auth-action-connection-credentials'
+export const AUTH_ACTION_CONNECTION_SOURCE_HEADER = 'x-havenly-auth-action-connection-source'
 
 function trimTrailingSlash(value = '') {
   return value.endsWith('/') ? value.slice(0, -1) : value
@@ -194,13 +199,24 @@ function pickFirstText(...values) {
   return ''
 }
 
-function readAuthConnection(data = {}, response = null, fallback = null) {
-  const bodyConnection = data?.connection ?? data?.authConnection ?? null
-  const method = pickFirstText(bodyConnection?.method, readHeaderValue(response, AUTH_CONNECTION_METHOD_HEADER), fallback?.method)
-  const endpoint = pickFirstText(bodyConnection?.endpoint, readHeaderValue(response, AUTH_CONNECTION_ENDPOINT_HEADER), fallback?.endpoint)
-  const targetLabel = pickFirstText(bodyConnection?.targetLabel, readHeaderValue(response, AUTH_CONNECTION_TARGET_HEADER), fallback?.targetLabel)
-  const credentialsMode = pickFirstText(bodyConnection?.credentialsMode, readHeaderValue(response, AUTH_CONNECTION_CREDENTIALS_HEADER), fallback?.credentialsMode)
-  const source = pickFirstText(bodyConnection?.source, readHeaderValue(response, AUTH_CONNECTION_SOURCE_HEADER), fallback?.source)
+function readDecoratedAuthConnection(data = {}, response = null, fallback = null, {
+  bodyKeys = ['connection', 'authConnection'],
+  headerNames = {
+    method: AUTH_CONNECTION_METHOD_HEADER,
+    endpoint: AUTH_CONNECTION_ENDPOINT_HEADER,
+    targetLabel: AUTH_CONNECTION_TARGET_HEADER,
+    credentialsMode: AUTH_CONNECTION_CREDENTIALS_HEADER,
+    source: AUTH_CONNECTION_SOURCE_HEADER,
+  },
+} = {}) {
+  const bodyConnection = bodyKeys
+    .map((key) => data?.[key])
+    .find((value) => value && typeof value === 'object' && !Array.isArray(value)) ?? null
+  const method = pickFirstText(bodyConnection?.method, readHeaderValue(response, headerNames.method), fallback?.method)
+  const endpoint = pickFirstText(bodyConnection?.endpoint, readHeaderValue(response, headerNames.endpoint), fallback?.endpoint)
+  const targetLabel = pickFirstText(bodyConnection?.targetLabel, readHeaderValue(response, headerNames.targetLabel), fallback?.targetLabel)
+  const credentialsMode = pickFirstText(bodyConnection?.credentialsMode, readHeaderValue(response, headerNames.credentialsMode), fallback?.credentialsMode)
+  const source = pickFirstText(bodyConnection?.source, readHeaderValue(response, headerNames.source), fallback?.source)
   const headerResolvedUrl = endpoint && targetLabel && targetLabel !== 'same-origin /api auth scaffold'
     ? `https://${targetLabel}${endpoint}`
     : ''
@@ -226,6 +242,23 @@ function readAuthConnection(data = {}, response = null, fallback = null) {
     credentialsMode: credentialsMode || null,
     source: source || null,
   }
+}
+
+function readAuthConnection(data = {}, response = null, fallback = null) {
+  return readDecoratedAuthConnection(data, response, fallback)
+}
+
+function readAuthActionConnection(data = {}, response = null, fallback = null) {
+  return readDecoratedAuthConnection(data, response, fallback, {
+    bodyKeys: ['actionConnection'],
+    headerNames: {
+      method: AUTH_ACTION_CONNECTION_METHOD_HEADER,
+      endpoint: AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
+      targetLabel: AUTH_ACTION_CONNECTION_TARGET_HEADER,
+      credentialsMode: AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
+      source: AUTH_ACTION_CONNECTION_SOURCE_HEADER,
+    },
+  })
 }
 
 function cloneJsonValue(value) {
@@ -312,21 +345,23 @@ function readGuestDraftSummary(data = {}) {
   return buildGuestDraftSummaryFromSnapshot(data?.guestDraftSnapshot ?? data?.request?.guestDraftSnapshot ?? null)
 }
 
-function applyAuthResponseDecorators(data, response, { handoffIdFallback = null, connectionFallback = null } = {}) {
+function applyAuthResponseDecorators(data, response, { handoffIdFallback = null, connectionFallback = null, actionConnectionFallback = null } = {}) {
   const handoffId = readAuthHandoffId(data, response, handoffIdFallback)
   const continuation = readAuthContinuation(data, response)
   const connection = readAuthConnection(data, response, connectionFallback)
+  const actionConnection = readAuthActionConnection(data, response, actionConnectionFallback)
   const continuationFields = readSerializableContinuationFields(data)
   const draftSave = readSerializableDraftSave(data)
   const guestDraftSummary = readGuestDraftSummary(data)
 
-  if (!handoffId && !continuation && !connection && !continuationFields && !draftSave && !guestDraftSummary) return data
+  if (!handoffId && !continuation && !connection && !actionConnection && !continuationFields && !draftSave && !guestDraftSummary) return data
 
   return {
     ...(data ?? {}),
     ...(handoffId ? { handoffId } : {}),
     ...(continuation ?? {}),
     ...(connection ? { connection } : {}),
+    ...(actionConnection ? { actionConnection } : {}),
     ...(continuationFields ? { continuationFields } : {}),
     ...(draftSave ? { draftSave } : {}),
     ...(guestDraftSummary ? { guestDraftSummary } : {}),
