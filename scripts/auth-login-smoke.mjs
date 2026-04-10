@@ -681,6 +681,17 @@ async function readLoginConnectionPreview(page) {
   }
 }
 
+async function readContinuationPayloadPreview(page) {
+  const prepCard = page.locator('.loginForm [data-auth-preview="continuation-submit-payload"]').first()
+  const summaryLines = await prepCard.locator('.guardSummary.compact div').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => [])
+  const copy = await prepCard.locator('.muted').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => [])
+
+  return {
+    copy,
+    summaryLines,
+  }
+}
+
 function assertLoginConnectionPreview(preview) {
   const flattened = [preview.target, preview.transport, preview.status, ...(preview.payloadPreview ?? [])].join(' | ')
   const expectedFragments = [
@@ -964,8 +975,9 @@ async function runBrowserSmoke(playwright) {
     await verifyEmailPage.close()
 
     const queryOverridePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    const queryContinueEndpoint = '/v1/session/continue'
     await resetBrowserScenario(queryOverridePage)
-    await queryOverridePage.goto(`${baseUrl}?authApiBaseUrl=${encodeURIComponent('https://auth-query.example.com')}&authLoginEndpoint=${encodeURIComponent('/v1/session/login')}&authCredentials=same-origin`, { waitUntil: 'domcontentloaded' })
+    await queryOverridePage.goto(`${baseUrl}?authApiBaseUrl=${encodeURIComponent('https://auth-query.example.com')}&authLoginEndpoint=${encodeURIComponent('/v1/session/login')}&authContinueEndpoint=${encodeURIComponent(queryContinueEndpoint)}&authCredentials=same-origin`, { waitUntil: 'domcontentloaded' })
     await openLogin(queryOverridePage)
     await continuePastGuardIfPresent(queryOverridePage)
     await fillLoginForm(queryOverridePage, {
@@ -974,16 +986,27 @@ async function runBrowserSmoke(playwright) {
     })
     const queryOverridePreview = await readLoginConnectionPreview(queryOverridePage)
     await capture(queryOverridePage, 'auth-login-query-override-preview.png')
+    await queryOverridePage.reload({ waitUntil: 'networkidle' })
+    await openLogin(queryOverridePage)
+    await continuePastGuardIfPresent(queryOverridePage)
+    await submitLogin(queryOverridePage, {
+      email: 'profile@example.com',
+      password: 'password123',
+    })
+    await queryOverridePage.getByRole('button', { name: '프로필 보완 제출' }).waitFor()
+    const queryOverrideContinuationPreview = await readContinuationPayloadPreview(queryOverridePage)
     await queryOverridePage.close()
 
     const runtimeOverridePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
-    await runtimeOverridePage.addInitScript(() => {
+    const runtimeContinueEndpoint = '/v2/runtime/continue'
+    await runtimeOverridePage.addInitScript((continueEndpoint) => {
       globalThis.__HAVENLY_AUTH_CONFIG__ = {
         apiBaseUrl: 'https://auth-runtime.example.com',
         loginEndpoint: '/v2/runtime/login',
+        continueEndpoint,
         credentialsMode: 'omit',
       }
-    })
+    }, runtimeContinueEndpoint)
     await resetBrowserScenario(runtimeOverridePage)
     await runtimeOverridePage.goto(baseUrl, { waitUntil: 'domcontentloaded' })
     await openLogin(runtimeOverridePage)
@@ -994,7 +1017,29 @@ async function runBrowserSmoke(playwright) {
     })
     const runtimeOverridePreview = await readLoginConnectionPreview(runtimeOverridePage)
     await capture(runtimeOverridePage, 'auth-login-runtime-override-preview.png')
+    await runtimeOverridePage.reload({ waitUntil: 'networkidle' })
+    await openLogin(runtimeOverridePage)
+    await continuePastGuardIfPresent(runtimeOverridePage)
+    await submitLogin(runtimeOverridePage, {
+      email: 'verify@example.com',
+      password: 'password123',
+    })
+    await runtimeOverridePage.getByRole('button', { name: '이메일 인증 확인' }).waitFor()
+    const runtimeOverrideContinuationPreview = await readContinuationPayloadPreview(runtimeOverridePage)
     await runtimeOverridePage.close()
+
+    if (![queryOverridePreview.target, queryOverridePreview.status, ...(queryOverridePreview.payloadPreview ?? [])].join(' | ').includes('/v1/session/login')) {
+      throw new Error(`Query auth override preview did not expose the overridden login endpoint. Saw: ${JSON.stringify(queryOverridePreview)}`)
+    }
+    if (![runtimeOverridePreview.target, runtimeOverridePreview.status, ...(runtimeOverridePreview.payloadPreview ?? [])].join(' | ').includes('/v2/runtime/login')) {
+      throw new Error(`Runtime auth override preview did not expose the overridden login endpoint. Saw: ${JSON.stringify(runtimeOverridePreview)}`)
+    }
+    if (![...(queryOverrideContinuationPreview.copy ?? []), ...(queryOverrideContinuationPreview.summaryLines ?? [])].join(' | ').includes(queryContinueEndpoint)) {
+      throw new Error(`Query auth override continuation preview did not expose the overridden continuation endpoint. Saw: ${JSON.stringify(queryOverrideContinuationPreview)}`)
+    }
+    if (![...(runtimeOverrideContinuationPreview.copy ?? []), ...(runtimeOverrideContinuationPreview.summaryLines ?? [])].join(' | ').includes(runtimeContinueEndpoint)) {
+      throw new Error(`Runtime auth override continuation preview did not expose the overridden continuation endpoint. Saw: ${JSON.stringify(runtimeOverrideContinuationPreview)}`)
+    }
 
     return {
       mode: 'browser',
@@ -1042,8 +1087,14 @@ async function runBrowserSmoke(playwright) {
       },
       guardedMerge: { guardReasons, guardPreview, mergeError, mergeOptions, mergePreviewLines, mergeReadyLabel, mergeStatus, mergeReloadedSelection, mergeReadySignal },
       authTargetOverrides: {
-        query: queryOverridePreview,
-        runtime: runtimeOverridePreview,
+        query: {
+          login: queryOverridePreview,
+          continuation: queryOverrideContinuationPreview,
+        },
+        runtime: {
+          login: runtimeOverridePreview,
+          continuation: runtimeOverrideContinuationPreview,
+        },
       },
     }
   } finally {
