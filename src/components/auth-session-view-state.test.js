@@ -816,7 +816,7 @@ test('buildAuthSessionNotice summarizes restored guest draft details after login
     },
   }), {
     title: 'user@example.com 계정 연결됨',
-    body: '게스트 초안을 계정에 이어붙였어요. 래미안 포레스트 84A · 공간 2개 · 거실 추천 기준으로 이어졌어요. 로그인 요청에는 초안 거실 배치 보드 · 래미안 포레스트 84A · 거실 추천 · 선택 공간 2개 · 저장 배치 3개 handoff를 함께 실어뒀어요. handoff auth-20260406123000-2n9c 기준으로 이어졌어요. 현재는 same-origin scaffold 응답으로 연결 상태를 확인 중이에요. 로그인 요청 대상은 same-origin /api auth scaffold (/api/auth/login)로 기록해뒀어요. 로그인 후 보드 저장 (거실 84A) 단계까지 이어서 진행할 수 있어요. 찜 2개 · 장바구니 1개 · 배치 3개 · 추천 초안 복원 내용을 이번 세션에 반영했어요.',
+    body: '게스트 초안을 계정에 연결했어요. 복원됨: 찜 2개 · 장바구니 1개 · 배치 3개 · 추천 초안. 로그인 후 보드 저장 (거실 84A) 단계까지 이어서 진행할 수 있어요.',
     restoredBits: ['찜 2개', '장바구니 1개', '배치 3개', '추천 초안'],
     draftContextBits: ['래미안 포레스트 84A', '공간 2개', '거실 추천'],
     draftSaveBits: ['초안 거실 배치 보드', '래미안 포레스트 84A', '거실 추천', '선택 공간 2개', '저장 배치 3개'],
@@ -829,7 +829,7 @@ test('buildAuthSessionNotice falls back gracefully when nothing was restored', (
     mergeMode: 'replaced',
   }), {
     title: 'user@example.com 계정 연결됨',
-    body: '계정 상태로 전환했어요.',
+    body: '계정에 저장된 상태로 전환했어요.',
     restoredBits: [],
     draftContextBits: [],
     draftSaveBits: [],
@@ -849,7 +849,7 @@ test('buildAuthSessionNotice surfaces backend continuation blockers in the resto
     },
   }), {
     title: 'verify@example.com 계정 연결됨',
-    body: '게스트 초안을 계정에 이어붙였어요. 현재 단계: 이메일 인증 필요.',
+    body: '게스트 초안을 계정에 연결했어요. 현재 단계: 이메일 인증 필요.',
     restoredBits: [],
     draftContextBits: [],
     draftSaveBits: [],

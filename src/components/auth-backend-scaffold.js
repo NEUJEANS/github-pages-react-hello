@@ -6,6 +6,81 @@ function countItems(items) {
   return Array.isArray(items) ? items.length : 0
 }
 
+const AUTH_SCAFFOLD_ACCOUNT_DB_KEY = 'havenly.auth.scaffold.accounts'
+
+function cloneValue(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value))
+}
+
+function readAccountDb() {
+  const storage = globalThis?.localStorage
+  if (!storage?.getItem) return {}
+
+  try {
+    const raw = storage.getItem(AUTH_SCAFFOLD_ACCOUNT_DB_KEY)
+    const parsed = raw ? JSON.parse(raw) : null
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeAccountDb(db = {}) {
+  const storage = globalThis?.localStorage
+  if (!storage?.setItem) return
+
+  try {
+    storage.setItem(AUTH_SCAFFOLD_ACCOUNT_DB_KEY, JSON.stringify(db))
+  } catch {}
+}
+
+function readAccountRecord(email = '') {
+  const normalizedEmail = normalizeEmail(email)
+  if (!normalizedEmail) return null
+
+  const db = readAccountDb()
+  return db[normalizedEmail] ? cloneValue(db[normalizedEmail]) : null
+}
+
+function persistAccountRecord(email, account = null) {
+  const normalizedEmail = normalizeEmail(email)
+  if (!normalizedEmail || !account || typeof account !== 'object') return null
+
+  const db = readAccountDb()
+  db[normalizedEmail] = cloneValue(account)
+  writeAccountDb(db)
+  return cloneValue(db[normalizedEmail])
+}
+
+function buildMergedGuestAccountState(guestDraftSnapshot = null, persistedAccountState = null, { mergeResolution } = {}) {
+  const continuity = guestDraftSnapshot?.continuity ?? {}
+  const baseState = persistedAccountState && typeof persistedAccountState === 'object'
+    ? cloneValue(persistedAccountState)
+    : {
+        wishlistIds: [],
+        cartItems: [],
+        layoutItems: [],
+        recommendationDraft: null,
+      }
+
+  if (mergeResolution === 'replace-with-account') return baseState
+
+  return {
+    wishlistIds: Array.isArray(continuity.wishlistIds) && continuity.wishlistIds.length > 0
+      ? [...continuity.wishlistIds]
+      : [...(baseState.wishlistIds ?? [])],
+    cartItems: Array.isArray(continuity.cartItems) && continuity.cartItems.length > 0
+      ? continuity.cartItems.map((item) => ({ ...item }))
+      : (baseState.cartItems ?? []).map((item) => ({ ...item })),
+    layoutItems: Array.isArray(continuity.layoutItems) && continuity.layoutItems.length > 0
+      ? continuity.layoutItems.map((item) => ({ ...item }))
+      : (baseState.layoutItems ?? []).map((item) => ({ ...item })),
+    recommendationDraft: guestDraftSnapshot?.recommendationDraft
+      ? { ...guestDraftSnapshot.recommendationDraft }
+      : (baseState.recommendationDraft ? { ...baseState.recommendationDraft } : null),
+  }
+}
+
 function buildMergedGuestDraft(guestDraftSnapshot = null, { mode = 'merged', resolution = null } = {}) {
   const continuity = guestDraftSnapshot?.continuity ?? {}
 
@@ -20,15 +95,8 @@ function buildMergedGuestDraft(guestDraftSnapshot = null, { mode = 'merged', res
   }
 }
 
-function buildAccountState({ mergeResolution } = {}) {
-  if (mergeResolution !== 'replace-with-account') return null
-
-  return {
-    wishlistIds: [],
-    cartItems: [],
-    layoutItems: [],
-    recommendationDraft: null,
-  }
+function buildAccountState({ mergeResolution, guestDraftSnapshot = null, persistedAccountState = null } = {}) {
+  return buildMergedGuestAccountState(guestDraftSnapshot, persistedAccountState, { mergeResolution })
 }
 
 function readMergeResolution(value = null) {
@@ -209,6 +277,7 @@ function buildDraftSaveState(request = {}, guestDraftSnapshot = null) {
 
 function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null, continuation = null, draftSave = null, name = null } = {}) {
   const safeSessionId = email.replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'guest'
+  const persistedAccount = readAccountRecord(email)
   const continuationState = buildScaffoldContinuation({
     email,
     intent,
@@ -223,7 +292,7 @@ function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, 
     ...(handoffId ? { handoffId } : {}),
     user: {
       email,
-      name: typeof name === 'string' && name.trim() ? name.trim() : email,
+      name: typeof name === 'string' && name.trim() ? name.trim() : (persistedAccount?.user?.name ?? email),
     },
     mergedGuestDraft: buildMergedGuestDraft(guestDraftSnapshot, {
       mode: mergeResolution === 'keep-guest'
@@ -236,7 +305,13 @@ function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, 
     guestDraftSummary: buildGuestDraftSessionSummary(guestDraftSnapshot),
     draftSave: buildDraftSaveState({ draftSave }, guestDraftSnapshot),
     intent: intent && typeof intent === 'object' ? { ...intent } : null,
-    accountState: buildAccountState({ mergeResolution }),
+    profile: cloneValue(persistedAccount?.profile ?? null),
+    verifiedAt: persistedAccount?.verifiedAt ?? null,
+    accountState: buildAccountState({
+      mergeResolution,
+      guestDraftSnapshot,
+      persistedAccountState: persistedAccount?.accountState ?? null,
+    }),
     ...continuationState,
   }
 }
@@ -244,10 +319,6 @@ function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, 
 const scaffoldState = {
   session: null,
   pending: null,
-}
-
-function cloneValue(value) {
-  return value == null ? value : JSON.parse(JSON.stringify(value))
 }
 
 function mergeRequestContinuation(request = {}, response = {}) {
@@ -274,8 +345,20 @@ export function submitAuthScaffoldRequest({ request = {}, connection = null, act
   const resolvedActionConnection = cloneValue(actionConnection ?? buildScaffoldActionConnection(resolvedConnection))
 
   if (response.status >= 200 && response.status < 300) {
+    const persistedAccount = persistAccountRecord(response.data?.user?.email ?? request.email, {
+      user: cloneValue(response.data?.user ?? null),
+      profile: cloneValue(response.data?.profile ?? null),
+      verifiedAt: response.data?.verifiedAt ?? null,
+      accountState: cloneValue(response.data?.accountState ?? null),
+    })
+
     scaffoldState.session = {
       ...cloneValue(response.data),
+      ...(persistedAccount ? {
+        profile: cloneValue(persistedAccount.profile ?? null),
+        verifiedAt: persistedAccount.verifiedAt ?? null,
+        accountState: cloneValue(persistedAccount.accountState ?? response.data?.accountState ?? null),
+      } : {}),
       connection: resolvedConnection,
       actionConnection: resolvedActionConnection,
     }
@@ -426,14 +509,26 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
       }
     }
 
+    const nextProfile = {
+      displayName,
+      phone,
+    }
+    const persistedAccount = persistAccountRecord(currentSession.user?.email ?? '', {
+      user: {
+        ...(currentSession.user ?? {}),
+        name: displayName || currentSession.user?.name || currentSession.user?.email,
+      },
+      profile: nextProfile,
+      verifiedAt: currentSession.verifiedAt ?? null,
+      accountState: cloneValue(currentSession.accountState ?? null),
+    })
+
     const nextSession = {
       ...currentSession,
       ...(requestIntent ? { intent: requestIntent } : {}),
       ...(request.draftSave ? { draftSave: buildDraftSaveState(request) } : {}),
-      profile: {
-        displayName,
-        phone,
-      },
+      user: cloneValue(persistedAccount?.user ?? currentSession.user ?? null),
+      profile: nextProfile,
       resumeToken: resumeToken || currentSession.resumeToken || null,
       nextAction: resolvePostBlockerNextAction(currentSession, 'complete-profile', requestIntent),
       status: 'ready',
@@ -466,11 +561,19 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
       }
     }
 
+    const verifiedAt = new Date().toISOString()
+    persistAccountRecord(currentSession.user?.email ?? '', {
+      user: cloneValue(currentSession.user ?? null),
+      profile: cloneValue(currentSession.profile ?? null),
+      verifiedAt,
+      accountState: cloneValue(currentSession.accountState ?? null),
+    })
+
     const nextSession = {
       ...currentSession,
       ...(requestIntent ? { intent: requestIntent } : {}),
       ...(request.draftSave ? { draftSave: buildDraftSaveState(request) } : {}),
-      verifiedAt: new Date().toISOString(),
+      verifiedAt,
       resumeToken: resumeToken || currentSession.resumeToken || null,
       nextAction: resolvePostBlockerNextAction(currentSession, 'verify-email', requestIntent),
       status: 'ready',
@@ -604,6 +707,7 @@ export function buildAuthScaffoldResponse(request = {}) {
   const handoffId = typeof request.handoffId === 'string' ? request.handoffId.trim() : null
   const mode = request.mode === 'signup' ? 'signup' : 'login'
   const displayName = typeof request.displayName === 'string' ? request.displayName.trim() : ''
+  const persistedAccount = readAccountRecord(email)
 
   if (!email || !email.includes('@') || password.trim().length < 8) {
     return {
@@ -630,7 +734,7 @@ export function buildAuthScaffoldResponse(request = {}) {
       }
     }
 
-    if (email === 'existing@example.com' || email === 'user@example.com') {
+    if (persistedAccount || email === 'existing@example.com' || email === 'user@example.com') {
       return {
         status: 409,
         data: {
@@ -640,6 +744,18 @@ export function buildAuthScaffoldResponse(request = {}) {
           nextAction: 'retry-login',
         },
       }
+    }
+  }
+
+  if (mode === 'login' && persistedAccount?.password && persistedAccount.password !== password && password !== 'merge-conflict') {
+    return {
+      status: 401,
+      data: {
+        message: 'Invalid credentials',
+        ...(handoffId ? { handoffId } : {}),
+        resumeToken: handoffId ? `${handoffId}:retry` : null,
+        nextAction: 'retry-login',
+      },
     }
   }
 
@@ -658,6 +774,20 @@ export function buildAuthScaffoldResponse(request = {}) {
       },
     }
   }
+
+  const userName = mode === 'signup'
+    ? displayName
+    : (persistedAccount?.user?.name ?? email)
+  persistAccountRecord(email, {
+    password,
+    user: {
+      email,
+      name: userName,
+    },
+    profile: cloneValue(persistedAccount?.profile ?? null),
+    verifiedAt: persistedAccount?.verifiedAt ?? null,
+    accountState: buildMergedGuestAccountState(guestDraftSnapshot, persistedAccount?.accountState ?? null, { mergeResolution }),
+  })
 
   return {
     status: 200,

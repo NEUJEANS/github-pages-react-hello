@@ -12,13 +12,7 @@ import {
   AUTH_STATUS_HEADER,
   AUTH_STATUS_LABEL_HEADER,
 } from "./src/components/auth-submit.js"
-import {
-  readAuthScaffoldPending,
-  readAuthScaffoldSession,
-  signOutAuthScaffoldSession,
-  submitAuthScaffoldContinuation,
-  submitAuthScaffoldRequest,
-} from "./src/components/auth-backend-scaffold.js"
+import { handleAuthRequest } from "./server/auth-persistent-store.js"
 
 function readRequestBody(req) {
   return new Promise((resolve, reject) => {
@@ -256,78 +250,28 @@ function havenlyAuthScaffoldPlugin() {
       return
     }
 
-    if (req.method === "GET" && requestPath === "/api/auth/session") {
-      const response = readAuthScaffoldSession()
-      writeJson(res, response.status, response.data, {
-        "x-havenly-auth-scaffold": "true",
-        ...buildAuthConnectionHeaders(response.data?.connection),
-        ...buildAuthContinuationHeaders(response.data),
-      })
-      return
-    }
-
-    if (req.method === "GET" && requestPath === "/api/auth/pending") {
-      const response = readAuthScaffoldPending()
-      writeJson(res, response.status, response.data, {
-        "x-havenly-auth-scaffold": "true",
-        ...buildAuthConnectionHeaders(response.data?.connection),
-        ...buildAuthContinuationHeaders(response.data),
-      })
-      return
-    }
-
-    if (req.method === "POST" && requestPath === "/api/auth/logout") {
-      const response = signOutAuthScaffoldSession()
-      writeJson(res, response.status, response.data, {
-        "x-havenly-auth-scaffold": "true",
-        ...buildAuthConnectionHeaders(response.data?.connection),
-        ...buildAuthContinuationHeaders(response.data),
-      })
-      return
-    }
-
-    if (req.method === "POST" && requestPath === "/api/auth/continue") {
-      try {
-        const request = await readRequestBody(req)
-        const connection = readAuthConnection(req)
-        const response = submitAuthScaffoldContinuation({
-          request: {
-            ...request,
-            continuation: {
-              ...(request.continuation ?? {}),
-              resumeToken: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? request.continuation?.resumeToken ?? null,
-              nextAction: req.headers[AUTH_NEXT_ACTION_HEADER] ?? request.continuation?.nextAction ?? null,
-              status: request.continuation?.status ?? null,
-              statusLabel: request.continuation?.statusLabel ?? null,
-            },
-          },
-          connection,
-        })
-
-        writeJson(res, response.status, response.data, {
-          "x-havenly-auth-scaffold": "true",
-          ...buildAuthConnectionHeaders(response.data?.connection ?? connection),
-          ...buildAuthContinuationHeaders(response.data),
-        })
-      } catch (error) {
-        writeJson(res, 400, {
-          message: "Invalid auth scaffold continuation request",
-          detail: error instanceof Error ? error.message : String(error),
-        }, { "x-havenly-auth-scaffold": "true" })
-      }
-      return
-    }
-
-    if (req.method !== "POST" || !["/api/auth/login", "/api/auth/signup"].includes(requestPath)) {
+    if (!["/api/auth/login", "/api/auth/signup", "/api/auth/session", "/api/auth/pending", "/api/auth/logout", "/api/auth/continue"].includes(requestPath)) {
       next()
       return
     }
 
     try {
-      const request = await readRequestBody(req)
+      const request = req.method === "GET" || req.method === "HEAD"
+        ? {}
+        : await readRequestBody(req)
       const connection = readAuthConnection(req)
-      const response = submitAuthScaffoldRequest({
-        request: {
+      const response = handleAuthRequest(req, {
+        connection,
+        actionConnection: {
+          ...connection,
+          method: "POST",
+          endpoint: "/api/auth/continue",
+          resolvedUrl: "/api/auth/continue",
+          targetLabel: "same-origin /api auth scaffold",
+          isExternal: false,
+          isSameOriginScaffold: true,
+        },
+        body: {
           ...request,
           continuation: {
             ...(request.continuation ?? {}),
@@ -337,8 +281,14 @@ function havenlyAuthScaffoldPlugin() {
             statusLabel: request.continuation?.statusLabel ?? null,
           },
         },
-        connection,
+        pathName: requestPath,
+        handoffHeader: req.headers[AUTH_HANDOFF_HEADER] ?? null,
+        resumeTokenHeader: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? null,
       })
+
+      if (Array.isArray(response.cookies) && response.cookies.length > 0) {
+        res.setHeader("set-cookie", response.cookies)
+      }
 
       writeJson(res, response.status, response.data, {
         "x-havenly-auth-scaffold": "true",
