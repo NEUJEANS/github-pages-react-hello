@@ -44,7 +44,7 @@ import {
   readPersistedAuthHandoff,
   readPersistedAuthSession,
 } from './components/auth-storage.js'
-import { buildAuthGuardPanelState, buildAuthLoginPanelState, buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './components/auth-session-view-state.js'
+import { buildAuthGuardPanelState, buildAuthLoginPanelState, buildAuthReadyPanelState, buildAuthResumePanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './components/auth-session-view-state.js'
 import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
 import { shouldPreservePersistedAuthSessionOnBootstrapFailure } from './components/auth-bootstrap-state.js'
@@ -988,6 +988,16 @@ function App() {
     [authContinuationConnectionSummary, authSession],
   )
 
+  const authResumePanelState = React.useMemo(
+    () => buildAuthResumePanelState(loginForm.handoff, {
+      session: persistedAuthSession,
+      actionConnection: authContinuationConnectionSummary,
+    }),
+    [authContinuationConnectionSummary, loginForm.handoff, persistedAuthSession],
+  )
+
+  const activeAuthReadyPanelState = authReadyPanelState ?? (loginForm.status === 'resume-ready' ? authResumePanelState : null)
+
   React.useEffect(() => {
     if (!shouldAutoOpenAuthReadyPanel(authSession, loginModalState)) return
     setLoginModalState('form')
@@ -1006,16 +1016,16 @@ function App() {
     continuation: authSession?.continuation ?? loginForm.continuation ?? null,
     handoffId: authSession?.handoffId ?? loginForm.handoffId ?? null,
     intent: buildSerializableAuthIntent(authSession?.intent ?? loginForm.intent ?? null),
-    fields: authReadyPanelState?.nextAction === 'complete-profile'
+    fields: activeAuthReadyPanelState?.nextAction === 'complete-profile'
       ? {
           displayName: authContinuationFields.displayName,
           phone: authContinuationFields.phone,
         }
-      : authReadyPanelState?.nextAction === 'verify-email'
+      : activeAuthReadyPanelState?.nextAction === 'verify-email'
         ? {
             verificationCode: authContinuationFields.verificationCode,
           }
-        : authReadyPanelState?.nextAction === 'confirm-merge-resolution' && (authContinuationFields.mergeResolution || loginForm.mergeResolution)
+        : activeAuthReadyPanelState?.nextAction === 'confirm-merge-resolution' && (authContinuationFields.mergeResolution || loginForm.mergeResolution)
           ? {
               mergeResolution: authContinuationFields.mergeResolution || loginForm.mergeResolution,
             }
@@ -1030,7 +1040,7 @@ function App() {
     )
       ? authDraftSavePayload
       : null,
-  }), [authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.mergeResolution, authContinuationFields.phone, authContinuationFields.verificationCode, authDraftSavePayload, authReadyPanelState?.nextAction, authSession?.continuation, authSession?.handoffId, authSession?.intent, loginForm.continuation, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution])
+  }), [activeAuthReadyPanelState?.nextAction, authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.mergeResolution, authContinuationFields.phone, authContinuationFields.verificationCode, authDraftSavePayload, authSession?.continuation, authSession?.handoffId, authSession?.intent, loginForm.continuation, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution])
 
   React.useEffect(() => {
     let cancelled = false
@@ -1470,7 +1480,11 @@ function App() {
   }, [])
 
   const handleAuthContinuationSubmit = React.useCallback(async () => {
-    if (!authSession || !authContinuationPlan.canSubmit) return
+    const currentHandoff = loginForm.handoff ?? readPersistedAuthHandoff(globalThis.sessionStorage)
+    const currentAuthSession = authSession ?? persistedAuthSession ?? null
+
+    if (!authContinuationPlan.canSubmit) return
+    if (!currentAuthSession && !currentHandoff) return
 
     setLoginForm((current) => ({
       ...current,
@@ -1481,33 +1495,33 @@ function App() {
     try {
       const result = await submitAuthContinuationPlan(authContinuationPlan, authConfig)
       const nextContinuation = buildSerializableAuthContinuation(result?.data)
-      const nextConnection = resolveAuthConnectionOverride(result, authSession?.connection ?? authConnectionSummary)
-      const persistedConnection = resolvePersistedAuthConnection(result, authSession?.connection ?? authConnectionSummary)
-      const nextIntent = authSession.intent ?? loginForm.intent ?? null
+      const nextConnection = resolveAuthConnectionOverride(result, currentAuthSession?.connection ?? currentHandoff?.connection ?? authConnectionSummary)
+      const persistedConnection = resolvePersistedAuthConnection(result, currentAuthSession?.connection ?? currentHandoff?.connection ?? authConnectionSummary)
+      const nextIntent = currentAuthSession?.intent ?? loginForm.intent ?? currentHandoff?.summary?.intent ?? null
 
       if (result.ok) {
         const nextResultSummary = buildAuthResultSummary(result, {
-          sessionId: authSession.sessionId ?? null,
-          accountLabel: authSession.accountLabel ?? null,
-          handoffId: authSession.handoffId ?? loginForm.handoffId ?? null,
-          wishlistCount: authSession.wishlistCount ?? 0,
-          cartCount: authSession.cartCount ?? 0,
-          layoutItemCount: authSession.layoutItemCount ?? 0,
-          hasRecommendationDraft: authSession.hasRecommendationDraft ?? false,
-          guestDraftSummary: authSession.guestDraftSummary ?? null,
+          sessionId: currentAuthSession?.sessionId ?? null,
+          accountLabel: currentAuthSession?.accountLabel ?? currentHandoff?.email ?? null,
+          handoffId: currentAuthSession?.handoffId ?? currentHandoff?.handoffId ?? loginForm.handoffId ?? null,
+          wishlistCount: currentAuthSession?.wishlistCount ?? currentHandoff?.summary?.wishlistCount ?? 0,
+          cartCount: currentAuthSession?.cartCount ?? currentHandoff?.summary?.cartCount ?? 0,
+          layoutItemCount: currentAuthSession?.layoutItemCount ?? currentHandoff?.summary?.layoutItemCount ?? 0,
+          hasRecommendationDraft: currentAuthSession?.hasRecommendationDraft ?? currentHandoff?.summary?.hasRecommendationDraft ?? false,
+          guestDraftSummary: currentAuthSession?.guestDraftSummary ?? currentHandoff?.guestDraftSummary ?? null,
           intent: nextIntent,
-          connection: authSession.connection ?? authConnectionSummary,
-          continuation: authSession.continuation ?? null,
-          authMode: authSession.authMode ?? null,
-          authTransport: authSession.authTransport ?? null,
+          connection: currentAuthSession?.connection ?? currentHandoff?.connection ?? authConnectionSummary,
+          continuation: currentAuthSession?.continuation ?? currentHandoff?.continuation ?? null,
+          authMode: currentAuthSession?.authMode ?? null,
+          authTransport: currentAuthSession?.authTransport ?? null,
         })
         const nextSession = buildPersistedAuthSession(nextResultSummary, {
           intent: nextIntent,
-          connection: persistedConnection ?? nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
+          connection: persistedConnection ?? nextResultSummary.connection ?? currentAuthSession?.connection ?? currentHandoff?.connection ?? authConnectionSummary,
           continuation: nextContinuation,
           continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
-          draftSave: authSession.draftSave ?? authDraftSavePayload,
-          accountState: result?.data?.accountState ?? authSession.accountState ?? null,
+          draftSave: currentAuthSession?.draftSave ?? currentHandoff?.draftSave ?? authDraftSavePayload,
+          accountState: result?.data?.accountState ?? currentAuthSession?.accountState ?? null,
         })
         const nextScreen = canResumePostAuthIntent(nextIntent, screen, nextContinuation)
           ? resolvePostAuthScreen(nextIntent, screen, nextContinuation)
@@ -1519,6 +1533,7 @@ function App() {
         setAuthContinuationFields(buildAuthContinuationFieldState())
         setLoginForm((current) => ({
           ...current,
+          handoff: null,
           handoffId: nextSession.handoffId ?? current.handoffId ?? null,
           status: 'ready',
           result,
@@ -1539,6 +1554,17 @@ function App() {
         return
       }
 
+      if (currentHandoff) {
+        persistAuthHandoff(globalThis.sessionStorage, {
+          ...currentHandoff,
+          continuation: nextContinuation ?? currentHandoff.continuation ?? null,
+          continuationFields: pickPersistedAuthContinuationFields(nextContinuation ?? currentHandoff.continuation, authContinuationFields),
+          connection: nextConnection ?? currentHandoff.connection ?? null,
+          ...(result?.status ? { status: result.status } : {}),
+          ...(result?.data?.message ? { error: result.data.message } : {}),
+        })
+      }
+
       setLoginForm((current) => ({
         ...current,
         status: 'error',
@@ -1557,7 +1583,7 @@ function App() {
         },
       }))
     }
-  }, [authConfig, authConnectionSummary, authContinuationPlan, authDraftSavePayload, authSession, loginForm.handoffId, loginForm.intent, navigate, screen])
+  }, [authConfig, authConnectionSummary, authContinuationFields, authContinuationPlan, authDraftSavePayload, authSession, loginForm.handoff, loginForm.handoffId, loginForm.intent, navigate, persistedAuthSession, screen])
 
   const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
     const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null
@@ -1885,7 +1911,7 @@ function App() {
             authResultSummary={authResultSummary}
             authErrorSummary={authErrorSummary}
             authConnectionSummary={authConnectionSummary}
-            authReadyPanelState={authReadyPanelState}
+            authReadyPanelState={activeAuthReadyPanelState}
             authWiringState={authWiringState}
             guestDraftSnapshot={guestDraftSnapshot}
             onChangeForm={handleLoginFormChange}

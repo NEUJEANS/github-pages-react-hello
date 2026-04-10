@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildAuthGuardPanelState, buildAuthLoginPanelState, buildAuthReadyPanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './auth-session-view-state.js'
+import { buildAuthGuardPanelState, buildAuthLoginPanelState, buildAuthReadyPanelState, buildAuthResumePanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './auth-session-view-state.js'
 
 test('buildAuthLoginPanelState mirrors the initial login payload contract for non-guard modal flows', () => {
   assert.deepEqual(buildAuthLoginPanelState({
@@ -585,6 +585,94 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
       draftSaveSelectedSpaceCount: 0,
     },
   })
+})
+
+test('buildAuthResumePanelState exposes pending action-required handoffs without a bootstrapped auth session', () => {
+  assert.deepEqual(buildAuthResumePanelState({
+    email: 'verify@example.com',
+    handoffId: 'auth-verify-123',
+    connection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/login',
+    },
+    continuation: {
+      nextAction: 'verify-email',
+      resumeToken: 'auth-verify-123:resume',
+      status: 'action-required',
+      statusLabel: '이메일 인증 필요',
+    },
+    summary: {
+      intent: {
+        label: '로그인 후 결제 이어가기',
+      },
+    },
+    draftSave: {
+      draftLabel: '거실 저장 초안',
+      selectedSpaceIds: ['living'],
+      layoutItemCount: 2,
+    },
+    guestDraftSummary: {
+      apartmentLabel: '래미안 포레스트 84A',
+      selectedRoomCount: 1,
+      recommendationRoom: '거실',
+    },
+  }, {
+    actionConnection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/continue',
+    },
+  }), {
+    title: 'verify@example.com 계정 연결됨',
+    subtitle: '현재 로그인 연결이 유지되고 있어요.',
+    restoredBits: [],
+    draftContextBits: ['래미안 포레스트 84A', '공간 1개', '거실 추천'],
+    draftSaveBits: ['초안 거실 저장 초안', '선택 공간 1개', '저장 배치 2개'],
+    accountLabel: 'verify@example.com',
+    handoffId: 'auth-verify-123',
+    sessionId: null,
+    mergeMode: null,
+    intentLabel: '로그인 후 결제 이어가기',
+    intentDraftLabel: null,
+    nextAction: 'verify-email',
+    resumeToken: 'auth-verify-123:resume',
+    continuationStatus: 'action-required',
+    continuationStatusLabel: '이메일 인증 필요',
+    returnScreen: null,
+    connectionLabel: 'same-origin /api auth scaffold',
+    connectionEndpoint: '/api/auth/continue',
+    primaryActionLabel: '이메일 인증 확인',
+    primaryActionHint: '인증 코드를 바로 제출하고, backend가 준비 완료를 돌려주면 원래 이어가려던 흐름으로 복귀할 수 있어요.',
+    primaryActionDisabled: false,
+    actionChecklist: {
+      title: '이메일 인증 연결 준비',
+      description: '백엔드가 이메일 인증 단계를 기다리고 있어요. 실제 인증 화면이 붙기 전까지 필요한 handoff 계약을 먼저 노출합니다.',
+      items: [
+        'resume token auth-verify-123:resume 으로 인증 확인 조회를 재개하기',
+        '현재 인증 연결 대상 same-origin /api auth scaffold (/api/auth/continue) 기준으로 폴링/재개 흐름 붙이기',
+        '인증 완료 전에는 로그인 모달을 닫지 않고 상태만 갱신하기',
+      ],
+    },
+    actionPayloadPreview: {
+      continuationEndpoint: '/api/auth/continue',
+      connectionEndpoint: '/api/auth/continue',
+      targetLabel: 'same-origin /api auth scaffold',
+      handoffId: 'auth-verify-123',
+      resumeToken: 'auth-verify-123:resume',
+      payloadKeys: ['continuation', 'handoffId', 'resumeToken', 'draftSave'],
+      fieldKeys: ['verificationCode'],
+      expectedResponseKeys: ['handoffId', 'sessionId', 'user', 'connection', 'resumeToken', 'nextAction', 'status', 'statusLabel', 'draftSave'],
+      draftSaveLayoutItemCount: 2,
+      draftSaveSelectedSpaceCount: 1,
+    },
+  })
+
+  assert.equal(buildAuthResumePanelState({
+    email: 'resume@example.com',
+    continuation: {
+      nextAction: 'resume-authenticated-flow',
+      resumeToken: 'resume-token',
+    },
+  }), null)
 })
 
 test('buildAuthReadyPanelState carries a configured continuation endpoint into the payload preview contract', () => {

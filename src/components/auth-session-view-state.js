@@ -299,35 +299,49 @@ function buildGuestDraftSummary(guestDraftSnapshot = null) {
   }
 }
 
-export function buildAuthReadyPanelState(session = null, { actionConnection = null } = {}) {
-  if (!session?.accountLabel) return null
+function buildAuthContinuationPanelState({
+  accountLabel = null,
+  handoffId = null,
+  sessionId = null,
+  mergeMode = null,
+  restoredWishlistCount = 0,
+  restoredCartCount = 0,
+  restoredLayoutItemCount = 0,
+  restoredRecommendationDraft = false,
+  intent = null,
+  continuation = null,
+  connection = null,
+  guestDraftSummary = null,
+  draftSave = null,
+} = {}, { actionConnection = null } = {}) {
+  if (!accountLabel) return null
 
   const restoredBits = []
-  if ((session.restoredWishlistCount ?? 0) > 0) restoredBits.push(`찜 ${session.restoredWishlistCount}개`)
-  if ((session.restoredCartCount ?? 0) > 0) restoredBits.push(`장바구니 ${session.restoredCartCount}개`)
-  if ((session.restoredLayoutItemCount ?? 0) > 0) restoredBits.push(`배치 ${session.restoredLayoutItemCount}개`)
-  if (session.restoredRecommendationDraft) restoredBits.push('추천 초안')
+  if ((restoredWishlistCount ?? 0) > 0) restoredBits.push(`찜 ${restoredWishlistCount}개`)
+  if ((restoredCartCount ?? 0) > 0) restoredBits.push(`장바구니 ${restoredCartCount}개`)
+  if ((restoredLayoutItemCount ?? 0) > 0) restoredBits.push(`배치 ${restoredLayoutItemCount}개`)
+  if (restoredRecommendationDraft) restoredBits.push('추천 초안')
 
-  const draftContextBits = buildDraftContextBits(session.guestDraftSummary)
-  const draftSaveBits = buildDraftSaveBits(session.draftSave)
-  const intentLabel = session.intent?.label ?? '저장한 작업'
-  const intentDraftLabel = session.intent?.draftLabel ?? null
-  const nextAction = session.continuation?.nextAction ?? null
-  const resumeToken = session.continuation?.resumeToken ?? null
-  const continuationStatus = session.continuation?.status ?? null
-  const continuationStatusLabel = session.continuation?.statusLabel ?? null
-  const returnScreen = session.intent?.returnScreen ?? null
+  const draftContextBits = buildDraftContextBits(guestDraftSummary)
+  const draftSaveBits = buildDraftSaveBits(draftSave)
+  const intentLabel = intent?.label ?? '저장한 작업'
+  const intentDraftLabel = intent?.draftLabel ?? null
+  const nextAction = continuation?.nextAction ?? null
+  const resumeToken = continuation?.resumeToken ?? null
+  const continuationStatus = continuation?.status ?? null
+  const continuationStatusLabel = continuation?.statusLabel ?? null
+  const returnScreen = intent?.returnScreen ?? null
 
-  const title = `${session.accountLabel} 계정 연결됨`
-  const subtitle = session.mergeMode === 'merged'
+  const title = `${accountLabel} 계정 연결됨`
+  const subtitle = mergeMode === 'merged'
     ? '게스트 초안을 계정에 이어붙인 상태예요.'
-    : session.mergeMode === 'replaced'
+    : mergeMode === 'replaced'
       ? '계정 상태로 전환된 상태예요.'
       : '현재 로그인 연결이 유지되고 있어요.'
 
   const preferredConnection = shouldUseContinuationConnection(nextAction) && actionConnection
     ? actionConnection
-    : session.connection
+    : connection
   const connectionLabel = preferredConnection?.targetLabel ?? null
   const connectionEndpoint = preferredConnection?.endpoint ?? null
   const { primaryActionLabel, primaryActionHint, primaryActionDisabled } = resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen)
@@ -338,13 +352,13 @@ export function buildAuthReadyPanelState(session = null, { actionConnection = nu
   })
   const actionPayloadPreview = buildActionPayloadPreview(nextAction, {
     resumeToken,
-    handoffId: session.handoffId ?? null,
+    handoffId: handoffId ?? null,
     connectionLabel,
     connectionEndpoint,
     continuationEndpoint: shouldUseContinuationConnection(nextAction)
       ? (actionConnection?.endpoint ?? null)
       : null,
-    draftSave: session.draftSave ?? null,
+    draftSave: draftSave ?? null,
   })
 
   return {
@@ -353,10 +367,10 @@ export function buildAuthReadyPanelState(session = null, { actionConnection = nu
     restoredBits,
     draftContextBits,
     draftSaveBits,
-    accountLabel: session.accountLabel,
-    handoffId: session.handoffId ?? null,
-    sessionId: session.sessionId ?? null,
-    mergeMode: session.mergeMode ?? null,
+    accountLabel,
+    handoffId: handoffId ?? null,
+    sessionId: sessionId ?? null,
+    mergeMode: mergeMode ?? null,
     intentLabel,
     intentDraftLabel,
     nextAction,
@@ -372,6 +386,50 @@ export function buildAuthReadyPanelState(session = null, { actionConnection = nu
     actionChecklist,
     actionPayloadPreview,
   }
+}
+
+export function buildAuthReadyPanelState(session = null, { actionConnection = null } = {}) {
+  if (!session?.accountLabel) return null
+
+  return buildAuthContinuationPanelState({
+    accountLabel: session.accountLabel,
+    handoffId: session.handoffId ?? null,
+    sessionId: session.sessionId ?? null,
+    mergeMode: session.mergeMode ?? null,
+    restoredWishlistCount: session.restoredWishlistCount ?? 0,
+    restoredCartCount: session.restoredCartCount ?? 0,
+    restoredLayoutItemCount: session.restoredLayoutItemCount ?? 0,
+    restoredRecommendationDraft: session.restoredRecommendationDraft ?? false,
+    intent: session.intent ?? null,
+    continuation: session.continuation ?? null,
+    connection: session.connection ?? null,
+    guestDraftSummary: session.guestDraftSummary ?? null,
+    draftSave: session.draftSave ?? null,
+  }, { actionConnection })
+}
+
+export function buildAuthResumePanelState(handoff = null, { session = null, actionConnection = null } = {}) {
+  const continuation = handoff?.continuation ?? session?.continuation ?? null
+  const nextAction = continuation?.nextAction ?? null
+  const isActionRequired = nextAction === 'complete-profile' || nextAction === 'verify-email' || nextAction === 'confirm-merge-resolution'
+
+  if (!handoff || !isActionRequired) return null
+
+  return buildAuthContinuationPanelState({
+    accountLabel: handoff.email ?? session?.accountLabel ?? '로그인 재개',
+    handoffId: handoff.handoffId ?? handoff.summary?.handoffId ?? session?.handoffId ?? null,
+    sessionId: session?.sessionId ?? null,
+    mergeMode: session?.mergeMode ?? null,
+    restoredWishlistCount: session?.restoredWishlistCount ?? 0,
+    restoredCartCount: session?.restoredCartCount ?? 0,
+    restoredLayoutItemCount: session?.restoredLayoutItemCount ?? 0,
+    restoredRecommendationDraft: session?.restoredRecommendationDraft ?? false,
+    intent: handoff.summary?.intent ?? session?.intent ?? null,
+    continuation,
+    connection: handoff.connection ?? session?.connection ?? null,
+    guestDraftSummary: handoff.guestDraftSummary ?? handoff.summary ?? session?.guestDraftSummary ?? null,
+    draftSave: handoff.draftSave ?? session?.draftSave ?? null,
+  }, { actionConnection })
 }
 
 export function shouldAutoOpenAuthReadyPanel(session = null, modalState = 'closed') {
