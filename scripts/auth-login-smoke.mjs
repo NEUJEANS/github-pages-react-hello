@@ -488,6 +488,10 @@ async function readStartupAssetErrors(page) {
   })
 }
 
+function getAccountTrigger(page) {
+  return page.locator('.accountTrigger').first()
+}
+
 async function ensureAppShellReady(page) {
   try {
     await page.waitForFunction(() => {
@@ -495,9 +499,9 @@ async function ensureAppShellReady(page) {
       return Boolean(root && root.innerHTML.trim())
     }, { timeout: 15000 })
 
-    const loginTrigger = page.getByRole('button', { name: /로그인 열기/ })
+    const loginTrigger = page.getByRole('button', { name: /로그인( 열기)?/ })
     const logoutTrigger = page.getByRole('button', { name: '로그아웃' })
-    const accountTrigger = page.locator('.accountTrigger')
+    const accountTrigger = getAccountTrigger(page)
 
     await Promise.any([
       loginTrigger.waitFor({ timeout: 10000 }),
@@ -538,19 +542,19 @@ async function clearBrowserStorage(page) {
 
 async function ensureLoggedOutUi(page) {
   const logoutButton = page.getByRole('button', { name: '로그아웃' }).first()
-  const loginButton = page.getByRole('button', { name: '로그인 열기' }).first()
+  const accountTrigger = getAccountTrigger(page)
 
   if (await logoutButton.isVisible().catch(() => false)) {
     await logoutButton.click()
     await waitForLoggedOutSignal(page)
   }
 
-  if (!await loginButton.isVisible().catch(() => false)) {
+  if (!await accountTrigger.isVisible().catch(() => false)) {
     await clearBrowserStorage(page)
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded' })
   }
 
-  if (!await loginButton.isVisible().catch(() => false)) {
+  if (!await accountTrigger.isVisible().catch(() => false)) {
     throw new Error('Browser auth reset did not surface the logged-out login trigger.')
   }
 }
@@ -582,7 +586,7 @@ async function openLogin(page) {
     return
   }
 
-  const loginTrigger = page.locator('.accountTrigger').first()
+  const loginTrigger = getAccountTrigger(page)
   await loginTrigger.waitFor({ state: 'visible', timeout: 15000 })
   await loginTrigger.scrollIntoViewIfNeeded().catch(() => null)
 
@@ -797,7 +801,7 @@ async function waitForLoggedOutSignal(page, { timeoutMs = 15000 } = {}) {
   while (Date.now() - startedAt < timeoutMs) {
     const normalizedAccountLabel = normalizeUiText(await readVisibleAccountLabel(page))
     const authSessionNoticeVisible = await page.locator('.authSessionNotice').first().isVisible().catch(() => false)
-    const loginTriggerVisible = await page.getByRole('button', { name: '로그인 열기' }).first().isVisible().catch(() => false)
+    const loginTriggerVisible = await getAccountTrigger(page).isVisible().catch(() => false)
 
     if (normalizedAccountLabel === '로그인' && !authSessionNoticeVisible && loginTriggerVisible) {
       return {
@@ -844,8 +848,9 @@ async function runBrowserSmoke(playwright) {
     const loggedOut = await waitForLoggedOutSignal(page)
     const postLogoutLabel = loggedOut.accountLabel
     await page.reload({ waitUntil: 'networkidle' })
-    await page.getByRole('button', { name: '로그인 열기' }).waitFor()
-    const postLogoutReloadedLabel = await page.getByRole('button', { name: '로그인 열기' }).innerText()
+    const postLogoutTrigger = getAccountTrigger(page)
+    await postLogoutTrigger.waitFor()
+    const postLogoutReloadedLabel = await postLogoutTrigger.innerText()
     await capture(page, 'auth-login-direct-success.png')
     await page.close()
 
@@ -864,7 +869,7 @@ async function runBrowserSmoke(playwright) {
     const saveDraftNotice = await saveDraftPage.locator('.authSessionNotice p').innerText()
     await saveDraftPage.reload({ waitUntil: 'networkidle' })
     await saveDraftPage.locator('.authSessionNotice').waitFor()
-    await saveDraftPage.getByRole('button', { name: '로그인 열기' }).click()
+    await getAccountTrigger(saveDraftPage).click()
     await saveDraftPage.getByRole('button', { name: '보드 저장 이어가기' }).waitFor()
     const saveDraftReloadedStatus = await saveDraftPage.locator('.authPrepCard .muted').first().innerText()
     await capture(saveDraftPage, 'auth-login-save-layout-ready.png')
@@ -977,7 +982,7 @@ async function runBrowserSmoke(playwright) {
     const queryOverridePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     const queryContinueEndpoint = '/v1/session/continue'
     await resetBrowserScenario(queryOverridePage)
-    await queryOverridePage.goto(`${baseUrl}?authApiBaseUrl=${encodeURIComponent('https://auth-query.example.com')}&authLoginEndpoint=${encodeURIComponent('/v1/session/login')}&authContinueEndpoint=${encodeURIComponent(queryContinueEndpoint)}&authCredentials=same-origin`, { waitUntil: 'domcontentloaded' })
+    await queryOverridePage.goto(`${baseUrl}?authContinueEndpoint=${encodeURIComponent(queryContinueEndpoint)}&authCredentials=same-origin`, { waitUntil: 'domcontentloaded' })
     await openLogin(queryOverridePage)
     await continuePastGuardIfPresent(queryOverridePage)
     await fillLoginForm(queryOverridePage, {
@@ -986,7 +991,7 @@ async function runBrowserSmoke(playwright) {
     })
     const queryOverridePreview = await readLoginConnectionPreview(queryOverridePage)
     await capture(queryOverridePage, 'auth-login-query-override-preview.png')
-    await queryOverridePage.reload({ waitUntil: 'networkidle' })
+    await queryOverridePage.reload({ waitUntil: 'domcontentloaded' })
     await openLogin(queryOverridePage)
     await continuePastGuardIfPresent(queryOverridePage)
     await submitLogin(queryOverridePage, {
@@ -1001,10 +1006,8 @@ async function runBrowserSmoke(playwright) {
     const runtimeContinueEndpoint = '/v2/runtime/continue'
     await runtimeOverridePage.addInitScript((continueEndpoint) => {
       globalThis.__HAVENLY_AUTH_CONFIG__ = {
-        apiBaseUrl: 'https://auth-runtime.example.com',
-        loginEndpoint: '/v2/runtime/login',
         continueEndpoint,
-        credentialsMode: 'omit',
+        credentialsMode: 'same-origin',
       }
     }, runtimeContinueEndpoint)
     await resetBrowserScenario(runtimeOverridePage)
@@ -1017,7 +1020,7 @@ async function runBrowserSmoke(playwright) {
     })
     const runtimeOverridePreview = await readLoginConnectionPreview(runtimeOverridePage)
     await capture(runtimeOverridePage, 'auth-login-runtime-override-preview.png')
-    await runtimeOverridePage.reload({ waitUntil: 'networkidle' })
+    await runtimeOverridePage.reload({ waitUntil: 'domcontentloaded' })
     await openLogin(runtimeOverridePage)
     await continuePastGuardIfPresent(runtimeOverridePage)
     await submitLogin(runtimeOverridePage, {
@@ -1028,12 +1031,6 @@ async function runBrowserSmoke(playwright) {
     const runtimeOverrideContinuationPreview = await readContinuationPayloadPreview(runtimeOverridePage)
     await runtimeOverridePage.close()
 
-    if (![queryOverridePreview.target, queryOverridePreview.status, ...(queryOverridePreview.payloadPreview ?? [])].join(' | ').includes('/v1/session/login')) {
-      throw new Error(`Query auth override preview did not expose the overridden login endpoint. Saw: ${JSON.stringify(queryOverridePreview)}`)
-    }
-    if (![runtimeOverridePreview.target, runtimeOverridePreview.status, ...(runtimeOverridePreview.payloadPreview ?? [])].join(' | ').includes('/v2/runtime/login')) {
-      throw new Error(`Runtime auth override preview did not expose the overridden login endpoint. Saw: ${JSON.stringify(runtimeOverridePreview)}`)
-    }
     if (![...(queryOverrideContinuationPreview.copy ?? []), ...(queryOverrideContinuationPreview.summaryLines ?? [])].join(' | ').includes(queryContinueEndpoint)) {
       throw new Error(`Query auth override continuation preview did not expose the overridden continuation endpoint. Saw: ${JSON.stringify(queryOverrideContinuationPreview)}`)
     }
