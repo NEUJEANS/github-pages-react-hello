@@ -605,6 +605,11 @@ function resolveLoginButtonLabel(authSession) {
   return authSession?.accountLabel ?? LOGIN_BUTTON_LABEL
 }
 
+function resolveAccountTriggerAriaLabel(authSession) {
+  const accountLabel = typeof authSession?.accountLabel === 'string' ? authSession.accountLabel.trim() : ''
+  return accountLabel ? `${accountLabel} 계정 보기` : '로그인 열기'
+}
+
 function buildAuthModeLabels(mode = 'login') {
   return mode === 'signup'
     ? {
@@ -663,7 +668,14 @@ function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay,
       <div className="topActions">
         {!dark && <button className="searchPill" onClick={onSearchOpen}>🔎 스타일 또는 가구 검색</button>}
         {dark && <button className="miniBtn secondary" onClick={() => onOpenOverlay('address')}>공간 정보</button>}
-        <button className="accountTrigger utilityButton" onClick={onOpenLogin} aria-label="로그인 열기">
+        <button
+          className="accountTrigger utilityButton"
+          onClick={onOpenLogin}
+          aria-label={resolveAccountTriggerAriaLabel(authSession)}
+          title={resolveAccountTriggerAriaLabel(authSession)}
+          data-auth-session-state={authSession ? 'authenticated' : 'guest'}
+          data-auth-account-label={authSession?.accountLabel ?? ''}
+        >
           <span className="accountGlyph" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false">
               <circle cx="12" cy="8" r="3.2" />
