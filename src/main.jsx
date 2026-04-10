@@ -1923,6 +1923,8 @@ function App() {
             authResultSummary={authResultSummary}
             authErrorSummary={authErrorSummary}
             authConnectionSummary={authConnectionSummary}
+            hasResumeConnectionDrift={hasResumeConnectionDrift}
+            authConnectionDriftSummary={authConnectionDriftSummary}
             authReadyPanelState={activeAuthReadyPanelState}
             authWiringState={authWiringState}
             guestDraftSnapshot={guestDraftSnapshot}
@@ -2603,7 +2605,7 @@ function AuthWiringCard({ wiring }) {
   )
 }
 
-function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, authReadyPanelState, authWiringState, guestDraftSnapshot, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authResultSummary, authErrorSummary, authConnectionSummary, hasResumeConnectionDrift = false, authConnectionDriftSummary = null, authReadyPanelState, authWiringState, guestDraftSnapshot, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
   const guarded = state === 'guard'
   const allowedMergeResolutions = authErrorSummary?.allowedMergeResolutions ?? []
   const isMergeContinuationPending = form.continuation?.nextAction === 'confirm-merge-resolution'
