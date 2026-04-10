@@ -1901,6 +1901,15 @@ function App() {
 
   return (
     <main className="appShell">
+      {authSessionNotice && !authNoticeDismissed && (
+        <AuthSessionNoticeBanner
+          notice={authSessionNotice}
+          authReadyPanelState={authReadyPanelState}
+          onDismiss={() => setAuthNoticeDismissed(true)}
+          onOpenAccount={() => openLogin(authSession?.intent ?? null)}
+          onLogout={handleLogout}
+        />
+      )}
       <section className={`screenStage ${overlay ? 'overlayOpen' : ''}`}>
         <StageTransition screen={screen} direction={direction}>
           {(visibleScreen) => renderScreen(visibleScreen, { ...shared, ...screenProps[visibleScreen] })}
@@ -2060,6 +2069,24 @@ function renderScreen(screen, props) {
     default:
       return <FurnitureHomePage Header={Header} aiProducts={aiProducts} bedProducts={bedProducts} {...props} />
   }
+}
+
+function AuthSessionNoticeBanner({ notice, authReadyPanelState, onDismiss, onOpenAccount, onLogout }) {
+  return (
+    <section className="authSessionNotice" aria-live="polite">
+      <div>
+        <strong>{notice.title}</strong>
+        <p>{notice.body}</p>
+      </div>
+      <div className="authSessionNoticeActions">
+        {authReadyPanelState?.primaryActionLabel && (
+          <button className="ghost mini" onClick={onOpenAccount}>계정 상태 보기</button>
+        )}
+        <button className="ghost mini" onClick={onLogout}>로그아웃</button>
+        <button className="mini" onClick={onDismiss} aria-label="계정 안내 닫기">닫기</button>
+      </div>
+    </section>
+  )
 }
 
 function CartDrawer({ cart, authSession, onOpenLogin, onClose }) {
