@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { buildAuthContinuationPlan, buildAuthSubmitPlan, buildAuthResultSummary, buildGuestDraftSnapshot, buildAuthErrorSummary } from '../src/components/auth-flow-state.js'
 import { readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan, submitAuthSignupPlan } from '../src/components/auth-submit.js'
 import { buildAuthConnectionSummary, buildPersistedAuthSession } from '../src/components/auth-storage.js'
@@ -12,6 +13,9 @@ const requireBrowser = cliArgs.includes('--require-browser')
 const useProxyBackend = cliArgs.includes('--via-proxy')
 const positionalArgs = cliArgs.filter((arg) => arg !== '--require-browser' && arg !== '--via-proxy')
 const defaultBaseUrl = positionalArgs[0] || 'http://127.0.0.1:4174/github-pages-react-hello/'
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const viteBinPath = path.resolve(__dirname, '../node_modules/vite/bin/vite.js')
 let baseUrl = defaultBaseUrl
 let base = new URL(baseUrl)
 let apiBaseUrl = base.origin
@@ -150,9 +154,27 @@ async function runCommand(command, args, { cwd = process.cwd() } = {}) {
   })
 }
 
+async function terminateChildProcess(child, { forceAfterMs = 1000 } = {}) {
+  if (!child || child.killed) return
+
+  child.kill('SIGTERM')
+  await Promise.race([
+    new Promise((resolve) => child.once('exit', resolve)),
+    delay(forceAfterMs),
+  ])
+
+  if (!child.killed) {
+    child.kill('SIGKILL')
+    await Promise.race([
+      new Promise((resolve) => child.once('exit', resolve)),
+      delay(500),
+    ])
+  }
+}
+
 async function startPreviewServer(url, { extraEnv = {} } = {}) {
-  const previewArgs = ['run', 'preview', '--', '--host', base.hostname, '--port', base.port || '4173']
-  const preview = spawn('npm', previewArgs, {
+  const previewArgs = [viteBinPath, 'preview', '--host', base.hostname, '--port', base.port || '4173']
+  const preview = spawn(process.execPath, previewArgs, {
     cwd: process.cwd(),
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
@@ -182,9 +204,7 @@ async function startPreviewServer(url, { extraEnv = {} } = {}) {
     }
   }
 
-  preview.kill('SIGTERM')
-  await delay(500)
-  if (!preview.killed) preview.kill('SIGKILL')
+  await terminateChildProcess(preview)
 
   throw new Error(`Timed out waiting for preview server at ${url}. stdout: ${stdout || '(empty)'} stderr: ${stderr || '(empty)'}`)
 }
@@ -1356,9 +1376,7 @@ try {
   console.log(JSON.stringify(result, null, 2))
 } finally {
   if (previewServer) {
-    previewServer.kill('SIGTERM')
-    await delay(500)
-    if (!previewServer.killed) previewServer.kill('SIGKILL')
+    await terminateChildProcess(previewServer).catch(() => null)
   }
   if (authProxyServer) {
     await authProxyServer.close().catch(() => null)
