@@ -516,16 +516,6 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .guardSummary label { margin: 0 0 4px; font-size: 11px; }
 .guardSummary b { font-size: 18px; }
 .authPrepCard p { margin: 0; }
-.authChecklist {
-  margin: 12px 0 0;
-  padding-left: 18px;
-  color: #5f574d;
-  display: grid;
-  gap: 8px;
-}
-.authChecklist li {
-  line-height: 1.5;
-}
 @media (max-width: 780px) {
   .accountTrigger span:last-child { display: none; }
   .accountTrigger {

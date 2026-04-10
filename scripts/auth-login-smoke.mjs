@@ -14,12 +14,75 @@ let baseUrl = defaultBaseUrl
 let base = new URL(baseUrl)
 let apiBaseUrl = base.origin
 let appBasePath = base.pathname.endsWith('/') ? base.pathname.slice(0, -1) || '/' : base.pathname
+function createCookieAwareFetch(fetchImpl = fetch) {
+  const cookieJar = new Map()
+
+  function readCookieHeader(url) {
+    const origin = new URL(url).origin
+    return cookieJar.get(origin) ?? ''
+  }
+
+  function storeSetCookie(url, response) {
+    const origin = new URL(url).origin
+    const rawCookies = typeof response?.headers?.getSetCookie === 'function'
+      ? response.headers.getSetCookie()
+      : []
+
+    if (!rawCookies.length) return
+
+    const cookieMap = new Map(
+      (cookieJar.get(origin) ?? '')
+        .split(/;\s*/)
+        .filter(Boolean)
+        .map((entry) => {
+          const [name, ...rest] = entry.split('=')
+          return [name, rest.join('=')]
+        }),
+    )
+
+    rawCookies.forEach((entry) => {
+      const [cookiePair] = String(entry ?? '').split(';')
+      const separatorIndex = cookiePair.indexOf('=')
+      if (separatorIndex === -1) return
+      const name = cookiePair.slice(0, separatorIndex).trim()
+      const value = cookiePair.slice(separatorIndex + 1).trim()
+      if (!name) return
+      if (!value) {
+        cookieMap.delete(name)
+        return
+      }
+      cookieMap.set(name, value)
+    })
+
+    const serialized = Array.from(cookieMap.entries()).map(([name, value]) => `${name}=${value}`).join('; ')
+    if (serialized) cookieJar.set(origin, serialized)
+    else cookieJar.delete(origin)
+  }
+
+  return async (url, init = {}) => {
+    const headers = new Headers(init.headers ?? {})
+    const cookieHeader = readCookieHeader(url)
+    if (cookieHeader && !headers.has('cookie')) {
+      headers.set('cookie', cookieHeader)
+    }
+
+    const response = await fetchImpl(url, {
+      ...init,
+      headers,
+    })
+
+    storeSetCookie(url, response)
+    return response
+  }
+}
+
+const cookieAwareFetch = createCookieAwareFetch(fetch)
 let authConfig = {
   apiBaseUrl,
   appBasePath,
   currentOrigin: base.origin,
   credentialsMode: 'include',
-  fetchImpl: fetch,
+  fetchImpl: cookieAwareFetch,
 }
 const outDir = path.resolve('playwright-artifacts')
 await fs.mkdir(outDir, { recursive: true })
@@ -34,7 +97,7 @@ function setActiveBaseUrl(url) {
     appBasePath,
     currentOrigin: base.origin,
     credentialsMode: 'include',
-    fetchImpl: fetch,
+    fetchImpl: cookieAwareFetch,
   }
 }
 
@@ -638,7 +701,7 @@ function assertGuardPanelPreview(preview) {
 }
 
 async function continuePastGuardIfPresent(page) {
-  const guardButton = page.getByRole('button', { name: '그래도 로그인하기' })
+  const guardButton = page.getByRole('button', { name: /로그인 계속하기|그래도 로그인하기/ })
   const guardVisible = await guardButton.isVisible().catch(() => false)
   if (!guardVisible) return
 
@@ -651,10 +714,7 @@ async function continuePastGuardIfPresent(page) {
     return modalState && modalState !== 'guard'
   }, { timeout: 15000 })
 
-  await Promise.any([
-    page.locator('.loginPanel .loginForm').last().waitFor({ state: 'visible', timeout: 15000 }),
-    page.locator('.loginPanel [data-auth-preview="login-connection-status"]').first().waitFor({ state: 'visible', timeout: 15000 }),
-  ])
+  await page.locator('.loginPanel .loginForm').last().waitFor({ state: 'visible', timeout: 15000 })
 }
 
 async function fillLoginForm(page, { email, password }) {
@@ -672,73 +732,33 @@ async function submitLogin(page, { email, password }) {
 
 async function readLoginConnectionPreview(page) {
   const loginBenefits = page.locator('.loginBenefits')
-  const targetLine = loginBenefits.locator('[data-auth-connection-line="target"]').first()
-  const transportLine = loginBenefits.locator('[data-auth-connection-line="transport"]').first()
-  const prepCard = page.locator('.loginForm [data-auth-preview="login-submit-payload"]').first()
-  const statusCard = page.locator('.loginForm [data-auth-preview="login-connection-status"]').first()
+  const rows = await loginBenefits.locator('div').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => [])
 
   return {
-    target: (await targetLine.innerText().catch(() => '')).trim(),
-    transport: (await transportLine.innerText().catch(() => '')).trim(),
-    status: (await statusCard.locator('.muted').first().innerText().catch(() => '')).trim(),
-    payloadPreview: await prepCard.locator('.guardSummary.compact div').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => []),
+    rows,
+    flattened: rows.join(' | '),
   }
 }
 
-async function readContinuationPayloadPreview(page) {
-  const prepCard = page.locator('.loginForm [data-auth-preview="continuation-submit-payload"]').first()
-  const summaryLines = await prepCard.locator('.guardSummary.compact div').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => [])
-  const copy = await prepCard.locator('.muted').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => [])
+async function readAuthReadyCard(page) {
+  const card = page.locator('.loginForm .authPrepCard').first()
+  const title = normalizeUiText(await card.locator('strong').first().innerText().catch(() => ''))
+  const muted = await card.locator('.muted').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => [])
+  const chips = await card.locator('.loginReasonList span').evaluateAll((nodes) => nodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => [])
+  const primaryAction = normalizeUiText(await page.locator('.loginPanel .footerButtons .cta').last().innerText().catch(() => ''))
 
   return {
-    copy,
-    summaryLines,
-  }
-}
-
-function extractContinuationEndpoint(preview = null) {
-  const flattened = [
-    ...(preview?.copy ?? []),
-    ...(preview?.summaryLines ?? []),
-  ].join(' | ')
-  const endpointMatch = flattened.match(/\/(?:[A-Za-z0-9_.-]+\/)*continue\b/)
-
-  return endpointMatch?.[0] ?? null
-}
-
-function assertPersistedContinuationEndpoint(beforeReload = null, afterReload = null, label = 'auth continuation') {
-  const beforeEndpoint = extractContinuationEndpoint(beforeReload)
-  const afterEndpoint = extractContinuationEndpoint(afterReload)
-
-  if (!beforeEndpoint) {
-    throw new Error(`${label} preview did not expose a continuation endpoint before reload. Saw: ${JSON.stringify(beforeReload)}`)
-  }
-
-  if (!afterEndpoint) {
-    throw new Error(`${label} preview did not expose a continuation endpoint after reload. Saw: ${JSON.stringify(afterReload)}`)
-  }
-
-  if (beforeEndpoint !== afterEndpoint) {
-    throw new Error(`${label} preview changed continuation endpoint across reloads (${beforeEndpoint} → ${afterEndpoint}). Before: ${JSON.stringify(beforeReload)} After: ${JSON.stringify(afterReload)}`)
+    title,
+    muted,
+    chips,
+    primaryAction,
   }
 }
 
 function assertLoginConnectionPreview(preview) {
-  const flattened = [preview.target, preview.transport, preview.status, ...(preview.payloadPreview ?? [])].join(' | ')
-  const expectedFragments = [
-    '/api/auth/login',
-    'payload keys',
-    'response keys',
-    'guestDraftSnapshot',
-    'connection',
-    'resumeToken',
-    'nextAction',
-  ]
-
-  for (const fragment of expectedFragments) {
-    if (!flattened.includes(fragment)) {
-      throw new Error(`Login payload preview is missing expected auth contract detail: ${fragment}. Saw: ${flattened}`)
-    }
+  const rows = preview?.rows ?? []
+  if (rows.length > 0 && rows.some((row) => /payload|response keys|debug|checklist/i.test(row))) {
+    throw new Error(`Login panel exposed debug/log-style auth copy that should stay out of the product UI. Saw: ${JSON.stringify(rows)}`)
   }
 }
 
@@ -758,8 +778,10 @@ async function readVisibleAccountLabel(page) {
   return meaningfulSpanLabel || buttonLabel
 }
 
-async function waitForAuthReadySignal(page, { expectedAccountLabel = null, timeoutMs = 30000 } = {}) {
+async function waitForAuthReadySignal(page, { expectedAccountLabel = null, expectedNoticeIncludes = [], forbiddenNoticeIncludes = [], timeoutMs = 30000 } = {}) {
   const startedAt = Date.now()
+  const requiredNoticeBits = expectedNoticeIncludes.map((value) => normalizeUiText(value)).filter(Boolean)
+  const forbiddenNoticeBits = forbiddenNoticeIncludes.map((value) => normalizeUiText(value)).filter(Boolean)
 
   while (Date.now() - startedAt < timeoutMs) {
     const authSessionNotice = page.locator('.authSessionNotice')
@@ -767,8 +789,12 @@ async function waitForAuthReadySignal(page, { expectedAccountLabel = null, timeo
       if (await authSessionNotice.first().isVisible().catch(() => false)) {
         const noticeTitle = normalizeUiText(await page.locator('.authSessionNotice strong').first().innerText().catch(() => ''))
         const notice = normalizeUiText(await page.locator('.authSessionNotice p').innerText().catch(() => '')) || null
+        const matchesRequiredNotice = requiredNoticeBits.every((value) => notice?.includes(value))
+        const matchesForbiddenNotice = forbiddenNoticeBits.some((value) => notice?.includes(value))
 
-        if (!expectedAccountLabel || noticeTitle.includes(expectedAccountLabel) || notice?.includes(expectedAccountLabel) || noticeTitle.includes('계정 연결됨')) {
+        if ((!expectedAccountLabel || noticeTitle.includes(expectedAccountLabel) || notice?.includes(expectedAccountLabel) || noticeTitle.includes('계정 연결됨'))
+          && matchesRequiredNotice
+          && !matchesForbiddenNotice) {
           return {
             signal: 'session-notice',
             notice,
@@ -781,7 +807,8 @@ async function waitForAuthReadySignal(page, { expectedAccountLabel = null, timeo
     }
 
     const normalizedAccountLabel = normalizeUiText(await readVisibleAccountLabel(page))
-    if (expectedAccountLabel ? normalizedAccountLabel.includes(expectedAccountLabel) : Boolean(normalizedAccountLabel && normalizedAccountLabel !== '로그인')) {
+    const requiresNoticeMatch = requiredNoticeBits.length > 0 || forbiddenNoticeBits.length > 0
+    if (!requiresNoticeMatch && (expectedAccountLabel ? normalizedAccountLabel.includes(expectedAccountLabel) : Boolean(normalizedAccountLabel && normalizedAccountLabel !== '로그인'))) {
       return {
         signal: 'account-label',
         accountLabel: normalizedAccountLabel,
@@ -789,7 +816,7 @@ async function waitForAuthReadySignal(page, { expectedAccountLabel = null, timeo
     }
 
     const logoutVisible = await page.getByRole('button', { name: '로그아웃' }).first().isVisible().catch(() => false)
-    if (logoutVisible && (!expectedAccountLabel || normalizedAccountLabel.includes(expectedAccountLabel))) {
+    if (!requiresNoticeMatch && logoutVisible && (!expectedAccountLabel || normalizedAccountLabel.includes(expectedAccountLabel))) {
       return {
         signal: 'logout-visible',
         accountLabel: normalizedAccountLabel || null,
@@ -797,7 +824,7 @@ async function waitForAuthReadySignal(page, { expectedAccountLabel = null, timeo
     }
 
     const readyPanelCta = page.locator('.loginPanel .footerButtons .cta').last()
-    if (await readyPanelCta.count()) {
+    if (!requiresNoticeMatch && await readyPanelCta.count()) {
       const ctaLabel = normalizeUiText(await readyPanelCta.innerText().catch(() => ''))
       if (ctaLabel && ctaLabel !== '로그인' && ctaLabel !== '준비 중…') {
         return {
@@ -892,8 +919,11 @@ async function runBrowserSmoke(playwright) {
     })
     await saveDraftPage.getByRole('button', { name: '보드 저장 이어가기' }).waitFor()
     const saveDraftStatus = await saveDraftPage.locator('.authPrepCard .muted').first().innerText()
-    const saveDraftConnection = await saveDraftPage.locator('.authPrepCard .muted').nth(3).innerText()
+    const saveDraftReadyCard = await readAuthReadyCard(saveDraftPage)
     const saveDraftNotice = await saveDraftPage.locator('.authSessionNotice p').innerText()
+    await saveDraftPage.getByRole('button', { name: '보드 저장 이어가기' }).click()
+    await saveDraftPage.locator('.loginPanel').waitFor({ state: 'hidden' })
+    const saveDraftHashAfterResume = await saveDraftPage.evaluate(() => globalThis.location.hash)
     await saveDraftPage.reload({ waitUntil: 'networkidle' })
     await saveDraftPage.locator('.authSessionNotice').waitFor()
     await getAccountTrigger(saveDraftPage).click()
@@ -929,25 +959,18 @@ async function runBrowserSmoke(playwright) {
     const mergeOptions = await mergePage.locator('.footerButtons button.ghost').evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim()).filter(Boolean))
 
     await mergePage.getByRole('button', { name: '현재 초안으로 계속' }).click()
-    const mergePreviewCard = mergePage.locator('.loginForm .authPrepCard').filter({ hasText: '병합 재개 payload 미리보기' }).first()
-    await mergePreviewCard.waitFor()
-    const mergePreviewLines = await mergePreviewCard.locator('.muted').allInnerTexts()
+    const mergeReadyCard = await readAuthReadyCard(mergePage)
     const mergeReadyAction = mergePage.locator('.loginPanel .footerButtons .cta').last()
     await mergeReadyAction.waitFor()
     const mergeReadyLabel = (await mergeReadyAction.innerText()).trim()
     const mergeStatus = await mergePage.locator('.authPrepCard .muted').first().innerText()
-    if (!mergePreviewLines.some((line) => line.includes('mergeResolution keep-guest'))) {
-      throw new Error(`Merge continuation preview did not expose the selected merge resolution before submit. Saw: ${mergePreviewLines.join(' | ')}`)
-    }
-    if (!mergePreviewLines.some((line) => line.includes('/api/auth/continue'))) {
-      throw new Error(`Merge continuation preview did not expose the continuation endpoint before submit. Saw: ${mergePreviewLines.join(' | ')}`)
+    if (!mergeReadyCard.primaryAction.includes('현재 초안으로 계속')) {
+      throw new Error(`Merge continuation state did not preserve the selected keep-guest path. Saw: ${JSON.stringify(mergeReadyCard)}`)
     }
     await mergePage.reload({ waitUntil: 'networkidle' })
-    const mergeReloadedPayloadCard = mergePage.locator('.loginForm .authPrepCard').filter({ hasText: '병합 방향 payload' }).first()
-    await mergeReloadedPayloadCard.waitFor()
-    const mergeReloadedSelection = await mergeReloadedPayloadCard.locator('.muted').allInnerTexts()
-    if (!mergeReloadedSelection.some((line) => line.includes('mergeResolution keep-guest'))) {
-      throw new Error(`Merge continuation selection was not restored after reload. Saw: ${mergeReloadedSelection.join(' | ')}`)
+    const mergeReloadedReadyCard = await readAuthReadyCard(mergePage)
+    if (mergeReloadedReadyCard.primaryAction !== mergeReadyCard.primaryAction) {
+      throw new Error(`Merge continuation action changed across reload. Before: ${JSON.stringify(mergeReadyCard)} After: ${JSON.stringify(mergeReloadedReadyCard)}`)
     }
     await mergeReadyAction.click()
     const mergeReadySignal = await waitForAuthReadySignal(mergePage, { expectedAccountLabel: 'merge@example.com' })
@@ -965,21 +988,26 @@ async function runBrowserSmoke(playwright) {
     })
     await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).waitFor()
     const completeProfileStatus = await completeProfilePage.locator('.authPrepCard .muted').first().innerText()
-    const completeProfileChecklist = await completeProfilePage.locator('.authChecklist li').allInnerTexts()
-    const completeProfilePayloadPreview = await readContinuationPayloadPreview(completeProfilePage)
+    const completeProfileReadyCard = await readAuthReadyCard(completeProfilePage)
     const completeProfileReadyDisabled = await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).isDisabled()
     await completeProfilePage.getByPlaceholder('홍길동').fill('Havenly User')
     await completeProfilePage.getByPlaceholder('010-1234-5678').fill('010-1234-5678')
     await completeProfilePage.reload({ waitUntil: 'networkidle' })
     await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).waitFor()
     const completeProfileReloadedStatus = await completeProfilePage.locator('.authPrepCard .muted').first().innerText()
-    const completeProfileReloadedPayloadPreview = await readContinuationPayloadPreview(completeProfilePage)
-    assertPersistedContinuationEndpoint(completeProfilePayloadPreview, completeProfileReloadedPayloadPreview, 'Complete-profile continuation')
+    const completeProfileReloadedReadyCard = await readAuthReadyCard(completeProfilePage)
+    if (completeProfileReadyCard.title !== completeProfileReloadedReadyCard.title || completeProfileReadyCard.primaryAction !== completeProfileReloadedReadyCard.primaryAction) {
+      throw new Error(`Complete-profile ready card changed across reload. Before: ${JSON.stringify(completeProfileReadyCard)} After: ${JSON.stringify(completeProfileReloadedReadyCard)}`)
+    }
     const completeProfileReloadedDisplayName = await completeProfilePage.getByPlaceholder('홍길동').inputValue()
     const completeProfileReloadedPhone = await completeProfilePage.getByPlaceholder('010-1234-5678').inputValue()
     await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).click()
-    await completeProfilePage.locator('.authSessionNotice').waitFor()
-    const completeProfileResumedStatus = await completeProfilePage.locator('.authSessionNotice p').innerText()
+    const completeProfileReady = await waitForAuthReadySignal(completeProfilePage, {
+      expectedAccountLabel: 'profile@example.com',
+      expectedNoticeIncludes: ['프로필 준비 완료'],
+      forbiddenNoticeIncludes: ['프로필 보완 필요'],
+    })
+    const completeProfileResumedStatus = completeProfileReady.notice
     await capture(completeProfilePage, 'auth-login-complete-profile-ready.png')
     await completeProfilePage.close()
 
@@ -994,19 +1022,24 @@ async function runBrowserSmoke(playwright) {
     })
     await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).waitFor()
     const verifyEmailStatus = await verifyEmailPage.locator('.authPrepCard .muted').first().innerText()
-    const verifyEmailChecklist = await verifyEmailPage.locator('.authChecklist li').allInnerTexts()
-    const verifyEmailPayloadPreview = await readContinuationPayloadPreview(verifyEmailPage)
+    const verifyEmailReadyCard = await readAuthReadyCard(verifyEmailPage)
     const verifyEmailReadyDisabled = await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).isDisabled()
     await verifyEmailPage.getByPlaceholder('123456').fill('123456')
     await verifyEmailPage.reload({ waitUntil: 'networkidle' })
     await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).waitFor()
     const verifyEmailReloadedStatus = await verifyEmailPage.locator('.authPrepCard .muted').first().innerText()
-    const verifyEmailReloadedPayloadPreview = await readContinuationPayloadPreview(verifyEmailPage)
-    assertPersistedContinuationEndpoint(verifyEmailPayloadPreview, verifyEmailReloadedPayloadPreview, 'Verify-email continuation')
+    const verifyEmailReloadedReadyCard = await readAuthReadyCard(verifyEmailPage)
+    if (verifyEmailReadyCard.title !== verifyEmailReloadedReadyCard.title || verifyEmailReadyCard.primaryAction !== verifyEmailReloadedReadyCard.primaryAction) {
+      throw new Error(`Verify-email ready card changed across reload. Before: ${JSON.stringify(verifyEmailReadyCard)} After: ${JSON.stringify(verifyEmailReloadedReadyCard)}`)
+    }
     const verifyEmailReloadedCode = await verifyEmailPage.getByPlaceholder('123456').inputValue()
     await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).click()
-    await verifyEmailPage.locator('.authSessionNotice').waitFor()
-    const verifyEmailResumedStatus = await verifyEmailPage.locator('.authSessionNotice p').innerText()
+    const verifyEmailReady = await waitForAuthReadySignal(verifyEmailPage, {
+      expectedAccountLabel: 'verify@example.com',
+      expectedNoticeIncludes: ['이메일 인증 완료'],
+      forbiddenNoticeIncludes: ['이메일 인증 필요'],
+    })
+    const verifyEmailResumedStatus = verifyEmailReady.notice
     await capture(verifyEmailPage, 'auth-login-verify-email-ready.png')
     await verifyEmailPage.close()
 
@@ -1030,7 +1063,7 @@ async function runBrowserSmoke(playwright) {
       password: 'password123',
     })
     await queryOverridePage.getByRole('button', { name: '프로필 보완 제출' }).waitFor()
-    const queryOverrideContinuationPreview = await readContinuationPayloadPreview(queryOverridePage)
+    const queryOverrideReadyCard = await readAuthReadyCard(queryOverridePage)
     await queryOverridePage.close()
 
     const runtimeOverridePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
@@ -1059,14 +1092,14 @@ async function runBrowserSmoke(playwright) {
       password: 'password123',
     })
     await runtimeOverridePage.getByRole('button', { name: '이메일 인증 확인' }).waitFor()
-    const runtimeOverrideContinuationPreview = await readContinuationPayloadPreview(runtimeOverridePage)
+    const runtimeOverrideReadyCard = await readAuthReadyCard(runtimeOverridePage)
     await runtimeOverridePage.close()
 
-    if (![...(queryOverrideContinuationPreview.copy ?? []), ...(queryOverrideContinuationPreview.summaryLines ?? [])].join(' | ').includes(queryContinueEndpoint)) {
-      throw new Error(`Query auth override continuation preview did not expose the overridden continuation endpoint. Saw: ${JSON.stringify(queryOverrideContinuationPreview)}`)
+    if (!queryOverrideReadyCard.primaryAction.includes('프로필 보완 제출')) {
+      throw new Error(`Query auth override login flow did not reach the expected profile continuation state. Saw: ${JSON.stringify(queryOverrideReadyCard)}`)
     }
-    if (![...(runtimeOverrideContinuationPreview.copy ?? []), ...(runtimeOverrideContinuationPreview.summaryLines ?? [])].join(' | ').includes(runtimeContinueEndpoint)) {
-      throw new Error(`Runtime auth override continuation preview did not expose the overridden continuation endpoint. Saw: ${JSON.stringify(runtimeOverrideContinuationPreview)}`)
+    if (!runtimeOverrideReadyCard.primaryAction.includes('이메일 인증 확인')) {
+      throw new Error(`Runtime auth override login flow did not reach the expected verification continuation state. Saw: ${JSON.stringify(runtimeOverrideReadyCard)}`)
     }
 
     return {
@@ -1084,19 +1117,18 @@ async function runBrowserSmoke(playwright) {
       },
       saveLayoutDraft: {
         status: saveDraftStatus,
-        connection: saveDraftConnection,
+        readyCard: saveDraftReadyCard,
         notice: saveDraftNotice,
+        hashAfterResume: saveDraftHashAfterResume,
         reloadedStatus: saveDraftReloadedStatus,
       },
       actionRequired: {
         completeProfile: {
           status: completeProfileStatus,
-          checklist: completeProfileChecklist,
-          payloadPreview: completeProfilePayloadPreview.summaryLines,
-          continuationEndpoint: extractContinuationEndpoint(completeProfilePayloadPreview),
+          readyCard: completeProfileReadyCard,
           primaryActionDisabled: completeProfileReadyDisabled,
           reloadedStatus: completeProfileReloadedStatus,
-          reloadedContinuationEndpoint: extractContinuationEndpoint(completeProfileReloadedPayloadPreview),
+          reloadedReadyCard: completeProfileReloadedReadyCard,
           reloadedFields: {
             displayName: completeProfileReloadedDisplayName,
             phone: completeProfileReloadedPhone,
@@ -1105,27 +1137,27 @@ async function runBrowserSmoke(playwright) {
         },
         verifyEmail: {
           status: verifyEmailStatus,
-          checklist: verifyEmailChecklist,
-          payloadPreview: verifyEmailPayloadPreview.summaryLines,
-          continuationEndpoint: extractContinuationEndpoint(verifyEmailPayloadPreview),
+          readyCard: verifyEmailReadyCard,
           primaryActionDisabled: verifyEmailReadyDisabled,
           reloadedStatus: verifyEmailReloadedStatus,
-          reloadedContinuationEndpoint: extractContinuationEndpoint(verifyEmailReloadedPayloadPreview),
+          reloadedReadyCard: verifyEmailReloadedReadyCard,
           reloadedFields: {
             verificationCode: verifyEmailReloadedCode,
           },
           resumedStatus: verifyEmailResumedStatus,
         },
       },
-      guardedMerge: { guardReasons, guardPreview, mergeError, mergeOptions, mergePreviewLines, mergeReadyLabel, mergeStatus, mergeReloadedSelection, mergeReadySignal },
+      guardedMerge: { guardReasons, guardPreview, mergeError, mergeOptions, mergeReadyCard, mergeReadyLabel, mergeStatus, mergeReloadedReadyCard, mergeReadySignal },
       authTargetOverrides: {
         query: {
+          endpoint: queryContinueEndpoint,
           login: queryOverridePreview,
-          continuation: queryOverrideContinuationPreview,
+          readyCard: queryOverrideReadyCard,
         },
         runtime: {
+          endpoint: runtimeContinueEndpoint,
           login: runtimeOverridePreview,
-          continuation: runtimeOverrideContinuationPreview,
+          readyCard: runtimeOverrideReadyCard,
         },
       },
     }
