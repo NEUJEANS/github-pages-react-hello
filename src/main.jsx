@@ -1736,30 +1736,48 @@ function App() {
         setAuthNoticeDismissed(false)
       }
 
+      let failedHandoff = null
+
       if (!result.ok) {
-        persistAuthHandoff(
-          globalThis.sessionStorage,
-          buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
-            connection: nextConnection,
-            actionConnection: authContinuationConnectionSummary,
-            continuation: nextContinuation,
-            continuationFields: shouldResolveMergeViaContinuation
-              ? { mergeResolution: nextMergeResolution }
-              : pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
-            draftSave: authDraftSavePayload,
-            result,
-          }),
-        )
+        failedHandoff = buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
+          connection: nextConnection,
+          actionConnection: authContinuationConnectionSummary,
+          continuation: nextContinuation,
+          continuationFields: shouldResolveMergeViaContinuation
+            ? { mergeResolution: nextMergeResolution }
+            : pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
+          draftSave: authDraftSavePayload,
+          result,
+        })
+
+        persistAuthHandoff(globalThis.sessionStorage, failedHandoff)
       }
 
-      setLoginForm((current) => ({
-        ...current,
-        status: result.ok ? 'ready' : 'error',
-        result,
-        connection: nextConnection,
-        continuation: nextContinuation,
-        mergeResolution: result.ok ? null : nextMergeResolution,
-      }))
+      setLoginForm((current) => {
+        if (!result.ok && nextContinuation?.nextAction === 'confirm-merge-resolution' && failedHandoff) {
+          const resumeState = buildAuthResumeState(failedHandoff, persistedAuthSession)
+          if (resumeState) {
+            return {
+              ...resumeState,
+              email: current.email,
+              password: current.password,
+              result,
+              mergeResolution: nextMergeResolution,
+              connection: nextConnection,
+              continuation: nextContinuation,
+            }
+          }
+        }
+
+        return {
+          ...current,
+          status: result.ok ? 'ready' : 'error',
+          result,
+          connection: nextConnection,
+          continuation: nextContinuation,
+          mergeResolution: result.ok ? null : nextMergeResolution,
+        }
+      })
 
       if (shouldCloseLoginModalAfterAuth(result, submitPlan.summary.intent, nextContinuation)) {
         const nextScreen = resolvePostAuthScreen(

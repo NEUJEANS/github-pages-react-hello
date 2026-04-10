@@ -182,7 +182,7 @@ function buildContinuationNoticeCopy(nextAction = null, statusLabel = null) {
   }
 }
 
-function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
+function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen, mergeResolution = null) {
   switch (nextAction) {
     case 'save-layout-draft':
       return {
@@ -228,8 +228,16 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen) {
       }
     case 'confirm-merge-resolution':
       return {
-        primaryActionLabel: '병합 방향 확정',
-        primaryActionHint: '선택한 병합 기준으로 `/api/auth/continue` 재개 요청을 보내면, backend가 같은 handoff를 이어서 다음 상태를 돌려줄 수 있어요.',
+        primaryActionLabel: mergeResolution === 'keep-guest'
+          ? '현재 초안으로 계속'
+          : mergeResolution === 'replace-with-account'
+            ? '계정 상태로 계속'
+            : '병합 방향 확정',
+        primaryActionHint: mergeResolution === 'keep-guest'
+          ? '현재 게스트 초안을 유지한 채 `/api/auth/continue` 재개 요청을 보내면, backend가 같은 handoff를 이어서 다음 상태를 돌려줄 수 있어요.'
+          : mergeResolution === 'replace-with-account'
+            ? '계정에 저장된 상태를 기준으로 `/api/auth/continue` 재개 요청을 보내면, backend가 같은 handoff를 이어서 다음 상태를 돌려줄 수 있어요.'
+            : '선택한 병합 기준으로 `/api/auth/continue` 재개 요청을 보내면, backend가 같은 handoff를 이어서 다음 상태를 돌려줄 수 있어요.',
         primaryActionDisabled: false,
       }
     case 'resume-authenticated-flow':
@@ -344,6 +352,7 @@ function buildAuthContinuationPanelState({
   restoredRecommendationDraft = false,
   intent = null,
   continuation = null,
+  continuationFields = null,
   connection = null,
   guestDraftSummary = null,
   draftSave = null,
@@ -365,6 +374,9 @@ function buildAuthContinuationPanelState({
   const continuationStatus = continuation?.status ?? null
   const continuationStatusLabel = continuation?.statusLabel ?? null
   const returnScreen = intent?.returnScreen ?? null
+  const mergeResolution = typeof continuationFields?.mergeResolution === 'string'
+    ? continuationFields.mergeResolution.trim()
+    : null
 
   const title = `${accountLabel} 계정 연결됨`
   const subtitle = buildContinuationSubtitle(nextAction, mergeMode)
@@ -374,7 +386,7 @@ function buildAuthContinuationPanelState({
     : connection
   const connectionLabel = preferredConnection?.targetLabel ?? null
   const connectionEndpoint = preferredConnection?.endpoint ?? null
-  const { primaryActionLabel, primaryActionHint, primaryActionDisabled } = resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen)
+  const { primaryActionLabel, primaryActionHint, primaryActionDisabled } = resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen, mergeResolution)
   const actionChecklist = buildActionChecklist(nextAction, {
     resumeToken,
     connectionLabel,
@@ -432,6 +444,7 @@ export function buildAuthReadyPanelState(session = null, { actionConnection = nu
     restoredRecommendationDraft: session.restoredRecommendationDraft ?? false,
     intent: session.intent ?? null,
     continuation: session.continuation ?? null,
+    continuationFields: session.continuationFields ?? null,
     connection: session.connection ?? null,
     guestDraftSummary: session.guestDraftSummary ?? null,
     draftSave: session.draftSave ?? null,
@@ -456,6 +469,7 @@ export function buildAuthResumePanelState(handoff = null, { session = null, acti
     restoredRecommendationDraft: session?.restoredRecommendationDraft ?? false,
     intent: handoff.summary?.intent ?? session?.intent ?? null,
     continuation,
+    continuationFields: handoff.continuationFields ?? session?.continuationFields ?? null,
     connection: handoff.connection ?? session?.connection ?? null,
     guestDraftSummary: handoff.guestDraftSummary ?? handoff.summary ?? session?.guestDraftSummary ?? null,
     draftSave: handoff.draftSave ?? session?.draftSave ?? null,

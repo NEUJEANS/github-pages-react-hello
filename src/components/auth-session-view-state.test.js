@@ -587,6 +587,59 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
   })
 })
 
+test('buildAuthReadyPanelState adapts merge confirmation CTA copy to the selected resolution', () => {
+  const keepGuest = buildAuthReadyPanelState({
+    accountLabel: 'merge@example.com',
+    handoffId: 'auth-merge-1234',
+    continuation: {
+      nextAction: 'confirm-merge-resolution',
+      resumeToken: 'auth-merge-1234:resume',
+      status: 'action-required',
+      statusLabel: '초안 병합 확인 필요',
+    },
+    continuationFields: {
+      mergeResolution: 'keep-guest',
+    },
+    connection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/login',
+    },
+  }, {
+    actionConnection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/continue',
+    },
+  })
+
+  const replaceWithAccount = buildAuthReadyPanelState({
+    accountLabel: 'merge@example.com',
+    handoffId: 'auth-merge-1234',
+    continuation: {
+      nextAction: 'confirm-merge-resolution',
+      resumeToken: 'auth-merge-1234:resume',
+      status: 'action-required',
+      statusLabel: '초안 병합 확인 필요',
+    },
+    continuationFields: {
+      mergeResolution: 'replace-with-account',
+    },
+    connection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/login',
+    },
+  }, {
+    actionConnection: {
+      targetLabel: 'same-origin /api auth scaffold',
+      endpoint: '/api/auth/continue',
+    },
+  })
+
+  assert.equal(keepGuest.primaryActionLabel, '현재 초안으로 계속')
+  assert.match(keepGuest.primaryActionHint, /현재 게스트 초안/)
+  assert.equal(replaceWithAccount.primaryActionLabel, '계정 상태로 계속')
+  assert.match(replaceWithAccount.primaryActionHint, /계정에 저장된 상태/)
+})
+
 test('buildAuthResumePanelState exposes pending action-required handoffs without a bootstrapped auth session', () => {
   assert.deepEqual(buildAuthResumePanelState({
     email: 'verify@example.com',
