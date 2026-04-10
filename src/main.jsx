@@ -1397,6 +1397,19 @@ function App() {
         draftSave: authSession.draftSave ?? authDraftSavePayload,
         accountState: result?.data?.accountState ?? authSession.accountState ?? null,
       })
+      const continuityPatch = buildPostAuthContinuityPatch(result)
+
+      if (continuityPatch) {
+        setWishlistedIds(continuityPatch.wishlistIds)
+        cart.replaceItems(continuityPatch.cartItems)
+        editor.replaceItems(continuityPatch.layoutItems)
+        setAiForm(
+          continuityPatch.recommendationDraft
+            ? { ...initialAiForm, ...continuityPatch.recommendationDraft }
+            : initialAiForm,
+        )
+        setEngagement(initialEngagement)
+      }
 
       persistAuthSession(globalThis.localStorage, nextSession)
       setAuthSession(nextSession)
