@@ -696,6 +696,33 @@ async function readContinuationPayloadPreview(page) {
   }
 }
 
+function extractContinuationEndpoint(preview = null) {
+  const flattened = [
+    ...(preview?.copy ?? []),
+    ...(preview?.summaryLines ?? []),
+  ].join(' | ')
+  const endpointMatch = flattened.match(/\/(?:[A-Za-z0-9_.-]+\/)*continue\b/)
+
+  return endpointMatch?.[0] ?? null
+}
+
+function assertPersistedContinuationEndpoint(beforeReload = null, afterReload = null, label = 'auth continuation') {
+  const beforeEndpoint = extractContinuationEndpoint(beforeReload)
+  const afterEndpoint = extractContinuationEndpoint(afterReload)
+
+  if (!beforeEndpoint) {
+    throw new Error(`${label} preview did not expose a continuation endpoint before reload. Saw: ${JSON.stringify(beforeReload)}`)
+  }
+
+  if (!afterEndpoint) {
+    throw new Error(`${label} preview did not expose a continuation endpoint after reload. Saw: ${JSON.stringify(afterReload)}`)
+  }
+
+  if (beforeEndpoint !== afterEndpoint) {
+    throw new Error(`${label} preview changed continuation endpoint across reloads (${beforeEndpoint} → ${afterEndpoint}). Before: ${JSON.stringify(beforeReload)} After: ${JSON.stringify(afterReload)}`)
+  }
+}
+
 function assertLoginConnectionPreview(preview) {
   const flattened = [preview.target, preview.transport, preview.status, ...(preview.payloadPreview ?? [])].join(' | ')
   const expectedFragments = [
@@ -939,13 +966,15 @@ async function runBrowserSmoke(playwright) {
     await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).waitFor()
     const completeProfileStatus = await completeProfilePage.locator('.authPrepCard .muted').first().innerText()
     const completeProfileChecklist = await completeProfilePage.locator('.authChecklist li').allInnerTexts()
-    const completeProfilePayloadPreview = await completeProfilePage.locator('.loginForm .authPrepCard').filter({ hasText: '계속 요청 payload 미리보기' }).first().locator('.guardSummary.compact div').allInnerTexts()
+    const completeProfilePayloadPreview = await readContinuationPayloadPreview(completeProfilePage)
     const completeProfileReadyDisabled = await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).isDisabled()
     await completeProfilePage.getByPlaceholder('홍길동').fill('Havenly User')
     await completeProfilePage.getByPlaceholder('010-1234-5678').fill('010-1234-5678')
     await completeProfilePage.reload({ waitUntil: 'networkidle' })
     await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).waitFor()
     const completeProfileReloadedStatus = await completeProfilePage.locator('.authPrepCard .muted').first().innerText()
+    const completeProfileReloadedPayloadPreview = await readContinuationPayloadPreview(completeProfilePage)
+    assertPersistedContinuationEndpoint(completeProfilePayloadPreview, completeProfileReloadedPayloadPreview, 'Complete-profile continuation')
     const completeProfileReloadedDisplayName = await completeProfilePage.getByPlaceholder('홍길동').inputValue()
     const completeProfileReloadedPhone = await completeProfilePage.getByPlaceholder('010-1234-5678').inputValue()
     await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).click()
@@ -966,12 +995,14 @@ async function runBrowserSmoke(playwright) {
     await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).waitFor()
     const verifyEmailStatus = await verifyEmailPage.locator('.authPrepCard .muted').first().innerText()
     const verifyEmailChecklist = await verifyEmailPage.locator('.authChecklist li').allInnerTexts()
-    const verifyEmailPayloadPreview = await verifyEmailPage.locator('.loginForm .authPrepCard').filter({ hasText: '계속 요청 payload 미리보기' }).first().locator('.guardSummary.compact div').allInnerTexts()
+    const verifyEmailPayloadPreview = await readContinuationPayloadPreview(verifyEmailPage)
     const verifyEmailReadyDisabled = await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).isDisabled()
     await verifyEmailPage.getByPlaceholder('123456').fill('123456')
     await verifyEmailPage.reload({ waitUntil: 'networkidle' })
     await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).waitFor()
     const verifyEmailReloadedStatus = await verifyEmailPage.locator('.authPrepCard .muted').first().innerText()
+    const verifyEmailReloadedPayloadPreview = await readContinuationPayloadPreview(verifyEmailPage)
+    assertPersistedContinuationEndpoint(verifyEmailPayloadPreview, verifyEmailReloadedPayloadPreview, 'Verify-email continuation')
     const verifyEmailReloadedCode = await verifyEmailPage.getByPlaceholder('123456').inputValue()
     await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).click()
     await verifyEmailPage.locator('.authSessionNotice').waitFor()
@@ -1061,9 +1092,11 @@ async function runBrowserSmoke(playwright) {
         completeProfile: {
           status: completeProfileStatus,
           checklist: completeProfileChecklist,
-          payloadPreview: completeProfilePayloadPreview,
+          payloadPreview: completeProfilePayloadPreview.summaryLines,
+          continuationEndpoint: extractContinuationEndpoint(completeProfilePayloadPreview),
           primaryActionDisabled: completeProfileReadyDisabled,
           reloadedStatus: completeProfileReloadedStatus,
+          reloadedContinuationEndpoint: extractContinuationEndpoint(completeProfileReloadedPayloadPreview),
           reloadedFields: {
             displayName: completeProfileReloadedDisplayName,
             phone: completeProfileReloadedPhone,
@@ -1073,9 +1106,11 @@ async function runBrowserSmoke(playwright) {
         verifyEmail: {
           status: verifyEmailStatus,
           checklist: verifyEmailChecklist,
-          payloadPreview: verifyEmailPayloadPreview,
+          payloadPreview: verifyEmailPayloadPreview.summaryLines,
+          continuationEndpoint: extractContinuationEndpoint(verifyEmailPayloadPreview),
           primaryActionDisabled: verifyEmailReadyDisabled,
           reloadedStatus: verifyEmailReloadedStatus,
+          reloadedContinuationEndpoint: extractContinuationEndpoint(verifyEmailReloadedPayloadPreview),
           reloadedFields: {
             verificationCode: verifyEmailReloadedCode,
           },
