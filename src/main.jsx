@@ -805,6 +805,7 @@ function App() {
   const [layoutTrayItems, setLayoutTrayItems] = React.useState(() => aiProducts.map((item) => ({ ...item })))
   const [identityVerification, setIdentityVerification] = React.useState({ status: 'idle', verificationId: null, message: '' })
   const verificationPollTimeoutRef = React.useRef(null)
+  const verificationAdvanceTimeoutRef = React.useRef(null)
   const appliedAuthSessionRestoreRef = React.useRef(persistedAuthSession?.savedAt ?? null)
 
   const selectedApartment = React.useMemo(
@@ -892,6 +893,9 @@ function App() {
     if (verificationPollTimeoutRef.current) {
       clearTimeout(verificationPollTimeoutRef.current)
     }
+    if (verificationAdvanceTimeoutRef.current) {
+      clearTimeout(verificationAdvanceTimeoutRef.current)
+    }
   }, [])
 
   const pollIdentityVerification = React.useCallback(async (verificationId) => {
@@ -906,7 +910,23 @@ function App() {
         ? { ...continuation, nextAction: 'resume-authenticated-flow', status: 'ready', statusLabel: '이메일 인증 완료' }
         : continuation
 
+      if (verificationPollTimeoutRef.current) {
+        clearTimeout(verificationPollTimeoutRef.current)
+        verificationPollTimeoutRef.current = null
+      }
+      if (verificationAdvanceTimeoutRef.current) {
+        clearTimeout(verificationAdvanceTimeoutRef.current)
+      }
+
       setIdentityVerification({ status: 'verified', verificationId, message: '본인인증이 완료되었습니다' })
+
+      await new Promise((resolve) => {
+        verificationAdvanceTimeoutRef.current = setTimeout(() => {
+          verificationAdvanceTimeoutRef.current = null
+          resolve()
+        }, 900)
+      })
+
       setLoginForm((current) => ({
         ...current,
         status: 'ready',
