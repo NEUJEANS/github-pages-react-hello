@@ -389,15 +389,15 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     connectionLabel: null,
     connectionEndpoint: null,
     primaryActionLabel: '프로필 보완 제출',
-    primaryActionHint: '백엔드가 요구한 최소 프로필 payload를 바로 제출하고, blocker가 풀리면 원래 로그인 목적 흐름으로 이어갈 수 있어요.',
+    primaryActionHint: '프로필 정보를 마무리하면 원래 하려던 흐름으로 바로 이어갈 수 있어요.',
     primaryActionDisabled: false,
     actionChecklist: {
-      title: '프로필 보완 연결 준비',
-      description: '백엔드가 추가 프로필 입력을 요구하는 상태예요. 아직 별도 화면은 없지만, 프론트가 어떤 계약으로 다음 단계를 이어야 하는지 바로 확인할 수 있어요.',
+      title: '프로필 보완 준비',
+      description: '로그인은 연결됐고, 이어서 사용할 프로필 정보만 마무리하면 돼요.',
       items: [
-        'resume token auth-user-1234:profile 값을 유지한 채 다음 프로필 저장 요청으로 이어가기',
-        '현재 인증 연결 대상을 그대로 유지하기',
-        '닉네임 · 연락처 같은 프로필 필드를 직렬화 가능한 payload로 최소 구성하기',
+        '닉네임과 연락처를 입력하기',
+        '입력한 내용을 확인한 뒤 바로 제출하기',
+        '제출이 끝나면 원래 하려던 흐름으로 돌아가기',
       ],
     },
     actionPayloadPreview: {
@@ -451,15 +451,15 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     connectionLabel: 'same-origin /api auth scaffold',
     connectionEndpoint: '/api/auth/continue',
     primaryActionLabel: '이메일 인증 확인',
-    primaryActionHint: '인증 코드를 바로 제출하고, backend가 준비 완료를 돌려주면 원래 이어가려던 흐름으로 복귀할 수 있어요.',
+    primaryActionHint: '인증 확인이 끝나면 원래 이어가려던 흐름으로 돌아갈 수 있어요.',
     primaryActionDisabled: false,
     actionChecklist: {
-      title: '이메일 인증 연결 준비',
-      description: '백엔드가 이메일 인증 단계를 기다리고 있어요. 실제 인증 화면이 붙기 전까지 필요한 handoff 계약을 먼저 노출합니다.',
+      title: '이메일 인증 준비',
+      description: '로그인은 연결됐고, 인증 확인만 마치면 바로 이어서 사용할 수 있어요.',
       items: [
-        'resume token auth-user-1234:verify 으로 인증 확인 조회를 재개하기',
-        '현재 인증 연결 대상 same-origin /api auth scaffold (/api/auth/continue) 기준으로 폴링/재개 흐름 붙이기',
-        '인증 완료 전에는 로그인 모달을 닫지 않고 상태만 갱신하기',
+        '인증 창을 열어 본인 확인을 완료하기',
+        '인증이 끝나면 현재 화면에서 확인 상태를 갱신하기',
+        '확인이 끝나면 원래 하려던 흐름으로 돌아가기',
       ],
     },
     actionPayloadPreview: {
@@ -506,7 +506,7 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     connectionLabel: null,
     connectionEndpoint: null,
     primaryActionLabel: '현재 흐름으로 돌아가기',
-    primaryActionHint: '백엔드 scaffold가 현재 인증 handoff를 확인했어요. 로그인 모달을 닫고 지금 보던 흐름으로 돌아갈 수 있어요.',
+    primaryActionHint: '로그인 모달을 닫고 지금 보던 흐름으로 돌아갈 수 있어요.',
     primaryActionDisabled: false,
     actionChecklist: null,
     actionPayloadPreview: {
@@ -561,15 +561,15 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
     connectionLabel: 'same-origin /api auth scaffold',
     connectionEndpoint: '/api/auth/continue',
     primaryActionLabel: '병합 방향 확정',
-    primaryActionHint: '선택한 병합 기준으로 `/api/auth/continue` 재개 요청을 보내면, backend가 같은 handoff를 이어서 다음 상태를 돌려줄 수 있어요.',
+    primaryActionHint: '선택한 병합 기준으로 이어서 진행할 수 있어요.',
     primaryActionDisabled: false,
     actionChecklist: {
-      title: '초안 병합 방향 확정 준비',
-      description: '백엔드가 게스트 초안과 계정 상태 중 어떤 기준으로 이어갈지 다시 확인하고 있어요. 새로 로그인하지 않고 같은 handoff 계약으로 병합 방향만 확정할 수 있어요.',
+      title: '초안 병합 방향 확인',
+      description: '현재 초안을 유지할지, 계정에 저장된 상태를 우선할지 선택하면 이어서 진행할 수 있어요.',
       items: [
-        'resume token auth-merge-1234:resume 과 함께 선택한 mergeResolution 값을 그대로 재개 요청에 실어 보내기',
-        '현재 인증 연결 대상 same-origin /api auth scaffold (/api/auth/continue) 기준으로 같은 handoff를 이어가기',
-        '확정 전에는 게스트 초안과 계정 상태를 모두 유지한 채 병합 방향만 선택하기',
+        '원하는 병합 기준을 하나 선택하기',
+        '선택 내용을 확인한 뒤 이어서 진행하기',
+        '확정 전까지는 현재 초안과 계정 상태를 모두 안전하게 유지하기',
       ],
     },
     actionPayloadPreview: {
@@ -584,6 +584,53 @@ test('buildAuthReadyPanelState adapts primary CTA copy to backend continuation a
       draftSaveLayoutItemCount: 0,
       draftSaveSelectedSpaceCount: 0,
     },
+  })
+})
+
+test('buildAuthReadyPanelState keeps action-required auth copy customer-facing without technical debug text', () => {
+  const scenarios = [
+    buildAuthReadyPanelState({
+      accountLabel: 'profile@example.com',
+      continuation: {
+        nextAction: 'complete-profile',
+        resumeToken: 'auth-profile-1',
+        status: 'action-required',
+        statusLabel: '프로필 보완 필요',
+      },
+    }),
+    buildAuthReadyPanelState({
+      accountLabel: 'verify@example.com',
+      continuation: {
+        nextAction: 'verify-email',
+        resumeToken: 'auth-verify-1',
+        status: 'action-required',
+        statusLabel: '이메일 인증 필요',
+      },
+    }),
+    buildAuthReadyPanelState({
+      accountLabel: 'merge@example.com',
+      continuation: {
+        nextAction: 'confirm-merge-resolution',
+        resumeToken: 'auth-merge-1',
+        status: 'action-required',
+        statusLabel: '초안 병합 확인 필요',
+      },
+    }),
+  ]
+
+  const forbidden = /backend|payload|handoff|resume token|\/api\/auth\/continue|same-origin|scaffold/i
+
+  scenarios.forEach((state) => {
+    const visibleCopy = [
+      state?.title,
+      state?.subtitle,
+      state?.primaryActionHint,
+      state?.actionChecklist?.title,
+      state?.actionChecklist?.description,
+      ...(state?.actionChecklist?.items ?? []),
+    ].filter(Boolean).join(' | ')
+
+    assert.equal(forbidden.test(visibleCopy), false, visibleCopy)
   })
 })
 
@@ -635,7 +682,7 @@ test('buildAuthReadyPanelState adapts merge confirmation CTA copy to the selecte
   })
 
   assert.equal(keepGuest.primaryActionLabel, '현재 초안으로 계속')
-  assert.match(keepGuest.primaryActionHint, /현재 게스트 초안/)
+  assert.match(keepGuest.primaryActionHint, /현재 초안/)
   assert.equal(replaceWithAccount.primaryActionLabel, '계정 상태로 계속')
   assert.match(replaceWithAccount.primaryActionHint, /계정에 저장된 상태/)
 })
@@ -694,15 +741,15 @@ test('buildAuthResumePanelState exposes pending action-required handoffs without
     connectionLabel: 'same-origin /api auth scaffold',
     connectionEndpoint: '/api/auth/continue',
     primaryActionLabel: '이메일 인증 확인',
-    primaryActionHint: '인증 코드를 바로 제출하고, backend가 준비 완료를 돌려주면 원래 이어가려던 흐름으로 복귀할 수 있어요.',
+    primaryActionHint: '인증 확인이 끝나면 원래 이어가려던 흐름으로 돌아갈 수 있어요.',
     primaryActionDisabled: false,
     actionChecklist: {
-      title: '이메일 인증 연결 준비',
-      description: '백엔드가 이메일 인증 단계를 기다리고 있어요. 실제 인증 화면이 붙기 전까지 필요한 handoff 계약을 먼저 노출합니다.',
+      title: '이메일 인증 준비',
+      description: '로그인은 연결됐고, 인증 확인만 마치면 바로 이어서 사용할 수 있어요.',
       items: [
-        'resume token auth-verify-123:resume 으로 인증 확인 조회를 재개하기',
-        '현재 인증 연결 대상 same-origin /api auth scaffold (/api/auth/continue) 기준으로 폴링/재개 흐름 붙이기',
-        '인증 완료 전에는 로그인 모달을 닫지 않고 상태만 갱신하기',
+        '인증 창을 열어 본인 확인을 완료하기',
+        '인증이 끝나면 현재 화면에서 확인 상태를 갱신하기',
+        '확인이 끝나면 원래 하려던 흐름으로 돌아가기',
       ],
     },
     actionPayloadPreview: {

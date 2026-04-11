@@ -115,32 +115,32 @@ function buildActionChecklist(nextAction, { resumeToken = null, connectionLabel 
   switch (nextAction) {
     case 'complete-profile':
       return {
-        title: '프로필 보완 연결 준비',
-        description: '백엔드가 추가 프로필 입력을 요구하는 상태예요. 아직 별도 화면은 없지만, 프론트가 어떤 계약으로 다음 단계를 이어야 하는지 바로 확인할 수 있어요.',
+        title: '프로필 보완 준비',
+        description: '로그인은 연결됐고, 이어서 사용할 프로필 정보만 마무리하면 돼요.',
         items: [
-          resumeToken ? `resume token ${resumeToken} 값을 유지한 채 다음 프로필 저장 요청으로 이어가기` : '다음 프로필 저장 요청에 resume token 이어붙이기',
-          connectionLabel ? `현재 인증 연결 대상 ${connectionLabel}${connectionEndpoint ? ` (${connectionEndpoint})` : ''}를 그대로 사용하기` : '현재 인증 연결 대상을 그대로 유지하기',
-          '닉네임 · 연락처 같은 프로필 필드를 직렬화 가능한 payload로 최소 구성하기',
+          '닉네임과 연락처를 입력하기',
+          '입력한 내용을 확인한 뒤 바로 제출하기',
+          '제출이 끝나면 원래 하려던 흐름으로 돌아가기',
         ],
       }
     case 'verify-email':
       return {
-        title: '이메일 인증 연결 준비',
-        description: '백엔드가 이메일 인증 단계를 기다리고 있어요. 실제 인증 화면이 붙기 전까지 필요한 handoff 계약을 먼저 노출합니다.',
+        title: '이메일 인증 준비',
+        description: '로그인은 연결됐고, 인증 확인만 마치면 바로 이어서 사용할 수 있어요.',
         items: [
-          resumeToken ? `resume token ${resumeToken} 으로 인증 확인 조회를 재개하기` : '이메일 인증 확인 조회에 resume token 전달하기',
-          connectionLabel ? `현재 인증 연결 대상 ${connectionLabel}${connectionEndpoint ? ` (${connectionEndpoint})` : ''} 기준으로 폴링/재개 흐름 붙이기` : '현재 인증 연결 대상 기준으로 폴링/재개 흐름 붙이기',
-          '인증 완료 전에는 로그인 모달을 닫지 않고 상태만 갱신하기',
+          '인증 창을 열어 본인 확인을 완료하기',
+          '인증이 끝나면 현재 화면에서 확인 상태를 갱신하기',
+          '확인이 끝나면 원래 하려던 흐름으로 돌아가기',
         ],
       }
     case 'confirm-merge-resolution':
       return {
-        title: '초안 병합 방향 확정 준비',
-        description: '백엔드가 게스트 초안과 계정 상태 중 어떤 기준으로 이어갈지 다시 확인하고 있어요. 새로 로그인하지 않고 같은 handoff 계약으로 병합 방향만 확정할 수 있어요.',
+        title: '초안 병합 방향 확인',
+        description: '현재 초안을 유지할지, 계정에 저장된 상태를 우선할지 선택하면 이어서 진행할 수 있어요.',
         items: [
-          resumeToken ? `resume token ${resumeToken} 과 함께 선택한 mergeResolution 값을 그대로 재개 요청에 실어 보내기` : '선택한 mergeResolution 값을 재개 요청에 포함하기',
-          connectionLabel ? `현재 인증 연결 대상 ${connectionLabel}${connectionEndpoint ? ` (${connectionEndpoint})` : ''} 기준으로 같은 handoff를 이어가기` : '현재 인증 연결 대상 기준으로 같은 handoff를 이어가기',
-          '확정 전에는 게스트 초안과 계정 상태를 모두 유지한 채 병합 방향만 선택하기',
+          '원하는 병합 기준을 하나 선택하기',
+          '선택 내용을 확인한 뒤 이어서 진행하기',
+          '확정 전까지는 현재 초안과 계정 상태를 모두 안전하게 유지하기',
         ],
       }
     default:
@@ -193,7 +193,7 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen, mergeR
     case 'resume-layout-checkout':
       return {
         primaryActionLabel: '레이아웃 점검 이어가기',
-        primaryActionHint: '백엔드가 요구한 다음 단계에 맞춰 레이아웃 화면으로 복귀할 수 있어요.',
+        primaryActionHint: '로그인 뒤 이어서 레이아웃 화면으로 돌아갈 수 있어요.',
         primaryActionDisabled: false,
       }
     case 'resume-guest-draft':
@@ -217,13 +217,13 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen, mergeR
     case 'complete-profile':
       return {
         primaryActionLabel: '프로필 보완 제출',
-        primaryActionHint: '백엔드가 요구한 최소 프로필 payload를 바로 제출하고, blocker가 풀리면 원래 로그인 목적 흐름으로 이어갈 수 있어요.',
+        primaryActionHint: '프로필 정보를 마무리하면 원래 하려던 흐름으로 바로 이어갈 수 있어요.',
         primaryActionDisabled: false,
       }
     case 'verify-email':
       return {
         primaryActionLabel: '이메일 인증 확인',
-        primaryActionHint: '인증 코드를 바로 제출하고, backend가 준비 완료를 돌려주면 원래 이어가려던 흐름으로 복귀할 수 있어요.',
+        primaryActionHint: '인증 확인이 끝나면 원래 이어가려던 흐름으로 돌아갈 수 있어요.',
         primaryActionDisabled: false,
       }
     case 'confirm-merge-resolution':
@@ -234,18 +234,18 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen, mergeR
             ? '계정 상태로 계속'
             : '병합 방향 확정',
         primaryActionHint: mergeResolution === 'keep-guest'
-          ? '현재 게스트 초안을 유지한 채 `/api/auth/continue` 재개 요청을 보내면, backend가 같은 handoff를 이어서 다음 상태를 돌려줄 수 있어요.'
+          ? '현재 초안을 유지한 채 이어서 진행할 수 있어요.'
           : mergeResolution === 'replace-with-account'
-            ? '계정에 저장된 상태를 기준으로 `/api/auth/continue` 재개 요청을 보내면, backend가 같은 handoff를 이어서 다음 상태를 돌려줄 수 있어요.'
-            : '선택한 병합 기준으로 `/api/auth/continue` 재개 요청을 보내면, backend가 같은 handoff를 이어서 다음 상태를 돌려줄 수 있어요.',
+            ? '계정에 저장된 상태를 기준으로 이어서 진행할 수 있어요.'
+            : '선택한 병합 기준으로 이어서 진행할 수 있어요.',
         primaryActionDisabled: false,
       }
     case 'resume-authenticated-flow':
       return {
         primaryActionLabel: returnScreen ? `${intentLabel} 이어가기` : '현재 흐름으로 돌아가기',
         primaryActionHint: returnScreen
-          ? '백엔드 scaffold가 현재 인증 handoff를 확인했어요. 저장된 복귀 화면에서 바로 이어갈 수 있어요.'
-          : '백엔드 scaffold가 현재 인증 handoff를 확인했어요. 로그인 모달을 닫고 지금 보던 흐름으로 돌아갈 수 있어요.',
+          ? '저장된 복귀 화면에서 바로 이어갈 수 있어요.'
+          : '로그인 모달을 닫고 지금 보던 흐름으로 돌아갈 수 있어요.',
         primaryActionDisabled: false,
       }
     default:
