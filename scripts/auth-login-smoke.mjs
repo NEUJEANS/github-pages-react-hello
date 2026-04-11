@@ -1197,6 +1197,17 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     }
     await mergeReadyAction.click()
     const mergeReadySignal = await waitForAuthReadySignal(mergePage, { expectedAccountLabel: 'merge@example.com' })
+    let mergeCheckoutDrawerMode = 'auto-opened'
+    const mergeCheckoutDialog = mergePage.getByRole('dialog')
+    const mergeCheckoutAutoOpened = await mergeCheckoutDialog.waitFor({ timeout: 3000 }).then(() => true).catch(() => false)
+    if (!mergeCheckoutAutoOpened) {
+      mergeCheckoutDrawerMode = 'opened-from-header'
+      const reopenedCartButton = mergePage.getByRole('button', { name: '장바구니 열기' })
+      await reopenedCartButton.waitFor({ timeout: 15000 })
+      await reopenedCartButton.click({ force: true })
+      await mergeCheckoutDialog.waitFor({ timeout: 15000 })
+    }
+    const mergeCheckoutCtaLabel = await mergeCheckoutDialog.locator('.footerButtons .cta').last().innerText()
     await capture(mergePage, 'auth-login-guarded-merge.png')
     await mergePage.close()
 
@@ -1380,7 +1391,19 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
           resumedStatus: verifyEmailResumedStatus,
         },
       },
-      guardedMerge: { guardReasons, guardPreview, mergeError, mergeOptions, mergeReadyCard, mergeReadyLabel, mergeStatus, mergeReloadedReadyCard, mergeReadySignal },
+      guardedMerge: {
+        guardReasons,
+        guardPreview,
+        mergeError,
+        mergeOptions,
+        mergeReadyCard,
+        mergeReadyLabel,
+        mergeStatus,
+        mergeReloadedReadyCard,
+        mergeReadySignal,
+        mergeCheckoutDrawerMode,
+        mergeCheckoutCtaLabel,
+      },
       authTargetOverrides: {
         query: {
           endpoint: queryContinueEndpoint,

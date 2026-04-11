@@ -6,6 +6,7 @@ import {
   resolvePostAuthScreen,
   shouldAttachDraftSaveToAuthContinuation,
   shouldCloseLoginModalAfterAuth,
+  shouldOpenCartAfterAuthResume,
   shouldSubmitContinuationBeforeResume,
 } from './auth-intent-state.js'
 
@@ -46,6 +47,13 @@ test('shouldSubmitContinuationBeforeResume only marks real resumable auth handof
   assert.equal(shouldSubmitContinuationBeforeResume({ nextAction: 'verify-email' }), false)
   assert.equal(shouldSubmitContinuationBeforeResume({ nextAction: 'retry-login' }), false)
   assert.equal(shouldSubmitContinuationBeforeResume(null), false)
+})
+
+test('shouldOpenCartAfterAuthResume reopens checkout intent flows after auth completes', () => {
+  assert.equal(shouldOpenCartAfterAuthResume({ action: 'checkout-cart' }, null), true)
+  assert.equal(shouldOpenCartAfterAuthResume(null, { nextAction: 'checkout-cart' }), true)
+  assert.equal(shouldOpenCartAfterAuthResume({ action: 'login' }, { nextAction: 'save-layout-draft' }), false)
+  assert.equal(shouldOpenCartAfterAuthResume(null, { nextAction: 'resume-authenticated-flow' }), false)
 })
 
 test('shouldAttachDraftSaveToAuthContinuation keeps layout draft payloads attached for layout-oriented intents and resumptions', () => {

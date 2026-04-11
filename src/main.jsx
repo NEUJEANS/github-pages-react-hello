@@ -52,6 +52,7 @@ import {
   resolvePostAuthScreen,
   shouldAttachDraftSaveToAuthContinuation,
   shouldCloseLoginModalAfterAuth,
+  shouldOpenCartAfterAuthResume,
   shouldSubmitContinuationBeforeResume,
 } from './components/auth-intent-state.js'
 import { buildFilteredBedProducts } from './components/bed-filter-state.js'
@@ -1380,6 +1381,7 @@ function App() {
     if (!shouldSubmitContinuationBeforeResume(nextContinuation) || !authSession || !authContinuationPlan.canSubmit) {
       setLoginModalState('closed')
       if (nextScreen) navigate(nextScreen)
+      if (shouldOpenCartAfterAuthResume(nextIntent, nextContinuation)) cart.setIsOpen(true)
       return
     }
 
@@ -1454,6 +1456,7 @@ function App() {
       }))
       setLoginModalState('closed')
       if (nextScreen) navigate(nextScreen)
+      if (shouldOpenCartAfterAuthResume(nextIntent, nextContinuation)) cart.setIsOpen(true)
     } catch {
       setLoginForm((current) => ({
         ...current,
@@ -1465,7 +1468,7 @@ function App() {
         },
       }))
     }
-  }, [authConfig, authConnectionSummary, authContinuationPlan, authDraftSavePayload, authSession, loginForm.continuation, loginForm.handoffId, loginForm.intent, navigate, screen])
+  }, [authConfig, authConnectionSummary, authContinuationPlan, authDraftSavePayload, authSession, cart, loginForm.continuation, loginForm.handoffId, loginForm.intent, navigate, screen])
 
   const handleAuthContinuationFieldChange = React.useCallback((field, value) => {
     const nextFields = buildAuthContinuationFieldState({
