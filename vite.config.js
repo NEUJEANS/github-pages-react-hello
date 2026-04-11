@@ -1,6 +1,11 @@
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import {
+  AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
+  AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
+  AUTH_ACTION_CONNECTION_METHOD_HEADER,
+  AUTH_ACTION_CONNECTION_SOURCE_HEADER,
+  AUTH_ACTION_CONNECTION_TARGET_HEADER,
   AUTH_CONNECTION_CREDENTIALS_HEADER,
   AUTH_CONNECTION_ENDPOINT_HEADER,
   AUTH_CONNECTION_METHOD_HEADER,
@@ -148,7 +153,26 @@ function normalizeAuthScaffoldPath(pathname = "") {
   if (pathname.endsWith("/api/auth/logout")) return "/api/auth/logout"
   if (pathname === "/api/auth/continue") return pathname
   if (pathname.endsWith("/api/auth/continue")) return "/api/auth/continue"
+  if (pathname === "/api/auth/verification/start") return pathname
+  if (pathname.endsWith("/api/auth/verification/start")) return "/api/auth/verification/start"
+  if (pathname === "/api/auth/verification/status") return pathname
+  if (pathname.endsWith("/api/auth/verification/status")) return "/api/auth/verification/status"
+  if (pathname === "/api/auth/verification/callback") return pathname
+  if (pathname.endsWith("/api/auth/verification/callback")) return "/api/auth/verification/callback"
+  if (pathname === "/api/auth/layout/track") return pathname
+  if (pathname.endsWith("/api/auth/layout/track")) return "/api/auth/layout/track"
   return pathname
+}
+
+function writeVerificationCallbackPage(res, payload = {}) {
+  const title = payload?.status === "verified" ? "인증이 완료되었어요" : "인증 상태를 확인해 주세요"
+  const description = payload?.status === "verified"
+    ? "HAVENLY 창으로 돌아가면 계정 상태가 자동으로 갱신됩니다. 이 창은 닫아도 괜찮아요."
+    : "인증 상태가 아직 완료되지 않았어요. 원래 창에서 다시 시도해 주세요."
+
+  res.statusCode = 200
+  res.setHeader("content-type", "text/html; charset=utf-8")
+  res.end(`<!doctype html><html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${title}</title><style>body{margin:0;font-family:Inter,'Noto Sans KR',system-ui,sans-serif;background:#f6f1ea;color:#2c241d;display:grid;place-items:center;min-height:100vh;padding:24px}.card{max-width:420px;background:#fff;border:1px solid rgba(139,115,85,.18);border-radius:24px;padding:28px;box-shadow:0 18px 40px rgba(36,29,20,.08)}h1{margin:0 0 10px;font-size:28px;line-height:1.2}p{margin:0;color:#6d6257;line-height:1.7}.pill{display:inline-flex;margin-bottom:14px;padding:8px 12px;border-radius:999px;background:#f4ece2;color:#6f5943;font-size:12px;font-weight:800;letter-spacing:.12em}</style></head><body><section class="card"><div class="pill">HAVENLY VERIFY</div><h1>${title}</h1><p>${description}</p></section><script>window.opener?.postMessage?.({type:'havenly-verification-complete',status:${JSON.stringify(payload?.status ?? "verified")},verificationId:${JSON.stringify(payload?.verificationId ?? null)}}, '*');setTimeout(()=>window.close(),1200);</script></body></html>`)
 }
 
 function readAuthProxyBaseUrl() {
@@ -216,6 +240,11 @@ async function proxyAuthRequest(req, res, requestPath, { proxyBaseUrl }) {
     AUTH_CONNECTION_TARGET_HEADER,
     AUTH_CONNECTION_CREDENTIALS_HEADER,
     AUTH_CONNECTION_SOURCE_HEADER,
+    AUTH_ACTION_CONNECTION_METHOD_HEADER,
+    AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
+    AUTH_ACTION_CONNECTION_TARGET_HEADER,
+    AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
+    AUTH_ACTION_CONNECTION_SOURCE_HEADER,
   ].forEach((headerName) => {
     const value = response.headers.get(headerName)
     if (value) res.setHeader(headerName, value)
@@ -237,6 +266,10 @@ function havenlyAuthScaffoldPlugin() {
       "/api/auth/pending",
       "/api/auth/logout",
       "/api/auth/continue",
+      "/api/auth/verification/start",
+      "/api/auth/verification/status",
+      "/api/auth/verification/callback",
+      "/api/auth/layout/track",
     ].includes(requestPath)
 
     if (authProxyBaseUrl && isSupportedAuthPath) {
@@ -252,14 +285,14 @@ function havenlyAuthScaffoldPlugin() {
       return
     }
 
-    if (!["/api/auth/login", "/api/auth/signup", "/api/auth/session", "/api/auth/pending", "/api/auth/logout", "/api/auth/continue"].includes(requestPath)) {
+    if (!["/api/auth/login", "/api/auth/signup", "/api/auth/session", "/api/auth/pending", "/api/auth/logout", "/api/auth/continue", "/api/auth/verification/start", "/api/auth/verification/status", "/api/auth/verification/callback", "/api/auth/layout/track"].includes(requestPath)) {
       next()
       return
     }
 
     try {
       const request = req.method === "GET" || req.method === "HEAD"
-        ? {}
+        ? Object.fromEntries(new URL(req.url ?? "http://localhost", "http://localhost").searchParams.entries())
         : await readRequestBody(req)
       const connection = readAuthConnection(req)
       const response = handleAuthRequest(req, {
@@ -290,6 +323,11 @@ function havenlyAuthScaffoldPlugin() {
 
       if (Array.isArray(response.cookies) && response.cookies.length > 0) {
         res.setHeader("set-cookie", response.cookies)
+      }
+
+      if (requestPath === "/api/auth/verification/callback" && req.method === "GET") {
+        writeVerificationCallbackPage(res, response.data)
+        return
       }
 
       writeJson(res, response.status, response.data, {
