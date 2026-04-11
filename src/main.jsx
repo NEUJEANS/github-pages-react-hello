@@ -1907,6 +1907,7 @@ function App() {
           authReadyPanelState={authReadyPanelState}
           onDismiss={() => setAuthNoticeDismissed(true)}
           onOpenAccount={() => openLogin(authSession?.intent ?? null)}
+          onResumeAuthenticatedIntent={handleResumeAuthenticatedIntent}
           onLogout={handleLogout}
         />
       )}
@@ -2071,7 +2072,26 @@ function renderScreen(screen, props) {
   }
 }
 
-function AuthSessionNoticeBanner({ notice, authReadyPanelState, onDismiss, onOpenAccount, onLogout }) {
+function AuthSessionNoticeBanner({ notice, authReadyPanelState, onDismiss, onOpenAccount, onResumeAuthenticatedIntent, onLogout }) {
+  const nextAction = authReadyPanelState?.nextAction ?? null
+  const needsAccountModal = nextAction === 'complete-profile'
+    || nextAction === 'verify-email'
+    || nextAction === 'confirm-merge-resolution'
+  const primaryActionLabel = needsAccountModal
+    ? '계정 상태 보기'
+    : nextAction === 'save-layout-draft'
+      ? '보드 열기'
+      : nextAction === 'checkout-cart'
+        ? '주문 이어가기'
+        : nextAction === 'resume-account-state'
+          ? '계정 상태 열기'
+          : nextAction === 'resume-guest-draft'
+            ? '초안 열기'
+            : authReadyPanelState?.primaryActionLabel
+              ? '바로 이어가기'
+              : null
+  const handlePrimaryAction = needsAccountModal ? onOpenAccount : onResumeAuthenticatedIntent
+
   return (
     <section className="authSessionNotice" aria-live="polite">
       <div>
@@ -2079,8 +2099,8 @@ function AuthSessionNoticeBanner({ notice, authReadyPanelState, onDismiss, onOpe
         <p>{notice.body}</p>
       </div>
       <div className="authSessionNoticeActions">
-        {authReadyPanelState?.primaryActionLabel && (
-          <button className="ghost mini" onClick={onOpenAccount}>계정 상태 보기</button>
+        {primaryActionLabel && (
+          <button className="ghost mini" onClick={handlePrimaryAction}>{primaryActionLabel}</button>
         )}
         <button className="ghost mini" onClick={onLogout}>로그아웃</button>
         <button className="mini" onClick={onDismiss} aria-label="계정 안내 닫기">닫기</button>
