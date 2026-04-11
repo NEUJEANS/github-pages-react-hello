@@ -593,6 +593,123 @@ test('auth http server exposes verification start, popup callback, and status en
   })
 })
 
+test('auth http server restores pending verification state after a server restart and still completes callback + session bootstrap', async () => {
+  await withTempCwd(async (tempDir) => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { startAuthHttpServer } = await import(moduleUrl)
+    const sqlitePath = path.join(tempDir, 'server-db', 'verification-restart.sqlite')
+
+    const firstServer = await startAuthHttpServer({ port: 0, sqlitePath })
+    let sessionCookie = ''
+    let verificationId = ''
+    let callbackUrl = ''
+
+    try {
+      const loginResponse = await fetch(`${firstServer.url}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: 'verify@example.com',
+          password: 'password123',
+          handoffId: 'restart-verification-001',
+          intent: {
+            action: 'verify-email',
+            label: '이메일 인증 이어가기',
+            returnScreen: 'home',
+          },
+        }),
+      })
+
+      assert.equal(loginResponse.status, 200)
+      sessionCookie = loginResponse.headers.getSetCookie().find((value) => value.startsWith('havenly_auth_session=')) ?? ''
+      assert.ok(sessionCookie)
+      const loginPayload = await loginResponse.json()
+      assert.equal(loginPayload.nextAction, 'verify-email')
+
+      const startResponse = await fetch(`${firstServer.url}/api/auth/verification/start`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie: sessionCookie,
+        },
+        body: JSON.stringify({
+          continuation: {
+            nextAction: 'verify-email',
+            resumeToken: loginPayload.resumeToken,
+          },
+        }),
+      })
+
+      assert.equal(startResponse.status, 202)
+      const startPayload = await startResponse.json()
+      verificationId = startPayload.verificationId
+      callbackUrl = startPayload.callbackUrl
+      assert.ok(verificationId)
+      assert.match(callbackUrl, /\/api\/auth\/verification\/callback\?verificationId=/)
+    } finally {
+      await firstServer.close()
+    }
+
+    const restartedServer = await startAuthHttpServer({ port: 0, sqlitePath })
+
+    try {
+      const pendingStatusResponse = await fetch(`${restartedServer.url}/api/auth/verification/status`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie: sessionCookie,
+        },
+        body: JSON.stringify({
+          verificationId,
+        }),
+      })
+      assert.equal(pendingStatusResponse.status, 200)
+      const pendingStatusPayload = await pendingStatusResponse.json()
+      assert.equal(pendingStatusPayload.status, 'pending')
+      assert.equal(pendingStatusPayload.nextAction, 'verify-email')
+
+      const callbackResponse = await fetch(`${restartedServer.url}${callbackUrl}`, {
+        headers: {
+          cookie: sessionCookie,
+        },
+      })
+      assert.equal(callbackResponse.status, 200)
+      const callbackHtml = await callbackResponse.text()
+      assert.match(callbackHtml, /인증이 완료되었어요/)
+
+      const verifiedStatusResponse = await fetch(`${restartedServer.url}/api/auth/verification/status`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie: sessionCookie,
+        },
+        body: JSON.stringify({
+          verificationId,
+        }),
+      })
+      assert.equal(verifiedStatusResponse.status, 200)
+      const verifiedStatusPayload = await verifiedStatusResponse.json()
+      assert.equal(verifiedStatusPayload.status, 'verified')
+      assert.ok(verifiedStatusPayload.verifiedAt)
+
+      const sessionResponse = await fetch(`${restartedServer.url}/api/auth/session`, {
+        headers: {
+          cookie: sessionCookie,
+        },
+      })
+      assert.equal(sessionResponse.status, 200)
+      const sessionPayload = await sessionResponse.json()
+      assert.equal(sessionPayload.user.email, 'verify@example.com')
+      assert.ok(sessionPayload.verifiedAt)
+      assert.equal(sessionPayload.nextAction, 'resume-authenticated-flow')
+    } finally {
+      await restartedServer.close()
+    }
+  })
+})
+
 test('auth http server accepts layout tracking events through the standalone backend', async () => {
   await withTempCwd(async (tempDir) => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`

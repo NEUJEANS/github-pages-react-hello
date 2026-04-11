@@ -1283,6 +1283,17 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     const verifyEmailStatus = await verifyEmailPage.locator('.authPrepCard .muted').first().innerText()
     const verifyEmailReadyCard = await readAuthReadyCard(verifyEmailPage)
     const verifyEmailReadyDisabled = await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).isDisabled()
+    let verifyEmailRestartRecoveredReadyCard = null
+    if (typeof restartAuthProxy === 'function') {
+      markSmokeStage('proxy-restart-verify-email-recovery:start')
+      await restartAuthProxy()
+      await verifyEmailPage.reload({ waitUntil: 'domcontentloaded' })
+      await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).waitFor()
+      verifyEmailRestartRecoveredReadyCard = await readAuthReadyCard(verifyEmailPage)
+      if (!verifyEmailRestartRecoveredReadyCard?.primaryAction?.includes('이메일 인증 확인')) {
+        throw new Error(`Verify-email continuation state did not survive auth proxy restart before callback. Saw: ${JSON.stringify(verifyEmailRestartRecoveredReadyCard)}`)
+      }
+    }
     const verificationPopupPromise = verifyEmailPage.waitForEvent('popup')
     await verifyEmailPage.getByRole('button', { name: '본인 인증 창 열기' }).click()
     const verificationPopup = await verificationPopupPromise
@@ -1470,6 +1481,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
         verifyEmail: {
           status: verifyEmailStatus,
           readyCard: verifyEmailReadyCard,
+          restartRecoveredReadyCard: verifyEmailRestartRecoveredReadyCard,
           primaryActionDisabled: verifyEmailReadyDisabled,
           popupUrl: verificationPopupUrl,
           popupBody: verificationPopupBody,
@@ -1537,6 +1549,7 @@ try {
     authProxyOptions = {
       host: '127.0.0.1',
       port: 0,
+      dataDir: authProxyTempRoot,
       sqlitePath: authProxySqlitePath,
     }
     authProxyServer = await startManagedAuthProxy(authProxyOptions)
