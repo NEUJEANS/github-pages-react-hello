@@ -20,6 +20,29 @@ async function withTempCwd(run) {
   }
 }
 
+test('auth http server exposes a sqlite-backed health/readiness endpoint', async () => {
+  await withTempCwd(async (tempDir) => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { startAuthHttpServer } = await import(moduleUrl)
+    const authServer = await startAuthHttpServer()
+
+    try {
+      const response = await fetch(`${authServer.url}/api/auth/health`)
+      assert.equal(response.status, 200)
+
+      const payload = await response.json()
+      assert.deepEqual(payload, {
+        ok: true,
+        service: 'havenly-auth-http-server',
+        storage: 'sqlite',
+        sqlitePath: path.join(tempDir, '.data', 'havenly-auth-store.sqlite'),
+      })
+    } finally {
+      await authServer.close()
+    }
+  })
+})
+
 test('auth http server persists signup/login/session state through http cookies and sqlite', async () => {
   await withTempCwd(async (tempDir) => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`

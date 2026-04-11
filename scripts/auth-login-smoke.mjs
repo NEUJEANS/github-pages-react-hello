@@ -138,6 +138,31 @@ async function waitForBaseUrl(url, { timeoutMs = 30000, intervalMs = 500, fetchI
   return false
 }
 
+async function waitForAuthBackendHealth(url, { timeoutMs = 15000, intervalMs = 250, fetchImpl = fetch } = {}) {
+  const startedAt = Date.now()
+  let lastError = null
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const response = await fetchImpl(url, { redirect: 'follow' })
+      if (response.ok) {
+        const payload = await response.json().catch(() => null)
+        if (payload?.ok && payload?.storage === 'sqlite') {
+          return payload
+        }
+      }
+
+      lastError = new Error(`health status ${response.status}`)
+    } catch (error) {
+      lastError = error
+    }
+
+    await delay(intervalMs)
+  }
+
+  throw new Error(`Timed out waiting for auth backend health at ${url}: ${lastError instanceof Error ? lastError.message : String(lastError ?? 'unknown error')}`)
+}
+
 async function runCommand(command, args, { cwd = process.cwd() } = {}) {
   await new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -1354,6 +1379,7 @@ const previewEnv = {}
 try {
   if (useProxyBackend) {
     authProxyServer = await startAuthHttpServer()
+    await waitForAuthBackendHealth(`${authProxyServer.url}/api/auth/health`, { fetchImpl: cookieAwareFetch })
     previewEnv.HAVENLY_AUTH_PROXY_BASE_URL = authProxyServer.url
   }
 
