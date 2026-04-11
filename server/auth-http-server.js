@@ -1,6 +1,11 @@
 import http from 'node:http'
 import { pathToFileURL } from 'node:url'
 import {
+  AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
+  AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
+  AUTH_ACTION_CONNECTION_METHOD_HEADER,
+  AUTH_ACTION_CONNECTION_SOURCE_HEADER,
+  AUTH_ACTION_CONNECTION_TARGET_HEADER,
   AUTH_CONNECTION_CREDENTIALS_HEADER,
   AUTH_CONNECTION_ENDPOINT_HEADER,
   AUTH_CONNECTION_METHOD_HEADER,
@@ -9,6 +14,7 @@ import {
   AUTH_HANDOFF_HEADER,
   AUTH_NEXT_ACTION_HEADER,
   AUTH_RESUME_TOKEN_HEADER,
+  AUTH_SCAFFOLD_HEADER,
   AUTH_STATUS_HEADER,
   AUTH_STATUS_LABEL_HEADER,
 } from '../src/components/auth-submit.js'
@@ -144,6 +150,18 @@ function buildAuthConnectionHeaders(connection = null) {
   }
 }
 
+function buildAuthActionConnectionHeaders(connection = null) {
+  if (!connection) return {}
+
+  return {
+    [AUTH_ACTION_CONNECTION_METHOD_HEADER]: connection.method ?? '',
+    [AUTH_ACTION_CONNECTION_ENDPOINT_HEADER]: connection.endpoint ?? '',
+    [AUTH_ACTION_CONNECTION_TARGET_HEADER]: connection.targetLabel ?? '',
+    [AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER]: connection.credentialsMode ?? '',
+    [AUTH_ACTION_CONNECTION_SOURCE_HEADER]: connection.source ?? '',
+  }
+}
+
 function readRequestPath(req) {
   if (typeof req?.url !== 'string') return ''
 
@@ -237,7 +255,9 @@ export function startAuthHttpServer(options = {}) {
 
     writeJson(res, response.status, response.data, {
       'x-havenly-auth-server': 'true',
+      [AUTH_SCAFFOLD_HEADER]: 'true',
       ...buildAuthConnectionHeaders(response.data?.connection ?? connection),
+      ...buildAuthActionConnectionHeaders(response.data?.actionConnection ?? buildActionConnection(req)),
       ...buildAuthContinuationHeaders(response.data),
     })
   })

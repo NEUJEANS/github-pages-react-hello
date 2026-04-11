@@ -24,7 +24,7 @@ test('auth http server exposes a sqlite-backed health/readiness endpoint', async
   await withTempCwd(async (tempDir) => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
     const { startAuthHttpServer } = await import(moduleUrl)
-    const authServer = await startAuthHttpServer()
+    const authServer = await startAuthHttpServer({ port: 0 })
 
     try {
       const response = await fetch(`${authServer.url}/api/auth/health`)
@@ -47,7 +47,7 @@ test('auth http server persists signup/login/session state through http cookies 
   await withTempCwd(async (tempDir) => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
     const { startAuthHttpServer } = await import(moduleUrl)
-    const authServer = await startAuthHttpServer()
+    const authServer = await startAuthHttpServer({ port: 0 })
 
     try {
       const signupResponse = await fetch(`${authServer.url}/api/auth/signup`, {
@@ -89,7 +89,7 @@ test('auth http server preserves continuation headers for merge blockers', async
   await withTempCwd(async () => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
     const { startAuthHttpServer } = await import(moduleUrl)
-    const authServer = await startAuthHttpServer()
+    const authServer = await startAuthHttpServer({ port: 0 })
 
     try {
       const response = await fetch(`${authServer.url}/api/auth/login`, {
@@ -121,7 +121,7 @@ test('auth http server prefers forwarded host/proto for action continuation meta
   await withTempCwd(async () => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
     const { startAuthHttpServer } = await import(moduleUrl)
-    const authServer = await startAuthHttpServer()
+    const authServer = await startAuthHttpServer({ port: 0 })
 
     try {
       const response = await fetch(`${authServer.url}/api/auth/signup`, {
@@ -145,6 +145,10 @@ test('auth http server prefers forwarded host/proto for action continuation meta
       })
 
       assert.equal(response.status, 200)
+      assert.equal(response.headers.get('x-havenly-auth-scaffold'), 'true')
+      assert.equal(response.headers.get('x-havenly-auth-action-connection-endpoint'), '/api/auth/continue')
+      assert.equal(response.headers.get('x-havenly-auth-action-connection-target'), '127.0.0.1:4176')
+
       const payload = await response.json()
       assert.equal(payload.actionConnection?.endpoint, '/api/auth/continue')
       assert.equal(payload.actionConnection?.targetLabel, '127.0.0.1:4176')
@@ -159,7 +163,7 @@ test('auth http server completes merge continuation through cookies and persists
   await withTempCwd(async () => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
     const { startAuthHttpServer } = await import(moduleUrl)
-    const authServer = await startAuthHttpServer()
+    const authServer = await startAuthHttpServer({ port: 0 })
 
     try {
       const loginResponse = await fetch(`${authServer.url}/api/auth/login`, {
