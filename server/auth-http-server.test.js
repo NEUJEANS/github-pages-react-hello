@@ -323,3 +323,165 @@ test('auth http server uses explicit sqlite path options for health and persiste
     }
   })
 })
+
+test('auth http server restores signed-in sessions after a server restart from the same sqlite store', async () => {
+  await withTempCwd(async (tempDir) => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { startAuthHttpServer } = await import(moduleUrl)
+    const sqlitePath = path.join(tempDir, 'server-db', 'restart-auth.sqlite')
+
+    const firstServer = await startAuthHttpServer({ port: 0, sqlitePath })
+    let sessionCookie = ''
+
+    try {
+      const loginResponse = await fetch(`${firstServer.url}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: 'user@example.com',
+          password: 'password123',
+          handoffId: 'restart-session-001',
+          intent: {
+            action: 'save-layout-draft',
+            label: '보드 저장 이어가기',
+            returnScreen: 'layout',
+          },
+        }),
+      })
+
+      assert.equal(loginResponse.status, 200)
+      sessionCookie = loginResponse.headers.getSetCookie().find((value) => value.startsWith('havenly_auth_session=')) ?? ''
+      assert.ok(sessionCookie)
+    } finally {
+      await firstServer.close()
+    }
+
+    const restartedServer = await startAuthHttpServer({ port: 0, sqlitePath })
+
+    try {
+      const sessionResponse = await fetch(`${restartedServer.url}/api/auth/session`, {
+        headers: {
+          cookie: sessionCookie,
+        },
+      })
+
+      assert.equal(sessionResponse.status, 200)
+      const payload = await sessionResponse.json()
+      assert.equal(payload.user.email, 'user@example.com')
+      assert.equal(payload.nextAction, 'save-layout-draft')
+      assert.equal(payload.connection?.endpoint, '/api/auth/login')
+      assert.equal(payload.actionConnection?.endpoint, '/api/auth/continue')
+    } finally {
+      await restartedServer.close()
+    }
+  })
+})
+
+test('auth http server restores pending merge handoffs after a server restart and can continue them to a session', async () => {
+  await withTempCwd(async (tempDir) => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { startAuthHttpServer } = await import(moduleUrl)
+    const sqlitePath = path.join(tempDir, 'server-db', 'restart-pending.sqlite')
+
+    const firstServer = await startAuthHttpServer({ port: 0, sqlitePath })
+    let handoffCookie = ''
+    let resumeToken = ''
+
+    try {
+      const loginResponse = await fetch(`${firstServer.url}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: 'merge@example.com',
+          password: 'merge-conflict',
+          handoffId: 'restart-merge-001',
+          guestDraftSnapshot: {
+            continuity: {
+              apartmentLabel: '래미안 포레스트 84A',
+              selectedRooms: ['거실'],
+              wishlistIds: ['sofa-001'],
+              cartItems: [{ id: 'bed-001', qty: 1 }],
+              layoutItems: [{ id: 'placed-sofa', sourceId: 'sofa-001', x: 10, y: 16 }],
+            },
+            recommendationDraft: {
+              room: '거실',
+              style: 'minimal',
+              priority: 'flow',
+              lifestyle: ['기본'],
+              extraRequest: '',
+            },
+            spaceProfile: {
+              spaces: ['living'],
+            },
+          },
+          intent: {
+            action: 'checkout',
+            label: '주문 이어가기',
+            returnScreen: 'home',
+          },
+        }),
+      })
+
+      assert.equal(loginResponse.status, 409)
+      handoffCookie = loginResponse.headers.getSetCookie().find((value) => value.startsWith('havenly_auth_handoff=')) ?? ''
+      assert.ok(handoffCookie)
+
+      const payload = await loginResponse.json()
+      resumeToken = payload.resumeToken
+      assert.equal(payload.nextAction, 'confirm-merge-resolution')
+      assert.ok(resumeToken)
+    } finally {
+      await firstServer.close()
+    }
+
+    const restartedServer = await startAuthHttpServer({ port: 0, sqlitePath })
+
+    try {
+      const pendingResponse = await fetch(`${restartedServer.url}/api/auth/pending`, {
+        headers: {
+          cookie: handoffCookie,
+        },
+      })
+
+      assert.equal(pendingResponse.status, 200)
+      const pendingPayload = await pendingResponse.json()
+      assert.equal(pendingPayload.handoffId, 'restart-merge-001')
+      assert.equal(pendingPayload.continuation?.nextAction, 'confirm-merge-resolution')
+
+      const continueResponse = await fetch(`${restartedServer.url}/api/auth/continue`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie: handoffCookie,
+        },
+        body: JSON.stringify({
+          handoffId: 'restart-merge-001',
+          continuation: {
+            nextAction: 'confirm-merge-resolution',
+            resumeToken,
+          },
+          intent: {
+            action: 'checkout',
+            label: '주문 이어가기',
+            returnScreen: 'home',
+          },
+          fields: {
+            mergeResolution: 'replace-with-account',
+          },
+        }),
+      })
+
+      assert.equal(continueResponse.status, 200)
+      const continuedPayload = await continueResponse.json()
+      assert.equal(continuedPayload.user.email, 'merge@example.com')
+      assert.equal(continuedPayload.nextAction, 'checkout-cart')
+      assert.equal(continuedPayload.status, 'ready')
+    } finally {
+      await restartedServer.close()
+    }
+  })
+})
