@@ -558,6 +558,8 @@ function useEditorState() {
 }
 
 const LOGIN_BUTTON_LABEL = '로그인'
+const IDENTITY_VERIFICATION_PENDING_MIN_MS = 650
+const IDENTITY_VERIFICATION_SUCCESS_HOLD_MS = 900
 
 function buildAuthContinuationFieldLabel(field = '') {
   switch (field) {
@@ -803,9 +805,10 @@ function App() {
   const [authNoticeDismissed, setAuthNoticeDismissed] = React.useState(false)
   const [engagement, setEngagement] = React.useState(initialEngagement)
   const [layoutTrayItems, setLayoutTrayItems] = React.useState(() => aiProducts.map((item) => ({ ...item })))
-  const [identityVerification, setIdentityVerification] = React.useState({ status: 'idle', verificationId: null, message: '' })
+  const [identityVerification, setIdentityVerification] = React.useState({ status: 'idle', verificationId: null, message: '', startedAt: null })
   const verificationPollTimeoutRef = React.useRef(null)
   const verificationAdvanceTimeoutRef = React.useRef(null)
+  const verificationPendingStartedAtRef = React.useRef(null)
   const appliedAuthSessionRestoreRef = React.useRef(persistedAuthSession?.savedAt ?? null)
 
   const selectedApartment = React.useMemo(
@@ -890,6 +893,7 @@ function App() {
   )
 
   React.useEffect(() => () => {
+    verificationPendingStartedAtRef.current = null
     if (verificationPollTimeoutRef.current) {
       clearTimeout(verificationPollTimeoutRef.current)
     }
@@ -901,7 +905,12 @@ function App() {
   const pollIdentityVerification = React.useCallback(async (verificationId) => {
     const response = await readIdentityVerificationStatus({ authConfig, verificationId })
     if (!response.ok) {
-      setIdentityVerification({ status: 'error', verificationId, message: '인증 상태를 다시 확인해 주세요.' })
+      setIdentityVerification((current) => ({
+        status: 'error',
+        verificationId,
+        message: '인증 상태를 다시 확인해 주세요.',
+        startedAt: current?.startedAt ?? verificationPendingStartedAtRef.current ?? null,
+      }))
       return
     }
 
@@ -918,13 +927,31 @@ function App() {
         clearTimeout(verificationAdvanceTimeoutRef.current)
       }
 
-      setIdentityVerification({ status: 'verified', verificationId, message: '본인인증이 완료되었습니다' })
+      const pendingStartedAt = verificationPendingStartedAtRef.current
+      const pendingElapsedMs = pendingStartedAt ? Date.now() - pendingStartedAt : 0
+      const remainingPendingMs = Math.max(0, IDENTITY_VERIFICATION_PENDING_MIN_MS - pendingElapsedMs)
+
+      if (remainingPendingMs > 0) {
+        await new Promise((resolve) => {
+          verificationAdvanceTimeoutRef.current = setTimeout(() => {
+            verificationAdvanceTimeoutRef.current = null
+            resolve()
+          }, remainingPendingMs)
+        })
+      }
+
+      setIdentityVerification({
+        status: 'verified',
+        verificationId,
+        message: '본인인증이 완료되었습니다',
+        startedAt: pendingStartedAt ?? Date.now(),
+      })
 
       await new Promise((resolve) => {
         verificationAdvanceTimeoutRef.current = setTimeout(() => {
           verificationAdvanceTimeoutRef.current = null
           resolve()
-        }, 900)
+        }, IDENTITY_VERIFICATION_SUCCESS_HOLD_MS)
       })
 
       setLoginForm((current) => ({
@@ -947,6 +974,8 @@ function App() {
         credentialsMode: authConfig.credentialsMode,
         source: authConfig.isConfigured ? 'env/runtime-configured' : 'default',
       })
+      verificationPendingStartedAtRef.current = null
+
       if (sessionResponse.ok && sessionResponse.data) {
         const persistedSession = buildPersistedAuthSession(sessionResponse.data)
         const persistedConnection = resolvePersistedAuthConnection(sessionResponse, persistedSession.connection ?? null)
@@ -987,7 +1016,16 @@ function App() {
       return
     }
 
-    setIdentityVerification({ status: 'pending', verificationId, message: '본인 인증 창을 완료하면 자동으로 이어집니다.' })
+    if (!verificationPendingStartedAtRef.current) {
+      verificationPendingStartedAtRef.current = Date.now()
+    }
+
+    setIdentityVerification({
+      status: 'pending',
+      verificationId,
+      message: '본인 인증 창을 완료하면 자동으로 이어집니다.',
+      startedAt: verificationPendingStartedAtRef.current,
+    })
     verificationPollTimeoutRef.current = setTimeout(() => {
       pollIdentityVerification(verificationId)
     }, 1200)
@@ -996,13 +1034,20 @@ function App() {
   const startVerificationFlow = React.useCallback(async (continuation) => {
     const response = await startIdentityVerification({ authConfig, continuation, intent: authSession?.intent ?? loginForm.intent ?? null })
     if (!response.ok || !response.data?.verificationId) {
-      setIdentityVerification({ status: 'error', verificationId: null, message: '인증 창을 열지 못했어요. 다시 시도해 주세요.' })
+      setIdentityVerification({ status: 'error', verificationId: null, message: '인증 창을 열지 못했어요. 다시 시도해 주세요.', startedAt: null })
       return
     }
 
     const callbackUrl = response.data.callbackUrl
     openIdentityVerificationWindow(callbackUrl, authConfig)
-    setIdentityVerification({ status: 'pending', verificationId: response.data.verificationId, message: '본인 인증 창을 열었어요. 완료되면 자동으로 갱신됩니다.' })
+    const verificationStartedAt = Date.now()
+    verificationPendingStartedAtRef.current = verificationStartedAt
+    setIdentityVerification({
+      status: 'pending',
+      verificationId: response.data.verificationId,
+      message: '본인 인증 창을 열었어요. 완료되면 자동으로 갱신됩니다.',
+      startedAt: verificationStartedAt,
+    })
     pollIdentityVerification(response.data.verificationId)
   }, [authConfig, authSession?.intent, loginForm.intent, pollIdentityVerification])
 
