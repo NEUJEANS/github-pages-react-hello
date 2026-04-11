@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "node --test src/components/*.test.js server/*.test.js",
     "review:gemini": "bash ./scripts/gemini-review.sh",
-    "smoke:auth": "node ./scripts/auth-login-smoke.mjs",
+    "smoke:auth": "node ./scripts/auth-login-smoke.mjs --require-browser --via-proxy",
+    "smoke:auth:scaffold": "node ./scripts/auth-login-smoke.mjs",
     "smoke:auth:browser": "node ./scripts/auth-login-smoke.mjs --require-browser",
     "smoke:auth:proxy": "node ./scripts/auth-login-smoke.mjs --require-browser --via-proxy",
     "checkpoint:status": "git status --short --branch && echo '---' && git log --oneline --decorate -5"
