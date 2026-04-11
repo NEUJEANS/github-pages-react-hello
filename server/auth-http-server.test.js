@@ -274,13 +274,52 @@ test('auth http server cli options prefer explicit args over env defaults', asyn
         env: {
           HAVENLY_AUTH_HOST: '0.0.0.0',
           HAVENLY_AUTH_PORT: '4999',
+          HAVENLY_AUTH_DATA_DIR: '/tmp/env-auth-data',
+          HAVENLY_AUTH_SQLITE_PATH: '/tmp/env-auth.sqlite',
         },
-        args: ['--host', '127.0.0.1', '--port', '4777'],
+        args: ['--host', '127.0.0.1', '--port', '4777', '--data-dir', '/tmp/arg-auth-data', '--sqlite-path', '/tmp/arg-auth.sqlite'],
       }),
       {
         host: '127.0.0.1',
         port: 4777,
+        dataDir: '/tmp/arg-auth-data',
+        sqlitePath: '/tmp/arg-auth.sqlite',
       },
     )
+  })
+})
+
+test('auth http server uses explicit sqlite path options for health and persistence wiring', async () => {
+  await withTempCwd(async (tempDir) => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { startAuthHttpServer } = await import(moduleUrl)
+    const dataDir = path.join(tempDir, 'server-auth-data')
+    const sqlitePath = path.join(tempDir, 'server-db', 'custom-auth.sqlite')
+    const authServer = await startAuthHttpServer({ port: 0, dataDir, sqlitePath })
+
+    try {
+      const healthResponse = await fetch(`${authServer.url}/api/auth/health`)
+      assert.equal(healthResponse.status, 200)
+      const healthPayload = await healthResponse.json()
+      assert.equal(healthPayload.sqlitePath, sqlitePath)
+
+      const signupResponse = await fetch(`${authServer.url}/api/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: 'wired-options@example.com',
+          password: 'password123',
+          displayName: 'Wired Options',
+        }),
+      })
+
+      assert.equal(signupResponse.status, 200)
+      const stat = await fs.stat(sqlitePath)
+      assert.ok(stat.isFile())
+    } finally {
+      await authServer.close()
+    }
   })
 })

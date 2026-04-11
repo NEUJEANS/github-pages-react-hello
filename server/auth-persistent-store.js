@@ -9,14 +9,33 @@ const handoffCookieName = 'havenly_auth_handoff'
 let database = null
 let databasePath = null
 
-export function readAuthStorePaths(env = process.env) {
-  const configuredDataDir = typeof env?.HAVENLY_AUTH_DATA_DIR === 'string' && env.HAVENLY_AUTH_DATA_DIR.trim()
-    ? env.HAVENLY_AUTH_DATA_DIR.trim()
-    : '.data'
+function resolveStoreSource(source = null) {
+  return source ?? process.env
+}
+
+export function readAuthStorePaths(source = process.env) {
+  const explicitDataDir = typeof source?.dataDir === 'string' && source.dataDir.trim()
+    ? source.dataDir.trim()
+    : ''
+  const envDataDir = typeof source?.HAVENLY_AUTH_DATA_DIR === 'string' && source.HAVENLY_AUTH_DATA_DIR.trim()
+    ? source.HAVENLY_AUTH_DATA_DIR.trim()
+    : ''
+  const configuredDataDir = explicitDataDir || envDataDir || '.data'
   const dataDir = path.resolve(configuredDataDir)
-  const sqlitePath = typeof env?.HAVENLY_AUTH_SQLITE_PATH === 'string' && env.HAVENLY_AUTH_SQLITE_PATH.trim()
-    ? path.resolve(env.HAVENLY_AUTH_SQLITE_PATH.trim())
-    : path.join(dataDir, 'havenly-auth-store.sqlite')
+
+  const explicitSqlitePath = typeof source?.sqlitePath === 'string' && source.sqlitePath.trim()
+    ? source.sqlitePath.trim()
+    : (typeof source?.storeFile === 'string' && source.storeFile.trim()
+      ? source.storeFile.trim()
+      : '')
+  const envSqlitePath = typeof source?.HAVENLY_AUTH_SQLITE_PATH === 'string' && source.HAVENLY_AUTH_SQLITE_PATH.trim()
+    ? source.HAVENLY_AUTH_SQLITE_PATH.trim()
+    : ''
+  const sqlitePath = explicitSqlitePath
+    ? path.resolve(explicitSqlitePath)
+    : envSqlitePath
+      ? path.resolve(envSqlitePath)
+      : path.join(dataDir, 'havenly-auth-store.sqlite')
   const legacyJsonPath = path.join(dataDir, 'havenly-auth-store.json')
 
   return {
@@ -26,8 +45,8 @@ export function readAuthStorePaths(env = process.env) {
   }
 }
 
-function ensureDataDir() {
-  const { dataDir, sqlitePath } = readAuthStorePaths()
+function ensureDataDir(source = null) {
+  const { dataDir, sqlitePath } = readAuthStorePaths(resolveStoreSource(source))
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true })
   const sqliteDir = path.dirname(sqlitePath)
   if (!fs.existsSync(sqliteDir)) fs.mkdirSync(sqliteDir, { recursive: true })
@@ -110,8 +129,9 @@ function seedUsers() {
   }
 }
 
-function ensureDatabase() {
-  const { sqlitePath } = readAuthStorePaths()
+function ensureDatabase(source = null) {
+  const resolvedSource = resolveStoreSource(source)
+  const { sqlitePath } = readAuthStorePaths(resolvedSource)
 
   if (database && databasePath === sqlitePath) return database
   if (database && databasePath !== sqlitePath) {
@@ -119,7 +139,7 @@ function ensureDatabase() {
     database = null
   }
 
-  ensureDataDir()
+  ensureDataDir(resolvedSource)
   database = new DatabaseSync(sqlitePath)
   databasePath = sqlitePath
   database.exec(`
@@ -149,7 +169,7 @@ function ensureDatabase() {
 
   const hasUsers = database.prepare('SELECT 1 FROM users LIMIT 1').get()
   if (!hasUsers) {
-    const legacyStore = readLegacyJsonStore()
+    const legacyStore = readLegacyJsonStore(resolvedSource)
     const initialUsers = legacyStore?.users && Object.keys(legacyStore.users).length > 0
       ? legacyStore.users
       : seedUsers()
@@ -210,8 +230,8 @@ function ensureDatabase() {
   return database
 }
 
-function readLegacyJsonStore() {
-  const { legacyJsonPath } = readAuthStorePaths()
+function readLegacyJsonStore(source = null) {
+  const { legacyJsonPath } = readAuthStorePaths(resolveStoreSource(source))
   if (!fs.existsSync(legacyJsonPath)) return null
 
   try {
@@ -226,8 +246,8 @@ function readLegacyJsonStore() {
   }
 }
 
-function readUser(email) {
-  const db = ensureDatabase()
+function readUser(email, source = null) {
+  const db = ensureDatabase(source)
   const row = db.prepare(`
     SELECT email, password, name, created_at, profile_json, verified_at, account_state_json
     FROM users
@@ -247,8 +267,8 @@ function readUser(email) {
   })
 }
 
-function saveUser(user) {
-  const db = ensureDatabase()
+function saveUser(user, source = null) {
+  const db = ensureDatabase(source)
   db.prepare(`
     INSERT INTO users (email, password, name, created_at, profile_json, verified_at, account_state_json)
     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -270,8 +290,8 @@ function saveUser(user) {
   )
 }
 
-function readSessionRecord(sessionId) {
-  const db = ensureDatabase()
+function readSessionRecord(sessionId, source = null) {
+  const db = ensureDatabase(source)
   const row = db.prepare('SELECT id, user_email, payload_json, saved_at FROM sessions WHERE id = ?').get(sessionId)
   if (!row) return null
 
@@ -283,8 +303,8 @@ function readSessionRecord(sessionId) {
   }
 }
 
-function saveSessionRecord(sessionId, { userEmail, payload, savedAt = new Date().toISOString() }) {
-  const db = ensureDatabase()
+function saveSessionRecord(sessionId, { userEmail, payload, savedAt = new Date().toISOString() }, source = null) {
+  const db = ensureDatabase(source)
   db.prepare(`
     INSERT INTO sessions (id, user_email, payload_json, saved_at)
     VALUES (?, ?, ?, ?)
@@ -295,22 +315,22 @@ function saveSessionRecord(sessionId, { userEmail, payload, savedAt = new Date()
   `).run(sessionId, userEmail, serializeJson(payload), savedAt)
 }
 
-function deleteSessionRecord(sessionId) {
+function deleteSessionRecord(sessionId, source = null) {
   if (!sessionId) return
-  const db = ensureDatabase()
+  const db = ensureDatabase(source)
   db.prepare('DELETE FROM sessions WHERE id = ?').run(sessionId)
 }
 
-function readPendingRecord(handoffId) {
-  const db = ensureDatabase()
+function readPendingRecord(handoffId, source = null) {
+  const db = ensureDatabase(source)
   const row = db.prepare('SELECT handoff_id, payload_json, saved_at FROM pending WHERE handoff_id = ?').get(handoffId)
   if (!row) return null
 
   return parseJson(row.payload_json, null)
 }
 
-function savePendingRecord(handoffId, payload, { savedAt = payload?.submittedAt ?? new Date().toISOString() } = {}) {
-  const db = ensureDatabase()
+function savePendingRecord(handoffId, payload, { savedAt = payload?.submittedAt ?? new Date().toISOString() } = {}, source = null) {
+  const db = ensureDatabase(source)
   db.prepare(`
     INSERT INTO pending (handoff_id, payload_json, saved_at)
     VALUES (?, ?, ?)
@@ -320,9 +340,9 @@ function savePendingRecord(handoffId, payload, { savedAt = payload?.submittedAt 
   `).run(handoffId, serializeJson(payload), savedAt)
 }
 
-function deletePendingRecord(handoffId) {
+function deletePendingRecord(handoffId, source = null) {
   if (!handoffId) return
-  const db = ensureDatabase()
+  const db = ensureDatabase(source)
   db.prepare('DELETE FROM pending WHERE handoff_id = ?').run(handoffId)
 }
 
@@ -498,13 +518,21 @@ function mergeGuestDraftIntoAccount(user, guestDraftSnapshot = null, mergeResolu
   }
 }
 
-export function handleAuthRequest(req, { connection = null, actionConnection = null, body = {}, pathName = '', handoffHeader = null, resumeTokenHeader = null } = {}) {
-  ensureDatabase()
+export function handleAuthRequest(req, { connection = null, actionConnection = null, body = {}, pathName = '', handoffHeader = null, resumeTokenHeader = null, dataDir = null, sqlitePath = null, storeFile = null } = {}) {
+  const storeSource = dataDir || sqlitePath || storeFile
+    ? {
+        ...(dataDir ? { dataDir } : {}),
+        ...(sqlitePath ? { sqlitePath } : {}),
+        ...(storeFile ? { storeFile } : {}),
+      }
+    : null
+
+  ensureDatabase(storeSource)
   const cookies = readCookies(req)
   const sessionId = cookies[sessionCookieName] || ''
   const handoffCookie = cookies[handoffCookieName] || ''
   const handoffId = body.handoffId ?? handoffHeader ?? handoffCookie ?? null
-  const sessionRecord = sessionId ? readSessionRecord(sessionId) : null
+  const sessionRecord = sessionId ? readSessionRecord(sessionId, storeSource) : null
 
   const cookieHeaders = []
 
@@ -514,14 +542,14 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
   }
 
   if (pathName === '/api/auth/pending') {
-    const pending = handoffId ? readPendingRecord(handoffId) : null
+    const pending = handoffId ? readPendingRecord(handoffId, storeSource) : null
     if (!pending) return { status: 404, data: { message: 'No scaffold auth handoff', nextAction: 'login-required' }, cookies: cookieHeaders }
     return { status: 200, data: clone(pending), cookies: cookieHeaders }
   }
 
   if (pathName === '/api/auth/logout') {
-    if (sessionId) deleteSessionRecord(sessionId)
-    if (handoffCookie) deletePendingRecord(handoffCookie)
+    if (sessionId) deleteSessionRecord(sessionId, storeSource)
+    if (handoffCookie) deletePendingRecord(handoffCookie, storeSource)
     cookieHeaders.push(serializeCookie(sessionCookieName, '', { maxAge: 0 }))
     cookieHeaders.push(serializeCookie(handoffCookieName, '', { maxAge: 0 }))
     return { status: 200, data: { ok: true, nextAction: 'login-required', connection, actionConnection }, cookies: cookieHeaders }
@@ -532,7 +560,7 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
     if (!email || !email.includes('@') || typeof body.password !== 'string' || body.password.trim().length < 8) {
       return { status: 422, data: { message: 'Invalid signup payload', handoffId, nextAction: 'retry-signup', resumeToken: handoffId ? `${handoffId}:retry` : null, connection, actionConnection }, cookies: cookieHeaders }
     }
-    if (readUser(email)) {
+    if (readUser(email, storeSource)) {
       return { status: 409, data: { message: 'Account already exists', handoffId, nextAction: 'retry-login', resumeToken: handoffId ? `${handoffId}:login` : null, connection, actionConnection }, cookies: cookieHeaders }
     }
     const displayName = typeof body.displayName === 'string' ? body.displayName.trim() : ''
@@ -540,13 +568,13 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
       return { status: 422, data: { message: 'Display name required', handoffId, nextAction: 'retry-signup', resumeToken: handoffId ? `${handoffId}:retry` : null, connection, actionConnection }, cookies: cookieHeaders }
     }
 
-    saveUser(buildUser({ email, password: body.password, name: displayName }))
+    saveUser(buildUser({ email, password: body.password, name: displayName }), storeSource)
   }
 
   if (pathName === '/api/auth/login' || pathName === '/api/auth/signup') {
     const email = normalizeEmail(body.email)
     const password = typeof body.password === 'string' ? body.password : ''
-    const user = readUser(email)
+    const user = readUser(email, storeSource)
 
     if (!user || !verifyPassword(password, user.password)) {
       return { status: 401, data: { message: 'Invalid credentials', handoffId, nextAction: 'retry-login', resumeToken: handoffId ? `${handoffId}:retry` : null, connection, actionConnection }, cookies: cookieHeaders }
@@ -554,7 +582,7 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
 
     if (!isPasswordHash(user.password)) {
       user.password = ensureStoredPassword(password)
-      saveUser(user)
+      saveUser(user, storeSource)
     }
 
     if (password === 'merge-conflict' && !['keep-guest', 'replace-with-account'].includes(body.mergeResolution)) {
@@ -589,7 +617,7 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
         error: 'Guest draft merge confirmation required',
         status: 409,
       }
-      if (handoffId) savePendingRecord(handoffId, pending)
+      if (handoffId) savePendingRecord(handoffId, pending, {}, storeSource)
       if (handoffId) cookieHeaders.push(serializeCookie(handoffCookieName, handoffId, { maxAge: 60 * 60 * 24 * 7 }))
       return {
         status: 409,
@@ -610,7 +638,7 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
     }
 
     mergeGuestDraftIntoAccount(user, body.guestDraftSnapshot ?? null, body.mergeResolution ?? null)
-    saveUser(user)
+    saveUser(user, storeSource)
     const payload = buildSessionPayload({
       user,
       handoffId,
@@ -630,8 +658,8 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
       userEmail: email,
       payload,
       savedAt: new Date().toISOString(),
-    })
-    if (handoffId) deletePendingRecord(handoffId)
+    }, storeSource)
+    if (handoffId) deletePendingRecord(handoffId, storeSource)
     cookieHeaders.push(serializeCookie(sessionCookieName, newSessionId, { maxAge: 60 * 60 * 24 * 30 }))
     cookieHeaders.push(serializeCookie(handoffCookieName, handoffId ?? '', { maxAge: handoffId ? 60 * 60 * 24 * 7 : 0 }))
     return { status: 200, data: payload, cookies: cookieHeaders }
@@ -639,7 +667,7 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
 
   if (pathName === '/api/auth/continue') {
     const effectiveHandoffId = handoffId ?? handoffCookie ?? null
-    const pending = effectiveHandoffId ? readPendingRecord(effectiveHandoffId) : null
+    const pending = effectiveHandoffId ? readPendingRecord(effectiveHandoffId, storeSource) : null
     const continuation = body.continuation ?? {}
     const nextAction = typeof continuation.nextAction === 'string' && continuation.nextAction.trim()
       ? continuation.nextAction.trim()
@@ -652,10 +680,10 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
       if (!['keep-guest', 'replace-with-account'].includes(mergeResolution)) {
         return { status: 422, data: { message: 'Merge resolution required', handoffId: effectiveHandoffId, resumeToken: pending.continuation?.resumeToken ?? resumeTokenHeader ?? null, nextAction: 'confirm-merge-resolution', allowedMergeResolutions: ['keep-guest', 'replace-with-account'], connection, actionConnection }, cookies: cookieHeaders }
       }
-      const user = readUser(pending.email)
+      const user = readUser(pending.email, storeSource)
       if (!user) return { status: 404, data: { message: 'User not found', nextAction: 'login-required', connection, actionConnection }, cookies: cookieHeaders }
       mergeGuestDraftIntoAccount(user, pending.guestDraftSnapshot ?? null, mergeResolution)
-      saveUser(user)
+      saveUser(user, storeSource)
       const payload = buildSessionPayload({
         user,
         handoffId: effectiveHandoffId,
@@ -668,8 +696,8 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
         actionConnection: pending.actionConnection ?? actionConnection,
       })
       const newSessionId = randomId('session')
-      saveSessionRecord(newSessionId, { userEmail: user.email, payload, savedAt: new Date().toISOString() })
-      deletePendingRecord(effectiveHandoffId)
+      saveSessionRecord(newSessionId, { userEmail: user.email, payload, savedAt: new Date().toISOString() }, storeSource)
+      deletePendingRecord(effectiveHandoffId, storeSource)
       cookieHeaders.push(serializeCookie(sessionCookieName, newSessionId, { maxAge: 60 * 60 * 24 * 30 }))
       cookieHeaders.push(serializeCookie(handoffCookieName, effectiveHandoffId, { maxAge: 60 * 60 * 24 * 7 }))
       return { status: 200, data: payload, cookies: cookieHeaders }
@@ -686,11 +714,11 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
       if (!displayName || !phone) {
         return { status: 422, data: { ...payload, message: 'Profile completion fields required', nextAction: 'complete-profile', status: 'action-required', statusLabel: '프로필 보완 필요', connection: payload.connection ?? connection, actionConnection: payload.actionConnection ?? actionConnection }, cookies: cookieHeaders }
       }
-      const user = readUser(sessionRecord.userEmail)
+      const user = readUser(sessionRecord.userEmail, storeSource)
       if (user) {
         user.profile = { displayName, phone }
         user.name = displayName
-        saveUser(user)
+        saveUser(user, storeSource)
       }
       payload.user.name = displayName
       payload.profile = { displayName, phone }
@@ -702,11 +730,11 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
       if (!verificationCode) {
         return { status: 202, data: { ...payload, nextAction: 'verify-email', status: 'action-required', statusLabel: '이메일 인증 필요', connection: payload.connection ?? connection, actionConnection: payload.actionConnection ?? actionConnection }, cookies: cookieHeaders }
       }
-      const user = readUser(sessionRecord.userEmail)
+      const user = readUser(sessionRecord.userEmail, storeSource)
       const verifiedAt = new Date().toISOString()
       if (user) {
         user.verifiedAt = verifiedAt
-        saveUser(user)
+        saveUser(user, storeSource)
       }
       payload.verifiedAt = user?.verifiedAt ?? verifiedAt
       payload.nextAction = normalizeIntentAction(typeof (body.intent ?? payload.intent)?.action === 'string' ? (body.intent ?? payload.intent).action : '') || 'resume-authenticated-flow'
@@ -724,7 +752,7 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
       userEmail: sessionRecord.userEmail,
       payload,
       savedAt: new Date().toISOString(),
-    })
+    }, storeSource)
     return { status: 200, data: payload, cookies: cookieHeaders }
   }
 

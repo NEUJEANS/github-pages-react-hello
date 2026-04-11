@@ -266,3 +266,30 @@ test('auth persistent store honors custom data-dir and sqlite path env overrides
     })
   })
 })
+
+test('readAuthStorePaths prefers explicit options over env defaults for standalone auth server wiring', async () => {
+  await withTempCwd(async (tempDir) => {
+    const explicitDataDir = path.join(tempDir, 'explicit-auth-data')
+    const explicitSqlitePath = path.join(tempDir, 'explicit-db', 'havenly-auth.sqlite')
+
+    await withEnv({
+      HAVENLY_AUTH_DATA_DIR: path.join(tempDir, 'env-auth-data'),
+      HAVENLY_AUTH_SQLITE_PATH: path.join(tempDir, 'env-db', 'env-auth.sqlite'),
+    }, async () => {
+      const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+      const { readAuthStorePaths } = await import(moduleUrl)
+
+      assert.deepEqual(
+        readAuthStorePaths({
+          dataDir: explicitDataDir,
+          sqlitePath: explicitSqlitePath,
+        }),
+        {
+          dataDir: explicitDataDir,
+          sqlitePath: explicitSqlitePath,
+          legacyJsonPath: path.join(explicitDataDir, 'havenly-auth-store.json'),
+        },
+      )
+    })
+  })
+})

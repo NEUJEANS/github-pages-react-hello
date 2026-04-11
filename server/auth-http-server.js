@@ -207,6 +207,7 @@ export function startAuthHttpServer(options = {}) {
   const port = Number.parseInt(options.port ?? process.env.HAVENLY_AUTH_SERVER_PORT ?? '4175', 10)
   const storePaths = readAuthStorePaths({
     dataDir: options.dataDir,
+    sqlitePath: options.sqlitePath,
     storeFile: options.storeFile,
   })
 
@@ -246,7 +247,8 @@ export function startAuthHttpServer(options = {}) {
       sessionIdHeader: sessionCookie ? sessionCookie.slice('havenly_session='.length) : null,
       pendingHandoffIdHeader: pendingCookie ? pendingCookie.slice('havenly_pending='.length) : null,
       dataDir: storePaths.dataDir,
-      storeFile: storePaths.storeFile,
+      sqlitePath: storePaths.sqlitePath,
+      storeFile: storePaths.sqlitePath,
     })
 
     if (Array.isArray(response.cookies) && response.cookies.length > 0) {
@@ -292,7 +294,7 @@ function parseCliArgs(argv = process.argv.slice(2), env = process.env) {
     host: env.HAVENLY_AUTH_SERVER_HOST ?? env.HAVENLY_AUTH_HOST ?? '127.0.0.1',
     port: env.HAVENLY_AUTH_SERVER_PORT ?? env.HAVENLY_AUTH_PORT ?? '4175',
     dataDir: env.HAVENLY_AUTH_DATA_DIR,
-    storeFile: env.HAVENLY_AUTH_STORE_FILE,
+    sqlitePath: env.HAVENLY_AUTH_SQLITE_PATH ?? env.HAVENLY_AUTH_STORE_FILE,
   }
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -317,8 +319,8 @@ function parseCliArgs(argv = process.argv.slice(2), env = process.env) {
       continue
     }
 
-    if (arg === '--store-file' && nextValue) {
-      options.storeFile = nextValue
+    if ((arg === '--sqlite-path' || arg === '--store-file') && nextValue) {
+      options.sqlitePath = nextValue
       index += 1
       continue
     }
@@ -333,7 +335,7 @@ function resolveAuthHttpServerOptions({ args = process.argv.slice(2), env = proc
     host: parsed.host,
     port: Number.parseInt(parsed.port, 10),
     ...(parsed.dataDir ? { dataDir: parsed.dataDir } : {}),
-    ...(parsed.storeFile ? { storeFile: parsed.storeFile } : {}),
+    ...(parsed.sqlitePath ? { sqlitePath: parsed.sqlitePath } : {}),
   }
 }
 
