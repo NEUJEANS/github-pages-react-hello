@@ -187,7 +187,15 @@ async function proxyAuthRequest(req, res, requestPath, { proxyBaseUrl }) {
   const requestBody = req.method === "GET" || req.method === "HEAD"
     ? undefined
     : await readRequestBody(req)
-  const targetUrl = `${proxyBaseUrl}${requestPath}`
+  const originalUrl = req.url ?? requestPath
+  const originalQuery = (() => {
+    try {
+      return new URL(originalUrl, "http://localhost").search
+    } catch {
+      return ""
+    }
+  })()
+  const targetUrl = `${proxyBaseUrl}${requestPath}${originalQuery}`
   const forwardedHeaders = {
     accept: req.headers.accept ?? "application/json",
     [AUTH_CONNECTION_METHOD_HEADER]: req.headers[AUTH_CONNECTION_METHOD_HEADER] ?? req.method ?? "GET",

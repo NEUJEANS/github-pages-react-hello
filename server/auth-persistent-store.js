@@ -448,7 +448,7 @@ function finalizeVerificationRequest(verificationId, { status = 'verified', stor
   if (sessionRecord?.payload) {
     const payload = clone(sessionRecord.payload)
     payload.verifiedAt = completedAt
-    payload.nextAction = normalizeIntentAction(typeof payload.intent?.action === 'string' ? payload.intent.action : '') || 'resume-authenticated-flow'
+    payload.nextAction = resolvePostBlockerNextAction(payload, 'verify-email')
     payload.status = 'ready'
     payload.statusLabel = '이메일 인증 완료'
     saveSessionRecord(verification.sessionId, {
@@ -580,6 +580,16 @@ function normalizeIntentAction(action = '') {
     default:
       return ''
   }
+}
+
+function resolvePostBlockerNextAction(session = null, blockerAction = '') {
+  const currentNextAction = typeof session?.nextAction === 'string' ? session.nextAction.trim() : ''
+  if (currentNextAction && currentNextAction !== blockerAction) return currentNextAction
+
+  const intentAction = normalizeIntentAction(typeof session?.intent?.action === 'string' ? session.intent.action.trim() : '')
+  if (intentAction && intentAction !== blockerAction) return intentAction
+
+  return 'resume-authenticated-flow'
 }
 
 function continuationStatus(nextAction) {
@@ -741,7 +751,20 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
 
   if (pathName === '/api/auth/session') {
     if (!sessionRecord) return { status: 401, data: { message: 'No auth session', nextAction: 'login-required' }, cookies: cookieHeaders }
-    return { status: 200, data: clone(sessionRecord.payload), cookies: cookieHeaders }
+
+    const payload = clone(sessionRecord.payload)
+    if (payload?.verifiedAt && payload.nextAction === 'verify-email') {
+      payload.nextAction = resolvePostBlockerNextAction(payload, 'verify-email')
+      payload.status = 'ready'
+      payload.statusLabel = '이메일 인증 완료'
+      saveSessionRecord(sessionId, {
+        userEmail: sessionRecord.userEmail,
+        payload,
+        savedAt: new Date().toISOString(),
+      }, storeSource)
+    }
+
+    return { status: 200, data: payload, cookies: cookieHeaders }
   }
 
   if (pathName === '/api/auth/pending') {

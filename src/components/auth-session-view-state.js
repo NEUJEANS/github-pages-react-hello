@@ -482,11 +482,13 @@ export function shouldAutoOpenAuthReadyPanel(session = null, modalState = 'close
 
   const nextAction = session.continuation?.nextAction ?? null
   const status = session.continuation?.status ?? null
+  const statusLabel = typeof session.continuation?.statusLabel === 'string' ? session.continuation.statusLabel.trim() : ''
 
   return status === 'action-required'
     || nextAction === 'complete-profile'
     || nextAction === 'verify-email'
     || nextAction === 'confirm-merge-resolution'
+    || (status === 'ready' && nextAction === 'resume-authenticated-flow' && /인증 완료/.test(statusLabel))
 }
 
 export function buildAuthSessionNotice(session) {

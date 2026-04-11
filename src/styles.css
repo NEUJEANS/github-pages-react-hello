@@ -343,6 +343,7 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
 .scrollCard strong { font-size: 16px; line-height: 1.35; letter-spacing: -.02em; }
 .scrollCard span { color: #5c544d; font-weight: 700; }
 .muted { color: #7d7a76; line-height: 1.72; }
+.statusSuccess { color: #2f8f5b; line-height: 1.72; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }
 }

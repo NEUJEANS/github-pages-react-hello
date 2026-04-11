@@ -902,6 +902,23 @@ function App() {
     }
 
     if (response.data?.status === 'verified') {
+      const verifiedContinuationPatch = (continuation) => continuation?.nextAction === 'verify-email'
+        ? { ...continuation, nextAction: 'resume-authenticated-flow', status: 'ready', statusLabel: '이메일 인증 완료' }
+        : continuation
+
+      setIdentityVerification({ status: 'verified', verificationId, message: '본인인증이 완료되었습니다' })
+      setLoginForm((current) => ({
+        ...current,
+        status: 'ready',
+        continuation: verifiedContinuationPatch(current.continuation ?? null),
+      }))
+      setAuthSession((current) => {
+        if (!current) return current
+        const nextSession = { ...current, continuation: verifiedContinuationPatch(current.continuation ?? null) }
+        persistAuthSession(globalThis.localStorage, nextSession)
+        return nextSession
+      })
+
       const sessionResponse = await readAuthSession({
         endpoint: authConfig.sessionEndpoint,
         apiBaseUrl: authConfig.apiBaseUrl,
@@ -911,9 +928,42 @@ function App() {
         source: authConfig.isConfigured ? 'env/runtime-configured' : 'default',
       })
       if (sessionResponse.ok && sessionResponse.data) {
-        setAuthSession(buildPersistedAuthSession(sessionResponse.data))
+        const persistedSession = buildPersistedAuthSession(sessionResponse.data)
+        const persistedConnection = resolvePersistedAuthConnection(sessionResponse, persistedSession.connection ?? null)
+        const sessionReadyAfterVerification = sessionResponse.data?.status === 'ready' || Boolean(sessionResponse.data?.verifiedAt)
+        const normalizedContinuation = sessionReadyAfterVerification && persistedSession.continuation?.nextAction === 'verify-email'
+          ? { ...persistedSession.continuation, nextAction: 'resume-authenticated-flow', status: 'ready', statusLabel: '이메일 인증 완료' }
+          : persistedSession.continuation
+        const normalizedSession = normalizedContinuation === persistedSession.continuation
+          ? persistedSession
+          : { ...persistedSession, continuation: normalizedContinuation }
+        const nextSession = persistedConnection
+          ? { ...normalizedSession, connection: persistedConnection }
+          : normalizedSession
+
+        persistAuthSession(globalThis.localStorage, nextSession)
+        setAuthSession(nextSession)
+        setLoginForm((current) => ({
+          ...current,
+          status: 'ready',
+          handoffId: nextSession.handoffId ?? current.handoffId ?? null,
+          connection: nextSession.connection ?? current.connection ?? null,
+          actionConnection: nextSession.actionConnection ?? current.actionConnection ?? null,
+          continuation: nextSession.continuation ?? current.continuation ?? null,
+        }))
+
+        if (nextSession.continuation?.nextAction && nextSession.continuation.nextAction !== 'verify-email') {
+          if (verificationPollTimeoutRef.current) {
+            clearTimeout(verificationPollTimeoutRef.current)
+            verificationPollTimeoutRef.current = null
+          }
+          return
+        }
       }
-      setIdentityVerification({ status: 'verified', verificationId, message: '본인 인증이 완료되었어요.' })
+
+      verificationPollTimeoutRef.current = setTimeout(() => {
+        pollIdentityVerification(verificationId)
+      }, 500)
       return
     }
 
@@ -931,7 +981,7 @@ function App() {
     }
 
     const callbackUrl = response.data.callbackUrl
-    openIdentityVerificationWindow(callbackUrl)
+    openIdentityVerificationWindow(callbackUrl, authConfig)
     setIdentityVerification({ status: 'pending', verificationId: response.data.verificationId, message: '본인 인증 창을 열었어요. 완료되면 자동으로 갱신됩니다.' })
     pollIdentityVerification(response.data.verificationId)
   }, [authConfig, authSession?.intent, loginForm.intent, pollIdentityVerification])
@@ -2330,7 +2380,7 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                       </button>
                     </div>
                     {identityVerification?.message && (
-                      <p className="muted">{identityVerification.message}</p>
+                      <p className={identityVerification.status === 'verified' ? 'statusSuccess' : 'muted'}>{identityVerification.message}</p>
                     )}
                   </>
                 )}

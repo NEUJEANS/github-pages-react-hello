@@ -310,6 +310,7 @@ test('verification start, callback, and status endpoints persist verified auth s
     assert.equal(verifiedStatus.status, 200)
     assert.equal(verifiedStatus.data.status, 'verified')
     assert.equal(verifiedStatus.data.statusLabel, '이메일 인증 완료')
+    assert.equal(verifiedStatus.data.nextAction, 'resume-authenticated-flow')
     assert.ok(verifiedStatus.data.verifiedAt)
 
     const session = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
@@ -319,6 +320,7 @@ test('verification start, callback, and status endpoints persist verified auth s
     assert.equal(session.status, 200)
     assert.equal(session.data.status, 'ready')
     assert.equal(session.data.statusLabel, '이메일 인증 완료')
+    assert.equal(session.data.nextAction, 'resume-authenticated-flow')
     assert.equal(session.data.verifiedAt, verifiedStatus.data.verifiedAt)
   })
 })

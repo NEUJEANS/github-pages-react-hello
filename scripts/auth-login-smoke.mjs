@@ -952,6 +952,31 @@ async function readVisibleAccountLabel(page) {
   return meaningfulSpanLabel || buttonLabel
 }
 
+async function dragTrayItem(page, sourceLocator, { clientX, clientY }) {
+  const box = await sourceLocator.boundingBox()
+  if (!box) throw new Error('Tray item geometry was not available for drag smoke')
+
+  const startX = box.x + (box.width / 2)
+  const startY = box.y + (box.height / 2)
+
+  await sourceLocator.dispatchEvent('pointerdown', {
+    button: 0,
+    buttons: 1,
+    clientX: startX,
+    clientY: startY,
+    pointerType: 'mouse',
+    isPrimary: true,
+  })
+  await sourceLocator.dispatchEvent('pointerup', {
+    button: 0,
+    buttons: 0,
+    clientX,
+    clientY,
+    pointerType: 'mouse',
+    isPrimary: true,
+  })
+}
+
 async function waitForAuthReadySignal(page, { expectedAccountLabel = null, expectedNoticeIncludes = [], forbiddenNoticeIncludes = [], timeoutMs = 30000 } = {}) {
   const startedAt = Date.now()
   const requiredNoticeBits = expectedNoticeIncludes.map((value) => normalizeUiText(value)).filter(Boolean)
@@ -1258,22 +1283,85 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     const verifyEmailStatus = await verifyEmailPage.locator('.authPrepCard .muted').first().innerText()
     const verifyEmailReadyCard = await readAuthReadyCard(verifyEmailPage)
     const verifyEmailReadyDisabled = await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).isDisabled()
-    await verifyEmailPage.getByPlaceholder('123456').fill('123456')
+    const verificationPopupPromise = verifyEmailPage.waitForEvent('popup')
+    await verifyEmailPage.getByRole('button', { name: '본인 인증 창 열기' }).click()
+    const verificationPopup = await verificationPopupPromise
+    await verificationPopup.waitForLoadState('domcontentloaded')
+    const verificationPopupUrl = verificationPopup.url()
+    const verificationPopupBody = normalizeUiText(await verificationPopup.locator('body').innerText().catch(() => ''))
+    const verificationPendingMessage = normalizeUiText(await verifyEmailPage.locator('.loginPanel').innerText().catch(() => ''))
+    await verifyEmailPage.waitForFunction(() => document.querySelector('.loginPanel')?.textContent?.includes('본인인증이 완료되었습니다') ?? false, undefined, { timeout: 5000 }).catch(() => null)
+    const verificationCompleteMessage = normalizeUiText(await verifyEmailPage.locator('.loginPanel').innerText().catch(() => ''))
     await verifyEmailPage.reload({ waitUntil: 'domcontentloaded' })
-    await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).waitFor()
+    await verifyEmailPage.waitForFunction(() => {
+      const card = document.querySelector('.loginForm .authPrepCard strong')
+      const cta = document.querySelector('.loginPanel .footerButtons .cta:last-child')
+      const title = card?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+      const action = cta?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+      return Boolean(title) && action !== '이메일 인증 확인'
+    }, undefined, { timeout: 30000 })
     const verifyEmailReloadedStatus = await verifyEmailPage.locator('.authPrepCard .muted').first().innerText()
     const verifyEmailReloadedReadyCard = await readAuthReadyCard(verifyEmailPage)
-    if (verifyEmailReadyCard.title !== verifyEmailReloadedReadyCard.title || verifyEmailReadyCard.primaryAction !== verifyEmailReloadedReadyCard.primaryAction) {
-      throw new Error(`Verify-email ready card changed across reload. Before: ${JSON.stringify(verifyEmailReadyCard)} After: ${JSON.stringify(verifyEmailReloadedReadyCard)}`)
+    if (verifyEmailReloadedReadyCard.title !== verifyEmailReadyCard.title || verifyEmailReloadedReadyCard.primaryAction === '이메일 인증 확인' || !verifyEmailReloadedReadyCard.primaryAction) {
+      throw new Error(`Verify-email ready card did not advance to the post-verification resume state. Before: ${JSON.stringify(verifyEmailReadyCard)} After: ${JSON.stringify(verifyEmailReloadedReadyCard)}`)
     }
-    const verifyEmailReloadedCode = await verifyEmailPage.getByPlaceholder('123456').inputValue()
-    await verifyEmailPage.getByRole('button', { name: '이메일 인증 확인' }).click()
+    if (!/verification\/callback\?verificationId=/.test(verificationPopupUrl)) {
+      throw new Error(`Verification popup did not navigate to the backend callback URL. Saw: ${verificationPopupUrl}`)
+    }
+    const verificationPopupResolved = verificationPopupBody.includes('인증이 완료되었어요')
+    const verificationPendingGuidanceObserved = verificationPendingMessage.includes('본인 인증 창을')
+    const verificationCompletionObserved = verificationCompleteMessage.includes('본인인증이 완료되었습니다')
+    if (!verificationPopupResolved) {
+      throw new Error(`Verification popup did not render the success callback page. Body: ${verificationPopupBody}`)
+    }
+    const verifyEmailReloadedCode = await verifyEmailPage.getByPlaceholder('123456').inputValue().catch(() => '')
+    await verifyEmailPage.getByRole('button', { name: verifyEmailReloadedReadyCard.primaryAction }).click()
     const verifyEmailReady = await waitForAuthReadySignal(verifyEmailPage, {
       expectedAccountLabel: 'verify@example.com',
+      forbiddenNoticeIncludes: ['이메일 인증 필요', '이메일 인증 확인'],
     })
     const verifyEmailResumedStatus = verifyEmailReady.notice
     await capture(verifyEmailPage, 'auth-login-verify-email-ready.png')
     await verifyEmailPage.close()
+
+    markSmokeStage('layout-tray-drag-scenario:start')
+    const layoutTrayPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    await resetBrowserScenario(layoutTrayPage)
+    await layoutTrayPage.goto(`${baseUrl}#layout`, { waitUntil: 'domcontentloaded' })
+    const roomFrame = layoutTrayPage.locator('.roomFrame')
+    await roomFrame.waitFor({ state: 'visible', timeout: 15000 })
+    const initialTrayCount = await layoutTrayPage.locator('.recommendStrip .recommendCard').count()
+    const initialPlacedCount = await layoutTrayPage.locator('.roomFrame .placed').count()
+    const roomBounds = await roomFrame.boundingBox()
+    if (!roomBounds) throw new Error('Layout room bounds were unavailable for tray drag smoke')
+
+    const dropSource = layoutTrayPage.locator('.recommendStrip .recommendCard').nth(0)
+    await dragTrayItem(layoutTrayPage, dropSource, {
+      clientX: roomBounds.x + (roomBounds.width * 0.55),
+      clientY: roomBounds.y + (roomBounds.height * 0.5),
+    })
+    await layoutTrayPage.waitForFunction(({ trayCount, placedCount }) => {
+      return document.querySelectorAll('.recommendStrip .recommendCard').length === trayCount - 1
+        && document.querySelectorAll('.roomFrame .placed').length === placedCount + 1
+    }, { trayCount: initialTrayCount, placedCount: initialPlacedCount }, { timeout: 10000 })
+    const afterDropTrayCount = await layoutTrayPage.locator('.recommendStrip .recommendCard').count()
+    const afterDropPlacedCount = await layoutTrayPage.locator('.roomFrame .placed').count()
+
+    const abandonSource = layoutTrayPage.locator('.recommendStrip .recommendCard').nth(0)
+    const outsideTarget = await layoutTrayPage.locator('.editorSide.left').boundingBox()
+    if (!outsideTarget) throw new Error('Layout sidebar bounds were unavailable for tray abandon smoke')
+    await dragTrayItem(layoutTrayPage, abandonSource, {
+      clientX: outsideTarget.x + Math.min(80, outsideTarget.width / 2),
+      clientY: outsideTarget.y + Math.min(80, outsideTarget.height / 2),
+    })
+    await layoutTrayPage.waitForFunction(({ trayCount, placedCount }) => {
+      return document.querySelectorAll('.recommendStrip .recommendCard').length === trayCount - 1
+        && document.querySelectorAll('.roomFrame .placed').length === placedCount
+    }, { trayCount: afterDropTrayCount, placedCount: afterDropPlacedCount }, { timeout: 10000 })
+    const afterAbandonTrayCount = await layoutTrayPage.locator('.recommendStrip .recommendCard').count()
+    const afterAbandonPlacedCount = await layoutTrayPage.locator('.roomFrame .placed').count()
+    await capture(layoutTrayPage, 'layout-tray-drag-drop-smoke.png')
+    await layoutTrayPage.close()
 
     markSmokeStage('query-override-scenario:start')
     const queryOverridePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
@@ -1383,6 +1471,13 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
           status: verifyEmailStatus,
           readyCard: verifyEmailReadyCard,
           primaryActionDisabled: verifyEmailReadyDisabled,
+          popupUrl: verificationPopupUrl,
+          popupBody: verificationPopupBody,
+          popupResolved: verificationPopupResolved,
+          pendingMessage: verificationPendingMessage,
+          pendingGuidanceObserved: verificationPendingGuidanceObserved,
+          completionMessage: verificationCompleteMessage,
+          completionObservedInModal: verificationCompletionObserved,
           reloadedStatus: verifyEmailReloadedStatus,
           reloadedReadyCard: verifyEmailReloadedReadyCard,
           reloadedFields: {
@@ -1390,6 +1485,14 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
           },
           resumedStatus: verifyEmailResumedStatus,
         },
+      },
+      layoutTray: {
+        initialTrayCount,
+        initialPlacedCount,
+        afterDropTrayCount,
+        afterDropPlacedCount,
+        afterAbandonTrayCount,
+        afterAbandonPlacedCount,
       },
       guardedMerge: {
         guardReasons,

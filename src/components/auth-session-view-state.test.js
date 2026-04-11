@@ -830,6 +830,14 @@ test('shouldAutoOpenAuthReadyPanel reopens the login modal for action-required a
   assert.equal(shouldAutoOpenAuthReadyPanel({
     accountLabel: 'user@example.com',
     continuation: {
+      nextAction: 'resume-authenticated-flow',
+      status: 'ready',
+      statusLabel: '이메일 인증 완료',
+    },
+  }), true)
+  assert.equal(shouldAutoOpenAuthReadyPanel({
+    accountLabel: 'user@example.com',
+    continuation: {
       nextAction: 'complete-profile',
       status: 'action-required',
     },
