@@ -485,3 +485,158 @@ test('auth http server restores pending merge handoffs after a server restart an
     }
   })
 })
+
+test('auth http server exposes verification start, popup callback, and status endpoints through the standalone backend', async () => {
+  await withTempCwd(async (tempDir) => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { startAuthHttpServer } = await import(moduleUrl)
+    const sqlitePath = path.join(tempDir, 'server-db', 'verification.sqlite')
+    const authServer = await startAuthHttpServer({ port: 0, sqlitePath })
+
+    try {
+      const loginResponse = await fetch(`${authServer.url}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: 'verify@example.com',
+          password: 'password123',
+          handoffId: 'server-verify-001',
+          intent: {
+            action: 'verify-email',
+            label: '이메일 인증 이어가기',
+            returnScreen: 'home',
+          },
+        }),
+      })
+
+      assert.equal(loginResponse.status, 200)
+      const sessionCookie = loginResponse.headers.getSetCookie().find((value) => value.startsWith('havenly_auth_session=')) ?? ''
+      assert.ok(sessionCookie)
+      const loginPayload = await loginResponse.json()
+      assert.equal(loginPayload.nextAction, 'verify-email')
+
+      const startResponse = await fetch(`${authServer.url}/api/auth/verification/start`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie: sessionCookie,
+        },
+        body: JSON.stringify({
+          continuation: {
+            nextAction: 'verify-email',
+            resumeToken: loginPayload.resumeToken,
+          },
+        }),
+      })
+
+      assert.equal(startResponse.status, 202)
+      const startPayload = await startResponse.json()
+      assert.equal(startPayload.status, 'pending')
+      assert.ok(startPayload.verificationId)
+      assert.match(startPayload.callbackUrl, /\/api\/auth\/verification\/callback\?verificationId=/)
+
+      const pendingStatusResponse = await fetch(`${authServer.url}/api/auth/verification/status`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie: sessionCookie,
+        },
+        body: JSON.stringify({
+          verificationId: startPayload.verificationId,
+        }),
+      })
+      assert.equal(pendingStatusResponse.status, 200)
+      const pendingStatusPayload = await pendingStatusResponse.json()
+      assert.equal(pendingStatusPayload.status, 'pending')
+      assert.equal(pendingStatusPayload.nextAction, 'verify-email')
+
+      const callbackResponse = await fetch(`${authServer.url}${startPayload.callbackUrl}`, {
+        headers: {
+          cookie: sessionCookie,
+        },
+      })
+      assert.equal(callbackResponse.status, 200)
+      assert.match(callbackResponse.headers.get('content-type') ?? '', /text\/html/)
+      const callbackHtml = await callbackResponse.text()
+      assert.match(callbackHtml, /window\.opener\.postMessage/)
+      assert.match(callbackHtml, /인증이 완료되었어요/)
+
+      const verifiedStatusResponse = await fetch(`${authServer.url}/api/auth/verification/status`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie: sessionCookie,
+        },
+        body: JSON.stringify({
+          verificationId: startPayload.verificationId,
+        }),
+      })
+      assert.equal(verifiedStatusResponse.status, 200)
+      const verifiedStatusPayload = await verifiedStatusResponse.json()
+      assert.equal(verifiedStatusPayload.status, 'verified')
+      assert.ok(verifiedStatusPayload.verifiedAt)
+
+      const sessionResponse = await fetch(`${authServer.url}/api/auth/session`, {
+        headers: {
+          cookie: sessionCookie,
+        },
+      })
+      assert.equal(sessionResponse.status, 200)
+      const sessionPayload = await sessionResponse.json()
+      assert.equal(sessionPayload.user.email, 'verify@example.com')
+      assert.ok(sessionPayload.verifiedAt)
+    } finally {
+      await authServer.close()
+    }
+  })
+})
+
+test('auth http server accepts layout tracking events through the standalone backend', async () => {
+  await withTempCwd(async (tempDir) => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { startAuthHttpServer } = await import(moduleUrl)
+    const sqlitePath = path.join(tempDir, 'server-db', 'layout-track.sqlite')
+    const authServer = await startAuthHttpServer({ port: 0, sqlitePath })
+
+    try {
+      const selectedResponse = await fetch(`${authServer.url}/api/auth/layout/track`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          eventType: 'selectedComponent',
+          item: {
+            id: 'chair-001',
+            sourceId: 'chair-001',
+            name: 'Accent Chair',
+          },
+        }),
+      })
+      assert.equal(selectedResponse.status, 202)
+      const selectedPayload = await selectedResponse.json()
+      assert.equal(selectedPayload.eventType, 'selectedComponent')
+      assert.equal(selectedPayload.counters.selectedComponent, 1)
+      assert.equal(selectedPayload.counters.abandonedComponent, 0)
+
+      const abandonedResponse = await fetch(`${authServer.url}/api/auth/layout/track`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          eventType: 'abandonedComponent',
+        }),
+      })
+      assert.equal(abandonedResponse.status, 202)
+      const abandonedPayload = await abandonedResponse.json()
+      assert.equal(abandonedPayload.eventType, 'abandonedComponent')
+      assert.equal(abandonedPayload.counters.selectedComponent, 1)
+      assert.equal(abandonedPayload.counters.abandonedComponent, 1)
+    } finally {
+      await authServer.close()
+    }
+  })
+})
