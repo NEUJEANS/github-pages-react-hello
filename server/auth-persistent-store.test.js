@@ -234,6 +234,143 @@ test('verify-email continuation persists verification state across subsequent se
   })
 })
 
+test('verification start, callback, and status endpoints persist verified auth state in sqlite', async () => {
+  await withTempCwd(async () => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { handleAuthRequest } = await import(moduleUrl)
+
+    const login = handleAuthRequest(buildRequest(), {
+      pathName: '/api/auth/login',
+      body: {
+        email: 'verify@example.com',
+        password: 'password123',
+        handoffId: 'verify-popup-handoff-001',
+        intent: {
+          action: 'verify-email',
+          label: '본인 인증 이어가기',
+          returnScreen: 'home',
+        },
+      },
+    })
+
+    assert.equal(login.status, 200)
+    const sessionCookie = login.cookies.find((value) => value.startsWith('havenly_auth_session='))
+    assert.ok(sessionCookie)
+
+    const start = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
+      pathName: '/api/auth/verification/start',
+      body: {
+        continuation: {
+          nextAction: 'verify-email',
+          resumeToken: login.data.resumeToken,
+        },
+        intent: {
+          action: 'checkout-cart',
+          label: '주문 이어가기',
+          returnScreen: 'home',
+        },
+      },
+    })
+
+    assert.equal(start.status, 202)
+    assert.equal(start.data.status, 'pending')
+    assert.ok(start.data.verificationId)
+    assert.match(start.data.callbackUrl, /\/api\/auth\/verification\/callback\?verificationId=/)
+
+    const pendingStatus = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
+      pathName: '/api/auth/verification/status',
+      body: {
+        verificationId: start.data.verificationId,
+      },
+    })
+
+    assert.equal(pendingStatus.status, 200)
+    assert.equal(pendingStatus.data.status, 'pending')
+    assert.equal(pendingStatus.data.nextAction, 'verify-email')
+
+    const callback = handleAuthRequest(buildRequest(), {
+      pathName: '/api/auth/verification/callback',
+      body: {
+        verificationId: start.data.verificationId,
+        status: 'verified',
+      },
+    })
+
+    assert.equal(callback.status, 200)
+    assert.equal(callback.data.status, 'verified')
+    assert.ok(callback.data.completedAt)
+
+    const verifiedStatus = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
+      pathName: '/api/auth/verification/status',
+      body: {
+        verificationId: start.data.verificationId,
+      },
+    })
+
+    assert.equal(verifiedStatus.status, 200)
+    assert.equal(verifiedStatus.data.status, 'verified')
+    assert.equal(verifiedStatus.data.statusLabel, '이메일 인증 완료')
+    assert.ok(verifiedStatus.data.verifiedAt)
+
+    const session = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
+      pathName: '/api/auth/session',
+    })
+
+    assert.equal(session.status, 200)
+    assert.equal(session.data.status, 'ready')
+    assert.equal(session.data.statusLabel, '이메일 인증 완료')
+    assert.equal(session.data.verifiedAt, verifiedStatus.data.verifiedAt)
+  })
+})
+
+test('layout tracking endpoint increments selected and abandoned component counters', async () => {
+  await withTempCwd(async () => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { handleAuthRequest } = await import(moduleUrl)
+
+    const firstSelected = handleAuthRequest(buildRequest(), {
+      pathName: '/api/auth/layout/track',
+      body: {
+        eventType: 'selectedComponent',
+        item: { id: 'sofa-001', name: '코튼베이지 모듈 소파' },
+      },
+    })
+
+    assert.equal(firstSelected.status, 202)
+    assert.deepEqual(firstSelected.data.counters, {
+      selectedComponent: 1,
+      abandonedComponent: 0,
+    })
+
+    const abandoned = handleAuthRequest(buildRequest(), {
+      pathName: '/api/auth/layout/track',
+      body: {
+        eventType: 'abandonedComponent',
+        item: { id: 'lamp-001', name: '포인트 플로어 램프' },
+      },
+    })
+
+    assert.equal(abandoned.status, 202)
+    assert.deepEqual(abandoned.data.counters, {
+      selectedComponent: 1,
+      abandonedComponent: 1,
+    })
+
+    const secondSelected = handleAuthRequest(buildRequest(), {
+      pathName: '/api/auth/layout/track',
+      body: {
+        eventType: 'selectedComponent',
+      },
+    })
+
+    assert.equal(secondSelected.status, 202)
+    assert.deepEqual(secondSelected.data.counters, {
+      selectedComponent: 2,
+      abandonedComponent: 1,
+    })
+  })
+})
+
 test('auth persistent store honors custom data-dir and sqlite path env overrides', async () => {
   await withTempCwd(async (tempDir) => {
     const customDataDir = path.join(tempDir, 'custom-auth-data')

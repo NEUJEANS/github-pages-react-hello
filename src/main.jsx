@@ -22,6 +22,8 @@ import {
 } from './components/auth-flow-state.js'
 import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan, submitAuthSignupPlan } from './components/auth-submit.js'
 import { resolveAuthConfig } from './components/auth-config.js'
+import { openIdentityVerificationWindow, readIdentityVerificationStatus, startIdentityVerification } from './components/auth-verification.js'
+import { trackLayoutComponentEvent } from './components/layout-backend.js'
 import {
   buildAuthConnectionSummary,
   buildAuthReadyState,
@@ -800,6 +802,9 @@ function App() {
   ))
   const [authNoticeDismissed, setAuthNoticeDismissed] = React.useState(false)
   const [engagement, setEngagement] = React.useState(initialEngagement)
+  const [layoutTrayItems, setLayoutTrayItems] = React.useState(() => aiProducts.map((item) => ({ ...item })))
+  const [identityVerification, setIdentityVerification] = React.useState({ status: 'idle', verificationId: null, message: '' })
+  const verificationPollTimeoutRef = React.useRef(null)
   const appliedAuthSessionRestoreRef = React.useRef(persistedAuthSession?.savedAt ?? null)
 
   const selectedApartment = React.useMemo(
@@ -882,6 +887,65 @@ function App() {
     () => resolveAuthConfig({ env: import.meta.env }),
     [],
   )
+
+  React.useEffect(() => () => {
+    if (verificationPollTimeoutRef.current) {
+      clearTimeout(verificationPollTimeoutRef.current)
+    }
+  }, [])
+
+  const pollIdentityVerification = React.useCallback(async (verificationId) => {
+    const response = await readIdentityVerificationStatus({ authConfig, verificationId })
+    if (!response.ok) {
+      setIdentityVerification({ status: 'error', verificationId, message: '인증 상태를 다시 확인해 주세요.' })
+      return
+    }
+
+    if (response.data?.status === 'verified') {
+      const sessionResponse = await readAuthSession({
+        endpoint: authConfig.sessionEndpoint,
+        apiBaseUrl: authConfig.apiBaseUrl,
+        appBasePath: authConfig.appBasePath,
+        currentOrigin: authConfig.currentOrigin,
+        credentialsMode: authConfig.credentialsMode,
+        source: authConfig.isConfigured ? 'env/runtime-configured' : 'default',
+      })
+      if (sessionResponse.ok && sessionResponse.data) {
+        setAuthSession(buildPersistedAuthSession(sessionResponse.data))
+      }
+      setIdentityVerification({ status: 'verified', verificationId, message: '본인 인증이 완료되었어요.' })
+      return
+    }
+
+    setIdentityVerification({ status: 'pending', verificationId, message: '본인 인증 창을 완료하면 자동으로 이어집니다.' })
+    verificationPollTimeoutRef.current = setTimeout(() => {
+      pollIdentityVerification(verificationId)
+    }, 1200)
+  }, [authConfig])
+
+  const startVerificationFlow = React.useCallback(async (continuation) => {
+    const response = await startIdentityVerification({ authConfig, continuation, intent: authSession?.intent ?? loginForm.intent ?? null })
+    if (!response.ok || !response.data?.verificationId) {
+      setIdentityVerification({ status: 'error', verificationId: null, message: '인증 창을 열지 못했어요. 다시 시도해 주세요.' })
+      return
+    }
+
+    const callbackUrl = response.data.callbackUrl
+    openIdentityVerificationWindow(callbackUrl)
+    setIdentityVerification({ status: 'pending', verificationId: response.data.verificationId, message: '본인 인증 창을 열었어요. 완료되면 자동으로 갱신됩니다.' })
+    pollIdentityVerification(response.data.verificationId)
+  }, [authConfig, authSession?.intent, loginForm.intent, pollIdentityVerification])
+
+  React.useEffect(() => {
+    const handler = (event) => {
+      if (event?.data?.type !== 'havenly-verification-complete' || !event.data.verificationId) return
+      pollIdentityVerification(event.data.verificationId)
+    }
+
+    globalThis.window?.addEventListener?.('message', handler)
+    return () => globalThis.window?.removeEventListener?.('message', handler)
+  }, [pollIdentityVerification])
+
   const authDraftSavePayload = React.useMemo(
     () => buildAuthDraftSavePayload(
       loginForm.draftSave,
@@ -1849,6 +1913,17 @@ function App() {
     trackFurniturePlacement()
   }, [editor, trackFurniturePlacement])
 
+  const handleLayoutTrayDropToRoom = React.useCallback((product) => {
+    addProductToLayout(product)
+    setLayoutTrayItems((current) => current.filter((item) => item.id !== product.id))
+    trackLayoutComponentEvent({ authConfig, eventType: 'selectedComponent', item: product })
+  }, [addProductToLayout, authConfig])
+
+  const handleLayoutTrayAbandon = React.useCallback((product) => {
+    setLayoutTrayItems((current) => current.filter((item) => item.id !== product.id))
+    trackLayoutComponentEvent({ authConfig, eventType: 'abandonedComponent', item: product })
+  }, [authConfig])
+
   const shared = {
     navigate,
     openOverlay,
@@ -1857,6 +1932,9 @@ function App() {
     onSearchOpen: () => setSearchDrawerOpen(true),
     onOpenLogin: openLogin,
     onAddProductToLayout: addProductToLayout,
+    layoutTrayItems,
+    onLayoutTrayDropToRoom: handleLayoutTrayDropToRoom,
+    onLayoutTrayAbandon: handleLayoutTrayAbandon,
     trackBoardProgress,
     trackFurniturePlacement,
     authSession,
@@ -1981,6 +2059,8 @@ function App() {
             authConnectionDriftSummary={authConnectionDriftSummary}
             authReadyPanelState={activeAuthReadyPanelState}
             guestDraftSnapshot={guestDraftSnapshot}
+            identityVerification={identityVerification}
+            onStartVerification={startVerificationFlow}
             onChangeForm={handleLoginFormChange}
             onChangeContinuationField={handleAuthContinuationFieldChange}
             onClose={handleCloseLoginModal}
@@ -2158,7 +2238,7 @@ function CartDrawer({ cart, authSession, onOpenLogin, onClose }) {
   )
 }
 
-function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authErrorSummary, authConnectionSummary, authReadyPanelState, guestDraftSnapshot, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authErrorSummary, authConnectionSummary, authReadyPanelState, guestDraftSnapshot, identityVerification, onStartVerification, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
   const guarded = state === 'guard'
   const modeLabels = buildAuthModeLabels(form.mode)
   const activePlan = form.mode === 'signup' ? authSignupPlan : authSubmitPlan
@@ -2244,6 +2324,14 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                   <>
                     <label>인증 코드</label>
                     <div className="inputWrap big">✅<input value={authContinuationFields.verificationCode} onChange={(event) => onChangeContinuationField('verificationCode', event.target.value)} placeholder="123456" /></div>
+                    <div className="footerButtons stackOnMobile">
+                      <button className="ghost" type="button" onClick={() => onStartVerification(form.continuation ?? authReadyPanelState)}>
+                        본인 인증 창 열기
+                      </button>
+                    </div>
+                    {identityVerification?.message && (
+                      <p className="muted">{identityVerification.message}</p>
+                    )}
                   </>
                 )}
 

@@ -165,6 +165,20 @@ function ensureDatabase(source = null) {
       payload_json TEXT NOT NULL,
       saved_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS verification_requests (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      user_email TEXT NOT NULL,
+      resume_token TEXT,
+      status TEXT NOT NULL,
+      request_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      completed_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS layout_metrics (
+      key TEXT PRIMARY KEY,
+      count INTEGER NOT NULL
+    );
   `)
 
   const hasUsers = database.prepare('SELECT 1 FROM users LIMIT 1').get()
@@ -344,6 +358,114 @@ function deletePendingRecord(handoffId, source = null) {
   if (!handoffId) return
   const db = ensureDatabase(source)
   db.prepare('DELETE FROM pending WHERE handoff_id = ?').run(handoffId)
+}
+
+function saveVerificationRequest(record, source = null) {
+  const db = ensureDatabase(source)
+  db.prepare(`
+    INSERT INTO verification_requests (id, session_id, user_email, resume_token, status, request_json, created_at, completed_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      session_id = excluded.session_id,
+      user_email = excluded.user_email,
+      resume_token = excluded.resume_token,
+      status = excluded.status,
+      request_json = excluded.request_json,
+      created_at = excluded.created_at,
+      completed_at = excluded.completed_at
+  `).run(
+    record.id,
+    record.sessionId,
+    record.userEmail,
+    record.resumeToken ?? null,
+    record.status,
+    serializeJson(record.request ?? null),
+    record.createdAt ?? new Date().toISOString(),
+    record.completedAt ?? null,
+  )
+}
+
+function readVerificationRequest(verificationId, source = null) {
+  if (!verificationId) return null
+  const db = ensureDatabase(source)
+  const row = db.prepare('SELECT * FROM verification_requests WHERE id = ?').get(verificationId)
+  if (!row) return null
+
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    userEmail: row.user_email,
+    resumeToken: row.resume_token ?? null,
+    status: row.status,
+    request: parseJson(row.request_json, null),
+    createdAt: row.created_at,
+    completedAt: row.completed_at ?? null,
+  }
+}
+
+function incrementLayoutMetric(metricKey, source = null) {
+  const db = ensureDatabase(source)
+  db.prepare(`
+    INSERT INTO layout_metrics (key, count) VALUES (?, 1)
+    ON CONFLICT(key) DO UPDATE SET count = count + 1
+  `).run(metricKey)
+
+  const row = db.prepare('SELECT count FROM layout_metrics WHERE key = ?').get(metricKey)
+  return row?.count ?? 0
+}
+
+function readLayoutMetric(metricKey, source = null) {
+  const db = ensureDatabase(source)
+  const row = db.prepare('SELECT count FROM layout_metrics WHERE key = ?').get(metricKey)
+  return row?.count ?? 0
+}
+
+function buildLayoutMetricsSummary(source = null) {
+  return {
+    selectedComponent: readLayoutMetric('selectedComponent', source),
+    abandonedComponent: readLayoutMetric('abandonedComponent', source),
+  }
+}
+
+function finalizeVerificationRequest(verificationId, { status = 'verified', storeSource = null, completedAt = new Date().toISOString() } = {}) {
+  const verification = readVerificationRequest(verificationId, storeSource)
+  if (!verification) return null
+
+  verification.status = status
+  verification.completedAt = completedAt
+  saveVerificationRequest(verification, storeSource)
+
+  if (status !== 'verified') return verification
+
+  const user = readUser(verification.userEmail, storeSource)
+  const sessionRecord = readSessionRecord(verification.sessionId, storeSource)
+
+  if (user) {
+    user.verifiedAt = completedAt
+    saveUser(user, storeSource)
+  }
+
+  if (sessionRecord?.payload) {
+    const payload = clone(sessionRecord.payload)
+    payload.verifiedAt = completedAt
+    payload.nextAction = normalizeIntentAction(typeof payload.intent?.action === 'string' ? payload.intent.action : '') || 'resume-authenticated-flow'
+    payload.status = 'ready'
+    payload.statusLabel = '이메일 인증 완료'
+    saveSessionRecord(verification.sessionId, {
+      userEmail: sessionRecord.userEmail,
+      payload,
+      savedAt: new Date().toISOString(),
+    }, storeSource)
+  }
+
+  return verification
+}
+
+export function createVerificationCallbackUrl({ verificationId, status = 'verified' } = {}) {
+  const params = new URLSearchParams()
+  params.set('verificationId', verificationId ?? '')
+  params.set('status', status)
+  return `/api/auth/verification/callback?${params.toString()}`
 }
 
 function normalizeEmail(email = '') {
@@ -536,6 +658,87 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
 
   const cookieHeaders = []
 
+  if (pathName === '/api/auth/verification/start') {
+    if (!sessionRecord) return { status: 401, data: { message: 'No auth session', nextAction: 'login-required', connection, actionConnection }, cookies: cookieHeaders }
+
+    const verificationId = randomId('verify')
+    saveVerificationRequest({
+      id: verificationId,
+      sessionId,
+      userEmail: sessionRecord.userEmail,
+      resumeToken: body?.continuation?.resumeToken ?? resumeTokenHeader ?? sessionRecord.payload?.resumeToken ?? null,
+      status: 'pending',
+      request: clone(body),
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+    }, storeSource)
+
+    return {
+      status: 202,
+      data: {
+        ok: true,
+        verificationId,
+        status: 'pending',
+        statusLabel: '본인 인증 진행 중',
+        callbackUrl: createVerificationCallbackUrl({ verificationId }),
+        connection,
+        actionConnection,
+      },
+      cookies: cookieHeaders,
+    }
+  }
+
+  if (pathName === '/api/auth/verification/status') {
+    const verificationId = body.verificationId ?? null
+    const verification = readVerificationRequest(verificationId, storeSource)
+    if (!verification) {
+      return { status: 404, data: { message: 'Verification not found', nextAction: 'verify-email', connection, actionConnection }, cookies: cookieHeaders }
+    }
+
+    const sessionPayload = verification.sessionId
+      ? (readSessionRecord(verification.sessionId, storeSource)?.payload ?? null)
+      : null
+
+    return {
+      status: 200,
+      data: {
+        ok: true,
+        verificationId: verification.id,
+        status: verification.status,
+        completedAt: verification.completedAt ?? null,
+        verifiedAt: sessionPayload?.verifiedAt ?? null,
+        nextAction: sessionPayload?.nextAction ?? 'verify-email',
+        statusLabel: verification.status === 'verified' ? '이메일 인증 완료' : '본인 인증 진행 중',
+        connection: sessionPayload?.connection ?? connection,
+        actionConnection: sessionPayload?.actionConnection ?? actionConnection,
+      },
+      cookies: cookieHeaders,
+    }
+  }
+
+  if (pathName === '/api/auth/layout/track') {
+    const metricKey = body?.eventType === 'selectedComponent'
+      ? 'selectedComponent'
+      : body?.eventType === 'abandonedComponent'
+        ? 'abandonedComponent'
+        : ''
+
+    if (!metricKey) {
+      return { status: 422, data: { message: 'Unknown layout metric event', connection }, cookies: cookieHeaders }
+    }
+
+    incrementLayoutMetric(metricKey, storeSource)
+    return {
+      status: 202,
+      data: {
+        ok: true,
+        eventType: metricKey,
+        counters: buildLayoutMetricsSummary(storeSource),
+      },
+      cookies: cookieHeaders,
+    }
+  }
+
   if (pathName === '/api/auth/session') {
     if (!sessionRecord) return { status: 401, data: { message: 'No auth session', nextAction: 'login-required' }, cookies: cookieHeaders }
     return { status: 200, data: clone(sessionRecord.payload), cookies: cookieHeaders }
@@ -545,6 +748,27 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
     const pending = handoffId ? readPendingRecord(handoffId, storeSource) : null
     if (!pending) return { status: 404, data: { message: 'No scaffold auth handoff', nextAction: 'login-required' }, cookies: cookieHeaders }
     return { status: 200, data: clone(pending), cookies: cookieHeaders }
+  }
+
+  if (pathName === '/api/auth/verification/callback') {
+    const verificationId = body.verificationId ?? null
+    const status = body.status ?? 'verified'
+    const verification = finalizeVerificationRequest(verificationId, { status, storeSource })
+
+    if (!verification) {
+      return { status: 404, data: { message: 'Verification not found', nextAction: 'verify-email', connection, actionConnection }, cookies: cookieHeaders }
+    }
+
+    return {
+      status: 200,
+      data: {
+        ok: true,
+        verificationId: verification.id,
+        status: verification.status,
+        completedAt: verification.completedAt ?? null,
+      },
+      cookies: cookieHeaders,
+    }
   }
 
   if (pathName === '/api/auth/logout') {
