@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import os from 'node:os'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { buildAuthContinuationPlan, buildAuthSubmitPlan, buildAuthResultSummary, buildGuestDraftSnapshot, buildAuthErrorSummary } from '../src/components/auth-flow-state.js'
@@ -302,6 +303,9 @@ async function ensureBrowserBaseUrl(url, { forcePreview = true, extraEnv = {}, m
 const smokeRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const smokeSignupEmail = `smoke-signup-${smokeRunId}@example.com`
 const smokeSignupDisplayName = 'Smoke Signup'
+const authProxyTempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'havenly-auth-smoke-'))
+const authProxySqlitePath = path.join(authProxyTempRoot, 'auth-store.sqlite')
+let authProxyOptions = null
 
 const guestDraftSnapshot = buildGuestDraftSnapshot({
   engagement: {
@@ -384,6 +388,20 @@ async function loadPlaywright() {
       error,
     }
   }
+}
+
+async function startManagedAuthProxy(options = {}) {
+  const server = await startAuthHttpServer(options)
+  await waitForAuthBackendHealth(`${server.url}/api/auth/health`, { fetchImpl: cookieAwareFetch })
+  return server
+}
+
+async function restartManagedAuthProxy(server, options = {}) {
+  if (server) {
+    await server.close().catch(() => null)
+  }
+
+  return startManagedAuthProxy(options)
 }
 
 async function runHttpSmoke() {
@@ -1025,7 +1043,7 @@ async function waitForLoggedOutSignal(page, { timeoutMs = 15000 } = {}) {
   throw new Error('Timed out waiting for the logged-out UI signal')
 }
 
-async function runBrowserSmoke(playwright) {
+async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
   const { chromium } = playwright
   markSmokeStage('browser-launch')
   const browser = await chromium.launch({ headless: true })
@@ -1085,6 +1103,16 @@ async function runBrowserSmoke(playwright) {
     const directReloadReady = await waitForAuthReadySignal(page, { expectedAccountLabel: 'user@example.com' })
     const reloadedNotice = directReloadReady.notice ?? null
     const reloadedAccountLabel = directReloadReady.accountLabel ?? await page.locator('.accountTrigger span').last().innerText()
+    let restartRecoveredNotice = null
+    let restartRecoveredAccountLabel = null
+    if (typeof restartAuthProxy === 'function') {
+      markSmokeStage('proxy-restart-session-recovery:start')
+      await restartAuthProxy()
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      const restartRecoveredReady = await waitForAuthReadySignal(page, { expectedAccountLabel: 'user@example.com' })
+      restartRecoveredNotice = restartRecoveredReady.notice ?? null
+      restartRecoveredAccountLabel = restartRecoveredReady.accountLabel ?? await page.locator('.accountTrigger span').last().innerText()
+    }
     await page.getByRole('button', { name: '로그아웃' }).click()
     const loggedOut = await waitForLoggedOutSignal(page)
     const postLogoutLabel = loggedOut.accountLabel
@@ -1315,6 +1343,8 @@ async function runBrowserSmoke(playwright) {
         accountLabel,
         reloadedNotice,
         reloadedAccountLabel,
+        restartRecoveredNotice,
+        restartRecoveredAccountLabel,
         postLogoutLabel,
         postLogoutReloadedLabel,
       },
@@ -1378,8 +1408,16 @@ const previewEnv = {}
 
 try {
   if (useProxyBackend) {
-    authProxyServer = await startAuthHttpServer()
-    await waitForAuthBackendHealth(`${authProxyServer.url}/api/auth/health`, { fetchImpl: cookieAwareFetch })
+    authProxyOptions = {
+      host: '127.0.0.1',
+      port: 0,
+      sqlitePath: authProxySqlitePath,
+    }
+    authProxyServer = await startManagedAuthProxy(authProxyOptions)
+    authProxyOptions = {
+      ...authProxyOptions,
+      port: authProxyServer.port,
+    }
     previewEnv.HAVENLY_AUTH_PROXY_BASE_URL = authProxyServer.url
   }
 
@@ -1393,7 +1431,15 @@ try {
 
       try {
         result = {
-          ...(await runBrowserSmoke(playwright.module)),
+          ...(await runBrowserSmoke(playwright.module, {
+            restartAuthProxy: useProxyBackend
+              ? async () => {
+                  authProxyServer = await restartManagedAuthProxy(authProxyServer, authProxyOptions)
+                  previewEnv.HAVENLY_AUTH_PROXY_BASE_URL = authProxyServer.url
+                  return authProxyServer
+                }
+              : null,
+          })),
           browserServerStarted: ensuredBaseUrl.started,
           browserBaseUrl: baseUrl,
           authProxyBaseUrl: authProxyServer?.url ?? null,
@@ -1412,7 +1458,15 @@ try {
         setActiveBaseUrl(fallbackPreview.url)
 
         result = {
-          ...(await runBrowserSmoke(playwright.module)),
+          ...(await runBrowserSmoke(playwright.module, {
+            restartAuthProxy: useProxyBackend
+              ? async () => {
+                  authProxyServer = await restartManagedAuthProxy(authProxyServer, authProxyOptions)
+                  previewEnv.HAVENLY_AUTH_PROXY_BASE_URL = authProxyServer.url
+                  return authProxyServer
+                }
+              : null,
+          })),
           browserServerStarted: fallbackPreview.started || ensuredBaseUrl.started,
           browserBaseUrl: baseUrl,
           browserRecoveredFromStaleBase: true,
