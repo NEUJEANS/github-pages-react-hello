@@ -32,8 +32,18 @@ This is real auth/backend/database progress, not just UI polish:
 - future session/bootstrap restores can hydrate the latest persisted board state,
 - the live/proxied auth flow has tighter continuity between layout interactions and account data.
 
+## Deploy + browser verification
+- Commit pushed to `main`: `068b8e6` — `Persist authenticated layout draft saves`
+- GitHub Actions Pages deploy run:
+  - `Deploy Vite site to Pages`
+  - run id `24332871259`
+  - status: `success`
+- Browser validation against the live GitHub Pages URL:
+  - `https://neujeans.github.io/github-pages-react-hello/`
+  - shell loaded successfully in browser after deploy
+  - note: this checkpoint is server/auth persistence only, so the live client bundle remained the prior frontend asset hash (`index-DArgC09m.js` / `index-D6n2aJa8.css`) and cannot directly demonstrate the SQLite persistence behavior on GitHub Pages because Pages does not host the auth backend.
+
 ## Next likely checkpoint
-- Verify the pushed GitHub Pages build against the live site.
-- After that, the next safe chained checkpoint is likely one of:
+- After this backend checkpoint, the next safe chained checkpoint is likely one of:
   1. expose a more explicit saved-layout/account restoration surface in the authenticated layout UX, or
   2. continue page/context reduction work by carving the guarded auth/layout resume shell into smaller page-level modules without changing product behavior.
