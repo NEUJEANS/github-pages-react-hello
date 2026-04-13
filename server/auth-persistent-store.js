@@ -650,6 +650,33 @@ function mergeGuestDraftIntoAccount(user, guestDraftSnapshot = null, mergeResolu
   }
 }
 
+function applyDraftSaveToAccountState(user, draftSave = null) {
+  if (!user || !draftSave || typeof draftSave !== 'object' || Array.isArray(draftSave)) return false
+
+  const nextLayoutItems = Array.isArray(draftSave.layoutItems)
+    ? draftSave.layoutItems.map((item) => ({ ...item }))
+    : null
+  const nextRecommendationDraft = typeof draftSave.recommendationRoom === 'string' && draftSave.recommendationRoom.trim()
+    ? {
+        ...(user.accountState?.recommendationDraft ?? {}),
+        room: draftSave.recommendationRoom.trim(),
+      }
+    : null
+
+  const nextAccountState = {
+    wishlistIds: Array.isArray(user.accountState?.wishlistIds) ? [...user.accountState.wishlistIds] : [],
+    cartItems: Array.isArray(user.accountState?.cartItems) ? clone(user.accountState.cartItems) : [],
+    layoutItems: nextLayoutItems ?? (Array.isArray(user.accountState?.layoutItems) ? clone(user.accountState.layoutItems) : []),
+    recommendationDraft: nextRecommendationDraft ?? clone(user.accountState?.recommendationDraft ?? null),
+  }
+
+  const unchanged = JSON.stringify(user.accountState ?? null) === JSON.stringify(nextAccountState)
+  if (unchanged) return false
+
+  user.accountState = nextAccountState
+  return true
+}
+
 export function handleAuthRequest(req, { connection = null, actionConnection = null, body = {}, pathName = '', handoffHeader = null, resumeTokenHeader = null, dataDir = null, sqlitePath = null, storeFile = null } = {}) {
   const storeSource = dataDir || sqlitePath || storeFile
     ? {
@@ -995,6 +1022,20 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
 
     if (body.intent) payload.intent = clone(body.intent)
     if (body.draftSave) payload.draftSave = clone(body.draftSave)
+
+    const shouldPersistDraftSave = Boolean(body.draftSave)
+      && ['save-layout-draft', 'resume-layout-checkout', 'resume-authenticated-flow'].includes(payload.nextAction)
+
+    if (shouldPersistDraftSave) {
+      const user = readUser(sessionRecord.userEmail, storeSource)
+      if (user && applyDraftSaveToAccountState(user, body.draftSave)) {
+        saveUser(user, storeSource)
+        payload.accountState = clone(user.accountState)
+      } else if (user) {
+        payload.accountState = clone(user.accountState)
+      }
+    }
+
     saveSessionRecord(sessionId, {
       userEmail: sessionRecord.userEmail,
       payload,

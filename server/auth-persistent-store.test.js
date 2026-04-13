@@ -173,6 +173,72 @@ test('complete-profile continuation persists profile data into the sqlite-backed
   })
 })
 
+test('save-layout continuation persists the latest layout draft into sqlite-backed account state', async () => {
+  await withTempCwd(async () => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { handleAuthRequest } = await import(moduleUrl)
+
+    const login = handleAuthRequest(buildRequest(), {
+      pathName: '/api/auth/login',
+      body: {
+        email: 'user@example.com',
+        password: 'password123',
+        handoffId: 'layout-save-handoff-001',
+        intent: {
+          action: 'save-layout-draft',
+          label: '보드 저장 이어가기',
+          returnScreen: 'layout',
+        },
+      },
+    })
+
+    assert.equal(login.status, 200)
+    const sessionCookie = login.cookies.find((value) => value.startsWith('havenly_auth_session='))
+    assert.ok(sessionCookie)
+
+    const continuation = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
+      pathName: '/api/auth/continue',
+      body: {
+        handoffId: 'layout-save-handoff-001',
+        continuation: {
+          nextAction: 'save-layout-draft',
+          resumeToken: login.data.resumeToken,
+        },
+        intent: {
+          action: 'save-layout-draft',
+          label: '보드 저장 이어가기',
+          returnScreen: 'layout',
+        },
+        draftSave: {
+          draftLabel: '한남 더현대 84A',
+          apartmentLabel: '한남 더현대 84A',
+          recommendationRoom: '거실',
+          selectedSpaceIds: ['living-room'],
+          layoutItems: [
+            { id: 'layout-sofa-1', sourceId: 'sofa-001', x: 24, y: 38, rotation: 0, colorIndex: 1 },
+            { id: 'layout-table-1', sourceId: 'table-001', x: 61, y: 46, rotation: 90, colorIndex: 0 },
+          ],
+        },
+      },
+    })
+
+    assert.equal(continuation.status, 200)
+    assert.equal(continuation.data.nextAction, 'save-layout-draft')
+    assert.equal(continuation.data.accountState.layoutItems.length, 2)
+    assert.equal(continuation.data.accountState.layoutItems[0].id, 'layout-sofa-1')
+    assert.equal(continuation.data.accountState.recommendationDraft?.room, '거실')
+
+    const session = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
+      pathName: '/api/auth/session',
+    })
+
+    assert.equal(session.status, 200)
+    assert.equal(session.data.accountState.layoutItems.length, 2)
+    assert.equal(session.data.accountState.layoutItems[1].sourceId, 'table-001')
+    assert.equal(session.data.accountState.recommendationDraft?.room, '거실')
+  })
+})
+
 test('verify-email continuation persists verification state across subsequent session reads', async () => {
   await withTempCwd(async () => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`

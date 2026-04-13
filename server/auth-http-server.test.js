@@ -379,6 +379,89 @@ test('auth http server restores signed-in sessions after a server restart from t
   })
 })
 
+test('auth http server persists layout draft saves into account state across session reads', async () => {
+  await withTempCwd(async (tempDir) => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { startAuthHttpServer } = await import(moduleUrl)
+    const sqlitePath = path.join(tempDir, 'server-db', 'layout-save.sqlite')
+
+    const authServer = await startAuthHttpServer({ port: 0, sqlitePath })
+
+    try {
+      const loginResponse = await fetch(`${authServer.url}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: 'user@example.com',
+          password: 'password123',
+          handoffId: 'layout-save-http-001',
+          intent: {
+            action: 'save-layout-draft',
+            label: '보드 저장 이어가기',
+            returnScreen: 'layout',
+          },
+        }),
+      })
+
+      assert.equal(loginResponse.status, 200)
+      const loginPayload = await loginResponse.json()
+      const sessionCookie = loginResponse.headers.getSetCookie().find((value) => value.startsWith('havenly_auth_session=')) ?? ''
+      assert.ok(sessionCookie)
+
+      const continueResponse = await fetch(`${authServer.url}/api/auth/continue`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie: sessionCookie,
+        },
+        body: JSON.stringify({
+          handoffId: 'layout-save-http-001',
+          continuation: {
+            nextAction: 'save-layout-draft',
+            resumeToken: loginPayload.resumeToken,
+          },
+          intent: {
+            action: 'save-layout-draft',
+            label: '보드 저장 이어가기',
+            returnScreen: 'layout',
+          },
+          draftSave: {
+            draftLabel: '성수 트리마제 74B',
+            apartmentLabel: '성수 트리마제 74B',
+            recommendationRoom: '침실',
+            selectedSpaceIds: ['bedroom'],
+            layoutItems: [
+              { id: 'layout-bed-1', sourceId: 'bed-001', x: 33, y: 41, rotation: 0, colorIndex: 2 },
+            ],
+          },
+        }),
+      })
+
+      assert.equal(continueResponse.status, 200)
+      const continuedPayload = await continueResponse.json()
+      assert.equal(continuedPayload.accountState.layoutItems.length, 1)
+      assert.equal(continuedPayload.accountState.layoutItems[0].sourceId, 'bed-001')
+      assert.equal(continuedPayload.accountState.recommendationDraft?.room, '침실')
+
+      const sessionResponse = await fetch(`${authServer.url}/api/auth/session`, {
+        headers: {
+          cookie: sessionCookie,
+        },
+      })
+
+      assert.equal(sessionResponse.status, 200)
+      const sessionPayload = await sessionResponse.json()
+      assert.equal(sessionPayload.accountState.layoutItems.length, 1)
+      assert.equal(sessionPayload.accountState.layoutItems[0].id, 'layout-bed-1')
+      assert.equal(sessionPayload.accountState.recommendationDraft?.room, '침실')
+    } finally {
+      await authServer.close()
+    }
+  })
+})
+
 test('auth http server restores pending merge handoffs after a server restart and can continue them to a session', async () => {
   await withTempCwd(async (tempDir) => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
