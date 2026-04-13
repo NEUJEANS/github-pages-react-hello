@@ -1,7 +1,368 @@
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
+import {
+  AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
+  AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
+  AUTH_ACTION_CONNECTION_METHOD_HEADER,
+  AUTH_ACTION_CONNECTION_SOURCE_HEADER,
+  AUTH_ACTION_CONNECTION_TARGET_HEADER,
+  AUTH_CONNECTION_CREDENTIALS_HEADER,
+  AUTH_CONNECTION_ENDPOINT_HEADER,
+  AUTH_CONNECTION_METHOD_HEADER,
+  AUTH_CONNECTION_SOURCE_HEADER,
+  AUTH_CONNECTION_TARGET_HEADER,
+  AUTH_HANDOFF_HEADER,
+  AUTH_NEXT_ACTION_HEADER,
+  AUTH_RESUME_TOKEN_HEADER,
+  AUTH_STATUS_HEADER,
+  AUTH_STATUS_LABEL_HEADER,
+} from "./src/components/auth-submit.js"
+import { handleAuthRequest } from "./server/auth-persistent-store.js"
+
+function readRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = []
+
+    req.on("data", (chunk) => {
+      if (Buffer.isBuffer(chunk)) {
+        chunks.push(chunk.toString("utf8"))
+        return
+      }
+
+      if (typeof chunk === "string") {
+        chunks.push(chunk)
+        return
+      }
+
+      if (chunk instanceof Uint8Array) {
+        chunks.push(Buffer.from(chunk).toString("utf8"))
+        return
+      }
+
+      chunks.push(String(chunk ?? ""))
+    })
+    req.on("end", () => {
+      const raw = chunks.join("").replace(/^\uFEFF/, "").trim()
+      if (!raw) {
+        resolve({})
+        return
+      }
+
+      try {
+        resolve(JSON.parse(raw))
+        return
+      } catch {
+        try {
+          const params = new URLSearchParams(raw)
+          const entries = Array.from(params.entries())
+          if (entries.length) {
+            resolve(Object.fromEntries(entries))
+            return
+          }
+        } catch {
+          // ignore and fall through to structured error below
+        }
+
+        resolve({ __invalidJson: raw })
+      }
+    })
+    req.on("error", reject)
+  })
+}
+
+function writeJson(res, status, data, headers = {}) {
+  res.statusCode = status
+  res.setHeader("content-type", "application/json")
+  Object.entries(headers).forEach(([key, value]) => {
+    res.setHeader(key, value)
+  })
+  res.end(JSON.stringify(data))
+}
+
+function readAuthConnection(req) {
+  const headerMethod = req.headers[AUTH_CONNECTION_METHOD_HEADER]
+  const endpoint = req.headers[AUTH_CONNECTION_ENDPOINT_HEADER] ?? req.url ?? "/api/auth/login"
+  const targetLabel = req.headers[AUTH_CONNECTION_TARGET_HEADER] ?? "same-origin /api auth scaffold"
+  const credentialsMode = req.headers[AUTH_CONNECTION_CREDENTIALS_HEADER] ?? "include"
+  const source = req.headers[AUTH_CONNECTION_SOURCE_HEADER] ?? "default"
+  const resolvedUrl = targetLabel === "same-origin /api auth scaffold"
+    ? endpoint
+    : `https://${targetLabel}${endpoint}`
+
+  return {
+    method: headerMethod ?? req.method ?? "POST",
+    endpoint,
+    resolvedUrl,
+    targetLabel,
+    isExternal: targetLabel !== "same-origin /api auth scaffold",
+    isSameOriginScaffold: targetLabel === "same-origin /api auth scaffold",
+    credentialsMode,
+    source,
+  }
+}
+
+function buildAuthConnectionHeaders(connection = null) {
+  if (!connection) return {}
+
+  return {
+    [AUTH_CONNECTION_METHOD_HEADER]: connection.method ?? "",
+    [AUTH_CONNECTION_ENDPOINT_HEADER]: connection.endpoint ?? "",
+    [AUTH_CONNECTION_TARGET_HEADER]: connection.targetLabel ?? "",
+    [AUTH_CONNECTION_CREDENTIALS_HEADER]: connection.credentialsMode ?? "",
+    [AUTH_CONNECTION_SOURCE_HEADER]: connection.source ?? "",
+  }
+}
+
+function encodeHeaderValue(value) {
+  const normalized = typeof value === "string" ? value : String(value ?? "")
+  return encodeURIComponent(normalized)
+}
+
+function buildAuthContinuationHeaders(payload = null) {
+  if (!payload || typeof payload !== "object") return {}
+
+  return {
+    [AUTH_HANDOFF_HEADER]: encodeHeaderValue(payload.handoffId ?? payload.summary?.handoffId ?? ""),
+    [AUTH_RESUME_TOKEN_HEADER]: encodeHeaderValue(payload.resumeToken ?? payload.continuation?.resumeToken ?? ""),
+    [AUTH_NEXT_ACTION_HEADER]: encodeHeaderValue(payload.nextAction ?? payload.continuation?.nextAction ?? ""),
+    [AUTH_STATUS_HEADER]: encodeHeaderValue(payload.status ?? payload.continuation?.status ?? ""),
+    [AUTH_STATUS_LABEL_HEADER]: encodeHeaderValue(payload.statusLabel ?? payload.continuation?.statusLabel ?? ""),
+  }
+}
+
+function readRequestPath(req) {
+  if (typeof req?.url !== "string") return ""
+
+  try {
+    return new URL(req.url, "http://localhost").pathname
+  } catch {
+    return req.url.split("?")[0] ?? ""
+  }
+}
+
+function normalizeAuthScaffoldPath(pathname = "") {
+  if (pathname === "/api/auth/login") return pathname
+  if (pathname.endsWith("/api/auth/login")) return "/api/auth/login"
+  if (pathname === "/api/auth/signup") return pathname
+  if (pathname.endsWith("/api/auth/signup")) return "/api/auth/signup"
+  if (pathname === "/api/auth/session") return pathname
+  if (pathname.endsWith("/api/auth/session")) return "/api/auth/session"
+  if (pathname === "/api/auth/pending") return pathname
+  if (pathname.endsWith("/api/auth/pending")) return "/api/auth/pending"
+  if (pathname === "/api/auth/logout") return pathname
+  if (pathname.endsWith("/api/auth/logout")) return "/api/auth/logout"
+  if (pathname === "/api/auth/continue") return pathname
+  if (pathname.endsWith("/api/auth/continue")) return "/api/auth/continue"
+  if (pathname === "/api/auth/verification/start") return pathname
+  if (pathname.endsWith("/api/auth/verification/start")) return "/api/auth/verification/start"
+  if (pathname === "/api/auth/verification/status") return pathname
+  if (pathname.endsWith("/api/auth/verification/status")) return "/api/auth/verification/status"
+  if (pathname === "/api/auth/verification/callback") return pathname
+  if (pathname.endsWith("/api/auth/verification/callback")) return "/api/auth/verification/callback"
+  if (pathname === "/api/auth/layout/track") return pathname
+  if (pathname.endsWith("/api/auth/layout/track")) return "/api/auth/layout/track"
+  return pathname
+}
+
+function writeVerificationCallbackPage(res, payload = {}) {
+  const title = payload?.status === "verified" ? "인증이 완료되었어요" : "인증 상태를 확인해 주세요"
+  const description = payload?.status === "verified"
+    ? "HAVENLY 창으로 돌아가면 계정 상태가 자동으로 갱신됩니다. 이 창은 닫아도 괜찮아요."
+    : "인증 상태가 아직 완료되지 않았어요. 원래 창에서 다시 시도해 주세요."
+
+  res.statusCode = 200
+  res.setHeader("content-type", "text/html; charset=utf-8")
+  res.end(`<!doctype html><html lang="ko"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${title}</title><style>body{margin:0;font-family:Inter,'Noto Sans KR',system-ui,sans-serif;background:#f6f1ea;color:#2c241d;display:grid;place-items:center;min-height:100vh;padding:24px}.card{max-width:420px;background:#fff;border:1px solid rgba(139,115,85,.18);border-radius:24px;padding:28px;box-shadow:0 18px 40px rgba(36,29,20,.08)}h1{margin:0 0 10px;font-size:28px;line-height:1.2}p{margin:0;color:#6d6257;line-height:1.7}.pill{display:inline-flex;margin-bottom:14px;padding:8px 12px;border-radius:999px;background:#f4ece2;color:#6f5943;font-size:12px;font-weight:800;letter-spacing:.12em}</style></head><body><section class="card"><div class="pill">HAVENLY VERIFY</div><h1>${title}</h1><p>${description}</p></section><script>window.opener?.postMessage?.({type:'havenly-verification-complete',status:${JSON.stringify(payload?.status ?? "verified")},verificationId:${JSON.stringify(payload?.verificationId ?? null)}}, '*');setTimeout(()=>window.close(),1200);</script></body></html>`)
+}
+
+function readAuthProxyBaseUrl() {
+  const raw = process.env.HAVENLY_AUTH_PROXY_BASE_URL
+    ?? process.env.VITE_AUTH_PROXY_BASE_URL
+    ?? ""
+  const normalized = typeof raw === "string" ? raw.trim().replace(/\/$/, "") : ""
+  return normalized || null
+}
+
+async function proxyAuthRequest(req, res, requestPath, { proxyBaseUrl }) {
+  const requestBody = req.method === "GET" || req.method === "HEAD"
+    ? undefined
+    : await readRequestBody(req)
+  const originalUrl = req.url ?? requestPath
+  const originalQuery = (() => {
+    try {
+      return new URL(originalUrl, "http://localhost").search
+    } catch {
+      return ""
+    }
+  })()
+  const targetUrl = `${proxyBaseUrl}${requestPath}${originalQuery}`
+  const forwardedHeaders = {
+    accept: req.headers.accept ?? "application/json",
+    [AUTH_CONNECTION_METHOD_HEADER]: req.headers[AUTH_CONNECTION_METHOD_HEADER] ?? req.method ?? "GET",
+    [AUTH_CONNECTION_ENDPOINT_HEADER]: req.headers[AUTH_CONNECTION_ENDPOINT_HEADER] ?? requestPath,
+    [AUTH_CONNECTION_TARGET_HEADER]: req.headers[AUTH_CONNECTION_TARGET_HEADER] ?? new URL(proxyBaseUrl).host,
+    [AUTH_CONNECTION_CREDENTIALS_HEADER]: req.headers[AUTH_CONNECTION_CREDENTIALS_HEADER] ?? "include",
+    [AUTH_CONNECTION_SOURCE_HEADER]: req.headers[AUTH_CONNECTION_SOURCE_HEADER] ?? "vite-proxy",
+    [AUTH_HANDOFF_HEADER]: req.headers[AUTH_HANDOFF_HEADER] ?? "",
+    [AUTH_RESUME_TOKEN_HEADER]: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? "",
+    [AUTH_NEXT_ACTION_HEADER]: req.headers[AUTH_NEXT_ACTION_HEADER] ?? "",
+    "x-forwarded-host": req.headers.host ?? "",
+    "x-forwarded-proto": req.headers['x-forwarded-proto'] ?? "http",
+  }
+
+  if (req.headers.cookie) {
+    forwardedHeaders.cookie = req.headers.cookie
+  }
+
+  if (requestBody !== undefined) {
+    forwardedHeaders["content-type"] = "application/json"
+  }
+
+  const response = await fetch(targetUrl, {
+    method: req.method,
+    headers: forwardedHeaders,
+    redirect: "manual",
+    body: requestBody !== undefined ? JSON.stringify(requestBody) : undefined,
+  })
+
+  res.statusCode = response.status
+
+  const contentType = response.headers.get("content-type") ?? "application/json"
+  res.setHeader("content-type", contentType)
+
+  const setCookie = typeof response.headers.getSetCookie === "function"
+    ? response.headers.getSetCookie()
+    : []
+  if (setCookie.length > 0) {
+    res.setHeader("set-cookie", setCookie)
+  }
+
+  ;[
+    AUTH_HANDOFF_HEADER,
+    AUTH_RESUME_TOKEN_HEADER,
+    AUTH_NEXT_ACTION_HEADER,
+    AUTH_STATUS_HEADER,
+    AUTH_STATUS_LABEL_HEADER,
+    AUTH_CONNECTION_METHOD_HEADER,
+    AUTH_CONNECTION_ENDPOINT_HEADER,
+    AUTH_CONNECTION_TARGET_HEADER,
+    AUTH_CONNECTION_CREDENTIALS_HEADER,
+    AUTH_CONNECTION_SOURCE_HEADER,
+    AUTH_ACTION_CONNECTION_METHOD_HEADER,
+    AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
+    AUTH_ACTION_CONNECTION_TARGET_HEADER,
+    AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
+    AUTH_ACTION_CONNECTION_SOURCE_HEADER,
+  ].forEach((headerName) => {
+    const value = response.headers.get(headerName)
+    if (value) res.setHeader(headerName, value)
+  })
+
+  const responseText = await response.text()
+  res.end(responseText)
+}
+
+function havenlyAuthScaffoldPlugin() {
+  const authProxyBaseUrl = readAuthProxyBaseUrl()
+
+  const handler = async (req, res, next) => {
+    const requestPath = normalizeAuthScaffoldPath(readRequestPath(req))
+    const isSupportedAuthPath = [
+      "/api/auth/login",
+      "/api/auth/signup",
+      "/api/auth/session",
+      "/api/auth/pending",
+      "/api/auth/logout",
+      "/api/auth/continue",
+      "/api/auth/verification/start",
+      "/api/auth/verification/status",
+      "/api/auth/verification/callback",
+      "/api/auth/layout/track",
+    ].includes(requestPath)
+
+    if (authProxyBaseUrl && isSupportedAuthPath) {
+      try {
+        await proxyAuthRequest(req, res, requestPath, { proxyBaseUrl: authProxyBaseUrl })
+      } catch (error) {
+        writeJson(res, 502, {
+          message: "Auth proxy request failed",
+          detail: error instanceof Error ? error.message : String(error),
+          proxyBaseUrl: authProxyBaseUrl,
+        }, { "x-havenly-auth-scaffold": "proxy-error" })
+      }
+      return
+    }
+
+    if (!["/api/auth/login", "/api/auth/signup", "/api/auth/session", "/api/auth/pending", "/api/auth/logout", "/api/auth/continue", "/api/auth/verification/start", "/api/auth/verification/status", "/api/auth/verification/callback", "/api/auth/layout/track"].includes(requestPath)) {
+      next()
+      return
+    }
+
+    try {
+      const request = req.method === "GET" || req.method === "HEAD"
+        ? Object.fromEntries(new URL(req.url ?? "http://localhost", "http://localhost").searchParams.entries())
+        : await readRequestBody(req)
+      const connection = readAuthConnection(req)
+      const response = handleAuthRequest(req, {
+        connection,
+        actionConnection: {
+          ...connection,
+          method: "POST",
+          endpoint: "/api/auth/continue",
+          resolvedUrl: "/api/auth/continue",
+          targetLabel: "same-origin /api auth scaffold",
+          isExternal: false,
+          isSameOriginScaffold: true,
+        },
+        body: {
+          ...request,
+          continuation: {
+            ...(request.continuation ?? {}),
+            resumeToken: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? request.continuation?.resumeToken ?? null,
+            nextAction: req.headers[AUTH_NEXT_ACTION_HEADER] ?? request.continuation?.nextAction ?? null,
+            status: request.continuation?.status ?? null,
+            statusLabel: request.continuation?.statusLabel ?? null,
+          },
+        },
+        pathName: requestPath,
+        handoffHeader: req.headers[AUTH_HANDOFF_HEADER] ?? null,
+        resumeTokenHeader: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? null,
+      })
+
+      if (Array.isArray(response.cookies) && response.cookies.length > 0) {
+        res.setHeader("set-cookie", response.cookies)
+      }
+
+      if (requestPath === "/api/auth/verification/callback" && req.method === "GET") {
+        writeVerificationCallbackPage(res, response.data)
+        return
+      }
+
+      writeJson(res, response.status, response.data, {
+        "x-havenly-auth-scaffold": "true",
+        ...buildAuthConnectionHeaders(response.data?.connection ?? connection),
+        ...buildAuthContinuationHeaders(response.data),
+      })
+    } catch (error) {
+      writeJson(res, 400, {
+        message: "Invalid auth scaffold request",
+        detail: error instanceof Error ? error.message : String(error),
+      }, { "x-havenly-auth-scaffold": "true" })
+    }
+  }
+
+  return {
+    name: "havenly-auth-scaffold",
+    configureServer(server) {
+      server.middlewares.use(handler)
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(handler)
+    },
+  }
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), havenlyAuthScaffoldPlugin()],
   base: "/github-pages-react-hello/"
 })

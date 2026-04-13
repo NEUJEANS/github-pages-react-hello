@@ -1,5 +1,117 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import {
+  AddressSetupScreen,
+  SpaceSelectionBoard,
+} from './components/space-profile.jsx'
+import { toggleRequiredSelection } from './components/space-profile-state.js'
+import {
+  buildInputBrief,
+  buildRecommendationSummary,
+} from './components/ai-recommendation-state.js'
+import { buildSelectedSpaceSummary } from './components/space-summary.js'
+import { buildLoginGuardSnapshot } from './components/login-guard.js'
+import { buildSearchDrawerState } from './components/search-drawer.js'
+import {
+  buildAuthContinuationPlan,
+  buildAuthErrorSummary,
+  buildAuthResultSummary,
+  buildAuthStatusCopy,
+  buildAuthSubmitPlan,
+  buildGuestDraftSnapshot,
+} from './components/auth-flow-state.js'
+import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan, submitAuthSignupPlan } from './components/auth-submit.js'
+import { resolveAuthConfig } from './components/auth-config.js'
+import { openIdentityVerificationWindow, readIdentityVerificationStatus, startIdentityVerification } from './components/auth-verification.js'
+import { trackLayoutComponentEvent } from './components/layout-backend.js'
+import {
+  buildAuthConnectionSummary,
+  buildAuthReadyState,
+  buildAuthResumeState,
+  buildPersistedAuthHandoff,
+  buildSerializableAuthContinuation,
+  buildSerializableAuthContinuationFields,
+  buildSerializableAuthIntent,
+  resolveAuthConnectionOverride,
+  resolvePersistedAuthConnection,
+  hasAuthConnectionDrift,
+  buildAuthConnectionDriftSummary,
+  buildPersistedAuthSession,
+  clearPersistedAuthHandoff,
+  clearPersistedAuthSession,
+  createAuthHandoffId,
+  persistAuthHandoff,
+  persistAuthSession,
+  readPersistedAuthHandoff,
+  readPersistedAuthSession,
+} from './components/auth-storage.js'
+import { buildAuthGuardPanelState, buildAuthLoginPanelState, buildAuthReadyPanelState, buildAuthResumePanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './components/auth-session-view-state.js'
+import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
+import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
+import { shouldPreservePersistedAuthSessionOnBootstrapFailure } from './components/auth-bootstrap-state.js'
+import {
+  canResumePostAuthIntent,
+  resolvePostAuthScreen,
+  shouldAttachDraftSaveToAuthContinuation,
+  shouldCloseLoginModalAfterAuth,
+  shouldOpenCartAfterAuthResume,
+  shouldSubmitContinuationBeforeResume,
+} from './components/auth-intent-state.js'
+import { buildFilteredBedProducts } from './components/bed-filter-state.js'
+import { toggleWishlistId } from './components/wishlist-state.js'
+import {
+  addCartItem,
+  buildCartTotals,
+  updateCartItemQty,
+} from './components/cart-state.js'
+import {
+  buildLayoutAddressSummary,
+  buildRecommendationContext,
+  buildSelectedApartment,
+  resolveAiRoomSelection,
+} from './components/app-state.js'
+import {
+  buildPlacedLibraryItem,
+  resolveAnimatedTarget,
+  resolveDragPosition,
+  resolveMovedItemPosition,
+  resolveRoomClickTarget,
+  stepToward,
+} from './components/editor-state.js'
+import {
+  buildNavigationHash,
+  getDirectionalTransition,
+  parseHashState,
+} from './components/navigation-state.js'
+import {
+  buildLayoutProduct,
+  resolveQuickViewProduct,
+  resolveSearchPickMode,
+} from './components/product-flow-state.js'
+import {
+  buildLayoutEditorActionCommands,
+  buildLayoutEditorHint,
+  buildLayoutEditorInfoPills,
+  buildLayoutEditorPropertyPanelState,
+  buildLayoutEditorToolbarButtons,
+  buildLayoutEditorToolbarCommands,
+  buildPlacedItemClassName,
+  buildPlacedItemStyle,
+  findLibraryItemMeta,
+} from './components/layout-editor-view-state.js'
+import { runLayoutEditorCommands } from './components/layout-editor-command-runner.js'
+import {
+  createLayoutEditorActionHandlers,
+  createLayoutEditorToolbarHandlers,
+} from './components/layout-editor-command-handlers.js'
+import {
+  buildLibraryEmptyState,
+  buildVisibleLibrary,
+  layoutLibraryCategoryTabs,
+} from './components/layout-library-state.js'
+import { AiRecommendPage, SpaceSelectPage } from './pages/ai-flow-pages.jsx'
+import { LayoutEditorPage } from './pages/layout-editor-page.jsx'
+import { BedsCategoryPage, FurnitureHomePage } from './pages/commerce-pages.jsx'
 import './styles.css'
 
 const initialEngagement = {
@@ -8,13 +120,32 @@ const initialEngagement = {
   draftBoards: 0,
 }
 
-const screenMeta = {
-  ai: { column: 0, step: 0 },
-  space: { column: 0, step: 1 },
-  layout: { column: 1, step: 0 },
-  address: { column: 1, step: 1 },
-  beds: { column: 2, step: 0 },
-  home: { column: 2, step: 1 },
+const initialAiForm = {
+  room: '거실',
+  style: 'minimal',
+  priority: 'flow',
+  lifestyle: ['기본'],
+  extraRequest: '',
+}
+
+const initialAuthContinuationFields = {
+  displayName: '',
+  phone: '',
+  verificationCode: '',
+  mergeResolution: '',
+}
+
+function buildAuthContinuationFieldState(fields = null) {
+  return {
+    ...initialAuthContinuationFields,
+    ...(buildSerializableAuthContinuationFields(fields) ?? {}),
+  }
+}
+
+function pickPersistedAuthContinuationFields(continuation = null, fields = null) {
+  const nextAction = typeof continuation?.nextAction === 'string' ? continuation.nextAction.trim() : ''
+  if (nextAction !== 'complete-profile' && nextAction !== 'verify-email' && nextAction !== 'confirm-merge-resolution') return null
+  return buildSerializableAuthContinuationFields(fields)
 }
 
 const roomOptions = ['거실', '침실', '주방', '서재']
@@ -23,6 +154,14 @@ const styleOptions = [
   { id: 'natural', emoji: '🌿', label: '내추럴' },
   { id: 'lux', emoji: '✨', label: '모던 럭스' },
 ]
+
+const priorityOptions = [
+  { id: 'flow', label: '채광/동선 우선' },
+  { id: 'storage', label: '수납 우선' },
+  { id: 'hosting', label: '손님맞이 우선' },
+]
+
+const lifestyleOptions = ['기본', '재택근무', '반려동물', '수납 많이']
 
 const aiProducts = [
   { id: 'sofa-001', category: '소파', emoji: '🛋️', name: '코튼베이지 모듈 소파', price: 1290000, priceLabel: '₩1,290,000', fitScore: 96, blurb: '동선 확보가 쉬운 모듈형 구성이에요.', size: '2200 x 900', colors: ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355'] },
@@ -71,50 +210,16 @@ const initialEditorItems = [
   { id: 'placed-plant', sourceId: 'plant-001', name: '세라믹 플로어 플랜트', label: '🌿', x: 42, y: 14, w: 7, h: 10, rotation: 0, colorIndex: 2 },
 ]
 
-function getStateFromHash() {
-  const hash = window.location.hash.replace(/^#/, '')
-  if (!hash) return { screen: 'home', overlay: null }
-  if (hash === 'address') return { screen: 'layout', overlay: 'address' }
-  if (screenMeta[hash]) return { screen: hash, overlay: null }
-  return { screen: 'home', overlay: null }
-}
-
-function getScreenMeta(screen) {
-  return screenMeta[screen] ?? screenMeta.home
-}
-
-function getDirectionalTransition(fromScreen, toScreen) {
-  if (fromScreen === toScreen) return 0
-
-  const from = getScreenMeta(fromScreen)
-  const to = getScreenMeta(toScreen)
-
-  if (to.column === 0) return -1
-  if (to.column === 2) return 1
-  if (from.column !== to.column) return to.column > from.column ? 1 : -1
-  if (from.step !== to.step) return to.step > from.step ? 1 : -1
-  return 0
-}
-
 function formatPrice(value) {
   return `₩${value.toLocaleString('ko-KR')}`
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value))
 }
 
 function formatApartmentOption(option) {
   return [option.brand, option.complex, option.unitLabel].filter(Boolean).join(' ')
 }
 
-function buildRecommendationSummary({ room, style, apartmentType, extraRequest }) {
-  const styleLabel = styleOptions.find((item) => item.id === style)?.label ?? '미니멀'
-  return `${apartmentType} ${room} 기준으로 ${styleLabel} 톤을 유지하면서 ${extraRequest || '채광과 동선을 우선'} 방향으로 정리한 추천안입니다.`
-}
-
 function useSpaNavigation() {
-  const [{ screen, overlay }, setState] = React.useState(() => getStateFromHash())
+  const [{ screen, overlay }, setState] = React.useState(() => parseHashState(window.location.hash))
   const [direction, setDirection] = React.useState(0)
   const currentScreenRef = React.useRef(screen)
 
@@ -124,7 +229,7 @@ function useSpaNavigation() {
 
   React.useEffect(() => {
     const syncFromLocation = () => {
-      const next = getStateFromHash()
+      const next = parseHashState(window.location.hash)
       setDirection(getDirectionalTransition(currentScreenRef.current, next.screen))
       currentScreenRef.current = next.screen
       setState(next)
@@ -138,7 +243,7 @@ function useSpaNavigation() {
   }, [])
 
   const syncHash = React.useCallback((nextScreen, nextOverlay) => {
-    const nextHash = nextOverlay === 'address' ? 'address' : nextScreen
+    const nextHash = buildNavigationHash(nextScreen, nextOverlay)
     if (window.location.hash.replace(/^#/, '') === nextHash) return
     window.history.pushState(null, '', `#${nextHash}`)
   }, [])
@@ -183,29 +288,24 @@ function useCart() {
   const [items, setItems] = React.useState([])
 
   const addItem = React.useCallback((product) => {
-    setItems((current) => {
-      const existing = current.find((item) => item.id === product.id)
-      if (existing) {
-        return current.map((item) => item.id === product.id ? { ...item, qty: item.qty + 1 } : item)
-      }
-      return [...current, { ...product, qty: 1 }]
-    })
+    setItems((current) => addCartItem(current, product))
     setIsOpen(true)
   }, [])
 
   const updateQty = React.useCallback((id, delta) => {
-    setItems((current) => current.flatMap((item) => {
-      if (item.id !== id) return [item]
-      const nextQty = item.qty + delta
-      return nextQty <= 0 ? [] : [{ ...item, qty: nextQty }]
-    }))
+    setItems((current) => updateCartItemQty(current, id, delta))
+  }, [])
+
+  const replaceItems = React.useCallback((nextItems = []) => {
+    setItems(Array.isArray(nextItems)
+      ? nextItems.map((item) => ({ id: item.id, qty: item.qty ?? 1 }))
+      : [])
   }, [])
 
   const clear = React.useCallback(() => setItems([]), [])
-  const count = items.reduce((sum, item) => sum + item.qty, 0)
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0)
+  const { count, subtotal } = buildCartTotals(items)
 
-  return { isOpen, setIsOpen, items, addItem, updateQty, clear, count, subtotal }
+  return { isOpen, setIsOpen, items, addItem, updateQty, replaceItems, clear, count, subtotal }
 }
 
 function useQuickView() {
@@ -262,14 +362,10 @@ function useEditorState() {
 
   const moveSelected = React.useCallback((dx, dy) => {
     stopClickMoveAnimation()
-    updateSelected((item) => {
-      const step = snapOn ? 4 : 2
-      return {
-        ...item,
-        x: clamp(item.x + dx * step, 2, 88),
-        y: clamp(item.y + dy * step, 2, 82),
-      }
-    }, snapOn ? '스냅 단위로 가구를 이동했어요.' : '자유 이동으로 가구 위치를 조정했어요.')
+    updateSelected((item) => ({
+      ...item,
+      ...resolveMovedItemPosition(item, dx, dy, snapOn),
+    }), snapOn ? '스냅 단위로 가구를 이동했어요.' : '자유 이동으로 가구 위치를 조정했어요.')
   }, [snapOn, stopClickMoveAnimation, updateSelected])
 
   const moveSelectedTo = React.useCallback((targetX, targetY) => {
@@ -284,8 +380,7 @@ function useEditorState() {
     setDragState(null)
     setActiveTool('move')
 
-    const snappedX = snapOn ? clamp(Math.round(targetX / 4) * 4, 2, 88) : clamp(targetX, 2, 88)
-    const snappedY = snapOn ? clamp(Math.round(targetY / 4) * 4, 2, 82) : clamp(targetY, 2, 82)
+    const { x: snappedX, y: snappedY } = resolveAnimatedTarget(targetX, targetY, snapOn)
 
     if (Math.abs(currentItem.x - snappedX) < 0.01 && Math.abs(currentItem.y - snappedY) < 0.01) {
       setNotice('이미 그 위치에 가까워요. 다른 지점을 클릭하면 부드럽게 이동해요.')
@@ -296,11 +391,6 @@ function useEditorState() {
     setNotice(snapOn
       ? '클릭한 위치로 스냅 단위 애니메이션 이동 중이에요.'
       : '클릭한 위치로 부드럽게 이동 중이에요.')
-
-    const stepToward = (value, target, step = 1) => {
-      if (Math.abs(target - value) <= step) return target
-      return value + Math.sign(target - value) * step
-    }
 
     const tick = () => {
       const currentItemsForFrame = itemsRef.current
@@ -351,19 +441,7 @@ function useEditorState() {
   }, [updateSelected])
 
   const addLibraryItem = React.useCallback((product) => {
-    const nextItem = {
-      id: `${product.id}-${Date.now()}`,
-      sourceId: product.id,
-      name: product.name,
-      label: product.category === '소품' ? product.emoji : product.category.toUpperCase(),
-      x: 34,
-      y: 32,
-      w: product.category === '소품' ? 8 : 18,
-      h: product.category === '테이블' ? 14 : 12,
-      rotation: 0,
-      colorIndex: 0,
-      circle: product.category === '테이블',
-    }
+    const nextItem = buildPlacedLibraryItem(product, `${product.id}-${Date.now()}`)
     commit([...items, nextItem], `${product.name}을(를) 배치안에 추가했어요. 바로 드래그해서 위치를 조정할 수 있어요.`)
     setSelectedId(nextItem.id)
   }, [commit, items])
@@ -393,21 +471,15 @@ function useEditorState() {
   const updateDrag = React.useCallback((pointer) => {
     if (!dragState) return
 
-    const deltaX = ((pointer.clientX - dragState.startClientX) / dragState.roomWidth) * 100
-    const deltaY = ((pointer.clientY - dragState.startClientY) / dragState.roomHeight) * 100
-    const nextXRaw = clamp(dragState.originX + deltaX, 2, 88)
-    const nextYRaw = clamp(dragState.originY + deltaY, 2, 82)
-    const snapStep = 4
-    const nextX = snapOn ? clamp(Math.round(nextXRaw / snapStep) * snapStep, 2, 88) : nextXRaw
-    const nextY = snapOn ? clamp(Math.round(nextYRaw / snapStep) * snapStep, 2, 82) : nextYRaw
+    const { point, moved } = resolveDragPosition(dragState, pointer, snapOn)
 
     if (!historyCommittedRef.current) {
       setHistory((current) => [...current, items])
       historyCommittedRef.current = true
     }
 
-    setItems((current) => current.map((item) => item.id === dragState.itemId ? { ...item, x: nextX, y: nextY } : item))
-    setDragState((current) => current ? { ...current, moved: current.moved || Math.abs(deltaX) > 0.2 || Math.abs(deltaY) > 0.2 } : current)
+    setItems((current) => current.map((item) => item.id === dragState.itemId ? { ...item, x: point.x, y: point.y } : item))
+    setDragState((current) => current ? { ...current, moved: current.moved || moved } : current)
   }, [dragState, items, snapOn])
 
   const endDrag = React.useCallback(() => {
@@ -444,6 +516,21 @@ function useEditorState() {
     setDragState(null)
   }, [items, stopClickMoveAnimation])
 
+  const replaceItems = React.useCallback((nextItems = []) => {
+    stopClickMoveAnimation()
+    const hydratedItems = Array.isArray(nextItems)
+      ? nextItems.map((item) => ({ ...item }))
+      : []
+    setHistory([])
+    setItems(hydratedItems)
+    setSelectedId(hydratedItems[0]?.id ?? null)
+    setNotice(hydratedItems.length
+      ? '계정에 저장된 배치안으로 전환했어요.'
+      : '계정에 저장된 배치안이 없어 비어 있는 상태로 전환했어요.')
+    historyCommittedRef.current = false
+    setDragState(null)
+  }, [stopClickMoveAnimation])
+
   return {
     items,
     selected,
@@ -466,12 +553,128 @@ function useEditorState() {
     addLibraryItem,
     undo,
     reset,
+    replaceItems,
   }
 }
 
 const LOGIN_BUTTON_LABEL = '로그인'
+const IDENTITY_VERIFICATION_PENDING_MIN_MS = 650
+const IDENTITY_VERIFICATION_SUCCESS_HOLD_MS = 900
 
-function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay, onOpenCart, cartCount, onSearchOpen, onOpenLogin }) {
+function buildAuthContinuationFieldLabel(field = '') {
+  switch (field) {
+    case 'displayName':
+      return '닉네임'
+    case 'phone':
+      return '연락처'
+    case 'verificationCode':
+      return '인증 코드'
+    case 'mergeResolution':
+      return '병합 기준'
+    default:
+      return field
+  }
+}
+
+function buildEmptyLoginForm(intent = null) {
+  return {
+    mode: 'login',
+    email: '',
+    password: '',
+    displayName: '',
+    confirmPassword: '',
+    agreeToTerms: false,
+    handoffId: null,
+    status: 'idle',
+    result: null,
+    mergeResolution: null,
+    intent: buildSerializableAuthIntent(intent),
+    connection: null,
+  }
+}
+
+function buildAuthSessionResultSummary(session = null) {
+  if (!session) return null
+
+  return {
+    accountLabel: session.accountLabel ?? null,
+    sessionId: session.sessionId ?? null,
+    handoffId: session.handoffId ?? null,
+    mergeMode: session.mergeMode ?? null,
+    mergedDraftCount: session.mergedDraftCount ?? 0,
+    restoredWishlistCount: session.restoredWishlistCount ?? 0,
+    restoredCartCount: session.restoredCartCount ?? 0,
+    restoredLayoutItemCount: session.restoredLayoutItemCount ?? 0,
+    restoredRecommendationDraft: Boolean(session.restoredRecommendationDraft),
+    wishlistCount: session.wishlistCount ?? 0,
+    cartCount: session.cartCount ?? 0,
+    layoutItemCount: session.layoutItemCount ?? 0,
+    hasRecommendationDraft: Boolean(session.hasRecommendationDraft),
+    guestDraftSummary: session.guestDraftSummary ?? null,
+    draftSave: session.draftSave ?? null,
+    intent: session.intent ?? null,
+    connection: session.connection ?? null,
+    resumeToken: session.continuation?.resumeToken ?? null,
+    nextAction: session.continuation?.nextAction ?? null,
+    continuationStatus: session.continuation?.status ?? null,
+    continuationStatusLabel: session.continuation?.statusLabel ?? null,
+    authMode: session.authMode ?? 'remote',
+    authTransport: session.authTransport ?? 'network',
+  }
+}
+
+function resolveLoginButtonLabel(authSession) {
+  return authSession?.accountLabel ?? LOGIN_BUTTON_LABEL
+}
+
+function resolveAccountTriggerAriaLabel(authSession) {
+  const accountLabel = typeof authSession?.accountLabel === 'string' ? authSession.accountLabel.trim() : ''
+  return accountLabel ? `${accountLabel} 계정 보기` : '로그인 열기'
+}
+
+function buildAuthModeLabels(mode = 'login') {
+  return mode === 'signup'
+    ? {
+        badge: 'SIGN UP',
+        title: '회원가입하고 추천 · 보드 · 장바구니를 한 계정으로 이어보세요',
+        submitLabel: '회원가입',
+        alternateLabel: '이미 계정이 있어요',
+        alternateMode: 'login',
+      }
+    : {
+        badge: 'ACCOUNT',
+        title: '로그인하고 추천 · 보드 · 장바구니를 이어서 관리하세요',
+        submitLabel: '로그인',
+        alternateLabel: '회원가입',
+        alternateMode: 'signup',
+      }
+}
+
+function buildAuthDraftSavePayload(loginFormDraftSave = null, authSessionDraftSave = null, guestDraftSnapshot = null, intent = null) {
+  if (loginFormDraftSave) return loginFormDraftSave
+  if (authSessionDraftSave) return authSessionDraftSave
+  if (!guestDraftSnapshot) return null
+
+  const draftLabel = intent?.draftLabel ?? guestDraftSnapshot.continuity?.apartmentLabel ?? null
+  const apartmentLabel = guestDraftSnapshot.continuity?.apartmentLabel ?? null
+  const recommendationRoom = guestDraftSnapshot.recommendationDraft?.room ?? null
+  const selectedSpaceIds = guestDraftSnapshot.spaceProfile?.spaces ?? []
+  const layoutItems = guestDraftSnapshot.continuity?.layoutItems ?? []
+
+  if (!draftLabel && !apartmentLabel && !recommendationRoom && !selectedSpaceIds.length && !layoutItems.length) {
+    return null
+  }
+
+  return {
+    draftLabel,
+    apartmentLabel,
+    recommendationRoom,
+    selectedSpaceIds,
+    layoutItems,
+  }
+}
+
+function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay, onOpenCart, cartCount, onSearchOpen, onOpenLogin, authSession }) {
   return (
     <header className={`topbar ${dark ? 'dark' : ''}`}>
       <button className="logo logoBtn" onClick={() => onNavigate('home')}>HAVENLY</button>
@@ -487,14 +690,21 @@ function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay,
       <div className="topActions">
         {!dark && <button className="searchPill" onClick={onSearchOpen}>🔎 스타일 또는 가구 검색</button>}
         {dark && <button className="miniBtn secondary" onClick={() => onOpenOverlay('address')}>공간 정보</button>}
-        <button className="accountTrigger utilityButton" onClick={onOpenLogin} aria-label="로그인 열기">
+        <button
+          className="accountTrigger utilityButton"
+          onClick={onOpenLogin}
+          aria-label={resolveAccountTriggerAriaLabel(authSession)}
+          title={resolveAccountTriggerAriaLabel(authSession)}
+          data-auth-session-state={authSession ? 'authenticated' : 'guest'}
+          data-auth-account-label={authSession?.accountLabel ?? ''}
+        >
           <span className="accountGlyph" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false">
               <circle cx="12" cy="8" r="3.2" />
               <path d="M5.5 18.2c1.8-3.1 4.4-4.7 6.5-4.7s4.7 1.6 6.5 4.7" />
             </svg>
           </span>
-          <span>{LOGIN_BUTTON_LABEL}</span>
+          <span>{resolveLoginButtonLabel(authSession)}</span>
         </button>
         <button className="cart utilityButton utilityIconButton" onClick={onOpenCart} aria-label="장바구니 열기">🛒<span>{cartCount}</span></button>
       </div>
@@ -541,22 +751,38 @@ function App() {
   const cart = useCart()
   const quickView = useQuickView()
   const editor = useEditorState()
+  const persistedAuthHandoff = React.useMemo(
+    () => readPersistedAuthHandoff(globalThis.sessionStorage),
+    [],
+  )
+  const persistedAuthSession = React.useMemo(
+    () => readPersistedAuthSession(globalThis.localStorage),
+    [],
+  )
+  const persistedAuthUiRestore = React.useMemo(
+    () => buildPostAuthSessionRestorePatch(persistedAuthSession, {
+      spaceZones: baseZones,
+      roomOptions,
+      fallbackRoom: initialAiForm.room,
+    }),
+    [persistedAuthSession],
+  )
   const [searchDrawerOpen, setSearchDrawerOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
-  const [aiForm, setAiForm] = React.useState({
-    apartmentQuery: formatApartmentOption(apartmentSearchResults[0]),
+  const [aiForm, setAiForm] = React.useState(() => ({
+    ...initialAiForm,
+    ...(persistedAuthUiRestore?.recommendationRoom
+      ? { room: persistedAuthUiRestore.recommendationRoom }
+      : {}),
+  }))
+  const [spaceProfile, setSpaceProfile] = React.useState(() => ({
+    query: '서울 성동구 성수이로 123 HAVENLY Apartments',
     apartmentType: apartmentSearchResults[0].unitLabel,
     apartmentSelectionId: apartmentSearchResults[0].id,
-    room: '거실',
-    style: 'minimal',
-    extraRequest: '아이보리/우드 톤으로 따뜻하게, 반려식물과 패브릭 위주로 꾸미고 싶어요.',
-  })
-  const [selectedSpaces, setSelectedSpaces] = React.useState(() => baseZones.filter((zone) => zone.selected).map((zone) => zone.id))
-  const [addressForm, setAddressForm] = React.useState({
-    query: '서울 성동구 성수이로 123 HAVENLY Apartments',
-    apartmentType: '84A',
-    spaces: ['living', 'bed1'],
-  })
+    spaces: persistedAuthUiRestore?.selectedSpaceIds?.length
+      ? persistedAuthUiRestore.selectedSpaceIds
+      : baseZones.filter((zone) => zone.selected).map((zone) => zone.id),
+  }))
   const [bedFilters, setBedFilters] = React.useState({
     search: '',
     sorts: 'recommended',
@@ -566,49 +792,1215 @@ function App() {
     fit: '전체',
   })
   const [wishlistedIds, setWishlistedIds] = React.useState([])
-  const [loginModalState, setLoginModalState] = React.useState('closed')
+  const [loginModalState, setLoginModalState] = React.useState(() => (persistedAuthHandoff ? 'form' : 'closed'))
+  const [loginForm, setLoginForm] = React.useState(() => (
+    buildAuthReadyState(persistedAuthSession)
+      ?? buildAuthResumeState(persistedAuthHandoff, persistedAuthSession)
+      ?? buildEmptyLoginForm()
+  ))
+  const [authSession, setAuthSession] = React.useState(() => persistedAuthSession)
+  const [authContinuationFields, setAuthContinuationFields] = React.useState(() => buildAuthContinuationFieldState(
+    persistedAuthHandoff?.continuationFields ?? persistedAuthSession?.continuationFields ?? null,
+  ))
+  const [authNoticeDismissed, setAuthNoticeDismissed] = React.useState(false)
   const [engagement, setEngagement] = React.useState(initialEngagement)
+  const [layoutTrayItems, setLayoutTrayItems] = React.useState(() => aiProducts.map((item) => ({ ...item })))
+  const [identityVerification, setIdentityVerification] = React.useState({ status: 'idle', verificationId: null, message: '', startedAt: null })
+  const verificationPollTimeoutRef = React.useRef(null)
+  const verificationAdvanceTimeoutRef = React.useRef(null)
+  const verificationPendingStartedAtRef = React.useRef(null)
+  const appliedAuthSessionRestoreRef = React.useRef(persistedAuthSession?.savedAt ?? null)
 
-  const aiSummary = buildRecommendationSummary(aiForm)
-  const selectedBed = bedProducts.find((product) => product.id === quickView.product?.id)
+  const selectedApartment = React.useMemo(
+    () => buildSelectedApartment(apartmentSearchResults, spaceProfile.apartmentSelectionId),
+    [spaceProfile.apartmentSelectionId],
+  )
+  const recommendationContext = React.useMemo(() => buildRecommendationContext({
+    aiForm,
+    spaceProfile,
+    selectedApartment,
+    formatApartmentOption,
+  }), [aiForm, selectedApartment, spaceProfile])
+  const aiSummary = React.useMemo(() => buildRecommendationSummary({
+    ...recommendationContext,
+    styleOptions,
+    priorityOptions,
+  }), [recommendationContext])
+  const inputBrief = React.useMemo(() => buildInputBrief({
+    form: aiForm,
+    spaceProfile,
+    apartmentSearchResults,
+    formatApartmentOption,
+    styleOptions,
+    priorityOptions,
+  }), [aiForm, spaceProfile])
+  const selectedSpaceSummary = React.useMemo(
+    () => buildSelectedSpaceSummary(baseZones, roomOptions, spaceProfile.spaces),
+    [spaceProfile.spaces],
+  )
+  const selectedBed = React.useMemo(
+    () => resolveQuickViewProduct(bedProducts, quickView.product),
+    [quickView.product],
+  )
 
-  const filteredSearchResults = React.useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
-    const all = [...libraryItems, ...bedProducts]
-    if (!query) return all.slice(0, 6)
-    return all.filter((item) => `${item.name} ${item.category ?? ''} ${item.material ?? ''}`.toLowerCase().includes(query)).slice(0, 8)
-  }, [searchQuery])
+  React.useEffect(() => {
+    setAiForm((current) => {
+      const nextRoom = resolveAiRoomSelection(current.room, selectedSpaceSummary)
+      return current.room === nextRoom ? current : { ...current, room: nextRoom }
+    })
+  }, [selectedSpaceSummary])
 
-  const filteredBedProducts = React.useMemo(() => {
-    let items = [...bedProducts]
-    const query = bedFilters.search.trim().toLowerCase()
-    if (query) {
-      items = items.filter((item) => `${item.name} ${item.color} ${item.material}`.toLowerCase().includes(query))
+  const searchDrawerState = React.useMemo(() => buildSearchDrawerState({
+    query: searchQuery,
+    libraryItems,
+    bedProducts,
+  }), [searchQuery])
+
+  const filteredBedProducts = React.useMemo(
+    () => buildFilteredBedProducts(bedProducts, bedFilters),
+    [bedFilters],
+  )
+
+  const loginGuardSnapshot = React.useMemo(() => buildLoginGuardSnapshot({
+    engagement,
+    wishlistCount: wishlistedIds.length,
+    cartCount: cart.count,
+    layoutItemCount: editor.items.length,
+    hasRecommendationDraft: Boolean(
+      aiForm.extraRequest?.trim()
+      || aiForm.room !== initialAiForm.room
+      || aiForm.style !== initialAiForm.style
+      || aiForm.priority !== initialAiForm.priority
+      || JSON.stringify(aiForm.lifestyle ?? []) !== JSON.stringify(initialAiForm.lifestyle),
+    ),
+    selectedSpaceCount: spaceProfile.spaces.length,
+  }), [aiForm.extraRequest, aiForm.lifestyle, aiForm.priority, aiForm.style, cart.count, editor.items.length, engagement, spaceProfile.spaces.length, wishlistedIds.length])
+
+  const guestDraftSnapshot = React.useMemo(() => buildGuestDraftSnapshot({
+    engagement,
+    aiForm,
+    spaceProfile,
+    selectedApartment,
+    selectedSpaceSummary,
+    wishlistedIds,
+    cartItems: cart.items,
+    editorItems: editor.items,
+  }), [aiForm, cart.items, editor.items, engagement, selectedApartment, selectedSpaceSummary, spaceProfile, wishlistedIds])
+
+  const authConfig = React.useMemo(
+    () => resolveAuthConfig({ env: import.meta.env }),
+    [],
+  )
+
+  React.useEffect(() => () => {
+    verificationPendingStartedAtRef.current = null
+    if (verificationPollTimeoutRef.current) {
+      clearTimeout(verificationPollTimeoutRef.current)
     }
-    if (bedFilters.size !== '전체') items = items.filter((item) => item.size === bedFilters.size)
-    if (bedFilters.color !== '전체') items = items.filter((item) => item.color === bedFilters.color)
-    if (bedFilters.material !== '전체') items = items.filter((item) => item.material === bedFilters.material)
-    if (bedFilters.fit !== '전체') {
-      items = items.filter((item) => item.fitScore >= Number(bedFilters.fit))
+    if (verificationAdvanceTimeoutRef.current) {
+      clearTimeout(verificationAdvanceTimeoutRef.current)
     }
-    if (bedFilters.sorts === 'priceLow') items.sort((a, b) => a.price - b.price)
-    if (bedFilters.sorts === 'fit') items.sort((a, b) => b.fitScore - a.fitScore)
-    return items
-  }, [bedFilters])
+  }, [])
 
-  const loginGuardReasons = React.useMemo(() => {
-    const reasons = []
-    if (engagement.aiRequests > 0) reasons.push(`AI 추천 요청 ${engagement.aiRequests}회`)
-    if (engagement.furniturePlacements > 0) reasons.push(`가구 배치 ${engagement.furniturePlacements}회`)
-    if (engagement.draftBoards > 0) reasons.push(`진행 중 보드 ${engagement.draftBoards}개`)
-    return reasons
-  }, [engagement])
+  const pollIdentityVerification = React.useCallback(async (verificationId) => {
+    const response = await readIdentityVerificationStatus({ authConfig, verificationId })
+    if (!response.ok) {
+      setIdentityVerification((current) => ({
+        status: 'error',
+        verificationId,
+        message: '인증 상태를 다시 확인해 주세요.',
+        startedAt: current?.startedAt ?? verificationPendingStartedAtRef.current ?? null,
+      }))
+      return
+    }
 
-  const hasLoginGuard = loginGuardReasons.length > 0
+    if (response.data?.status === 'verified') {
+      const verifiedContinuationPatch = (continuation) => continuation?.nextAction === 'verify-email'
+        ? { ...continuation, nextAction: 'resume-authenticated-flow', status: 'ready', statusLabel: '이메일 인증 완료' }
+        : continuation
 
-  const openLogin = React.useCallback(() => {
-    setLoginModalState(hasLoginGuard ? 'guard' : 'form')
-  }, [hasLoginGuard])
+      if (verificationPollTimeoutRef.current) {
+        clearTimeout(verificationPollTimeoutRef.current)
+        verificationPollTimeoutRef.current = null
+      }
+      if (verificationAdvanceTimeoutRef.current) {
+        clearTimeout(verificationAdvanceTimeoutRef.current)
+      }
+
+      const pendingStartedAt = verificationPendingStartedAtRef.current
+      const pendingElapsedMs = pendingStartedAt ? Date.now() - pendingStartedAt : 0
+      const remainingPendingMs = Math.max(0, IDENTITY_VERIFICATION_PENDING_MIN_MS - pendingElapsedMs)
+
+      if (remainingPendingMs > 0) {
+        await new Promise((resolve) => {
+          verificationAdvanceTimeoutRef.current = setTimeout(() => {
+            verificationAdvanceTimeoutRef.current = null
+            resolve()
+          }, remainingPendingMs)
+        })
+      }
+
+      setIdentityVerification({
+        status: 'verified',
+        verificationId,
+        message: '본인인증이 완료되었습니다',
+        startedAt: pendingStartedAt ?? Date.now(),
+      })
+
+      await new Promise((resolve) => {
+        verificationAdvanceTimeoutRef.current = setTimeout(() => {
+          verificationAdvanceTimeoutRef.current = null
+          resolve()
+        }, IDENTITY_VERIFICATION_SUCCESS_HOLD_MS)
+      })
+
+      setLoginForm((current) => ({
+        ...current,
+        status: 'ready',
+        continuation: verifiedContinuationPatch(current.continuation ?? null),
+      }))
+      setAuthSession((current) => {
+        if (!current) return current
+        const nextSession = { ...current, continuation: verifiedContinuationPatch(current.continuation ?? null) }
+        persistAuthSession(globalThis.localStorage, nextSession)
+        return nextSession
+      })
+
+      const sessionResponse = await readAuthSession({
+        endpoint: authConfig.sessionEndpoint,
+        apiBaseUrl: authConfig.apiBaseUrl,
+        appBasePath: authConfig.appBasePath,
+        currentOrigin: authConfig.currentOrigin,
+        credentialsMode: authConfig.credentialsMode,
+        source: authConfig.isConfigured ? 'env/runtime-configured' : 'default',
+      })
+      verificationPendingStartedAtRef.current = null
+
+      if (sessionResponse.ok && sessionResponse.data) {
+        const persistedSession = buildPersistedAuthSession(sessionResponse.data)
+        const persistedConnection = resolvePersistedAuthConnection(sessionResponse, persistedSession.connection ?? null)
+        const sessionReadyAfterVerification = sessionResponse.data?.status === 'ready' || Boolean(sessionResponse.data?.verifiedAt)
+        const normalizedContinuation = sessionReadyAfterVerification && persistedSession.continuation?.nextAction === 'verify-email'
+          ? { ...persistedSession.continuation, nextAction: 'resume-authenticated-flow', status: 'ready', statusLabel: '이메일 인증 완료' }
+          : persistedSession.continuation
+        const normalizedSession = normalizedContinuation === persistedSession.continuation
+          ? persistedSession
+          : { ...persistedSession, continuation: normalizedContinuation }
+        const nextSession = persistedConnection
+          ? { ...normalizedSession, connection: persistedConnection }
+          : normalizedSession
+
+        persistAuthSession(globalThis.localStorage, nextSession)
+        setAuthSession(nextSession)
+        setLoginForm((current) => ({
+          ...current,
+          status: 'ready',
+          handoffId: nextSession.handoffId ?? current.handoffId ?? null,
+          connection: nextSession.connection ?? current.connection ?? null,
+          actionConnection: nextSession.actionConnection ?? current.actionConnection ?? null,
+          continuation: nextSession.continuation ?? current.continuation ?? null,
+        }))
+
+        if (nextSession.continuation?.nextAction && nextSession.continuation.nextAction !== 'verify-email') {
+          if (verificationPollTimeoutRef.current) {
+            clearTimeout(verificationPollTimeoutRef.current)
+            verificationPollTimeoutRef.current = null
+          }
+          return
+        }
+      }
+
+      verificationPollTimeoutRef.current = setTimeout(() => {
+        pollIdentityVerification(verificationId)
+      }, 500)
+      return
+    }
+
+    if (!verificationPendingStartedAtRef.current) {
+      verificationPendingStartedAtRef.current = Date.now()
+    }
+
+    setIdentityVerification({
+      status: 'pending',
+      verificationId,
+      message: '본인 인증 창을 완료하면 자동으로 이어집니다.',
+      startedAt: verificationPendingStartedAtRef.current,
+    })
+    verificationPollTimeoutRef.current = setTimeout(() => {
+      pollIdentityVerification(verificationId)
+    }, 1200)
+  }, [authConfig])
+
+  const startVerificationFlow = React.useCallback(async (continuation) => {
+    const response = await startIdentityVerification({ authConfig, continuation, intent: authSession?.intent ?? loginForm.intent ?? null })
+    if (!response.ok || !response.data?.verificationId) {
+      setIdentityVerification({ status: 'error', verificationId: null, message: '인증 창을 열지 못했어요. 다시 시도해 주세요.', startedAt: null })
+      return
+    }
+
+    const callbackUrl = response.data.callbackUrl
+    openIdentityVerificationWindow(callbackUrl, authConfig)
+    const verificationStartedAt = Date.now()
+    verificationPendingStartedAtRef.current = verificationStartedAt
+    setIdentityVerification({
+      status: 'pending',
+      verificationId: response.data.verificationId,
+      message: '본인 인증 창을 열었어요. 완료되면 자동으로 갱신됩니다.',
+      startedAt: verificationStartedAt,
+    })
+    pollIdentityVerification(response.data.verificationId)
+  }, [authConfig, authSession?.intent, loginForm.intent, pollIdentityVerification])
+
+  React.useEffect(() => {
+    const handler = (event) => {
+      if (event?.data?.type !== 'havenly-verification-complete' || !event.data.verificationId) return
+      pollIdentityVerification(event.data.verificationId)
+    }
+
+    globalThis.window?.addEventListener?.('message', handler)
+    return () => globalThis.window?.removeEventListener?.('message', handler)
+  }, [pollIdentityVerification])
+
+  const authDraftSavePayload = React.useMemo(
+    () => buildAuthDraftSavePayload(
+      loginForm.draftSave,
+      authSession?.draftSave ?? null,
+      guestDraftSnapshot,
+      authSession?.intent ?? loginForm.intent ?? null,
+    ),
+    [authSession?.draftSave, authSession?.intent, guestDraftSnapshot, loginForm.draftSave, loginForm.intent],
+  )
+
+  const authSubmitPlan = React.useMemo(() => buildAuthSubmitPlan({
+    email: loginForm.email,
+    password: loginForm.password,
+    guestDraftSnapshot,
+    mergeResolution: loginForm.mergeResolution ?? null,
+    handoffId: loginForm.handoffId ?? null,
+    endpoint: authConfig.loginEndpoint,
+    intent: buildSerializableAuthIntent(loginForm.intent),
+    draftSave: authDraftSavePayload,
+  }), [authConfig.loginEndpoint, authDraftSavePayload, guestDraftSnapshot, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.password])
+
+  const authSignupPlan = React.useMemo(() => {
+    const serializableIntent = buildSerializableAuthIntent(loginForm.intent)
+    const serializableContinuation = buildSerializableAuthContinuation(loginForm.continuation)
+
+    return {
+      canSubmit: loginForm.displayName.trim().length >= 2
+        && loginForm.email.includes('@')
+        && loginForm.password.trim().length >= 8
+        && loginForm.password === loginForm.confirmPassword
+        && loginForm.agreeToTerms,
+      endpoint: authConfig.signupEndpoint,
+      method: 'POST',
+      handoffId: loginForm.handoffId ?? null,
+      request: {
+        mode: 'signup',
+        displayName: loginForm.displayName.trim(),
+        email: loginForm.email.trim().toLowerCase(),
+        password: loginForm.password,
+        guestDraftSnapshot,
+        handoffId: loginForm.handoffId ?? null,
+        intent: serializableIntent,
+        continuation: serializableContinuation,
+        draftSave: authDraftSavePayload,
+      },
+      summary: {
+        displayName: loginForm.displayName.trim(),
+        email: loginForm.email.trim().toLowerCase(),
+        handoffId: loginForm.handoffId ?? null,
+        wishlistCount: guestDraftSnapshot?.continuity?.wishlistIds?.length ?? 0,
+        cartCount: guestDraftSnapshot?.continuity?.cartItems?.length ?? 0,
+        layoutItemCount: guestDraftSnapshot?.continuity?.layoutItems?.length ?? 0,
+        hasRecommendationDraft: Boolean(guestDraftSnapshot?.recommendationDraft),
+        intent: serializableIntent,
+        continuation: serializableContinuation,
+        draftSave: authDraftSavePayload,
+      },
+    }
+  }, [authConfig.signupEndpoint, authDraftSavePayload, guestDraftSnapshot, loginForm.agreeToTerms, loginForm.confirmPassword, loginForm.continuation, loginForm.displayName, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.password])
+
+  const activeAuthPlan = loginForm.mode === 'signup' ? authSignupPlan : authSubmitPlan
+
+  const authConnectionSummary = React.useMemo(
+    () => buildAuthConnectionSummary(activeAuthPlan, authConfig),
+    [activeAuthPlan, authConfig],
+  )
+
+  const authLoginConnectionSummary = React.useMemo(
+    () => buildAuthConnectionSummary({
+      endpoint: authConfig.loginEndpoint,
+      method: 'POST',
+    }, authConfig),
+    [authConfig],
+  )
+
+  const authConnectionDriftSummary = React.useMemo(
+    () => buildAuthConnectionDriftSummary(loginForm.connection, authConnectionSummary),
+    [authConnectionSummary, loginForm.connection],
+  )
+  const hasResumeConnectionDrift = React.useMemo(
+    () => loginForm.status === 'resume-ready' && hasAuthConnectionDrift(loginForm.connection, authConnectionSummary),
+    [authConnectionSummary, loginForm.connection, loginForm.status],
+  )
+
+  const authResultSummary = React.useMemo(
+    () => {
+      if (loginForm.result) return buildAuthResultSummary(loginForm.result, activeAuthPlan.summary)
+      if (loginForm.status === 'ready') return buildAuthSessionResultSummary(authSession)
+      return null
+    },
+    [activeAuthPlan.summary, authSession, loginForm.result, loginForm.status],
+  )
+
+  const authErrorSummary = React.useMemo(
+    () => buildAuthErrorSummary(loginForm.result, activeAuthPlan.summary),
+    [activeAuthPlan.summary, loginForm.result],
+  )
+
+  const activeAuthStatusConnection = loginForm.status === 'resume-ready'
+    ? (loginForm.connection ?? authConnectionSummary)
+    : authConnectionSummary
+
+  const activeAuthStatusSummary = loginForm.status === 'resume-ready' && loginForm.continuation
+    ? { ...loginForm.continuation }
+    : authResultSummary
+
+  const authStatusMessage = React.useMemo(
+    () => buildAuthStatusCopy(loginForm.status, activeAuthPlan.summary, activeAuthStatusSummary, authErrorSummary, activeAuthStatusConnection),
+    [activeAuthPlan.summary, activeAuthStatusConnection, activeAuthStatusSummary, authErrorSummary, loginForm.status],
+  )
+
+  const authSessionNotice = React.useMemo(
+    () => buildAuthSessionNotice(authSession),
+    [authSession],
+  )
+
+  const authContinuationConnectionSummary = React.useMemo(
+    () => buildAuthConnectionSummary({
+      endpoint: authConfig.continueEndpoint,
+      method: 'POST',
+    }, authConfig),
+    [authConfig],
+  )
+
+  const authReadyPanelState = React.useMemo(
+    () => buildAuthReadyPanelState(authSession, {
+      actionConnection: authContinuationConnectionSummary,
+    }),
+    [authContinuationConnectionSummary, authSession],
+  )
+
+  const authResumePanelState = React.useMemo(
+    () => buildAuthResumePanelState(loginForm.handoff, {
+      session: persistedAuthSession,
+      actionConnection: authContinuationConnectionSummary,
+    }),
+    [authContinuationConnectionSummary, loginForm.handoff, persistedAuthSession],
+  )
+
+  const activeAuthReadyPanelState = authReadyPanelState ?? (loginForm.status === 'resume-ready' ? authResumePanelState : null)
+
+  React.useEffect(() => {
+    if (!shouldAutoOpenAuthReadyPanel(authSession, loginModalState)) return
+    setLoginModalState('form')
+  }, [authSession, loginModalState])
+
+  React.useEffect(() => {
+    if (loginModalState !== 'closed') return
+    if (loginForm.status !== 'resume-ready') return
+    if (!loginForm.handoff && !loginForm.continuation) return
+
+    setLoginModalState('form')
+  }, [loginForm.continuation, loginForm.handoff, loginForm.status, loginModalState])
+
+  const authContinuationPlan = React.useMemo(() => buildAuthContinuationPlan({
+    endpoint: authConfig.continueEndpoint,
+    continuation: authSession?.continuation ?? loginForm.continuation ?? null,
+    handoffId: authSession?.handoffId ?? loginForm.handoffId ?? null,
+    intent: buildSerializableAuthIntent(authSession?.intent ?? loginForm.intent ?? null),
+    fields: activeAuthReadyPanelState?.nextAction === 'complete-profile'
+      ? {
+          displayName: authContinuationFields.displayName,
+          phone: authContinuationFields.phone,
+        }
+      : activeAuthReadyPanelState?.nextAction === 'verify-email'
+        ? {
+            verificationCode: authContinuationFields.verificationCode,
+          }
+        : activeAuthReadyPanelState?.nextAction === 'confirm-merge-resolution' && (authContinuationFields.mergeResolution || loginForm.mergeResolution)
+          ? {
+              mergeResolution: authContinuationFields.mergeResolution || loginForm.mergeResolution,
+            }
+          : loginForm.continuation?.nextAction === 'confirm-merge-resolution' && (authContinuationFields.mergeResolution || loginForm.mergeResolution)
+            ? {
+                mergeResolution: authContinuationFields.mergeResolution || loginForm.mergeResolution,
+              }
+            : null,
+    draftSave: shouldAttachDraftSaveToAuthContinuation(
+      authSession?.intent ?? loginForm.intent ?? null,
+      authSession?.continuation ?? loginForm.continuation ?? null,
+    )
+      ? authDraftSavePayload
+      : null,
+  }), [activeAuthReadyPanelState?.nextAction, authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.mergeResolution, authContinuationFields.phone, authContinuationFields.verificationCode, authDraftSavePayload, authSession?.continuation, authSession?.handoffId, authSession?.intent, loginForm.continuation, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution])
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      const result = await readAuthSession({
+        endpoint: authConfig.sessionEndpoint,
+        connectionFallbackOverride: persistedAuthSession?.connection ?? authLoginConnectionSummary,
+        ...authConfig,
+      })
+
+      if (result.ok && !cancelled) {
+        const sessionConnection = buildAuthConnectionSummary({
+          endpoint: authConfig.sessionEndpoint,
+          method: 'GET',
+        }, authConfig)
+        const bootstrapFallbackSummary = {
+          handoffId: persistedAuthSession?.handoffId ?? persistedAuthHandoff?.handoffId ?? null,
+          wishlistCount: persistedAuthSession?.wishlistCount ?? persistedAuthHandoff?.summary?.wishlistCount ?? 0,
+          cartCount: persistedAuthSession?.cartCount ?? persistedAuthHandoff?.summary?.cartCount ?? 0,
+          layoutItemCount: persistedAuthSession?.layoutItemCount ?? persistedAuthHandoff?.summary?.layoutItemCount ?? 0,
+          hasRecommendationDraft: persistedAuthSession?.hasRecommendationDraft ?? persistedAuthHandoff?.summary?.hasRecommendationDraft ?? false,
+          guestDraftSummary: persistedAuthSession?.guestDraftSummary ?? null,
+          intent: persistedAuthSession?.intent ?? persistedAuthHandoff?.summary?.intent ?? null,
+          connection: persistedAuthSession?.connection ?? persistedAuthHandoff?.connection ?? authLoginConnectionSummary ?? sessionConnection,
+          continuation: persistedAuthSession?.continuation ?? persistedAuthHandoff?.continuation ?? null,
+          authMode: persistedAuthSession?.authMode ?? null,
+          authTransport: persistedAuthSession?.authTransport ?? null,
+        }
+        const resultSummary = buildAuthResultSummary(result, bootstrapFallbackSummary)
+        const nextSession = buildPersistedAuthSession(resultSummary, {
+          connection: resultSummary?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary ?? sessionConnection,
+          actionConnection: persistedAuthSession?.actionConnection ?? persistedAuthHandoff?.actionConnection ?? authContinuationConnectionSummary,
+          continuation: buildSerializableAuthContinuation(result?.data),
+          continuationFields: result?.data?.continuationFields
+            ?? persistedAuthSession?.continuationFields
+            ?? persistedAuthHandoff?.continuationFields
+            ?? null,
+          draftSave: result?.data?.draftSave
+            ?? persistedAuthSession?.draftSave
+            ?? persistedAuthHandoff?.draftSave
+            ?? null,
+          accountState: result?.data?.accountState ?? null,
+        })
+
+        clearPersistedAuthHandoff(globalThis.sessionStorage)
+        persistAuthSession(globalThis.localStorage, nextSession)
+        setAuthSession(nextSession)
+        setLoginForm((current) => {
+          if (current.status === 'submitting') return current
+          return buildAuthReadyState(nextSession, {
+            intent: current.intent ?? nextSession.intent ?? null,
+          }) ?? current
+        })
+        return
+      }
+
+      if (!cancelled && persistedAuthSession) {
+        if (shouldPreservePersistedAuthSessionOnBootstrapFailure(result, persistedAuthSession)) {
+          setAuthSession(persistedAuthSession)
+          setAuthNoticeDismissed(false)
+          setLoginForm((current) => {
+            if (current.status === 'submitting') return current
+            return buildAuthReadyState(persistedAuthSession, {
+              intent: current.intent ?? persistedAuthSession.intent ?? null,
+            }) ?? current
+          })
+          return
+        }
+
+        clearPersistedAuthSession(globalThis.localStorage)
+        setAuthSession(null)
+        setAuthNoticeDismissed(false)
+        setLoginForm((current) => {
+          if (current.status === 'submitting') return current
+          if (current.status === 'resume-ready' && current.handoff) return current
+          return buildEmptyLoginForm(current.intent)
+        })
+      }
+
+      if (persistedAuthHandoff) {
+        if (!cancelled) {
+          setLoginForm((current) => (
+            current.status === 'submitting'
+              ? current
+              : (buildAuthResumeState(persistedAuthHandoff, persistedAuthSession) ?? current)
+          ))
+          setLoginModalState('form')
+        }
+        return
+      }
+      if (cancelled) return
+
+      const pendingResult = await readAuthPending({
+        endpoint: authConfig.pendingEndpoint,
+        connectionFallbackOverride: persistedAuthHandoff?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary,
+        ...authConfig,
+      })
+
+      if (!pendingResult.ok || cancelled) return
+
+      const bootstrappedPendingHandoff = {
+        ...pendingResult.data,
+        connection: pendingResult.data?.connection
+          ?? persistedAuthHandoff?.connection
+          ?? persistedAuthSession?.connection
+          ?? authLoginConnectionSummary,
+        actionConnection: pendingResult.data?.actionConnection
+          ?? persistedAuthHandoff?.actionConnection
+          ?? persistedAuthSession?.actionConnection
+          ?? authContinuationConnectionSummary,
+      }
+
+      persistAuthHandoff(globalThis.sessionStorage, bootstrappedPendingHandoff)
+      setLoginForm((current) => (
+        current.status === 'submitting'
+          ? current
+          : (buildAuthResumeState(bootstrappedPendingHandoff, persistedAuthSession) ?? current)
+      ))
+      setLoginModalState('form')
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authConfig, authContinuationConnectionSummary, authLoginConnectionSummary, persistedAuthHandoff, persistedAuthSession])
+
+  React.useEffect(() => {
+    setAuthNoticeDismissed(false)
+  }, [authSession?.savedAt])
+
+  React.useEffect(() => {
+    if (!authSession) return
+
+    setLoginForm((current) => {
+      if (current.status === 'submitting') return current
+      if (current.status === 'resume-ready' && current.handoff) return current
+
+      const nextReadyState = buildAuthReadyState(authSession, {
+        intent: current.intent ?? authSession.intent ?? null,
+      })
+
+      return nextReadyState ?? current
+    })
+  }, [authSession])
+
+  React.useEffect(() => {
+    const activeContinuationFields = loginForm.continuationFields
+      ?? authSession?.continuationFields
+      ?? persistedAuthHandoff?.continuationFields
+      ?? null
+
+    setAuthContinuationFields((current) => {
+      const next = buildAuthContinuationFieldState(activeContinuationFields)
+      return JSON.stringify(current) === JSON.stringify(next) ? current : next
+    })
+
+    const persistedMergeResolution = typeof activeContinuationFields?.mergeResolution === 'string'
+      ? activeContinuationFields.mergeResolution.trim()
+      : ''
+
+    if (persistedMergeResolution) {
+      setLoginForm((current) => (
+        current.mergeResolution === persistedMergeResolution
+          ? current
+          : {
+              ...current,
+              mergeResolution: persistedMergeResolution,
+            }
+      ))
+    }
+  }, [authSession?.continuationFields, loginForm.continuationFields, persistedAuthHandoff?.continuationFields])
+
+  React.useEffect(() => {
+    if (!authSession?.savedAt) {
+      appliedAuthSessionRestoreRef.current = null
+      return
+    }
+
+    if (!shouldApplyPostAuthSessionRestore(authSession, appliedAuthSessionRestoreRef.current)) return
+
+    const nextRestorePatch = buildPostAuthSessionRestorePatch(authSession, {
+      spaceZones: baseZones,
+      roomOptions,
+      fallbackRoom: initialAiForm.room,
+    })
+    const continuityPatch = authSession.accountState
+      ? {
+          wishlistIds: [...(authSession.accountState.wishlistIds ?? [])],
+          cartItems: [...(authSession.accountState.cartItems ?? [])],
+          layoutItems: [...(authSession.accountState.layoutItems ?? [])],
+          recommendationDraft: authSession.accountState.recommendationDraft ?? null,
+        }
+      : null
+
+    if (nextRestorePatch?.recommendationRoom) {
+      setAiForm((current) => (
+        current.room === nextRestorePatch.recommendationRoom
+          ? current
+          : { ...current, room: nextRestorePatch.recommendationRoom }
+      ))
+    }
+
+    if (nextRestorePatch?.selectedSpaceIds?.length) {
+      setSpaceProfile((current) => {
+        const currentIds = Array.isArray(current.spaces) ? current.spaces : []
+        const nextIds = nextRestorePatch.selectedSpaceIds
+        const unchanged = currentIds.length === nextIds.length && currentIds.every((value, index) => value === nextIds[index])
+
+        return unchanged
+          ? current
+          : { ...current, spaces: nextIds }
+      })
+    }
+
+    if (continuityPatch) {
+      setWishlistedIds(continuityPatch.wishlistIds)
+      cart.replaceItems(continuityPatch.cartItems)
+      editor.replaceItems(continuityPatch.layoutItems)
+      setAiForm((current) => (
+        continuityPatch.recommendationDraft
+          ? { ...current, ...continuityPatch.recommendationDraft }
+          : current
+      ))
+      setEngagement(initialEngagement)
+    }
+
+    appliedAuthSessionRestoreRef.current = authSession.savedAt
+  }, [authSession, cart, editor])
+
+  const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
+
+  const openLogin = React.useCallback((intent = null) => {
+    const requestedIntent = buildSerializableAuthIntent(intent)
+
+    cart.setIsOpen(false)
+    setSearchDrawerOpen(false)
+
+    if (authSession && requestedIntent) {
+      const currentIntent = buildSerializableAuthIntent(authSession.intent)
+      const hasIntentChanged = JSON.stringify(currentIntent) !== JSON.stringify(requestedIntent)
+
+      if (hasIntentChanged) {
+        const nextSession = {
+          ...authSession,
+          intent: requestedIntent,
+        }
+        persistAuthSession(globalThis.localStorage, nextSession)
+        setAuthSession(nextSession)
+      }
+    }
+
+    setAuthContinuationFields(buildAuthContinuationFieldState(
+      loginForm.continuationFields ?? authSession?.continuationFields ?? null,
+    ))
+    setLoginForm((current) => {
+      const nextIntent = requestedIntent ?? current.intent ?? authSession?.intent ?? null
+
+      if (authSession && current.status !== 'resume-ready') {
+        return buildAuthReadyState(authSession, { intent: nextIntent }) ?? current
+      }
+
+      return {
+        ...current,
+        handoffId: current.handoffId ?? createAuthHandoffId(),
+        status: current.status === 'resume-ready' ? 'resume-ready' : 'idle',
+        result: null,
+        mergeResolution: null,
+        intent: nextIntent,
+        connection: current.status === 'resume-ready' ? current.connection : null,
+      }
+    })
+    setLoginModalState(authSession ? 'form' : hasLoginGuard ? 'guard' : 'form')
+  }, [authSession, cart, hasLoginGuard])
+
+  const handleDismissAuthResume = React.useCallback(() => {
+    clearPersistedAuthHandoff(globalThis.sessionStorage)
+    setAuthContinuationFields(buildAuthContinuationFieldState())
+    setLoginForm((current) => buildEmptyLoginForm(current.intent))
+  }, [])
+
+  const handleCloseLoginModal = React.useCallback(() => {
+    setLoginModalState('closed')
+  }, [])
+
+  const handleLogout = React.useCallback(async () => {
+    clearPersistedAuthSession(globalThis.localStorage)
+    clearPersistedAuthHandoff(globalThis.sessionStorage)
+    setAuthSession(null)
+    setAuthNoticeDismissed(false)
+    setAuthContinuationFields(buildAuthContinuationFieldState())
+    setLoginModalState('closed')
+    setLoginForm(buildEmptyLoginForm())
+
+    try {
+      await signOutAuthSession({
+        endpoint: authConfig.logoutEndpoint,
+        ...authConfig,
+      })
+    } catch (error) {
+      console.warn('Auth logout teardown failed after optimistic client reset.', error)
+    }
+  }, [authConfig])
+
+  const handleResumeAuthenticatedIntent = React.useCallback(async () => {
+    const nextIntent = loginForm.intent ?? authSession?.intent ?? null
+    const nextContinuation = authSession?.continuation ?? loginForm.continuation ?? null
+
+    if (!canResumePostAuthIntent(nextIntent, screen, nextContinuation)) return
+
+    const nextScreen = resolvePostAuthScreen(nextIntent, screen, nextContinuation)
+
+    if (!shouldSubmitContinuationBeforeResume(nextContinuation) || !authSession || !authContinuationPlan.canSubmit) {
+      setLoginModalState('closed')
+      if (nextScreen) navigate(nextScreen)
+      if (shouldOpenCartAfterAuthResume(nextIntent, nextContinuation)) cart.setIsOpen(true)
+      return
+    }
+
+    setLoginForm((current) => ({
+      ...current,
+      status: 'submitting',
+      result: null,
+    }))
+
+    try {
+      const result = await submitAuthContinuationPlan(authContinuationPlan, authConfig)
+      const submittedContinuation = buildSerializableAuthContinuation(result?.data)
+      const submittedConnection = resolveAuthConnectionOverride(result, authSession?.connection ?? authConnectionSummary)
+
+      if (!result.ok) {
+        setLoginForm((current) => ({
+          ...current,
+          status: 'error',
+          result,
+          connection: submittedConnection,
+          continuation: submittedContinuation,
+        }))
+        return
+      }
+
+      const nextResultSummary = buildAuthResultSummary(result, {
+        sessionId: authSession.sessionId ?? null,
+        accountLabel: authSession.accountLabel ?? null,
+        handoffId: authSession.handoffId ?? loginForm.handoffId ?? null,
+        wishlistCount: authSession.wishlistCount ?? 0,
+        cartCount: authSession.cartCount ?? 0,
+        layoutItemCount: authSession.layoutItemCount ?? 0,
+        hasRecommendationDraft: authSession.hasRecommendationDraft ?? false,
+        guestDraftSummary: authSession.guestDraftSummary ?? null,
+        intent: authSession.intent ?? loginForm.intent ?? null,
+        connection: authSession.connection ?? authConnectionSummary,
+        continuation: authSession.continuation ?? null,
+        authMode: authSession.authMode ?? null,
+        authTransport: authSession.authTransport ?? null,
+      })
+      const nextSession = buildPersistedAuthSession(nextResultSummary, {
+        intent: authSession.intent ?? loginForm.intent ?? null,
+        connection: submittedConnection ?? nextResultSummary.connection ?? authSession.connection ?? authConnectionSummary,
+        actionConnection: authSession.actionConnection ?? authContinuationConnectionSummary,
+        continuation: submittedContinuation,
+        continuationFields: pickPersistedAuthContinuationFields(submittedContinuation, authContinuationFields),
+        draftSave: authSession.draftSave ?? authDraftSavePayload,
+        accountState: result?.data?.accountState ?? authSession.accountState ?? null,
+      })
+      const continuityPatch = buildPostAuthContinuityPatch(result)
+
+      if (continuityPatch) {
+        setWishlistedIds(continuityPatch.wishlistIds)
+        cart.replaceItems(continuityPatch.cartItems)
+        editor.replaceItems(continuityPatch.layoutItems)
+        setAiForm(
+          continuityPatch.recommendationDraft
+            ? { ...initialAiForm, ...continuityPatch.recommendationDraft }
+            : initialAiForm,
+        )
+        setEngagement(initialEngagement)
+      }
+
+      persistAuthSession(globalThis.localStorage, nextSession)
+      setAuthSession(nextSession)
+      setLoginForm((current) => ({
+        ...current,
+        status: 'ready',
+        result,
+        connection: submittedConnection,
+        continuation: submittedContinuation,
+      }))
+      setLoginModalState('closed')
+      if (nextScreen) navigate(nextScreen)
+      if (shouldOpenCartAfterAuthResume(nextIntent, nextContinuation)) cart.setIsOpen(true)
+    } catch {
+      setLoginForm((current) => ({
+        ...current,
+        status: 'error',
+        result: {
+          ok: false,
+          status: 0,
+          data: { message: 'Continuation request failed' },
+        },
+      }))
+    }
+  }, [authConfig, authConnectionSummary, authContinuationPlan, authDraftSavePayload, authSession, cart, loginForm.continuation, loginForm.handoffId, loginForm.intent, navigate, screen])
+
+  const handleAuthContinuationFieldChange = React.useCallback((field, value) => {
+    const nextFields = buildAuthContinuationFieldState({
+      ...authContinuationFields,
+      [field]: value,
+    })
+
+    setAuthContinuationFields(nextFields)
+    setLoginForm((current) => ({
+      ...current,
+      continuationFields: nextFields,
+      ...(field === 'mergeResolution' ? { mergeResolution: value, status: 'idle', result: null } : {}),
+    }))
+
+    if (authSession) {
+      const nextSession = {
+        ...authSession,
+        continuationFields: buildSerializableAuthContinuationFields(nextFields),
+      }
+      persistAuthSession(globalThis.localStorage, nextSession)
+      setAuthSession(nextSession)
+      return
+    }
+
+    const currentHandoff = readPersistedAuthHandoff(globalThis.sessionStorage)
+    if (currentHandoff) {
+      persistAuthHandoff(globalThis.sessionStorage, {
+        ...currentHandoff,
+        continuationFields: buildSerializableAuthContinuationFields(nextFields),
+      })
+    }
+  }, [authContinuationFields, authSession])
+
+  const handleLoginFormChange = React.useCallback((field, value) => {
+    setLoginForm((current) => ({
+      ...current,
+      [field]: value,
+      status: 'idle',
+      result: null,
+      mergeResolution: field === 'mergeResolution' ? value : null,
+    }))
+
+    if (field !== 'mergeResolution') return
+
+    setAuthContinuationFields((current) => {
+      const next = buildAuthContinuationFieldState({
+        ...current,
+        mergeResolution: value,
+      })
+      return JSON.stringify(current) === JSON.stringify(next) ? current : next
+    })
+
+    const currentHandoff = readPersistedAuthHandoff(globalThis.sessionStorage)
+    if (!currentHandoff) return
+
+    const nextContinuationFields = buildSerializableAuthContinuationFields({
+      ...(currentHandoff.continuationFields ?? {}),
+      mergeResolution: value,
+    })
+
+    persistAuthHandoff(globalThis.sessionStorage, {
+      ...currentHandoff,
+      continuationFields: nextContinuationFields,
+      summary: {
+        ...(currentHandoff.summary ?? {}),
+        mergeResolution: value,
+      },
+    })
+  }, [])
+
+  const handleAuthContinuationSubmit = React.useCallback(async () => {
+    const currentHandoff = loginForm.handoff ?? readPersistedAuthHandoff(globalThis.sessionStorage)
+    const currentAuthSession = authSession ?? persistedAuthSession ?? null
+
+    if (!authContinuationPlan.canSubmit) return
+    if (!currentAuthSession && !currentHandoff) return
+
+    setLoginForm((current) => ({
+      ...current,
+      status: 'submitting',
+      result: null,
+    }))
+
+    try {
+      const result = await submitAuthContinuationPlan(authContinuationPlan, authConfig)
+      const nextContinuation = buildSerializableAuthContinuation(result?.data)
+      const nextConnection = resolveAuthConnectionOverride(result, currentAuthSession?.connection ?? currentHandoff?.connection ?? authConnectionSummary)
+      const persistedConnection = resolvePersistedAuthConnection(result, currentAuthSession?.connection ?? currentHandoff?.connection ?? authConnectionSummary)
+      const nextIntent = currentAuthSession?.intent ?? loginForm.intent ?? currentHandoff?.summary?.intent ?? null
+
+      if (result.ok) {
+        const nextResultSummary = buildAuthResultSummary(result, {
+          sessionId: currentAuthSession?.sessionId ?? null,
+          accountLabel: currentAuthSession?.accountLabel ?? currentHandoff?.email ?? null,
+          handoffId: currentAuthSession?.handoffId ?? currentHandoff?.handoffId ?? loginForm.handoffId ?? null,
+          wishlistCount: currentAuthSession?.wishlistCount ?? currentHandoff?.summary?.wishlistCount ?? 0,
+          cartCount: currentAuthSession?.cartCount ?? currentHandoff?.summary?.cartCount ?? 0,
+          layoutItemCount: currentAuthSession?.layoutItemCount ?? currentHandoff?.summary?.layoutItemCount ?? 0,
+          hasRecommendationDraft: currentAuthSession?.hasRecommendationDraft ?? currentHandoff?.summary?.hasRecommendationDraft ?? false,
+          guestDraftSummary: currentAuthSession?.guestDraftSummary ?? currentHandoff?.guestDraftSummary ?? null,
+          intent: nextIntent,
+          connection: currentAuthSession?.connection ?? currentHandoff?.connection ?? authConnectionSummary,
+          continuation: currentAuthSession?.continuation ?? currentHandoff?.continuation ?? null,
+          authMode: currentAuthSession?.authMode ?? null,
+          authTransport: currentAuthSession?.authTransport ?? null,
+        })
+        const nextSession = buildPersistedAuthSession(nextResultSummary, {
+          intent: nextIntent,
+          connection: persistedConnection ?? nextResultSummary.connection ?? currentAuthSession?.connection ?? currentHandoff?.connection ?? authConnectionSummary,
+          actionConnection: currentAuthSession?.actionConnection ?? currentHandoff?.actionConnection ?? authContinuationConnectionSummary,
+          continuation: nextContinuation,
+          continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
+          draftSave: currentAuthSession?.draftSave ?? currentHandoff?.draftSave ?? authDraftSavePayload,
+          accountState: result?.data?.accountState ?? currentAuthSession?.accountState ?? null,
+        })
+        const nextScreen = canResumePostAuthIntent(nextIntent, screen, nextContinuation)
+          ? resolvePostAuthScreen(nextIntent, screen, nextContinuation)
+          : null
+
+        clearPersistedAuthHandoff(globalThis.sessionStorage)
+        persistAuthSession(globalThis.localStorage, nextSession)
+        setAuthSession(nextSession)
+        setAuthContinuationFields(buildAuthContinuationFieldState())
+        setLoginForm((current) => ({
+          ...current,
+          handoff: null,
+          handoffId: nextSession.handoffId ?? current.handoffId ?? null,
+          status: 'ready',
+          result,
+          connection: nextConnection,
+          continuation: nextContinuation,
+        }))
+
+        if (shouldCloseLoginModalAfterAuth(result, nextIntent, nextContinuation)) {
+          setLoginModalState('closed')
+          if (nextScreen) navigate(nextScreen)
+        }
+
+        return
+      }
+
+      if (currentHandoff) {
+        persistAuthHandoff(globalThis.sessionStorage, {
+          ...currentHandoff,
+          continuation: nextContinuation ?? currentHandoff.continuation ?? null,
+          continuationFields: pickPersistedAuthContinuationFields(nextContinuation ?? currentHandoff.continuation, authContinuationFields),
+          connection: nextConnection ?? currentHandoff.connection ?? null,
+          ...(result?.status ? { status: result.status } : {}),
+          ...(result?.data?.message ? { error: result.data.message } : {}),
+        })
+      }
+
+      setLoginForm((current) => ({
+        ...current,
+        status: 'error',
+        result,
+        connection: nextConnection,
+        continuation: nextContinuation,
+      }))
+    } catch {
+      setLoginForm((current) => ({
+        ...current,
+        status: 'error',
+        result: {
+          ok: false,
+          status: 0,
+          data: { message: 'Continuation request failed' },
+        },
+      }))
+    }
+  }, [authConfig, authConnectionSummary, authContinuationConnectionSummary, authContinuationFields, authContinuationPlan, authDraftSavePayload, authSession, loginForm.handoff, loginForm.handoffId, loginForm.intent, navigate, persistedAuthSession, screen])
+
+  const handleLoginSubmit = React.useCallback(async (mergeResolutionOverride = null) => {
+    const nextMergeResolution = mergeResolutionOverride ?? loginForm.mergeResolution ?? null
+    const nextHandoffId = loginForm.handoffId ?? createAuthHandoffId()
+    const shouldResolveMergeViaContinuation = loginForm.continuation?.nextAction === 'confirm-merge-resolution'
+      && Boolean(loginForm.continuation?.resumeToken)
+      && Boolean(nextMergeResolution)
+
+    const submitPlan = loginForm.mode === 'signup'
+      ? {
+          ...authSignupPlan,
+          handoffId: nextHandoffId,
+          request: {
+            ...authSignupPlan.request,
+            handoffId: nextHandoffId,
+          },
+          summary: {
+            ...authSignupPlan.summary,
+            handoffId: nextHandoffId,
+          },
+        }
+      : buildAuthSubmitPlan({
+          email: loginForm.email,
+          password: loginForm.password,
+          guestDraftSnapshot,
+          mergeResolution: nextMergeResolution,
+          handoffId: nextHandoffId,
+          endpoint: authConfig.loginEndpoint,
+          intent: buildSerializableAuthIntent(loginForm.intent),
+          continuation: buildSerializableAuthContinuation(loginForm.continuation),
+          draftSave: authDraftSavePayload,
+        })
+
+    const continuationPlan = shouldResolveMergeViaContinuation
+      ? buildAuthContinuationPlan({
+          endpoint: authConfig.continueEndpoint,
+          continuation: loginForm.continuation,
+          handoffId: nextHandoffId,
+          intent: buildSerializableAuthIntent(loginForm.intent),
+          fields: {
+            mergeResolution: nextMergeResolution,
+          },
+          draftSave: authDraftSavePayload,
+        })
+      : null
+
+    if (!submitPlan.canSubmit && !continuationPlan?.canSubmit) return
+
+    persistAuthHandoff(
+      globalThis.sessionStorage,
+      buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
+        connection: authConnectionSummary,
+        actionConnection: authContinuationConnectionSummary,
+        continuation: shouldResolveMergeViaContinuation ? loginForm.continuation : null,
+        continuationFields: shouldResolveMergeViaContinuation
+          ? { mergeResolution: nextMergeResolution }
+          : pickPersistedAuthContinuationFields(loginForm.continuation, authContinuationFields),
+        draftSave: authDraftSavePayload,
+      }),
+    )
+
+    setLoginForm((current) => ({
+      ...current,
+      handoffId: nextHandoffId,
+      status: 'submitting',
+      result: null,
+      mergeResolution: nextMergeResolution,
+    }))
+
+    try {
+      const result = shouldResolveMergeViaContinuation
+        ? await submitAuthContinuationPlan(continuationPlan, authConfig)
+        : loginForm.mode === 'signup'
+          ? await submitAuthSignupPlan(submitPlan, authConfig)
+          : await submitAuthLoginPlan(submitPlan, authConfig)
+      const nextContinuation = buildSerializableAuthContinuation(result?.data)
+      const nextConnection = resolveAuthConnectionOverride(result, authConnectionSummary)
+      const persistedConnection = resolvePersistedAuthConnection(result, authConnectionSummary)
+      const nextResultSummary = result.ok
+        ? buildAuthResultSummary(result, {
+            ...submitPlan.summary,
+            connection: authConnectionSummary,
+            continuation: loginForm.continuation,
+          })
+        : null
+
+      if (nextResultSummary) {
+        const continuityPatch = buildPostAuthContinuityPatch(result)
+        const nextSession = buildPersistedAuthSession(nextResultSummary, {
+          guestDraftSnapshot,
+          intent: submitPlan.summary.intent,
+          connection: persistedConnection ?? nextResultSummary.connection ?? authConnectionSummary,
+          actionConnection: authContinuationConnectionSummary,
+          continuation: nextContinuation,
+          continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
+          draftSave: authDraftSavePayload,
+          accountState: result?.data?.accountState ?? null,
+        })
+
+        if (continuityPatch) {
+          setWishlistedIds(continuityPatch.wishlistIds)
+          cart.replaceItems(continuityPatch.cartItems)
+          editor.replaceItems(continuityPatch.layoutItems)
+          setAiForm(
+            continuityPatch.recommendationDraft
+              ? { ...initialAiForm, ...continuityPatch.recommendationDraft }
+              : initialAiForm,
+          )
+          setEngagement(initialEngagement)
+        }
+
+        persistAuthSession(globalThis.localStorage, nextSession)
+        clearPersistedAuthHandoff(globalThis.sessionStorage)
+        setAuthSession(nextSession)
+        setAuthNoticeDismissed(false)
+      }
+
+      let failedHandoff = null
+
+      if (!result.ok) {
+        failedHandoff = buildPersistedAuthHandoff(submitPlan, guestDraftSnapshot, {
+          connection: nextConnection,
+          actionConnection: authContinuationConnectionSummary,
+          continuation: nextContinuation,
+          continuationFields: shouldResolveMergeViaContinuation
+            ? { mergeResolution: nextMergeResolution }
+            : pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
+          draftSave: authDraftSavePayload,
+          result,
+        })
+
+        persistAuthHandoff(globalThis.sessionStorage, failedHandoff)
+      }
+
+      setLoginForm((current) => {
+        if (!result.ok && nextContinuation?.nextAction === 'confirm-merge-resolution' && failedHandoff) {
+          const resumeState = buildAuthResumeState(failedHandoff, persistedAuthSession)
+          if (resumeState) {
+            return {
+              ...resumeState,
+              email: current.email,
+              password: current.password,
+              result,
+              mergeResolution: nextMergeResolution,
+              connection: nextConnection,
+              continuation: nextContinuation,
+            }
+          }
+        }
+
+        return {
+          ...current,
+          status: result.ok ? 'ready' : 'error',
+          result,
+          connection: nextConnection,
+          continuation: nextContinuation,
+          mergeResolution: result.ok ? null : nextMergeResolution,
+        }
+      })
+
+      if (shouldCloseLoginModalAfterAuth(result, submitPlan.summary.intent, nextContinuation)) {
+        const nextScreen = resolvePostAuthScreen(
+          submitPlan.summary.intent,
+          screen,
+          nextContinuation,
+        )
+        setLoginModalState('closed')
+        if (nextScreen) navigate(nextScreen)
+      }
+    } catch {
+      setLoginForm((current) => ({
+        ...current,
+        status: 'error',
+        result: {
+          ok: false,
+          status: 0,
+          data: { message: 'Network request failed' },
+        },
+        mergeResolution: nextMergeResolution,
+      }))
+    }
+  }, [authConfig, authConnectionSummary, authContinuationConnectionSummary, authContinuationFields, authDraftSavePayload, authSignupPlan, cart, editor, guestDraftSnapshot, loginForm.continuation, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.mode, loginForm.password, screen])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),
@@ -631,6 +2023,22 @@ function App() {
     }))
   }, [])
 
+  const addProductToLayout = React.useCallback((product) => {
+    editor.addLibraryItem(buildLayoutProduct(product))
+    trackFurniturePlacement()
+  }, [editor, trackFurniturePlacement])
+
+  const handleLayoutTrayDropToRoom = React.useCallback((product) => {
+    addProductToLayout(product)
+    setLayoutTrayItems((current) => current.filter((item) => item.id !== product.id))
+    trackLayoutComponentEvent({ authConfig, eventType: 'selectedComponent', item: product })
+  }, [addProductToLayout, authConfig])
+
+  const handleLayoutTrayAbandon = React.useCallback((product) => {
+    setLayoutTrayItems((current) => current.filter((item) => item.id !== product.id))
+    trackLayoutComponentEvent({ authConfig, eventType: 'abandonedComponent', item: product })
+  }, [authConfig])
+
   const shared = {
     navigate,
     openOverlay,
@@ -638,8 +2046,13 @@ function App() {
     addToCart: cart.addItem,
     onSearchOpen: () => setSearchDrawerOpen(true),
     onOpenLogin: openLogin,
+    onAddProductToLayout: addProductToLayout,
+    layoutTrayItems,
+    onLayoutTrayDropToRoom: handleLayoutTrayDropToRoom,
+    onLayoutTrayAbandon: handleLayoutTrayAbandon,
     trackBoardProgress,
     trackFurniturePlacement,
+    authSession,
     ...cartActions,
   }
 
@@ -647,26 +2060,35 @@ function App() {
     ai: {
       form: aiForm,
       setForm: setAiForm,
+      brief: inputBrief,
       summary: aiSummary,
+      selectedSpaceSummary,
       onRecommend: () => {
         trackAiRequest()
         navigate('space')
       },
+      onApplyToLayout: (product) => {
+        addProductToLayout(product)
+        navigate('layout')
+      },
     },
     space: {
-      selectedSpaces,
-      setSelectedSpaces,
+      selectedSpaces: spaceProfile.spaces,
+      setSelectedSpaces: (updater) => setSpaceProfile((current) => ({
+        ...current,
+        spaces: typeof updater === 'function' ? updater(current.spaces) : updater,
+      })),
     },
     layout: {
       editor,
-      addressSummary: `${addressForm.apartmentType} · ${addressForm.spaces.length}개 공간 선택`,
+      addressSummary: buildLayoutAddressSummary(spaceProfile),
     },
     beds: {
       filters: bedFilters,
       setFilters: setBedFilters,
       items: filteredBedProducts,
       wishlistedIds,
-      toggleWishlist: (id) => setWishlistedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]),
+      toggleWishlist: (id) => setWishlistedIds((current) => toggleWishlistId(current, id)),
     },
     home: {
       wishlistedIds,
@@ -675,6 +2097,16 @@ function App() {
 
   return (
     <main className="appShell">
+      {authSessionNotice && !authNoticeDismissed && (
+        <AuthSessionNoticeBanner
+          notice={authSessionNotice}
+          authReadyPanelState={authReadyPanelState}
+          onDismiss={() => setAuthNoticeDismissed(true)}
+          onOpenAccount={() => openLogin(authSession?.intent ?? null)}
+          onResumeAuthenticatedIntent={handleResumeAuthenticatedIntent}
+          onLogout={handleLogout}
+        />
+      )}
       <section className={`screenStage ${overlay ? 'overlayOpen' : ''}`}>
         <StageTransition screen={screen} direction={direction}>
           {(visibleScreen) => renderScreen(visibleScreen, { ...shared, ...screenProps[visibleScreen] })}
@@ -687,10 +2119,13 @@ function App() {
               <AddressSetupScreen
                 navigate={navigate}
                 closeOverlay={closeOverlay}
-                addressForm={addressForm}
-                setAddressForm={setAddressForm}
-                selectedSpaces={selectedSpaces}
+                spaceProfile={spaceProfile}
+                setSpaceProfile={setSpaceProfile}
                 trackBoardProgress={trackBoardProgress}
+                baseZones={baseZones}
+                apartmentSearchResults={apartmentSearchResults}
+                apartmentTypes={apartmentTypes}
+                formatApartmentOption={formatApartmentOption}
               />
             </div>
           </div>
@@ -699,6 +2134,8 @@ function App() {
         {cart.isOpen && (
           <CartDrawer
             cart={cart}
+            authSession={authSession}
+            onOpenLogin={openLogin}
             onClose={() => cart.setIsOpen(false)}
           />
         )}
@@ -707,11 +2144,13 @@ function App() {
           <SearchDrawer
             query={searchQuery}
             setQuery={setSearchQuery}
-            results={filteredSearchResults}
+            results={searchDrawerState.results}
+            queryLabel={searchDrawerState.queryLabel}
+            isEmpty={searchDrawerState.isEmpty}
             onClose={() => setSearchDrawerOpen(false)}
             onPick={(product) => {
               setSearchDrawerOpen(false)
-              if (product.material) quickView.open(product)
+              if (resolveSearchPickMode(product) === 'quickView') quickView.open(product)
               else cart.addItem(product)
             }}
           />
@@ -720,10 +2159,36 @@ function App() {
         {loginModalState !== 'closed' && (
           <LoginModal
             state={loginModalState}
-            engagement={engagement}
+            engagement={loginGuardMetrics}
             reasons={loginGuardReasons}
-            onClose={() => setLoginModalState('closed')}
-            onProceed={() => setLoginModalState('form')}
+            form={loginForm}
+            authSubmitPlan={authSubmitPlan}
+            authSignupPlan={authSignupPlan}
+            authContinuationPlan={authContinuationPlan}
+            authContinuationFields={authContinuationFields}
+            authStatusMessage={authStatusMessage}
+            authResultSummary={authResultSummary}
+            authErrorSummary={authErrorSummary}
+            authConnectionSummary={authConnectionSummary}
+            hasResumeConnectionDrift={hasResumeConnectionDrift}
+            authConnectionDriftSummary={authConnectionDriftSummary}
+            authReadyPanelState={activeAuthReadyPanelState}
+            guestDraftSnapshot={guestDraftSnapshot}
+            identityVerification={identityVerification}
+            onStartVerification={startVerificationFlow}
+            onChangeForm={handleLoginFormChange}
+            onChangeContinuationField={handleAuthContinuationFieldChange}
+            onClose={handleCloseLoginModal}
+            onProceed={() => {
+              setAuthContinuationFields(buildAuthContinuationFieldState(
+                loginForm.continuationFields ?? authSession?.continuationFields ?? null,
+              ))
+              setLoginModalState('form')
+            }}
+            onDismissResume={handleDismissAuthResume}
+            onResumeAuthenticatedIntent={handleResumeAuthenticatedIntent}
+            onSubmitContinuation={handleAuthContinuationSubmit}
+            onSubmit={handleLoginSubmit}
           />
         )}
 
@@ -736,11 +2201,7 @@ function App() {
               quickView.close()
             }}
             onApplyToLayout={(product) => {
-              editor.addLibraryItem({
-                ...product,
-                category: product.material ? '침대' : product.category,
-              })
-              trackFurniturePlacement()
+              addProductToLayout(product)
               quickView.close()
               navigate('layout')
             }}
@@ -754,413 +2215,99 @@ function App() {
 function renderScreen(screen, props) {
   switch (screen) {
     case 'ai':
-      return <AiRecommendScreen {...props} />
+      return (
+        <AiRecommendPage
+          Header={Header}
+          roomOptions={roomOptions}
+          styleOptions={styleOptions}
+          priorityOptions={priorityOptions}
+          lifestyleOptions={lifestyleOptions}
+          apartmentSearchResults={apartmentSearchResults}
+          aiProducts={aiProducts}
+          {...props}
+        />
+      )
     case 'space':
-      return <SpaceSelectScreen {...props} />
+      return (
+        <SpaceSelectPage
+          Header={Header}
+          SpaceSelectionBoard={SpaceSelectionBoard}
+          baseZones={baseZones}
+          toggleRequiredSelection={toggleRequiredSelection}
+          {...props}
+        />
+      )
     case 'layout':
-      return <LayoutEditorScreen {...props} />
+      return (
+        <LayoutEditorPage
+          Header={Header}
+          libraryItems={libraryItems}
+          aiProducts={aiProducts}
+          buildVisibleLibrary={buildVisibleLibrary}
+          buildLibraryEmptyState={buildLibraryEmptyState}
+          layoutLibraryCategoryTabs={layoutLibraryCategoryTabs}
+          buildLayoutEditorToolbarButtons={buildLayoutEditorToolbarButtons}
+          buildLayoutEditorInfoPills={buildLayoutEditorInfoPills}
+          buildLayoutEditorPropertyPanelState={buildLayoutEditorPropertyPanelState}
+          buildLayoutEditorHint={buildLayoutEditorHint}
+          findLibraryItemMeta={findLibraryItemMeta}
+          resolveRoomClickTarget={resolveRoomClickTarget}
+          createLayoutEditorToolbarHandlers={createLayoutEditorToolbarHandlers}
+          createLayoutEditorActionHandlers={createLayoutEditorActionHandlers}
+          buildLayoutEditorToolbarCommands={buildLayoutEditorToolbarCommands}
+          buildLayoutEditorActionCommands={buildLayoutEditorActionCommands}
+          runLayoutEditorCommands={runLayoutEditorCommands}
+          buildPlacedItemClassName={buildPlacedItemClassName}
+          buildPlacedItemStyle={buildPlacedItemStyle}
+          {...props}
+        />
+      )
     case 'beds':
-      return <BedsCategoryScreen {...props} />
+      return <BedsCategoryPage Header={Header} {...props} />
     case 'home':
     default:
-      return <FurnitureHomeScreen {...props} />
+      return <FurnitureHomePage Header={Header} aiProducts={aiProducts} bedProducts={bedProducts} {...props} />
   }
 }
 
-function AiRecommendScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, form, setForm, summary, onRecommend, onOpenLogin }) {
-  const currentStyle = styleOptions.find((item) => item.id === form.style)
-  const selectedApartment = apartmentSearchResults.find((item) => item.id === form.apartmentSelectionId)
-  const apartmentLabel = selectedApartment ? formatApartmentOption(selectedApartment) : (form.apartmentQuery || '아파트명을 선택해보세요')
-  const apartmentMeta = selectedApartment
-    ? [selectedApartment.areaLabel, selectedApartment.unitLabel, selectedApartment.layoutLabel, selectedApartment.variantLabel].join(' · ')
-    : `전용 84㎡ · ${form.apartmentType} · 4Bay · 거실 확장형`
+function AuthSessionNoticeBanner({ notice, authReadyPanelState, onDismiss, onOpenAccount, onResumeAuthenticatedIntent, onLogout }) {
+  const nextAction = authReadyPanelState?.nextAction ?? null
+  const needsAccountModal = nextAction === 'complete-profile'
+    || nextAction === 'verify-email'
+    || nextAction === 'confirm-merge-resolution'
+  const primaryActionLabel = needsAccountModal
+    ? '계정 상태 보기'
+    : nextAction === 'save-layout-draft'
+      ? '보드 열기'
+      : nextAction === 'checkout-cart'
+        ? '주문 이어가기'
+        : nextAction === 'resume-account-state'
+          ? '계정 상태 열기'
+          : nextAction === 'resume-guest-draft'
+            ? '초안 열기'
+            : authReadyPanelState?.primaryActionLabel
+              ? '바로 이어가기'
+              : null
+  const handlePrimaryAction = needsAccountModal ? onOpenAccount : onResumeAuthenticatedIntent
 
   return (
-    <div className="screenCanvas warmBg">
-      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
-      <div className="twoCol">
-        <aside className="panel leftPanel">
-          <div className="stepDots"><b className="on">1</b><span /><b className="done">2</b><span /><b>3</b></div>
-          <h2>AI가 공간에 맞는 가구를 추천해드릴게요</h2>
-          <p className="muted">아파트 타입, 원하는 공간, 선호 스타일을 직접 바꾸면 추천 문구와 강조 상태가 함께 반영됩니다.</p>
-          <label>아파트 검색</label>
-          <button
-            type="button"
-            className="searchSelectButton"
-            onClick={() => openOverlay('address')}
-          >
-            <span className="searchSelectIcon" aria-hidden="true">🔎</span>
-            <span className="searchSelectText">
-              <strong>{apartmentLabel}</strong>
-              <small>아파트명 또는 평면도를 선택해 공간 정보를 불러오세요</small>
-            </span>
-            <span className="searchSelectAction">불러오기</span>
-          </button>
-          <div className="resultCard">
-            <strong>{selectedApartment ? (<><span className="apartmentBrand">{selectedApartment.brand}</span> <span>{selectedApartment.complex}</span></>) : apartmentLabel}</strong>
-            <span>{apartmentMeta}</span>
-          </div>
-          <label>공간 선택</label>
-          <div className="chipRow">
-            {roomOptions.map((room) => (
-              <button key={room} className={form.room === room ? 'solid' : ''} onClick={() => setForm((current) => ({ ...current, room }))}>{room}</button>
-            ))}
-          </div>
-          <label>선호 스타일</label>
-          <div className="styleGrid">
-            {styleOptions.map((style) => (
-              <button key={style.id} className={`styleBox ${form.style === style.id ? 'selected' : ''}`} onClick={() => setForm((current) => ({ ...current, style: style.id }))}>
-                <span>{style.emoji}</span>{style.label}
-              </button>
-            ))}
-          </div>
-          <label>추가 요청</label>
-          <textarea value={form.extraRequest} onChange={(event) => setForm((current) => ({ ...current, extraRequest: event.target.value }))} />
-          <div className="footerButtons stackOnMobile aiFooterButtons">
-            <button className="cta" onClick={onRecommend}>추천받기</button>
-          </div>
-        </aside>
-        <div className="panel resultPanel">
-          <div className="badge">AI 추천 결과</div>
-          <h3>{form.room} 배치안 + 상품 추천</h3>
-          <p className="resultSummary"><b>{currentStyle?.label}</b> 무드 기준 · {summary}</p>
-          <div className="floorplanViewport">
-            <div className="floorplanFrame">
-              <div className={`floorplan theme-${form.style}`}>
-                <div className="grid" />
-                <div className="roomBorder">
-                  <div className="windowMark">창문</div>
-                  <div className="doorMark">현관</div>
-                  <div className="furn sofa">{form.room === '침실' ? '침대' : '3인 소파'}</div>
-                  <div className="furn rug">러그</div>
-                  <div className="furn table">테이블</div>
-                  <div className="furn tv">TV장</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="productRow">
-            {aiProducts.map((item) => (
-              <article key={item.id} className="productMini">
-                <div className="emojiCard">{item.emoji}</div>
-                <strong>{item.name}</strong>
-                <span>{item.priceLabel}</span>
-                <small>적합도 {item.fitScore}%</small>
-                <div className="cardActions two">
-                  <button className="ghost minor" onClick={() => addToCart(item)}>담기</button>
-                  <button onClick={() => navigate('layout')}>배치에 담기</button>
-                </div>
-              </article>
-            ))}
-          </div>
-          <div className="reasonBox"><strong>AI 코멘트</strong> {summary}</div>
-        </div>
+    <section className="authSessionNotice" aria-live="polite">
+      <div>
+        <strong>{notice.title}</strong>
+        <p>{notice.body}</p>
       </div>
-    </div>
-  )
-}
-
-function SpaceSelectScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, selectedSpaces, setSelectedSpaces, onOpenLogin }) {
-  const zones = baseZones.map((zone) => ({ ...zone, selected: selectedSpaces.includes(zone.id) }))
-  const chosen = zones.filter((zone) => zone.selected)
-
-  return (
-    <div className="screenCanvas sandBg">
-      <Header active="AI 추천" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
-      <section className="cardStage">
-        <div className="cardSurface">
-          <div className="progressBar"><span className="fill wide" /></div>
-          <p className="tinyPill">평면도 기반 선택</p>
-          <h2>어떤 공간을 먼저 꾸밀까요?</h2>
-          <p className="muted">평면도 영역과 오른쪽 요약 패널이 같은 선택 상태를 공유합니다. 최소 1개 이상 선택할 수 있어요.</p>
-          <div className="spaceLayout">
-            <div className="planBoard">
-              <div className="compass">N</div>
-              {zones.map((zone) => (
-                <button
-                  key={zone.id}
-                  className={`zone ${zone.className} ${zone.selected ? 'selected' : ''}`}
-                  onClick={() => setSelectedSpaces((current) => current.includes(zone.id) ? (current.length === 1 ? current : current.filter((id) => id !== zone.id)) : [...current, zone.id])}
-                >
-                  <b>{zone.icon}</b><span>{zone.name}</span>
-                </button>
-              ))}
-            </div>
-            <aside className="selectionPanel">
-              <h3>선택된 공간</h3>
-              {chosen.map((item) => (
-                <div className="selectionItem" key={item.id}><span>{item.icon}</span><div><strong>{item.name}</strong><small>{item.size}</small></div></div>
-              ))}
-              <div className="selectionTotal"><span>총 선택</span><b>{chosen.length}개</b></div>
-            </aside>
-          </div>
-          <div className="footerButtons">
-            <button className="ghost" onClick={() => navigate('ai')}>이전</button>
-            <button className="cta small" onClick={() => navigate('layout')}>다음 단계 →</button>
-          </div>
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function LayoutEditorScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, editor, addToCart, addressSummary, onOpenLogin, trackFurniturePlacement }) {
-  const selectedMeta = libraryItems.find((item) => item.id === editor.selected?.sourceId)
-  const categoryTabs = ['전체', '소파', '테이블', '수납', '소품', '조명']
-  const [activeCategory, setActiveCategory] = React.useState('전체')
-  const [librarySearch, setLibrarySearch] = React.useState('')
-  const roomFrameRef = React.useRef(null)
-
-  const visibleLibrary = libraryItems.filter((item) => {
-    const matchesCategory = activeCategory === '전체' || item.category === activeCategory
-    const matchesSearch = `${item.name} ${item.category}`.toLowerCase().includes(librarySearch.toLowerCase())
-    return matchesCategory && matchesSearch
-  })
-
-  const handlePointerMove = React.useCallback((event) => {
-    editor.updateDrag(event)
-  }, [editor])
-
-  const handlePointerUp = React.useCallback((event) => {
-    if (editor.dragState && event?.pointerId === editor.dragState.pointerId) {
-      roomFrameRef.current?.releasePointerCapture?.(event.pointerId)
-    }
-    editor.endDrag()
-  }, [editor])
-
-  const handleRoomClick = React.useCallback((event) => {
-    if (event.target !== event.currentTarget) return
-    if (editor.activeTool !== 'move' || editor.dragState || !editor.selected) return
-
-    const bounds = roomFrameRef.current?.getBoundingClientRect()
-    if (!bounds?.width || !bounds?.height) return
-
-    const percentX = ((event.clientX - bounds.left) / bounds.width) * 100
-    const percentY = ((event.clientY - bounds.top) / bounds.height) * 100
-    const targetX = clamp(percentX - ((editor.selected.w ?? 0) / 2), 2, 88)
-    const targetY = clamp(percentY - ((editor.selected.h ?? 0) / 2), 2, 82)
-    editor.moveSelectedTo(targetX, targetY)
-  }, [editor])
-
-  return (
-    <div className="screenCanvas editorBg">
-      <Header dark active="내가 배치하기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
-      <section className="editorLayout">
-        <aside className="editorSide left">
-          <div className="sideHead"><h3>가구 라이브러리</h3><input value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="가구 검색" /></div>
-          <div className="tabRow">
-            {categoryTabs.map((tab) => <button key={tab} className={`mini ${activeCategory === tab ? 'solid' : ''}`} onClick={() => setActiveCategory(tab)}>{tab}</button>)}
-          </div>
-          <div className="dragGrid">
-            {visibleLibrary.map((item) => (
-              <button key={item.id} className="dragCard buttonCard" onClick={() => { editor.addLibraryItem(item); trackFurniturePlacement() }}>
-                <span>{item.emoji}</span><strong>{item.name}</strong><small>{item.size}</small>
-              </button>
-            ))}
-          </div>
-        </aside>
-        <div className="editorCenter">
-          <div className="toolbar">
-            <button className={`tool ${editor.activeTool === 'select' ? 'active' : ''}`} onClick={() => editor.setActiveTool('select')}>✥</button>
-            <button className={`tool ${editor.activeTool === 'move' ? 'active' : ''}`} onClick={() => editor.setActiveTool('move')}>✋</button>
-            <button className={`tool ${editor.activeTool === 'color' ? 'active' : ''}`} onClick={() => { editor.setActiveTool('color'); editor.cycleColor() }}>◉</button>
-            <button className={`tool ${editor.activeTool === 'rotate' ? 'active' : ''}`} onClick={() => { editor.setActiveTool('rotate'); editor.rotateSelected() }}>⟲</button>
-            <button className="tool" onClick={editor.undo}>↶</button>
-          </div>
-          <div className="editorCanvasShell">
-            <div className="editorCanvasMeta">
-              <span>{addressSummary}</span>
-              <button className={`metaToggle ${editor.snapOn ? 'on' : ''}`} onClick={() => editor.setSnapOn((current) => !current)}>{editor.snapOn ? '스냅 ON' : '스냅 OFF'}</button>
-              <span>{editor.notice}</span>
-            </div>
-            <div className="editorHintRow">
-              <span className="editorHintBadge">PRESS + DRAG / CLICK MOVE</span>
-              <p>가구를 누른 채 바로 끌어도 되고, ✋ 이동 툴에서 빈 공간을 클릭하면 선택한 가구가 부드럽게 이동해요. 스냅을 끄면 더 자유롭게 배치할 수 있어요.</p>
-            </div>
-            <div className="editorRoomFrame">
-              <div className={`editorRoom ${editor.dragState ? 'is-dragging' : ''}`}>
-                <div className="grid" />
-                <div
-                  ref={roomFrameRef}
-                  className="roomFrame"
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
-                  onPointerCancel={handlePointerUp}
-                  onLostPointerCapture={handlePointerUp}
-                  onClick={handleRoomClick}
-                >
-                  {editor.items.map((item) => {
-                    const itemMeta = libraryItems.find((entry) => entry.id === item.sourceId)
-                    const isDragging = editor.dragState?.itemId === item.id
-                    return (
-                      <button
-                        key={item.id}
-                        className={`placed ${editor.selectedId === item.id ? 'sel' : ''} ${item.circle ? 'circle' : ''} ${isDragging ? 'dragging' : ''}`}
-                        style={{
-                          left: `${item.x}%`,
-                          top: `${item.y}%`,
-                          width: `${item.w}%`,
-                          height: `${item.h}%`,
-                          transform: `rotate(${item.rotation}deg)`,
-                          background: itemMeta?.colors?.[item.colorIndex ?? 0] ?? '#e6d7bf',
-                        }}
-                        onClick={() => editor.setSelectedId(item.id)}
-                        onPointerDown={(event) => {
-                          if (event.button !== 0) return
-                          const bounds = roomFrameRef.current?.getBoundingClientRect()
-                          if (!bounds) return
-                          event.preventDefault()
-                          roomFrameRef.current?.setPointerCapture?.(event.pointerId)
-                          editor.beginDrag(item.id, event, bounds)
-                        }}
-                      >
-                        {item.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="infoPills"><span>거실 5400 x 3400</span><span>{editor.snapOn ? '스냅 ON' : '자유 이동'}</span><span>배치 가구 {editor.items.length}개</span></div>
-          <div className="recommendStrip">
-            {aiProducts.map((item) => (
-              <button key={item.id} className="recommendCard buttonCard" onClick={() => { editor.addLibraryItem(item); trackFurniturePlacement() }}>
-                <div>{item.emoji}</div><strong>{item.name}</strong><small>{item.priceLabel}</small>
-              </button>
-            ))}
-          </div>
-        </div>
-        <aside className="editorSide right">
-          <div className="sideHead"><h3>속성 패널</h3></div>
-          <div className="propBlock"><label>선택 오브젝트</label><strong>{editor.selected?.name ?? '선택 없음'}</strong></div>
-          <div className="propBlock"><label>위치</label><div className="split"><span>X {Math.round(editor.selected?.x ?? 0)}</span><span>Y {Math.round(editor.selected?.y ?? 0)}</span></div></div>
-          <div className="propBlock"><label>컬러</label><div className="colorDots">{(selectedMeta?.colors ?? ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355']).slice(0, 4).map((color, index) => <button key={color} className={`colorDot ${index === (editor.selected?.colorIndex ?? 0) ? 'active' : ''}`} style={{ background: color }} onClick={() => editor.setSelectedColor(index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
-          <div className="propBlock"><label>배치 메모</label><p>{selectedMeta?.blurb ?? '선택한 오브젝트의 활용 팁이 여기에 표시됩니다.'}</p></div>
-          <div className="propBlock"><label>이동 방식</label><p>직접 드래그는 그대로 유지하고, ✋ 이동 툴에서는 빈 공간 클릭 시 선택 가구가 부드럽게 이동합니다. Undo와 스냅 토글도 그대로 유지했어요.</p></div>
-          <div className="propBlock actionBlock"><button className="cta" onClick={() => navigate('beds')}>가구 더 보기</button><button className="ghost" onClick={() => openOverlay('address')}>공간 다시 선택</button><button className="ghost" onClick={() => selectedMeta && addToCart(selectedMeta)}>선택 가구 담기</button><button className="ghost" onClick={editor.reset}>초기 배치 복원</button></div>
-        </aside>
-      </section>
-    </div>
-  )
-}
-
-function AddressSetupScreen({ navigate, closeOverlay, addressForm, setAddressForm, trackBoardProgress }) {
-  const overlayZones = baseZones.filter((zone) => ['living', 'kitchen', 'bed1', 'bed2'].includes(zone.id))
-
-  return (
-    <div className="setupCard">
-      <div className="overlayHeader"><span>공간 정보 연결</span><button className="overlayClose" onClick={closeOverlay}>✕</button></div>
-      <div className="setupInner">
-        <div className="progressBar"><span className="fill half" /></div>
-        <h2>배치하기 전에 공간 정보를 불러올게요</h2>
-        <p className="muted">주소/타입/시작 공간을 오버레이 안에서 바로 수정할 수 있게 정리했습니다.</p>
-        <label>아파트 또는 주소 검색</label>
-        <div className="inputWrap big">🔎<input value={addressForm.query} onChange={(event) => setAddressForm((current) => ({ ...current, query: event.target.value }))} /></div>
-        <div className="resultCard selected"><strong>{addressForm.query || '주소를 입력해보세요'}</strong><span>실측 평면도 · 거실/침실/주방 데이터 제공</span></div>
-        <div className="typeStrip">{apartmentTypes.map((type) => <button key={type} className={addressForm.apartmentType === type ? 'solid' : ''} onClick={() => setAddressForm((current) => ({ ...current, apartmentType: type }))}>{type}</button>)}</div>
-        <div className="spaceLayout compact">
-          <div className="planBoard small">
-            {overlayZones.map((zone) => (
-              <button key={zone.id} className={`zone ${zone.className} ${addressForm.spaces.includes(zone.id) ? 'selected' : ''}`} onClick={() => { trackBoardProgress(); setAddressForm((current) => ({ ...current, spaces: current.spaces.includes(zone.id) ? current.spaces.filter((id) => id !== zone.id) : [...current.spaces, zone.id] })) }}>
-                <b>{zone.icon}</b><span>{zone.name}</span>
-              </button>
-            ))}
-          </div>
-          <aside className="selectionPanel narrow">
-            <h3>시작할 공간</h3>
-            {overlayZones.filter((zone) => addressForm.spaces.includes(zone.id)).map((zone) => (
-              <div className="selectionItem" key={zone.id}><span>{zone.icon}</span><div><strong>{zone.name}</strong><small>{zone.size}</small></div></div>
-            ))}
-          </aside>
-        </div>
-        <div className="footerButtons"><button className="ghost" onClick={closeOverlay}>닫기</button><button className="cta small" onClick={() => { trackBoardProgress(); closeOverlay(); navigate('layout') }}>에디터 열기</button></div>
+      <div className="authSessionNoticeActions">
+        {primaryActionLabel && (
+          <button className="ghost mini" onClick={handlePrimaryAction}>{primaryActionLabel}</button>
+        )}
+        <button className="ghost mini" onClick={onLogout}>로그아웃</button>
+        <button className="mini" onClick={onDismiss} aria-label="계정 안내 닫기">닫기</button>
       </div>
-    </div>
+    </section>
   )
 }
 
-function BedsCategoryScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, quickViewOpen, addToCart, filters, setFilters, items, wishlistedIds, toggleWishlist, onOpenLogin }) {
-  const filterGroups = {
-    size: ['전체', '슈퍼싱글', '퀸', '킹'],
-    color: ['전체', '아이보리', '베이지', '우드', '그레이'],
-    material: ['전체', '패브릭', '원목', '리넨', '합성패브릭'],
-    fit: ['전체', '85', '90'],
-  }
-
-  return (
-    <div className="screenCanvas plainBg">
-      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
-      <div className="subnav">전체 · 소파 · 테이블 · 수납 · <b>침대</b> · 조명 · 패브릭</div>
-      <section className="catalogWrap">
-        <aside className="filterCol">
-          <h3>필터</h3>
-          <div className="inputWrap compactInput">🔎<input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="제품명/색상 검색" /></div>
-          {Object.entries(filterGroups).map(([key, options]) => (
-            <div key={key} className="filterBox">
-              <strong>{key === 'fit' ? 'AI 적합도' : key === 'size' ? '사이즈' : key === 'color' ? '색상' : '소재'}</strong>
-              <div className="filterChips">
-                {options.map((option) => (
-                  <button key={option} className={filters[key] === option ? 'solid mini' : 'mini'} onClick={() => setFilters((current) => ({ ...current, [key]: option }))}>{key === 'fit' && option !== '전체' ? `${option}%+` : option}</button>
-                ))}
-              </div>
-            </div>
-          ))}
-          <button className="ghost full" onClick={() => setFilters({ search: '', sorts: 'recommended', size: '전체', color: '전체', material: '전체', fit: '전체' })}>필터 초기화</button>
-        </aside>
-        <div className="catalogMain">
-          <div className="catalogHero">
-            <div><p className="breadcrumb">가구 먼저 찾기 / 침실 / 침대</p><h2>침대 <em>{items.length}개</em></h2><p className="muted">검색, 필터, 정렬, 찜, 빠른 보기까지 프론트 상태로 연결해 두었습니다.</p></div>
-            <div className="sorts"><button className={`mini ${filters.sorts === 'recommended' ? 'solid' : ''}`} onClick={() => setFilters((current) => ({ ...current, sorts: 'recommended' }))}>추천순</button><button className={`mini ${filters.sorts === 'priceLow' ? 'solid' : ''}`} onClick={() => setFilters((current) => ({ ...current, sorts: 'priceLow' }))}>낮은 가격순</button><button className={`mini ${filters.sorts === 'fit' ? 'solid' : ''}`} onClick={() => setFilters((current) => ({ ...current, sorts: 'fit' }))}>AI 적합도</button></div>
-          </div>
-          <div className="productGrid3">
-            {items.map((item) => (
-              <article key={item.id} className="shopCard">
-                <div className="shopVisual"><span className="badgeTag">{item.badge}</span><button className={`wish ${wishlistedIds.includes(item.id) ? 'active' : ''}`} onClick={() => toggleWishlist(item.id)}>{wishlistedIds.includes(item.id) ? '♥' : '♡'}</button><div className="bigEmoji">{item.emoji}</div><div className="fitTag">{item.fit}</div></div>
-                <div className="shopInfo"><small>HAVENLY SELECT</small><h4>{item.name}</h4><p>{item.review} · {item.color} · {item.material}</p><div className="priceLine"><strong>{item.priceLabel}</strong></div><div className="cardActions"><button onClick={() => quickViewOpen(item)}>빠른 보기</button><button className="ghost minor" onClick={() => addToCart(item)}>담기</button></div></div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function FurnitureHomeScreen({ navigate, openOverlay, openCart, cartCount, onSearchOpen, addToCart, onOpenLogin, trackBoardProgress }) {
-  return (
-    <div className="screenCanvas plainBg">
-      <Header active="가구 먼저 찾기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} />
-      <section className="heroBanner">
-        <div>
-          <div className="eyebrow darkEyebrow">FURNITURE FIRST</div>
-          <h2>먼저 가구를 찾고, <em>내 공간 적합도</em>를 확인하세요</h2>
-          <p>홈 → 카테고리 → 배치하기 흐름이 새 페이지 로딩처럼 느껴지지 않도록 유지하면서, 검색/장바구니/빠른 연결 요소들을 실제로 반응하게 만들었습니다.</p>
-          <div className="heroActions"><button className="cta" onClick={() => navigate('beds')}>지금 둘러보기</button><button className="ghost" onClick={() => { trackBoardProgress(); openOverlay('address') }}>내 공간 연결</button></div>
-        </div>
-        <div className="heroCards">
-          <div className="floatingCard"><span>🛋️</span><strong>웜 베이지 소파</strong><small>AI 적합도 96%</small><button className="ghost minor" onClick={() => addToCart(aiProducts[0])}>담기</button></div>
-          <div className="floatingCard lifted"><span>🛏️</span><strong>패브릭 침대</strong><small>침실 추천</small><button className="ghost minor" onClick={() => navigate('beds')}>보러가기</button></div>
-        </div>
-      </section>
-      <section className="aiStrip"><div><strong>AI 매칭</strong><span>내 공간 정보로 가구 사이즈/동선 적합도를 바로 확인</span></div><button className="ghost dark" onClick={() => navigate('ai')}>AI 추천 시작</button></section>
-      <section className="iconCategories">
-        {['소파','침대','테이블','수납','조명','패브릭'].map((name, i) => <button key={name} className={`iconCat ${i===1?'active':''}`} onClick={() => navigate(i === 1 ? 'beds' : 'home')}><div>{['🛋️','🛏️','🪑','🗄️','💡','🧺'][i]}</div><span>{name}</span></button>)}
-      </section>
-      <section className="collections">
-        <button className="collection large buttonCard" onClick={() => navigate('ai')}><div>🏡</div><div><strong>내추럴 리빙 컬렉션</strong><span>24 products</span></div></button>
-        <button className="collection buttonCard" onClick={() => navigate('beds')}><div>🌙</div><div><strong>호텔라이크 침실</strong></div></button>
-        <button className="collection buttonCard" onClick={() => { trackBoardProgress(); openOverlay('address') }}><div>☁️</div><div><strong>소프트 모노톤</strong></div></button>
-        <button className="collection buttonCard" onClick={() => navigate('layout')}><div>🌿</div><div><strong>우드 & 플랜트</strong></div></button>
-      </section>
-      <section className="hScrollProducts">
-        {bedProducts.slice(0,5).map((item) => <article key={item.id} className="scrollCard"><div className="bigEmoji">{item.emoji}</div><small>HAVENLY SELECT</small><strong>{item.name}</strong><span>{item.priceLabel}</span><button onClick={() => addToCart(item)}>장바구니 담기</button></article>)}
-      </section>
-    </div>
-  )
-}
-
-function CartDrawer({ cart, onClose }) {
+function CartDrawer({ cart, authSession, onOpenLogin, onClose }) {
   return (
     <div className="drawerLayer" role="dialog" aria-modal="true">
       <div className="overlayScrim" onClick={onClose} />
@@ -1168,7 +2315,7 @@ function CartDrawer({ cart, onClose }) {
         <div className="overlayHeader"><span>장바구니</span><button className="overlayClose" onClick={onClose}>✕</button></div>
         <div className="drawerBody">
           {!cart.items.length ? (
-            <div className="emptyState"><div className="emptyEmoji">🛒</div><strong>장바구니가 비어있어요</strong><p>추천 상품에서 ‘담기’를 눌러 프론트 전용 장바구니 흐름을 테스트해보세요.</p></div>
+            <div className="emptyState"><div className="emptyEmoji">🛒</div><strong>장바구니가 비어있어요</strong><p>마음에 드는 상품을 담아두고 로그인 후 이어갈 수 있어요.</p></div>
           ) : (
             <>
               <div className="cartList">
@@ -1180,7 +2327,24 @@ function CartDrawer({ cart, onClose }) {
                 ))}
               </div>
               <div className="cartSummary"><span>소계</span><strong>{formatPrice(cart.subtotal)}</strong></div>
-              <div className="footerButtons stackOnMobile"><button className="ghost" onClick={cart.clear}>비우기</button><button className="cta">주문하기 (데모)</button></div>
+              <div className="footerButtons stackOnMobile">
+                <button className="ghost" onClick={cart.clear}>비우기</button>
+                <button
+                  className="cta"
+                  onClick={() => {
+                    if (authSession) return
+                    onOpenLogin({
+                      source: 'cart-drawer',
+                      action: 'checkout-cart',
+                      label: '로그인 후 주문 이어가기',
+                      draftLabel: `장바구니 ${cart.count}개`,
+                      returnScreen: 'home',
+                    })
+                  }}
+                >
+                  {authSession ? '주문하기 (데모)' : '로그인 후 주문 이어가기'}
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -1189,104 +2353,202 @@ function CartDrawer({ cart, onClose }) {
   )
 }
 
-function SearchDrawer({ query, setQuery, results, onClose, onPick }) {
-  return (
-    <div className="drawerLayer" role="dialog" aria-modal="true">
-      <div className="overlayScrim" onClick={onClose} />
-      <aside className="drawerPanel searchDrawer">
-        <div className="overlayHeader"><span>통합 검색</span><button className="overlayClose" onClick={onClose}>✕</button></div>
-        <div className="drawerBody">
-          <div className="inputWrap big">🔎<input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="가구명, 소재, 카테고리를 검색해보세요" /></div>
-          <div className="searchResults">
-            {results.map((item) => (
-              <button key={item.id} className="searchResult" onClick={() => onPick(item)}>
-                <span>{item.emoji}</span>
-                <div><strong>{item.name}</strong><small>{item.priceLabel ?? formatPrice(item.price)}</small></div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </aside>
-    </div>
-  )
-}
-
-
-function LoginModal({ state, engagement, reasons, onClose, onProceed }) {
+function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authErrorSummary, authConnectionSummary, authReadyPanelState, guestDraftSnapshot, identityVerification, onStartVerification, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
   const guarded = state === 'guard'
+  const modeLabels = buildAuthModeLabels(form.mode)
+  const activePlan = form.mode === 'signup' ? authSignupPlan : authSubmitPlan
+  const guardPanelState = buildAuthGuardPanelState({
+    engagement,
+    reasons,
+    guestDraftSnapshot,
+    authSummary: authSubmitPlan.summary,
+    connection: authConnectionSummary,
+    intent: form.intent,
+  })
+  const loginPanelState = buildAuthLoginPanelState({
+    authSummary: activePlan.summary,
+    connection: authConnectionSummary,
+    intent: form.intent,
+  })
+  const isMergeContinuationPending = form.continuation?.nextAction === 'confirm-merge-resolution'
+  const showReadyPanel = form.status === 'ready' && authReadyPanelState
+  const allowedMergeResolutions = authErrorSummary?.allowedMergeResolutions ?? []
+  const mergeResolutionLabels = {
+    'keep-guest': '현재 초안으로 계속',
+    'replace-with-account': '계정 상태 우선',
+  }
+  const readyDisabled = Boolean(authReadyPanelState?.primaryActionDisabled || form.status === 'submitting')
 
   return (
     <div className="overlayLayer" role="dialog" aria-modal="true" aria-labelledby="login-title">
       <div className="overlayScrim" onClick={onClose} />
-      <div className="loginPanel">
+      <div className="loginPanel" data-auth-modal-state={guarded ? 'guard' : form.status}>
         <div className="overlayHeader">
           <span>{guarded ? '로그인 전 확인' : 'HAVENLY 로그인'}</span>
           <button className="overlayClose" onClick={onClose}>✕</button>
         </div>
         <div className="loginContent">
-          <div className="loginBadge">ACCOUNT</div>
-          <h2 id="login-title">{guarded ? '진행 중인 작업이 있어요. 그대로 로그인할까요?' : '로그인하고 추천 · 보드 · 장바구니를 이어서 관리하세요'}</h2>
-          <p className="muted">{guarded ? '게스트 상태에서 만든 초안과 활동이 있어 먼저 안내해드려요. 계속하면 계정과 연결하거나 새 상태로 전환될 수 있습니다.' : '페이지를 떠나지 않고 바로 계정을 연결하는 온보딩 블록입니다. 저장한 보드, AI 추천 이력, 찜 목록을 한 번에 이어볼 수 있어요.'}</p>
+          <div className="loginBadge">{guarded ? 'ACCOUNT' : modeLabels.badge}</div>
+          <h2 id="login-title">{guarded ? '진행 중인 작업을 로그인 후에도 이어갈까요?' : modeLabels.title}</h2>
 
           {guarded ? (
             <>
               <div className="loginGuardCard">
-                <strong>현재 감지된 진행 내역</strong>
+                <strong>계속 이어질 내용</strong>
                 <div className="loginReasonList">
                   {reasons.map((reason) => <span key={reason}>{reason}</span>)}
                 </div>
-                <div className="guardSummary">
-                  <div><label>AI 요청</label><b>{engagement.aiRequests}회</b></div>
-                  <div><label>가구 배치</label><b>{engagement.furniturePlacements}회</b></div>
-                  <div><label>보드 초안</label><b>{engagement.draftBoards}개</b></div>
+                <div className="guardSummary compact">
+                  <div><label>선택 공간</label><b>{guardPanelState.selectedSpaceCount}개</b></div>
+                  <div><label>추천 초안</label><b>{guardPanelState.recommendationRoom ?? '없음'}</b></div>
+                  <div><label>배치 아이템</label><b>{guardPanelState.layoutItemCount}개</b></div>
+                  <div><label>찜</label><b>{engagement.wishlistCount}개</b></div>
+                  <div><label>장바구니</label><b>{engagement.cartCount}개</b></div>
                 </div>
+                {guardPanelState.draftContextBits.length > 0 && (
+                  <p className="muted">{guardPanelState.draftContextBits.join(' · ')}</p>
+                )}
+                {guardPanelState.intentLabel && (
+                  <p className="muted">{guardPanelState.intentLabel}{guardPanelState.intentDraftLabel ? ` · ${guardPanelState.intentDraftLabel}` : ''}</p>
+                )}
               </div>
               <div className="footerButtons stackOnMobile">
                 <button className="ghost" onClick={onClose}>계속 둘러보기</button>
-                <button className="cta" onClick={onProceed}>그래도 로그인하기</button>
+                <button className="cta" onClick={onProceed}>로그인 계속하기</button>
               </div>
             </>
+          ) : showReadyPanel ? (
+            <div className="loginForm">
+              <div className="loginGuardCard authPrepCard">
+                <strong>{authReadyPanelState.title}</strong>
+                <p className="muted">{authReadyPanelState.subtitle}</p>
+                {authReadyPanelState.intentLabel && (
+                  <p className="muted">{authReadyPanelState.intentLabel}{authReadyPanelState.intentDraftLabel ? ` · ${authReadyPanelState.intentDraftLabel}` : ''}</p>
+                )}
+
+                {authReadyPanelState.nextAction === 'complete-profile' && (
+                  <>
+                    <label>닉네임</label>
+                    <div className="inputWrap big">👤<input value={authContinuationFields.displayName} onChange={(event) => onChangeContinuationField('displayName', event.target.value)} placeholder="홍길동" /></div>
+                    <label>연락처</label>
+                    <div className="inputWrap big">📱<input value={authContinuationFields.phone} onChange={(event) => onChangeContinuationField('phone', event.target.value)} placeholder="010-1234-5678" /></div>
+                  </>
+                )}
+
+                {authReadyPanelState.nextAction === 'verify-email' && (
+                  <>
+                    <label>인증 코드</label>
+                    <div className="inputWrap big">✅<input value={authContinuationFields.verificationCode} onChange={(event) => onChangeContinuationField('verificationCode', event.target.value)} placeholder="123456" /></div>
+                    <div className="footerButtons stackOnMobile">
+                      <button className="ghost" type="button" onClick={() => onStartVerification(form.continuation ?? authReadyPanelState)}>
+                        본인 인증 창 열기
+                      </button>
+                    </div>
+                    {identityVerification?.message && (
+                      <p className={identityVerification.status === 'verified' ? 'statusSuccess' : 'muted'}>{identityVerification.message}</p>
+                    )}
+                  </>
+                )}
+
+                {authReadyPanelState.nextAction === 'confirm-merge-resolution' && (
+                  <>
+                    <div className="footerButtons stackOnMobile">
+                      <button className="ghost" onClick={() => onChangeContinuationField('mergeResolution', 'keep-guest')}>
+                        {authContinuationFields.mergeResolution === 'keep-guest' ? '선택됨 · 현재 초안으로 계속' : '현재 초안으로 계속'}
+                      </button>
+                      <button className="ghost" onClick={() => onChangeContinuationField('mergeResolution', 'replace-with-account')}>
+                        {authContinuationFields.mergeResolution === 'replace-with-account' ? '선택됨 · 계정 상태로 계속' : '계정 상태로 계속'}
+                      </button>
+                    </div>
+                    {authContinuationFields.mergeResolution && (
+                      <p className="muted">{authContinuationFields.mergeResolution === 'keep-guest' ? '현재 게스트 초안을 유지하고 이어갑니다.' : '계정에 저장된 상태를 우선 적용하고 이어갑니다.'}</p>
+                    )}
+                  </>
+                )}
+
+                {authContinuationPlan.summary.missingFields.length > 0 && (
+                  <p className="muted">계속하려면 {authContinuationPlan.summary.missingFields.map(buildAuthContinuationFieldLabel).join(', ')} 항목을 먼저 채워주세요.</p>
+                )}
+              </div>
+              <div className="footerButtons stackOnMobile">
+                <button className="ghost" onClick={onClose}>닫기</button>
+                {authReadyPanelState.nextAction === 'complete-profile' || authReadyPanelState.nextAction === 'verify-email' || authReadyPanelState.nextAction === 'confirm-merge-resolution' ? (
+                  <button className="cta" disabled={readyDisabled || !authContinuationPlan.canSubmit} onClick={onSubmitContinuation}>
+                    {form.status === 'submitting' ? '연결 중…' : authReadyPanelState.primaryActionLabel}
+                  </button>
+                ) : (
+                  <button className="cta" disabled={form.status === 'submitting'} onClick={onResumeAuthenticatedIntent}>
+                    {form.status === 'submitting' ? '연결 중…' : authReadyPanelState.primaryActionLabel}
+                  </button>
+                )}
+              </div>
+            </div>
           ) : (
             <>
-              <div className="loginBenefits">
-                <div><strong>AI 이력 저장</strong><span>공간별 추천 결과를 다시 불러올 수 있어요.</span></div>
-                <div><strong>보드 이어서 작업</strong><span>배치 중인 가구와 평면도 초안을 계정에 연결합니다.</span></div>
-                <div><strong>찜 · 장바구니 동기화</strong><span>디바이스가 바뀌어도 선택을 이어갈 수 있어요.</span></div>
+              <div className="authModeSwitch" role="tablist" aria-label="인증 방식 선택">
+                <button className={form.mode === 'login' ? 'solid mini' : 'mini'} onClick={() => onChangeForm('mode', 'login')}>로그인</button>
+                <button className={form.mode === 'signup' ? 'solid mini' : 'mini'} onClick={() => onChangeForm('mode', 'signup')}>회원가입</button>
               </div>
-              <div className="loginForm">
-                <label>이메일</label>
-                <div className="inputWrap big">✉️<input placeholder="name@example.com" /></div>
-                <label>비밀번호</label>
-                <div className="inputWrap big">🔒<input type="password" placeholder="8자 이상 입력" /></div>
-                <div className="footerButtons stackOnMobile">
-                  <button className="ghost" onClick={onClose}>회원가입</button>
-                  <button className="cta" onClick={onClose}>로그인</button>
+              {(form.intent?.label || loginPanelState.draftSaveBits.length > 0) && (
+                <div className="loginBenefits">
+                  {form.intent?.label && (
+                    <div><strong>이번 로그인 목적</strong><span>{form.intent.label}{form.intent.draftLabel ? ` · ${form.intent.draftLabel}` : ''}</span></div>
+                  )}
+                  {loginPanelState.draftSaveBits.length > 0 && (
+                    <div><strong>이어질 보드</strong><span>{loginPanelState.draftSaveBits.join(' · ')}</span></div>
+                  )}
                 </div>
+              )}
+              <div className="loginForm">
+                {form.mode === 'signup' && (
+                  <>
+                    <label>이름</label>
+                    <div className="inputWrap big">👤<input value={form.displayName} onChange={(event) => onChangeForm('displayName', event.target.value)} placeholder="홍길동" /></div>
+                  </>
+                )}
+                <label>이메일</label>
+                <div className="inputWrap big">✉️<input value={form.email} onChange={(event) => onChangeForm('email', event.target.value)} placeholder="name@example.com" /></div>
+                <label>비밀번호</label>
+                <div className="inputWrap big">🔒<input type="password" value={form.password} onChange={(event) => onChangeForm('password', event.target.value)} placeholder="8자 이상 입력" /></div>
+                {form.mode === 'signup' && (
+                  <>
+                    <label>비밀번호 확인</label>
+                    <div className="inputWrap big">✅<input type="password" value={form.confirmPassword} onChange={(event) => onChangeForm('confirmPassword', event.target.value)} placeholder="비밀번호를 한 번 더 입력" /></div>
+                    <label className="authCheckbox"><input type="checkbox" checked={form.agreeToTerms} onChange={(event) => onChangeForm('agreeToTerms', event.target.checked)} /> <span>현재 초안을 계정에 안전하게 연결하는 데 동의합니다.</span></label>
+                  </>
+                )}
+                {isMergeContinuationPending && (
+                  <div className="loginGuardCard authPrepCard">
+                    <strong>초안 병합 방향을 선택해 주세요</strong>
+                    <p className="muted">{authErrorSummary?.message ?? '현재 게스트 초안과 계정 상태 중 어떤 쪽을 이어갈지 선택해 주세요.'}</p>
+                    <div className="footerButtons stackOnMobile">
+                      {(allowedMergeResolutions.length > 0 ? allowedMergeResolutions : ['keep-guest', 'replace-with-account']).map((resolution) => (
+                        <button key={resolution} className="ghost" onClick={() => onChangeForm('mergeResolution', resolution)}>
+                          {form.mergeResolution === resolution ? `선택됨 · ${mergeResolutionLabels[resolution] ?? resolution}` : (mergeResolutionLabels[resolution] ?? resolution)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {authStatusMessage?.body && !isMergeContinuationPending && <p className="muted">{authStatusMessage.body}</p>}
+              </div>
+              <div className="footerButtons stackOnMobile">
+                <button className="ghost" onClick={() => onChangeForm('mode', modeLabels.alternateMode)}>{modeLabels.alternateLabel}</button>
+                {form.status === 'resume-ready' && <button className="ghost" onClick={onDismissResume}>이전 로그인 시도 지우기</button>}
+                <button
+                  className="cta"
+                  disabled={(!activePlan.canSubmit && !(isMergeContinuationPending && Boolean(form.mergeResolution))) || form.status === 'submitting'}
+                  onClick={() => onSubmit()}
+                >
+                  {form.status === 'submitting'
+                    ? '준비 중…'
+                    : isMergeContinuationPending && form.mergeResolution
+                      ? (mergeResolutionLabels[form.mergeResolution] ?? form.mergeResolution)
+                      : modeLabels.submitLabel}
+                </button>
               </div>
             </>
           )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function QuickViewModal({ product, onClose, onAddToCart, onApplyToLayout, trackFurniturePlacement }) {
-  return (
-    <div className="overlayLayer" role="dialog" aria-modal="true">
-      <div className="overlayScrim" onClick={onClose} />
-      <div className="quickViewPanel">
-        <div className="overlayHeader"><span>빠른 보기</span><button className="overlayClose" onClick={onClose}>✕</button></div>
-        <div className="quickViewContent">
-          <div className="quickHero">{product.emoji}</div>
-          <div>
-            <p className="tinyPill">{product.badge ?? '추천 상품'}</p>
-            <h3>{product.name}</h3>
-            <p className="muted">{product.blurb ?? '공간에 맞는 배치 정보와 상품 요약을 바로 확인할 수 있어요.'}</p>
-            <div className="quickMeta"><span>{product.fit ?? `AI 적합도 ${product.fitScore}%`}</span><span>{product.material ?? product.category}</span><span>{product.size ?? '배치 가능'}</span></div>
-            <strong className="quickPrice">{product.priceLabel ?? formatPrice(product.price)}</strong>
-            <div className="footerButtons stackOnMobile"><button className="ghost" onClick={() => onApplyToLayout(product)}>배치안에 적용</button><button className="cta" onClick={() => onAddToCart(product)}>장바구니 담기</button></div>
-          </div>
         </div>
       </div>
     </div>
