@@ -82,13 +82,26 @@ That pointed directly at the page-level selection presentation helper rather tha
 - no debug/progress/report UI was added to the product surface
 - all investigation details remain in notes/tests only
 
-## Next live verification after push
+## Deploy checkpoint
+- commit: `880a027`
+- message: `Fix restored layout selection name`
+- pushed to: `origin/main`
+
+## Live verification after push
 Against the deployed Pages site with the same public auth backend override:
-1. open `#layout`
-2. trigger `로그인 후 보드 저장`
-3. continue into login
-4. sign in as `board@example.com`
-5. confirm the restored property panel now shows the real furniture name instead of `선택 없음`
+- `https://neujeans.github.io/github-pages-react-hello/?authApiBaseUrl=https%3A%2F%2F5259bf0a93f8b0.lhr.life#layout`
+
+Observed after Pages updated to the new assets:
+- deployed HTML included the new bundle names (`index-DJkpqh7p.js`, `main-_UXPeFoz.js`)
+- the layout property panel now renders:
+  - `선택 오브젝트` → `코튼베이지 모듈 소파`
+  - `위치` → `X 10 / Y 16`
+  - same sofa blurb remains intact
+
+So the customer-facing selection panel is now internally coherent for the restored layout state instead of mixing a real item snapshot with the fallback `선택 없음` label.
+
+### Evidence
+- `playwright-artifacts/live-layout-selection-name-after-fix.png`
 
 ## If this is green
 The next page-scoped auth/layout slice should stay on the layout editor and move to the next real post-login interaction edge, likely one of:
