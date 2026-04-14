@@ -1081,11 +1081,11 @@ function App() {
     authSession,
     editorItems: editor.items,
     trayItems: layoutTrayItems,
-    draftLabel: buildLayoutAddressSummary(selectedApartment),
+    draftLabel: buildLayoutAddressSummary(spaceProfile),
     recommendationRoom: aiForm.room,
     currentRecommendationDraft: aiForm,
     saveState: layoutBoardSaveState,
-  }), [aiForm, authSession, editor.items, layoutBoardSaveState, layoutTrayItems, selectedApartment])
+  }), [aiForm, authSession, editor.items, layoutBoardSaveState, layoutTrayItems, spaceProfile])
 
   const authSubmitPlan = React.useMemo(() => buildAuthSubmitPlan({
     email: loginForm.email,
@@ -2085,12 +2085,12 @@ function App() {
       intent: buildSerializableAuthIntent({
         action: 'save-layout-draft',
         label: '보드 저장 이어가기',
-        draftLabel: buildLayoutAddressSummary(selectedApartment),
+        draftLabel: buildLayoutAddressSummary(spaceProfile),
         returnScreen: 'layout',
       }),
       draftSave: {
         ...authDraftSavePayload,
-        draftLabel: buildLayoutAddressSummary(selectedApartment),
+        draftLabel: buildLayoutAddressSummary(spaceProfile),
         layoutTrayItems: layoutTrayItems.map((item) => ({ ...item })),
       },
     })
