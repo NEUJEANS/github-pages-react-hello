@@ -2115,6 +2115,9 @@ function App() {
       draftSave: {
         ...authDraftSavePayload,
         draftLabel: buildLayoutAddressSummary(spaceProfile),
+        apartmentLabel: selectedApartment
+          ? formatApartmentOption(selectedApartment)
+          : (authDraftSavePayload?.apartmentLabel ?? null),
         apartmentSelectionId: selectedApartment?.id ?? spaceProfile.apartmentSelectionId ?? authDraftSavePayload?.apartmentSelectionId ?? null,
         layoutTrayItems: layoutTrayItems.map((item) => ({ ...item })),
       },
