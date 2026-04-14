@@ -282,9 +282,55 @@ function buildDraftSaveState(request = {}, guestDraftSnapshot = null) {
     apartmentLabel: requestDraftSave?.apartmentLabel ?? continuity.apartmentLabel ?? null,
     ...(apartmentSelectionId ? { apartmentSelectionId } : {}),
     recommendationRoom: requestDraftSave?.recommendationRoom ?? guestDraftSnapshot?.recommendationDraft?.room ?? null,
+    ...(requestDraftSave?.recommendationDraft && typeof requestDraftSave.recommendationDraft === 'object' && !Array.isArray(requestDraftSave.recommendationDraft)
+      ? { recommendationDraft: cloneValue(requestDraftSave.recommendationDraft) }
+      : {}),
+    ...(Array.isArray(requestDraftSave?.layoutTrayItems)
+      ? { layoutTrayItems: requestDraftSave.layoutTrayItems.map((item) => ({ ...item })) }
+      : {}),
     selectedSpaceIds,
     layoutItems,
     layoutItemCount: Array.isArray(layoutItems) ? layoutItems.length : 0,
+  }
+}
+
+function buildUpdatedAccountStateForDraftSave(currentSession = null, draftSave = null) {
+  if (!draftSave) return cloneValue(currentSession?.accountState ?? null)
+
+  const baseState = currentSession?.accountState && typeof currentSession.accountState === 'object'
+    ? cloneValue(currentSession.accountState)
+    : {
+        wishlistIds: [],
+        cartItems: [],
+        layoutItems: [],
+        recommendationDraft: null,
+      }
+
+  const recommendationDraft = draftSave.recommendationDraft && typeof draftSave.recommendationDraft === 'object' && !Array.isArray(draftSave.recommendationDraft)
+    ? cloneValue(draftSave.recommendationDraft)
+    : (draftSave.recommendationRoom
+      ? {
+          ...(baseState.recommendationDraft && typeof baseState.recommendationDraft === 'object'
+            ? cloneValue(baseState.recommendationDraft)
+            : {}),
+          room: draftSave.recommendationRoom,
+        }
+      : cloneValue(baseState.recommendationDraft ?? null))
+
+  return {
+    ...baseState,
+    ...(typeof draftSave.apartmentSelectionId === 'string' && draftSave.apartmentSelectionId.trim()
+      ? { apartmentSelectionId: draftSave.apartmentSelectionId.trim() }
+      : {}),
+    layoutItems: Array.isArray(draftSave.layoutItems)
+      ? draftSave.layoutItems.map((item) => ({ ...item }))
+      : cloneValue(baseState.layoutItems ?? []),
+    ...(Array.isArray(draftSave.layoutTrayItems)
+      ? { layoutTrayItems: draftSave.layoutTrayItems.map((item) => ({ ...item })) }
+      : (Array.isArray(baseState.layoutTrayItems)
+        ? { layoutTrayItems: cloneValue(baseState.layoutTrayItems) }
+        : {})),
+    recommendationDraft,
   }
 }
 
@@ -595,6 +641,37 @@ export function submitAuthScaffoldContinuation({ request = {}, connection = null
       actionConnection: sessionActionConnection,
     }
     scaffoldState.session = nextSession
+    return {
+      status: 200,
+      data: cloneValue(nextSession),
+    }
+  }
+
+  if (nextAction === 'save-layout-draft') {
+    const nextDraftSave = buildDraftSaveState(request)
+    const nextAccountState = buildUpdatedAccountStateForDraftSave(currentSession, nextDraftSave)
+    const persistedAccount = persistAccountRecord(currentSession.user?.email ?? '', {
+      user: cloneValue(currentSession.user ?? null),
+      profile: cloneValue(currentSession.profile ?? null),
+      verifiedAt: currentSession.verifiedAt ?? null,
+      accountState: nextAccountState,
+    })
+
+    const nextSession = {
+      ...currentSession,
+      ...(requestIntent ? { intent: requestIntent } : {}),
+      ...(nextDraftSave ? { draftSave: nextDraftSave } : {}),
+      accountState: cloneValue(persistedAccount?.accountState ?? nextAccountState ?? null),
+      handoffId: request.handoffId ?? currentSession.handoffId ?? null,
+      resumeToken: resumeToken || currentSession.resumeToken || null,
+      nextAction: 'save-layout-draft',
+      status: 'ready',
+      statusLabel: '보드 저장 완료',
+      connection: sessionConnection,
+      actionConnection: sessionActionConnection,
+    }
+    scaffoldState.session = nextSession
+
     return {
       status: 200,
       data: cloneValue(nextSession),

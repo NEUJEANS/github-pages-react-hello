@@ -856,6 +856,85 @@ test('submitAuthScaffoldContinuation falls back to the generic authenticated flo
   assert.equal(completed.data.statusLabel, '프로필 준비 완료')
 })
 
+test('submitAuthScaffoldContinuation persists layout saves back into account state for authenticated reloads', () => {
+  resetAuthScaffoldState()
+
+  submitAuthScaffoldRequest({
+    request: {
+      email: 'board@example.com',
+      password: 'password123',
+      handoffId: 'auth-layout-save-1',
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '보드 저장 이어가기',
+        returnScreen: 'layout',
+      },
+      draftSave: {
+        apartmentLabel: '래미안 포레스트 84A',
+        apartmentSelectionId: 'apt-84a',
+        recommendationRoom: '거실',
+        layoutItems: [{ id: 'layout-old' }],
+        layoutTrayItems: [{ id: 'tray-old' }],
+      },
+      guestDraftSnapshot: {
+        spaceProfile: {
+          apartmentSelectionId: 'apt-84a',
+          spaces: ['living'],
+        },
+        recommendationDraft: { room: '거실' },
+        continuity: {
+          apartmentLabel: '래미안 포레스트 84A',
+          layoutItems: [{ id: 'layout-old' }],
+          layoutTrayItems: [{ id: 'tray-old' }],
+        },
+      },
+    },
+  })
+
+  const completed = submitAuthScaffoldContinuation({
+    request: {
+      handoffId: 'auth-layout-save-1',
+      continuation: {
+        resumeToken: 'auth-layout-save-1:resume',
+        nextAction: 'save-layout-draft',
+      },
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '보드 저장 이어가기',
+        returnScreen: 'layout',
+      },
+      draftSave: {
+        apartmentLabel: '아크로 리버뷰 101A',
+        apartmentSelectionId: 'apt-101a',
+        recommendationRoom: '주방',
+        layoutItems: [{ id: 'layout-new' }],
+        layoutTrayItems: [{ id: 'tray-new' }],
+      },
+    },
+  })
+
+  assert.equal(completed.status, 200)
+  assert.equal(completed.data.nextAction, 'save-layout-draft')
+  assert.equal(completed.data.status, 'ready')
+  assert.equal(completed.data.statusLabel, '보드 저장 완료')
+  assert.equal(completed.data.draftSave?.apartmentSelectionId, 'apt-101a')
+  assert.deepEqual(completed.data.accountState, {
+    wishlistIds: [],
+    cartItems: [],
+    apartmentSelectionId: 'apt-101a',
+    layoutItems: [{ id: 'layout-new' }],
+    layoutTrayItems: [{ id: 'tray-new' }],
+    recommendationDraft: { room: '주방' },
+  })
+
+  const resumed = readAuthScaffoldSession()
+  assert.equal(resumed.status, 200)
+  assert.equal(resumed.data.accountState?.apartmentSelectionId, 'apt-101a')
+  assert.deepEqual(resumed.data.accountState?.layoutTrayItems, [{ id: 'tray-new' }])
+})
+
 test('submitAuthScaffoldContinuation can recover the intended post-login flow from the continuation payload when the stored session intent is sparse', () => {
   resetAuthScaffoldState()
 
