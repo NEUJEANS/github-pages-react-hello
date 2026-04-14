@@ -212,6 +212,7 @@ test('save-layout continuation persists the latest layout draft into sqlite-back
         draftSave: {
           draftLabel: '한남 더현대 84A',
           apartmentLabel: '한남 더현대 84A',
+          apartmentSelectionId: 'hannam-hyundai-84a',
           recommendationRoom: '거실',
           recommendationDraft: {
             room: '거실',
@@ -221,6 +222,9 @@ test('save-layout continuation persists the latest layout draft into sqlite-back
             extraRequest: '창가 소파를 중심으로 보고 싶어요',
           },
           selectedSpaceIds: ['living-room'],
+          layoutTrayItems: [
+            { id: 'tray-plant-1', sourceId: 'plant-001', name: '플랜트', priceLabel: '₩89,000' },
+          ],
           layoutItems: [
             { id: 'layout-sofa-1', sourceId: 'sofa-001', x: 24, y: 38, rotation: 0, colorIndex: 1 },
             { id: 'layout-table-1', sourceId: 'table-001', x: 61, y: 46, rotation: 90, colorIndex: 0 },
@@ -233,6 +237,10 @@ test('save-layout continuation persists the latest layout draft into sqlite-back
     assert.equal(continuation.data.nextAction, 'save-layout-draft')
     assert.equal(continuation.data.accountState.layoutItems.length, 2)
     assert.equal(continuation.data.accountState.layoutItems[0].id, 'layout-sofa-1')
+    assert.deepEqual(continuation.data.accountState.layoutTrayItems, [
+      { id: 'tray-plant-1', sourceId: 'plant-001', name: '플랜트', priceLabel: '₩89,000' },
+    ])
+    assert.equal(continuation.data.accountState.apartmentSelectionId, 'hannam-hyundai-84a')
     assert.equal(typeof continuation.data.accountState.layoutBoardSavedAt, 'string')
     assert.equal(continuation.data.accountState.recommendationDraft?.room, '거실')
 
@@ -243,6 +251,10 @@ test('save-layout continuation persists the latest layout draft into sqlite-back
     assert.equal(session.status, 200)
     assert.equal(session.data.accountState.layoutItems.length, 2)
     assert.equal(session.data.accountState.layoutItems[1].sourceId, 'table-001')
+    assert.deepEqual(session.data.accountState.layoutTrayItems, [
+      { id: 'tray-plant-1', sourceId: 'plant-001', name: '플랜트', priceLabel: '₩89,000' },
+    ])
+    assert.equal(session.data.accountState.apartmentSelectionId, 'hannam-hyundai-84a')
     assert.equal(typeof session.data.accountState.layoutBoardSavedAt, 'string')
     assert.equal(session.data.accountState.recommendationDraft?.room, '거실')
     assert.equal(session.data.accountState.recommendationDraft?.style, '모던')

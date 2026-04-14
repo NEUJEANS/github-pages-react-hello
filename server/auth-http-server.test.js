@@ -430,8 +430,12 @@ test('auth http server persists layout draft saves into account state across ses
           draftSave: {
             draftLabel: '성수 트리마제 74B',
             apartmentLabel: '성수 트리마제 74B',
+            apartmentSelectionId: 'trimaje-74b',
             recommendationRoom: '침실',
             selectedSpaceIds: ['bedroom'],
+            layoutTrayItems: [
+              { id: 'tray-lamp-1', sourceId: 'lamp-001', name: '무드 램프', priceLabel: '₩59,000' },
+            ],
             layoutItems: [
               { id: 'layout-bed-1', sourceId: 'bed-001', x: 33, y: 41, rotation: 0, colorIndex: 2 },
             ],
@@ -443,6 +447,10 @@ test('auth http server persists layout draft saves into account state across ses
       const continuedPayload = await continueResponse.json()
       assert.equal(continuedPayload.accountState.layoutItems.length, 1)
       assert.equal(continuedPayload.accountState.layoutItems[0].sourceId, 'bed-001')
+      assert.deepEqual(continuedPayload.accountState.layoutTrayItems, [
+        { id: 'tray-lamp-1', sourceId: 'lamp-001', name: '무드 램프', priceLabel: '₩59,000' },
+      ])
+      assert.equal(continuedPayload.accountState.apartmentSelectionId, 'trimaje-74b')
       assert.equal(typeof continuedPayload.accountState.layoutBoardSavedAt, 'string')
       assert.equal(continuedPayload.accountState.recommendationDraft?.room, '침실')
 
@@ -456,6 +464,10 @@ test('auth http server persists layout draft saves into account state across ses
       const sessionPayload = await sessionResponse.json()
       assert.equal(sessionPayload.accountState.layoutItems.length, 1)
       assert.equal(sessionPayload.accountState.layoutItems[0].id, 'layout-bed-1')
+      assert.deepEqual(sessionPayload.accountState.layoutTrayItems, [
+        { id: 'tray-lamp-1', sourceId: 'lamp-001', name: '무드 램프', priceLabel: '₩59,000' },
+      ])
+      assert.equal(sessionPayload.accountState.apartmentSelectionId, 'trimaje-74b')
       assert.equal(typeof sessionPayload.accountState.layoutBoardSavedAt, 'string')
       assert.equal(sessionPayload.accountState.recommendationDraft?.room, '침실')
     } finally {

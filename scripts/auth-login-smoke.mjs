@@ -1165,7 +1165,38 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     await saveDraftPage.getByRole('button', { name: '보드 저장 이어가기' }).click()
     await saveDraftPage.locator('.loginPanel').waitFor({ state: 'hidden' })
     const saveDraftHashAfterResume = await saveDraftPage.evaluate(() => globalThis.location.hash)
+
+    await saveDraftPage.getByRole('button', { name: '공간 정보' }).click()
+    await saveDraftPage.getByRole('button', { name: '아크로 리버뷰 101A' }).click()
+    await saveDraftPage.getByRole('button', { name: '닫기', exact: true }).click()
+
+    const boardPanel = saveDraftPage.locator('.editorSide.right .propBlock').filter({ has: saveDraftPage.getByText('계정 보드') }).first()
+    await boardPanel.waitFor()
+    await saveDraftPage.getByRole('button', { name: '현재 보드 다시 저장' }).click()
+    await saveDraftPage.waitForFunction(() => {
+      const nodes = Array.from(document.querySelectorAll('.editorSide.right .propBlock p'))
+      return nodes.some((node) => node.textContent?.includes('현재 배치를 계정 저장본으로 업데이트했어요.'))
+    }, undefined, { timeout: 15000 })
+
+    const saveDraftBoardPanelText = normalizeUiText(await boardPanel.innerText())
+    if (!saveDraftBoardPanelText.includes('저장 기준 · 거실 · 아크로 리버뷰 101A')) {
+      throw new Error(`Save-draft board panel did not reflect the selected apartment before reload. Saw: ${saveDraftBoardPanelText}`)
+    }
+    if (!saveDraftBoardPanelText.includes('최근 저장 ·')) {
+      throw new Error(`Save-draft board panel did not show a saved timestamp before reload. Saw: ${saveDraftBoardPanelText}`)
+    }
+
     await saveDraftPage.reload({ waitUntil: 'domcontentloaded' })
+    const reloadedBoardPanel = saveDraftPage.locator('.editorSide.right .propBlock').filter({ has: saveDraftPage.getByText('계정 보드') }).first()
+    await reloadedBoardPanel.waitFor()
+    const reloadedBoardPanelText = normalizeUiText(await reloadedBoardPanel.innerText())
+    if (!reloadedBoardPanelText.includes('저장 기준 · 거실 · 아크로 리버뷰 101A')) {
+      throw new Error(`Save-draft board panel lost the selected apartment after reload. Saw: ${reloadedBoardPanelText}`)
+    }
+    if (!reloadedBoardPanelText.includes('최근 저장 ·')) {
+      throw new Error(`Save-draft board panel lost the saved timestamp after reload. Saw: ${reloadedBoardPanelText}`)
+    }
+
     await saveDraftPage.locator('.authSessionNotice').waitFor()
     await getAccountTrigger(saveDraftPage).click()
     await saveDraftPage.getByRole('button', { name: '보드 저장 이어가기' }).waitFor()
