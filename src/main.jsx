@@ -2691,8 +2691,20 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
           ) : (
             <>
               <div className="authModeSwitch" role="tablist" aria-label="인증 방식 선택">
-                <button className={form.mode === 'login' ? 'solid mini' : 'mini'} onClick={() => onChangeForm('mode', 'login')}>로그인</button>
-                <button className={form.mode === 'signup' ? 'solid mini' : 'mini'} onClick={() => onChangeForm('mode', 'signup')}>회원가입</button>
+                <button
+                  className={form.mode === 'login' ? 'solid mini' : 'mini'}
+                  aria-label="로그인 모드 선택"
+                  onClick={() => onChangeForm('mode', 'login')}
+                >
+                  로그인
+                </button>
+                <button
+                  className={form.mode === 'signup' ? 'solid mini' : 'mini'}
+                  aria-label="회원가입 모드 선택"
+                  onClick={() => onChangeForm('mode', 'signup')}
+                >
+                  회원가입
+                </button>
               </div>
               {(form.intent?.label || loginPanelState.draftSaveBits.length > 0) && (
                 <div className="loginBenefits">
@@ -2738,10 +2750,17 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
                 {authStatusMessage?.body && !isMergeContinuationPending && <p className="muted">{authStatusMessage.body}</p>}
               </div>
               <div className="footerButtons stackOnMobile">
-                <button className="ghost" onClick={() => onChangeForm('mode', modeLabels.alternateMode)}>{modeLabels.alternateLabel}</button>
+                <button
+                  className="ghost"
+                  aria-label={form.mode === 'login' ? '회원가입으로 전환' : '로그인으로 전환'}
+                  onClick={() => onChangeForm('mode', modeLabels.alternateMode)}
+                >
+                  {modeLabels.alternateLabel}
+                </button>
                 {form.status === 'resume-ready' && <button className="ghost" onClick={onDismissResume}>이전 로그인 시도 지우기</button>}
                 <button
                   className="cta"
+                  aria-label={form.mode === 'login' ? '로그인 제출' : '회원가입 제출'}
                   disabled={(!activePlan.canSubmit && !(isMergeContinuationPending && Boolean(form.mergeResolution))) || form.status === 'submitting'}
                   onClick={() => onSubmit()}
                 >
