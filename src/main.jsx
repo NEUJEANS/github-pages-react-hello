@@ -2693,18 +2693,18 @@ function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSign
               <div className="loginForm">
                 {form.mode === 'signup' && (
                   <>
-                    <label>이름</label>
-                    <div className="inputWrap big">👤<input value={form.displayName} onChange={(event) => onChangeForm('displayName', event.target.value)} placeholder="홍길동" /></div>
+                    <label htmlFor="auth-display-name">이름</label>
+                    <div className="inputWrap big">👤<input id="auth-display-name" name="displayName" autoComplete="name" aria-label="이름" value={form.displayName} onChange={(event) => onChangeForm('displayName', event.target.value)} placeholder="홍길동" /></div>
                   </>
                 )}
-                <label>이메일</label>
-                <div className="inputWrap big">✉️<input value={form.email} onChange={(event) => onChangeForm('email', event.target.value)} placeholder="name@example.com" /></div>
-                <label>비밀번호</label>
-                <div className="inputWrap big">🔒<input type="password" value={form.password} onChange={(event) => onChangeForm('password', event.target.value)} placeholder="8자 이상 입력" /></div>
+                <label htmlFor="auth-email">이메일</label>
+                <div className="inputWrap big">✉️<input id="auth-email" name="email" type="email" autoComplete="email" inputMode="email" aria-label="이메일" value={form.email} onChange={(event) => onChangeForm('email', event.target.value)} placeholder="name@example.com" /></div>
+                <label htmlFor="auth-password">비밀번호</label>
+                <div className="inputWrap big">🔒<input id="auth-password" name="password" type="password" autoComplete={form.mode === 'signup' ? 'new-password' : 'current-password'} aria-label="비밀번호" value={form.password} onChange={(event) => onChangeForm('password', event.target.value)} placeholder="8자 이상 입력" /></div>
                 {form.mode === 'signup' && (
                   <>
-                    <label>비밀번호 확인</label>
-                    <div className="inputWrap big">✅<input type="password" value={form.confirmPassword} onChange={(event) => onChangeForm('confirmPassword', event.target.value)} placeholder="비밀번호를 한 번 더 입력" /></div>
+                    <label htmlFor="auth-confirm-password">비밀번호 확인</label>
+                    <div className="inputWrap big">✅<input id="auth-confirm-password" name="confirmPassword" type="password" autoComplete="new-password" aria-label="비밀번호 확인" value={form.confirmPassword} onChange={(event) => onChangeForm('confirmPassword', event.target.value)} placeholder="비밀번호를 한 번 더 입력" /></div>
                     <label className="authCheckbox"><input type="checkbox" checked={form.agreeToTerms} onChange={(event) => onChangeForm('agreeToTerms', event.target.checked)} /> <span>현재 초안을 계정에 안전하게 연결하는 데 동의합니다.</span></label>
                   </>
                 )}
