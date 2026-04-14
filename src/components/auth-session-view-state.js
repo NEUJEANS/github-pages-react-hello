@@ -491,6 +491,36 @@ export function shouldAutoOpenAuthReadyPanel(session = null, modalState = 'close
     || (status === 'ready' && nextAction === 'resume-authenticated-flow' && /인증 완료/.test(statusLabel))
 }
 
+export function resolveAuthSessionNoticePrimaryAction(authReadyPanelState = null) {
+  const nextAction = authReadyPanelState?.nextAction ?? null
+  const needsAccountModal = nextAction === 'complete-profile'
+    || nextAction === 'verify-email'
+    || nextAction === 'confirm-merge-resolution'
+
+  const label = needsAccountModal
+    ? nextAction === 'complete-profile'
+      ? '프로필 보완 열기'
+      : nextAction === 'verify-email'
+        ? '이메일 인증 이어가기'
+        : '병합 방향 선택 열기'
+    : nextAction === 'save-layout-draft'
+      ? '보드 열기'
+      : nextAction === 'checkout-cart'
+        ? '주문 이어가기'
+        : nextAction === 'resume-account-state'
+          ? '계정 상태 열기'
+          : nextAction === 'resume-guest-draft'
+            ? '초안 열기'
+            : authReadyPanelState?.primaryActionLabel
+              ? '바로 이어가기'
+              : null
+
+  return {
+    label,
+    needsAccountModal,
+  }
+}
+
 export function buildAuthSessionNotice(session) {
   if (!session?.accountLabel) return null
 

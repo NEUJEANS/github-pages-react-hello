@@ -46,7 +46,15 @@ import {
   readPersistedAuthHandoff,
   readPersistedAuthSession,
 } from './components/auth-storage.js'
-import { buildAuthGuardPanelState, buildAuthLoginPanelState, buildAuthReadyPanelState, buildAuthResumePanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './components/auth-session-view-state.js'
+import {
+  buildAuthGuardPanelState,
+  buildAuthLoginPanelState,
+  buildAuthReadyPanelState,
+  buildAuthResumePanelState,
+  buildAuthSessionNotice,
+  resolveAuthSessionNoticePrimaryAction,
+  shouldAutoOpenAuthReadyPanel,
+} from './components/auth-session-view-state.js'
 import { buildAccountContinuityPatch, buildRestoredRecommendationDraft } from './components/auth-account-continuity.js'
 import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
@@ -2471,23 +2479,7 @@ function renderScreen(screen, props) {
 }
 
 function AuthSessionNoticeBanner({ notice, authReadyPanelState, onDismiss, onOpenAccount, onResumeAuthenticatedIntent, onLogout }) {
-  const nextAction = authReadyPanelState?.nextAction ?? null
-  const needsAccountModal = nextAction === 'complete-profile'
-    || nextAction === 'verify-email'
-    || nextAction === 'confirm-merge-resolution'
-  const primaryActionLabel = needsAccountModal
-    ? '계정 상태 보기'
-    : nextAction === 'save-layout-draft'
-      ? '보드 열기'
-      : nextAction === 'checkout-cart'
-        ? '주문 이어가기'
-        : nextAction === 'resume-account-state'
-          ? '계정 상태 열기'
-          : nextAction === 'resume-guest-draft'
-            ? '초안 열기'
-            : authReadyPanelState?.primaryActionLabel
-              ? '바로 이어가기'
-              : null
+  const { label: primaryActionLabel, needsAccountModal } = resolveAuthSessionNoticePrimaryAction(authReadyPanelState)
   const handlePrimaryAction = needsAccountModal ? onOpenAccount : onResumeAuthenticatedIntent
 
   return (

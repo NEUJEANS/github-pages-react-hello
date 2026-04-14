@@ -1,7 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildAuthGuardPanelState, buildAuthLoginPanelState, buildAuthReadyPanelState, buildAuthResumePanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './auth-session-view-state.js'
+import {
+  buildAuthGuardPanelState,
+  buildAuthLoginPanelState,
+  buildAuthReadyPanelState,
+  buildAuthResumePanelState,
+  buildAuthSessionNotice,
+  resolveAuthSessionNoticePrimaryAction,
+  shouldAutoOpenAuthReadyPanel,
+} from './auth-session-view-state.js'
 
 test('buildAuthLoginPanelState mirrors the initial login payload contract for non-guard modal flows', () => {
   assert.deepEqual(buildAuthLoginPanelState({
@@ -889,6 +897,40 @@ test('shouldAutoOpenAuthReadyPanel reopens the login modal for action-required a
       status: 'action-required',
     },
   }, 'form'), false)
+})
+
+test('resolveAuthSessionNoticePrimaryAction uses specific labels for continuation blockers and resumable states', () => {
+  assert.deepEqual(resolveAuthSessionNoticePrimaryAction({
+    nextAction: 'complete-profile',
+    primaryActionLabel: '프로필 보완 제출',
+  }), {
+    label: '프로필 보완 열기',
+    needsAccountModal: true,
+  })
+
+  assert.deepEqual(resolveAuthSessionNoticePrimaryAction({
+    nextAction: 'verify-email',
+    primaryActionLabel: '이메일 인증 확인',
+  }), {
+    label: '이메일 인증 이어가기',
+    needsAccountModal: true,
+  })
+
+  assert.deepEqual(resolveAuthSessionNoticePrimaryAction({
+    nextAction: 'confirm-merge-resolution',
+    primaryActionLabel: '병합 방향 확정',
+  }), {
+    label: '병합 방향 선택 열기',
+    needsAccountModal: true,
+  })
+
+  assert.deepEqual(resolveAuthSessionNoticePrimaryAction({
+    nextAction: 'save-layout-draft',
+    primaryActionLabel: '보드 저장 이어가기',
+  }), {
+    label: '보드 열기',
+    needsAccountModal: false,
+  })
 })
 
 test('buildAuthSessionNotice summarizes restored guest draft details after login', () => {

@@ -945,6 +945,24 @@ async function readAuthReadyCard(page) {
   }
 }
 
+async function ensureActionRequiredModal(page, { noticeButtonName, modalButtonName, timeoutMs = 30000 } = {}) {
+  const modalButton = page.getByRole('button', { name: modalButtonName })
+  if (await modalButton.isVisible().catch(() => false)) return 'modal-already-open'
+
+  const noticeButton = noticeButtonName
+    ? page.getByRole('button', { name: noticeButtonName })
+    : null
+
+  if (noticeButton && await noticeButton.isVisible().catch(() => false)) {
+    await noticeButton.click()
+    await modalButton.waitFor({ timeout: timeoutMs })
+    return 'opened-from-notice'
+  }
+
+  await modalButton.waitFor({ timeout: timeoutMs })
+  return 'waited-for-modal'
+}
+
 function assertLoginConnectionPreview(preview) {
   const rows = preview?.rows ?? []
   if (rows.length > 0 && rows.some((row) => /payload|response keys|debug|checklist|same-origin \/api auth scaffold|auth target|connection/i.test(row))) {
@@ -1340,14 +1358,20 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
       email: 'profile@example.com',
       password: 'password123',
     })
-    await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).waitFor()
+    const completeProfileModalSource = await ensureActionRequiredModal(completeProfilePage, {
+      noticeButtonName: '프로필 보완 열기',
+      modalButtonName: '프로필 보완 제출',
+    })
     const completeProfileStatus = await completeProfilePage.locator('.authPrepCard .muted').first().innerText()
     const completeProfileReadyCard = await readAuthReadyCard(completeProfilePage)
     const completeProfileReadyDisabled = await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).isDisabled()
     await completeProfilePage.getByPlaceholder('홍길동').fill('Havenly User')
     await completeProfilePage.getByPlaceholder('010-1234-5678').fill('010-1234-5678')
     await completeProfilePage.reload({ waitUntil: 'domcontentloaded' })
-    await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).waitFor()
+    const completeProfileReloadedModalSource = await ensureActionRequiredModal(completeProfilePage, {
+      noticeButtonName: '프로필 보완 열기',
+      modalButtonName: '프로필 보완 제출',
+    })
     const completeProfileReloadedStatus = await completeProfilePage.locator('.authPrepCard .muted').first().innerText()
     const completeProfileReloadedReadyCard = await readAuthReadyCard(completeProfilePage)
     if (completeProfileReadyCard.title !== completeProfileReloadedReadyCard.title || completeProfileReadyCard.primaryAction !== completeProfileReloadedReadyCard.primaryAction) {
@@ -1562,9 +1586,11 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
       actionRequired: {
         completeProfile: {
           status: completeProfileStatus,
+          modalSource: completeProfileModalSource,
           readyCard: completeProfileReadyCard,
           primaryActionDisabled: completeProfileReadyDisabled,
           reloadedStatus: completeProfileReloadedStatus,
+          reloadedModalSource: completeProfileReloadedModalSource,
           reloadedReadyCard: completeProfileReloadedReadyCard,
           reloadedFields: {
             displayName: completeProfileReloadedDisplayName,
