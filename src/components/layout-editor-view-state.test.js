@@ -176,6 +176,19 @@ test('buildLayoutEditorSelectionSnapshot exposes stable property-panel copy and 
     selectedColorIndex: 0,
     selectedBlurb: defaultPlacedItemBlurb,
   })
+
+  assert.deepEqual(
+    buildLayoutEditorSelectionSnapshot(
+      { x: 10.2, y: 15.8, colorIndex: 1 },
+      { name: '코튼베이지 모듈 소파', blurb: '동선 확보가 쉬운 모듈형 구성이에요.' },
+    ),
+    {
+      selectedName: '코튼베이지 모듈 소파',
+      position: { x: 10, y: 16 },
+      selectedColorIndex: 1,
+      selectedBlurb: '동선 확보가 쉬운 모듈형 구성이에요.',
+    },
+  )
 })
 
 

@@ -78,7 +78,7 @@ export function buildLayoutEditorHint({ snapOn }) {
 
 export function buildLayoutEditorSelectionSnapshot(selectedItem, selectedMeta) {
   return {
-    selectedName: selectedItem?.name ?? '선택 없음',
+    selectedName: selectedItem?.name ?? selectedMeta?.name ?? '선택 없음',
     position: {
       x: Math.round(selectedItem?.x ?? 0),
       y: Math.round(selectedItem?.y ?? 0),
