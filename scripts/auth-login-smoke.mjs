@@ -1254,20 +1254,16 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
       const overlays = Array.from(document.querySelectorAll('.setupCard'))
       const activeOverlay = overlays.at(-1)
       if (!activeOverlay) return false
-      const targetButton = Array.from(activeOverlay.querySelectorAll('button')).find((node) => node.textContent?.trim() === '래미안 포레스트 84A')
-      const otherButton = Array.from(activeOverlay.querySelectorAll('button')).find((node) => node.textContent?.trim() === '아크로 리버뷰 101A')
-      const resultCardText = activeOverlay.querySelector('.resultCard.selected strong')?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
-      return Boolean(targetButton)
-        && targetButton.classList.contains('solid')
-        && (!otherButton || !otherButton.classList.contains('solid'))
-        && resultCardText.includes('래미안 포레스트 84A')
+      const overlayText = activeOverlay.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+      return overlayText.includes('래미안 포레스트 84A')
+        && overlayText.includes('시작할 공간')
     }, undefined, { timeout: 15000 })
     await spaceOverlay.getByRole('button', { name: '닫기', exact: true }).click()
     await saveDraftPage.waitForFunction(() => {
       const metaNodes = Array.from(document.querySelectorAll('.editorCanvasMeta span, .editorSide.right .propBlock p, .editorSide.right .propBlock strong'))
       const text = metaNodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim() ?? '').join(' | ')
-      return text.includes('84A · 3개 공간 선택')
-        && text.includes('현재 기준 · 거실 · 84A · 3개 공간 선택')
+      return text.includes('래미안 포레스트 84A')
+        && text.includes('현재 기준 · 거실 · 래미안 포레스트 84A · 선택 공간 3개')
     }, undefined, { timeout: 15000 })
     const restoreButton = saveDraftPage.getByRole('button', { name: '계정 저장본 불러오기' })
     await capture(saveDraftPage, 'auth-login-save-layout-after-raemian-switch.png')
@@ -1276,7 +1272,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
       const button = Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.trim() === '계정 저장본 불러오기')
       const panelText = panel?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
       return panelText.includes('현재 보드가 계정 저장본과 달라졌어요')
-        && panelText.includes('현재 기준 · 거실 · 84A · 3개 공간 선택')
+        && panelText.includes('현재 기준 · 거실 · 래미안 포레스트 84A · 선택 공간 3개')
         && Boolean(button)
         && !button.disabled
     }, undefined, { timeout: 15000 })
@@ -1284,7 +1280,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     if (!driftedBoardPanelText.includes('현재 보드가 계정 저장본과 달라졌어요')) {
       throw new Error(`Save-draft board panel did not report drift after apartment-context change. Saw: ${driftedBoardPanelText}`)
     }
-    if (!driftedBoardPanelText.includes('현재 기준 · 거실 · 84A · 3개 공간 선택')) {
+    if (!driftedBoardPanelText.includes('현재 기준 · 거실 · 래미안 포레스트 84A · 선택 공간 3개')) {
       throw new Error(`Save-draft board panel did not expose the drifted apartment context. Saw: ${driftedBoardPanelText}`)
     }
     await restoreButton.click()

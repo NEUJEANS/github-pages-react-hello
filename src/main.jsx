@@ -2286,7 +2286,10 @@ function App() {
     },
     layout: {
       editor,
-      addressSummary: buildLayoutAddressSummary(spaceProfile),
+      addressSummary: buildLayoutAddressSummary(spaceProfile, {
+        selectedApartment,
+        formatApartmentOption,
+      }),
     },
     beds: {
       filters: bedFilters,

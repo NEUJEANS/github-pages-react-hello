@@ -18,6 +18,10 @@ export function resolveAiRoomSelection(currentRoom, selectedSpaceSummary) {
     : selectedSpaceSummary.primaryRoom
 }
 
-export function buildLayoutAddressSummary(spaceProfile) {
-  return `${spaceProfile.apartmentType} · ${spaceProfile.spaces.length}개 공간 선택`
+export function buildLayoutAddressSummary(spaceProfile, { selectedApartment = null, formatApartmentOption = null } = {}) {
+  const apartmentLabel = selectedApartment && typeof formatApartmentOption === 'function'
+    ? formatApartmentOption(selectedApartment)
+    : spaceProfile.apartmentType
+
+  return `${apartmentLabel} · ${spaceProfile.spaces.length}개 공간 선택`
 }

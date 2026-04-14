@@ -89,3 +89,16 @@ test('resolveAiRoomSelection leaves the room untouched when no spaces are select
 test('buildLayoutAddressSummary reflects the selected apartment type and space count', () => {
   assert.equal(buildLayoutAddressSummary({ apartmentType: '101A', spaces: ['living', 'bed1', 'entry'] }), '101A · 3개 공간 선택')
 })
+
+test('buildLayoutAddressSummary prefers the hydrated apartment label when available', () => {
+  assert.equal(
+    buildLayoutAddressSummary(
+      { apartmentType: '101A', spaces: ['living', 'bed1', 'entry'] },
+      {
+        selectedApartment: { brand: '아크로', complex: '리버뷰', unitLabel: '101A' },
+        formatApartmentOption: (option) => [option.brand, option.complex, option.unitLabel].join(' '),
+      },
+    ),
+    '아크로 리버뷰 101A · 3개 공간 선택',
+  )
+})
