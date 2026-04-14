@@ -89,6 +89,51 @@ function shouldUseLocalAuthScaffold(plan, { apiBaseUrl, appBasePath, currentOrig
   return isSameOriginAuthScaffoldEndpoint(resolvedUrl, plan.endpoint, { currentOrigin })
 }
 
+function shouldUseUnconfiguredPagesMode({ apiBaseUrl, source = 'default', currentOrigin, appBasePath } = {}) {
+  const canonicalOrigin = readCurrentOrigin(currentOrigin)
+  const host = (() => {
+    try {
+      return canonicalOrigin ? new URL(canonicalOrigin).host : ''
+    } catch {
+      return ''
+    }
+  })()
+
+  const isGithubPagesHost = host === 'neujeans.github.io' || host.endsWith('.github.io')
+  const hasPagesBasePath = typeof appBasePath === 'string' && appBasePath.trim() && appBasePath.trim() !== '/'
+  const hasExternalAuthConfig = typeof apiBaseUrl === 'string' && apiBaseUrl.trim()
+  const isDefaultSource = !source || source === 'default'
+
+  return isGithubPagesHost && hasPagesBasePath && isDefaultSource && !hasExternalAuthConfig
+}
+
+function buildUnconfiguredPagesAuthResult({ endpoint, source = 'default', appBasePath = '/', currentOrigin, credentialsMode = 'include' } = {}) {
+  const resolvedEndpoint = resolveAuthEndpoint(endpoint, { appBasePath, currentOrigin })
+  const targetLabel = resolveAuthTargetLabel(resolvedEndpoint, { currentOrigin })
+
+  return {
+    ok: false,
+    status: 503,
+    data: {
+      message: 'GitHub Pages auth backend is not configured yet. Add window.__HAVENLY_AUTH_CONFIG__.apiBaseUrl (or use ?authApiBaseUrl=...) to point the live site at a real /api/auth service.',
+      connection: {
+        method: endpoint === '/api/auth/session' || endpoint === '/api/auth/pending' ? 'GET' : 'POST',
+        endpoint,
+        resolvedUrl: resolvedEndpoint,
+        targetLabel,
+        isExternal: targetLabel !== 'same-origin /api auth scaffold',
+        isSameOriginScaffold: targetLabel === 'same-origin /api auth scaffold',
+        credentialsMode,
+        source,
+      },
+    },
+    meta: {
+      authMode: 'remote',
+      authTransport: 'unconfigured-pages',
+    },
+  }
+}
+
 function buildScaffoldMeta({ via }) {
   return {
     authMode: 'scaffold',
@@ -520,14 +565,54 @@ async function submitAuthAccessPlan(plan, { fetchImpl = fetch, apiBaseUrl, appBa
 }
 
 export async function submitAuthLoginPlan(plan, options = {}) {
+  if (shouldUseUnconfiguredPagesMode({
+    apiBaseUrl: options?.apiBaseUrl,
+    source: options?.source,
+    currentOrigin: options?.currentOrigin,
+    appBasePath: options?.appBasePath,
+  })) {
+    return buildUnconfiguredPagesAuthResult({
+      endpoint: plan?.endpoint ?? '/api/auth/login',
+      source: options?.source,
+      currentOrigin: options?.currentOrigin,
+      appBasePath: options?.appBasePath,
+      credentialsMode: options?.credentialsMode,
+    })
+  }
+
   return submitAuthAccessPlan(plan, options)
 }
 
 export async function submitAuthSignupPlan(plan, options = {}) {
+  if (shouldUseUnconfiguredPagesMode({
+    apiBaseUrl: options?.apiBaseUrl,
+    source: options?.source,
+    currentOrigin: options?.currentOrigin,
+    appBasePath: options?.appBasePath,
+  })) {
+    return buildUnconfiguredPagesAuthResult({
+      endpoint: plan?.endpoint ?? '/api/auth/signup',
+      source: options?.source,
+      currentOrigin: options?.currentOrigin,
+      appBasePath: options?.appBasePath,
+      credentialsMode: options?.credentialsMode,
+    })
+  }
+
   return submitAuthAccessPlan(plan, options)
 }
 
 export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiBaseUrl, appBasePath, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {
+  if (shouldUseUnconfiguredPagesMode({ apiBaseUrl, source, currentOrigin, appBasePath })) {
+    return buildUnconfiguredPagesAuthResult({
+      endpoint: plan?.endpoint ?? '/api/auth/continue',
+      source,
+      currentOrigin,
+      appBasePath,
+      credentialsMode,
+    })
+  }
+
   const endpoint = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: plan.method,
@@ -592,6 +677,16 @@ export async function readAuthSession({
   source = apiBaseUrl ? 'env/runtime-configured' : 'default',
   connectionFallbackOverride = null,
 } = {}) {
+  if (shouldUseUnconfiguredPagesMode({ apiBaseUrl, source, currentOrigin, appBasePath })) {
+    return buildUnconfiguredPagesAuthResult({
+      endpoint,
+      source,
+      currentOrigin,
+      appBasePath,
+      credentialsMode,
+    })
+  }
+
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: 'GET',
@@ -649,6 +744,16 @@ export async function readAuthPending({
   source = apiBaseUrl ? 'env/runtime-configured' : 'default',
   connectionFallbackOverride = null,
 } = {}) {
+  if (shouldUseUnconfiguredPagesMode({ apiBaseUrl, source, currentOrigin, appBasePath })) {
+    return buildUnconfiguredPagesAuthResult({
+      endpoint,
+      source,
+      currentOrigin,
+      appBasePath,
+      credentialsMode,
+    })
+  }
+
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: 'GET',
@@ -705,6 +810,16 @@ export async function signOutAuthSession({
   credentialsMode = 'include',
   source = apiBaseUrl ? 'env/runtime-configured' : 'default',
 } = {}) {
+  if (shouldUseUnconfiguredPagesMode({ apiBaseUrl, source, currentOrigin, appBasePath })) {
+    return buildUnconfiguredPagesAuthResult({
+      endpoint,
+      source,
+      currentOrigin,
+      appBasePath,
+      credentialsMode,
+    })
+  }
+
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   const { headers: connectionHeaders, connectionFallback } = buildAuthConnectionHeaders({
     method: 'POST',

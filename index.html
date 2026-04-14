@@ -4,6 +4,32 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HAVENLY React Conversion</title>
+    <script>
+      ;(() => {
+        const existing = globalThis.__HAVENLY_AUTH_CONFIG__
+        const storedRaw = globalThis.localStorage?.getItem('havenly.auth.runtimeConfig')
+        let stored = null
+
+        if (storedRaw) {
+          try {
+            stored = JSON.parse(storedRaw)
+          } catch {
+            stored = null
+          }
+        }
+
+        const params = new URLSearchParams(globalThis.location?.search ?? '')
+        const queryApiBaseUrl = params.get('authApiBaseUrl')?.trim() ?? ''
+        const queryCredentialsMode = params.get('authCredentials')?.trim() ?? ''
+
+        globalThis.__HAVENLY_AUTH_CONFIG__ = {
+          ...(stored && typeof stored === 'object' ? stored : {}),
+          ...(existing && typeof existing === 'object' ? existing : {}),
+          ...(queryApiBaseUrl ? { apiBaseUrl: queryApiBaseUrl.replace(/\/$/, '') } : {}),
+          ...(queryCredentialsMode ? { credentialsMode: queryCredentialsMode } : {}),
+        }
+      })()
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </head>
   <body>

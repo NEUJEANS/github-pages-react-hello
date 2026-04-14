@@ -728,6 +728,28 @@ test('readAuthSession keeps absolute same-origin bootstrap targets canonical whe
   })
 })
 
+test('readAuthSession returns an explicit unconfigured-pages result on GitHub Pages without runtime auth wiring', async () => {
+  let called = false
+  const result = await readAuthSession({
+    endpoint: '/api/auth/session',
+    appBasePath: '/github-pages-react-hello/',
+    currentOrigin: 'https://neujeans.github.io',
+    credentialsMode: 'include',
+    source: 'default',
+    fetchImpl: async () => {
+      called = true
+      throw new Error('should not fetch')
+    },
+  })
+
+  assert.equal(called, false)
+  assert.equal(result.ok, false)
+  assert.equal(result.status, 503)
+  assert.equal(result.meta.authTransport, 'unconfigured-pages')
+  assert.match(result.data.message, /authApiBaseUrl/)
+  assert.equal(result.data.connection.endpoint, '/api/auth/session')
+})
+
 test('readAuthSession preserves the configured auth source label across bootstrap reads', async () => {
   const calls = []
   const result = await readAuthSession({

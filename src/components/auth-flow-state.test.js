@@ -660,6 +660,27 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
   )
 })
 
+test('buildAuthErrorSummary surfaces explicit GitHub Pages runtime wiring guidance for unconfigured live auth', () => {
+  const summary = buildAuthErrorSummary(
+    {
+      ok: false,
+      status: 503,
+      data: {
+        message: 'GitHub Pages auth backend is not configured yet.',
+      },
+      meta: {
+        authMode: 'remote',
+        authTransport: 'unconfigured-pages',
+      },
+    },
+    { handoffId: 'auth-pages-1', wishlistCount: 0, cartCount: 0, layoutItemCount: 0, hasRecommendationDraft: false },
+  )
+
+  assert.equal(summary.tone, 'service')
+  assert.match(summary.message, /GitHub Pages/)
+  assert.match(summary.message, /authApiBaseUrl/)
+})
+
 test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
   assert.equal(
     buildAuthStatusCopy(
