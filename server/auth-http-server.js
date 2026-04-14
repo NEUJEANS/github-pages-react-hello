@@ -71,21 +71,63 @@ function readRequestBody(req) {
   })
 }
 
-function writeJson(res, status, data, headers = {}) {
-  res.statusCode = status
-  res.setHeader('content-type', 'application/json')
+function resolveCorsOrigin(origin = '') {
+  const normalized = typeof origin === 'string' ? origin.trim() : ''
+  if (!normalized) return ''
+
+  if (normalized === 'https://neujeans.github.io') return normalized
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalized)) return normalized
+
+  return ''
+}
+
+function buildCorsHeaders(req) {
+  const allowedOrigin = resolveCorsOrigin(req?.headers?.origin)
+  if (!allowedOrigin) return {}
+
+  return {
+    'access-control-allow-origin': allowedOrigin,
+    'access-control-allow-credentials': 'true',
+    'access-control-allow-methods': 'GET,POST,OPTIONS',
+    'access-control-allow-headers': [
+      'content-type',
+      AUTH_HANDOFF_HEADER,
+      AUTH_RESUME_TOKEN_HEADER,
+      AUTH_NEXT_ACTION_HEADER,
+      AUTH_CONNECTION_METHOD_HEADER,
+      AUTH_CONNECTION_ENDPOINT_HEADER,
+      AUTH_CONNECTION_TARGET_HEADER,
+      AUTH_CONNECTION_CREDENTIALS_HEADER,
+      AUTH_CONNECTION_SOURCE_HEADER,
+      AUTH_ACTION_CONNECTION_METHOD_HEADER,
+      AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
+      AUTH_ACTION_CONNECTION_TARGET_HEADER,
+      AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
+      AUTH_ACTION_CONNECTION_SOURCE_HEADER,
+      'x-forwarded-host',
+      'x-forwarded-proto',
+    ].join(', '),
+    vary: 'Origin',
+  }
+}
+
+function applyResponseHeaders(res, headers = {}) {
   Object.entries(headers).forEach(([key, value]) => {
     res.setHeader(key, value)
   })
+}
+
+function writeJson(res, status, data, headers = {}) {
+  res.statusCode = status
+  res.setHeader('content-type', 'application/json')
+  applyResponseHeaders(res, headers)
   res.end(JSON.stringify(data))
 }
 
 function writeHtml(res, status, html, headers = {}) {
   res.statusCode = status
   res.setHeader('content-type', 'text/html; charset=utf-8')
-  Object.entries(headers).forEach(([key, value]) => {
-    res.setHeader(key, value)
-  })
+  applyResponseHeaders(res, headers)
   res.end(html)
 }
 
@@ -208,13 +250,14 @@ function normalizeAuthPath(pathname = '') {
   return supportedPaths.find((entry) => pathname === entry || pathname.endsWith(entry)) ?? pathname
 }
 
-function writeHealthResponse(res, { storePaths }) {
+function writeHealthResponse(res, { storePaths, corsHeaders = {} }) {
   writeJson(res, 200, {
     ok: true,
     service: 'havenly-auth-http-server',
     storage: 'sqlite',
     sqlitePath: storePaths.sqlitePath,
   }, {
+    ...corsHeaders,
     'cache-control': 'no-store',
     'x-havenly-auth-server': 'health',
   })
@@ -265,15 +308,22 @@ export function startAuthHttpServer(options = {}) {
   })
 
   const server = http.createServer(async (req, res) => {
+    const corsHeaders = buildCorsHeaders(req)
+
+    if (req.method === 'OPTIONS') {
+      writeJson(res, 204, {}, corsHeaders)
+      return
+    }
+
     if (!req.url) {
-      writeJson(res, 400, { message: 'Missing request URL' })
+      writeJson(res, 400, { message: 'Missing request URL' }, corsHeaders)
       return
     }
 
     const requestPath = normalizeAuthPath(readRequestPath(req))
 
     if (requestPath === '/api/auth/health') {
-      writeHealthResponse(res, { storePaths })
+      writeHealthResponse(res, { storePaths, corsHeaders })
       return
     }
 
@@ -291,7 +341,7 @@ export function startAuthHttpServer(options = {}) {
     ]
 
     if (!supportedPaths.includes(requestPath)) {
-      writeJson(res, 404, { message: `Unknown auth path: ${requestPath}` })
+      writeJson(res, 404, { message: `Unknown auth path: ${requestPath}` }, corsHeaders)
       return
     }
 
@@ -331,6 +381,7 @@ export function startAuthHttpServer(options = {}) {
     }
 
     const responseHeaders = {
+      ...corsHeaders,
       'x-havenly-auth-server': 'true',
       [AUTH_SCAFFOLD_HEADER]: 'true',
       ...buildAuthConnectionHeaders(response.data?.connection ?? connection),

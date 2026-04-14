@@ -43,6 +43,41 @@ test('auth http server exposes a sqlite-backed health/readiness endpoint', async
   })
 })
 
+test('auth http server exposes CORS headers for the live GitHub Pages origin and preflight requests', async () => {
+  await withTempCwd(async () => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { startAuthHttpServer } = await import(moduleUrl)
+    const authServer = await startAuthHttpServer({ port: 0 })
+
+    try {
+      const healthResponse = await fetch(`${authServer.url}/api/auth/health`, {
+        headers: {
+          origin: 'https://neujeans.github.io',
+        },
+      })
+
+      assert.equal(healthResponse.status, 200)
+      assert.equal(healthResponse.headers.get('access-control-allow-origin'), 'https://neujeans.github.io')
+      assert.equal(healthResponse.headers.get('access-control-allow-credentials'), 'true')
+
+      const preflightResponse = await fetch(`${authServer.url}/api/auth/login`, {
+        method: 'OPTIONS',
+        headers: {
+          origin: 'https://neujeans.github.io',
+          'access-control-request-method': 'POST',
+        },
+      })
+
+      assert.equal(preflightResponse.status, 204)
+      assert.equal(preflightResponse.headers.get('access-control-allow-origin'), 'https://neujeans.github.io')
+      assert.match(preflightResponse.headers.get('access-control-allow-headers') ?? '', /content-type/i)
+      assert.match(preflightResponse.headers.get('access-control-allow-headers') ?? '', /x-havenly-auth-handoff-id/i)
+    } finally {
+      await authServer.close()
+    }
+  })
+})
+
 test('auth http server persists signup/login/session state through http cookies and sqlite', async () => {
   await withTempCwd(async (tempDir) => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
