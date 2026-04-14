@@ -9,6 +9,7 @@ test('buildLayoutAuthPanelState exposes authenticated save + restore affordances
       savedAt: '2026-04-14T03:23:00.000Z',
       draftSave: {
         apartmentLabel: '래미안 포레스트 84A',
+        apartmentSelectionId: 'raemian-forest-84a',
       },
       accountState: {
         layoutItems: [{ id: 'saved-chair' }],
@@ -17,6 +18,7 @@ test('buildLayoutAuthPanelState exposes authenticated save + restore affordances
     },
     editorItems: [{ id: 'live-chair' }, { id: 'live-sofa' }],
     draftLabel: '거실 84A',
+    currentApartmentSelectionId: 'raemian-forest-84a',
     recommendationRoom: '거실',
     saveState: { status: 'saved', message: '계정에 저장했어요.' },
   })
@@ -34,7 +36,7 @@ test('buildLayoutAuthPanelState exposes authenticated save + restore affordances
   assert.equal(state.currentBoardSummary, '현재 보드 배치 2개 · 트레이 0개')
   assert.equal(state.savedBoardContextCopy, '거실 · 래미안 포레스트 84A')
   assert.equal(state.currentBoardContextCopy, '거실 · 거실 84A')
-  assert.equal(state.boardContextMatches, false)
+  assert.equal(state.boardContextMatches, true)
   assert.equal(state.boardComparisonCopy, '현재 보드가 계정 저장본과 달라졌어요. 다시 저장하거나 저장본으로 되돌릴 수 있어요.')
 })
 
@@ -221,21 +223,53 @@ test('buildLayoutAuthPanelState does not force perpetual drift when older saved 
   assert.equal(state.boardComparisonCopy, '현재 보드가 계정 저장본과 같아요.')
 })
 
+test('buildLayoutAuthPanelState does not report context drift when apartment ids match but labels differ', () => {
+  const state = buildLayoutAuthPanelState({
+    authSession: {
+      draftSave: {
+        apartmentLabel: '래미안 포레스트 84A',
+        apartmentSelectionId: 'raemian-forest-84a',
+      },
+      accountState: {
+        layoutItems: [{ id: 'chair-1', x: 10, y: 20 }],
+        layoutTrayItems: [{ id: 'table-1', name: '테이블' }],
+        apartmentSelectionId: 'raemian-forest-84a',
+        recommendationDraft: { room: '거실', style: '모던' },
+      },
+    },
+    editorItems: [{ id: 'chair-1', x: 10, y: 20 }],
+    trayItems: [{ id: 'table-1', name: '테이블' }],
+    draftLabel: '84A · 3개 공간 선택',
+    currentApartmentSelectionId: 'raemian-forest-84a',
+    recommendationRoom: '거실',
+    currentRecommendationDraft: { room: '거실', style: '모던' },
+    saveState: { status: 'idle' },
+  })
+
+  assert.equal(state.contextDrift, false)
+  assert.equal(state.hasDrift, false)
+  assert.equal(state.restoreDisabled, true)
+  assert.equal(state.boardComparisonCopy, '현재 보드가 계정 저장본과 같아요.')
+})
+
 test('buildLayoutAuthPanelState enables restore when only the saved/current context copy drifts', () => {
   const state = buildLayoutAuthPanelState({
     authSession: {
       draftSave: {
         apartmentLabel: '래미안 포레스트 84A',
+        apartmentSelectionId: 'raemian-forest-84a',
       },
       accountState: {
         layoutItems: [{ id: 'chair-1', x: 10, y: 20 }],
         layoutTrayItems: [{ id: 'table-1', name: '테이블' }],
+        apartmentSelectionId: 'raemian-forest-84a',
         recommendationDraft: { room: '거실', style: '모던' },
       },
     },
     editorItems: [{ id: 'chair-1', x: 10, y: 20 }],
     trayItems: [{ id: 'table-1', name: '테이블' }],
     draftLabel: '아크로 리버뷰 101A',
+    currentApartmentSelectionId: 'acrovista-river-101a',
     recommendationRoom: '거실',
     currentRecommendationDraft: { room: '거실', style: '모던' },
     saveState: { status: 'idle' },

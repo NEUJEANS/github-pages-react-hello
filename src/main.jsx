@@ -1114,6 +1114,7 @@ function App() {
     editorItems: editor.items,
     trayItems: layoutTrayItems,
     draftLabel: buildLayoutAddressSummary(spaceProfile),
+    currentApartmentSelectionId: spaceProfile.apartmentSelectionId,
     recommendationRoom: aiForm.room,
     currentRecommendationDraft: aiForm,
     saveState: layoutBoardSaveState,

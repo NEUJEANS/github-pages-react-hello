@@ -31,6 +31,7 @@ export function buildLayoutAuthPanelState({
   editorItems = [],
   trayItems = [],
   draftLabel = null,
+  currentApartmentSelectionId = null,
   recommendationRoom = null,
   currentRecommendationDraft = null,
   saveState = null,
@@ -44,6 +45,9 @@ export function buildLayoutAuthPanelState({
   const savedDraftLabel = normalizeLabel(authSession?.draftSave?.apartmentLabel)
     ?? normalizeLabel(authSession?.draftSave?.draftLabel)
   const currentDraftLabel = normalizeLabel(draftLabel)
+  const savedApartmentSelectionId = normalizeLabel(authSession?.draftSave?.apartmentSelectionId)
+    ?? normalizeLabel(accountState?.apartmentSelectionId)
+  const normalizedCurrentApartmentSelectionId = normalizeLabel(currentApartmentSelectionId)
   const savedLayoutCount = savedLayoutItems.length
   const currentLayoutCount = Array.isArray(editorItems) ? editorItems.length : 0
   const savedTrayCount = savedTrayItems.length
@@ -67,9 +71,12 @@ export function buildLayoutAuthPanelState({
     room: recommendationRoom,
     draftLabel: currentDraftLabel,
   })
-  const boardContextMatches = savedBoardContextCopy && currentBoardContextCopy
-    ? savedBoardContextCopy === currentBoardContextCopy
-    : savedBoardContextCopy === currentBoardContextCopy
+  const boardContextMatches = savedApartmentSelectionId && normalizedCurrentApartmentSelectionId
+    ? savedApartmentSelectionId === normalizedCurrentApartmentSelectionId
+      && (savedRoom ?? null) === (recommendationRoom ?? null)
+    : savedBoardContextCopy && currentBoardContextCopy
+      ? savedBoardContextCopy === currentBoardContextCopy
+      : savedBoardContextCopy === currentBoardContextCopy
   const contextDrift = Boolean(savedBoardContextCopy && currentBoardContextCopy && !boardContextMatches)
   const hasDrift = layoutDrift || trayDrift || recommendationDrift || contextDrift
   const status = saveState?.status ?? 'idle'
@@ -93,9 +100,11 @@ export function buildLayoutAuthPanelState({
     isAuthenticated: Boolean(authSession),
     draftLabel: currentDraftLabel,
     savedDraftLabel,
+    savedApartmentSelectionId,
     savedRoom,
     savedBoardContextCopy,
     currentBoardContextCopy,
+    currentApartmentSelectionId: normalizedCurrentApartmentSelectionId,
     boardContextMatches,
     contextDrift,
     currentLayoutCount,
