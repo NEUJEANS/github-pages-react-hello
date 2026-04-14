@@ -31,6 +31,7 @@ test('buildGuestDraftSnapshot keeps the login handoff payload serializable and f
     wishlistedIds: ['bed-001'],
     cartItems: [{ id: 'bed-001', qty: 2, name: 'ignore me' }],
     editorItems: [{ id: 'placed-sofa', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2, label: 'SOFA' }],
+    layoutTrayItems: [{ id: 'plant-001', name: '플랜트', priceLabel: '₩89,000', uiOnly: true }],
   })
 
   assert.deepEqual(snapshot, {
@@ -54,6 +55,7 @@ test('buildGuestDraftSnapshot keeps the login handoff payload serializable and f
       wishlistIds: ['bed-001'],
       cartItems: [{ id: 'bed-001', qty: 2 }],
       layoutItems: [{ id: 'placed-sofa', sourceId: 'sofa-001', x: 10, y: 20, rotation: 0, colorIndex: 2 }],
+      layoutTrayItems: [{ id: 'plant-001', name: '플랜트', priceLabel: '₩89,000', uiOnly: true }],
     },
   })
 })

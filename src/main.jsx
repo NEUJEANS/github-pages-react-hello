@@ -892,7 +892,8 @@ function App() {
     wishlistedIds,
     cartItems: cart.items,
     editorItems: editor.items,
-  }), [aiForm, cart.items, editor.items, engagement, selectedApartment, selectedSpaceSummary, spaceProfile, wishlistedIds])
+    layoutTrayItems,
+  }), [aiForm, cart.items, editor.items, engagement, layoutTrayItems, selectedApartment, selectedSpaceSummary, spaceProfile, wishlistedIds])
 
   const authConfig = React.useMemo(
     () => resolveAuthConfig({ env: import.meta.env }),

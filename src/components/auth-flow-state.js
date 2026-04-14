@@ -54,6 +54,7 @@ export function buildGuestDraftSnapshot({
   wishlistedIds = [],
   cartItems = [],
   editorItems = [],
+  layoutTrayItems = [],
 }) {
   return {
     engagement: {
@@ -92,6 +93,9 @@ export function buildGuestDraftSnapshot({
         rotation: item.rotation,
         colorIndex: item.colorIndex,
       })),
+      layoutTrayItems: Array.isArray(layoutTrayItems)
+        ? layoutTrayItems.map((item) => ({ ...item }))
+        : [],
     },
   }
 }
