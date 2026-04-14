@@ -2,6 +2,10 @@ function toIsoString(value = null) {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
+function normalizeLabel(value = null) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
 function normalizeRecommendationDraft(draft = null) {
   if (!draft || typeof draft !== 'object') return null
 
@@ -15,6 +19,11 @@ function normalizeRecommendationDraft(draft = null) {
 
 function cloneTrayItems(items = []) {
   return Array.isArray(items) ? items.map((item) => ({ ...item })) : []
+}
+
+function buildBoardContextCopy({ room = null, draftLabel = null } = {}) {
+  const parts = [normalizeLabel(room), normalizeLabel(draftLabel)].filter(Boolean)
+  return parts.length ? parts.join(' · ') : null
 }
 
 export function buildLayoutAuthPanelState({
@@ -32,6 +41,9 @@ export function buildLayoutAuthPanelState({
   const currentTrayItems = cloneTrayItems(trayItems)
   const savedRecommendationDraft = normalizeRecommendationDraft(accountState?.recommendationDraft)
   const currentRecommendationDraftNormalized = normalizeRecommendationDraft(currentRecommendationDraft)
+  const savedDraftLabel = normalizeLabel(authSession?.draftSave?.apartmentLabel)
+    ?? normalizeLabel(authSession?.draftSave?.draftLabel)
+  const currentDraftLabel = normalizeLabel(draftLabel)
   const savedLayoutCount = savedLayoutItems.length
   const currentLayoutCount = Array.isArray(editorItems) ? editorItems.length : 0
   const savedTrayCount = savedTrayItems.length
@@ -65,11 +77,26 @@ export function buildLayoutAuthPanelState({
       : hasDrift
         ? '현재 보드가 계정 저장본과 달라졌어요. 다시 저장하거나 저장본으로 되돌릴 수 있어요.'
         : '현재 보드가 계정 저장본과 같아요.'
+  const savedBoardContextCopy = buildBoardContextCopy({
+    room: savedRoom,
+    draftLabel: savedDraftLabel,
+  })
+  const currentBoardContextCopy = buildBoardContextCopy({
+    room: recommendationRoom,
+    draftLabel: currentDraftLabel,
+  })
+  const boardContextMatches = savedBoardContextCopy && currentBoardContextCopy
+    ? savedBoardContextCopy === currentBoardContextCopy
+    : savedBoardContextCopy === currentBoardContextCopy
 
   return {
     isAuthenticated: Boolean(authSession),
-    draftLabel: typeof draftLabel === 'string' && draftLabel.trim() ? draftLabel.trim() : null,
+    draftLabel: currentDraftLabel,
+    savedDraftLabel,
     savedRoom,
+    savedBoardContextCopy,
+    currentBoardContextCopy,
+    boardContextMatches,
     currentLayoutCount,
     savedLayoutCount,
     currentTrayCount,

@@ -7,6 +7,9 @@ test('buildLayoutAuthPanelState exposes authenticated save + restore affordances
   const state = buildLayoutAuthPanelState({
     authSession: {
       savedAt: '2026-04-14T03:23:00.000Z',
+      draftSave: {
+        apartmentLabel: '래미안 포레스트 84A',
+      },
       accountState: {
         layoutItems: [{ id: 'saved-chair' }],
         recommendationDraft: { room: '거실' },
@@ -29,6 +32,9 @@ test('buildLayoutAuthPanelState exposes authenticated save + restore affordances
   assert.equal(state.savedRoom, '거실')
   assert.equal(state.savedBoardSummary, '저장본 배치 1개 · 트레이 0개')
   assert.equal(state.currentBoardSummary, '현재 보드 배치 2개 · 트레이 0개')
+  assert.equal(state.savedBoardContextCopy, '거실 · 래미안 포레스트 84A')
+  assert.equal(state.currentBoardContextCopy, '거실 · 거실 84A')
+  assert.equal(state.boardContextMatches, false)
   assert.equal(state.boardComparisonCopy, '현재 보드가 계정 저장본과 달라졌어요. 다시 저장하거나 저장본으로 되돌릴 수 있어요.')
 })
 
@@ -168,6 +174,31 @@ test('buildLayoutAuthPanelState explains first-save state when no account board 
   assert.equal(state.hasSavedBoard, false)
   assert.equal(state.currentBoardSummary, '현재 보드 배치 1개 · 트레이 0개')
   assert.equal(state.boardComparisonCopy, '아직 계정 저장본이 없어요. 지금 보드를 첫 저장본으로 만들 수 있어요.')
+})
+
+test('buildLayoutAuthPanelState keeps saved board context separate from the current layout context', () => {
+  const state = buildLayoutAuthPanelState({
+    authSession: {
+      draftSave: {
+        apartmentLabel: '트리마제 101동',
+      },
+      accountState: {
+        layoutItems: [{ id: 'chair-1', x: 10, y: 20 }],
+        layoutTrayItems: [{ id: 'table-1', name: '테이블' }],
+        recommendationDraft: { room: '거실', style: '모던' },
+      },
+    },
+    editorItems: [{ id: 'chair-1', x: 10, y: 20 }],
+    trayItems: [{ id: 'table-1', name: '테이블' }],
+    draftLabel: '래미안 포레스트 84A',
+    recommendationRoom: '침실',
+    currentRecommendationDraft: { room: '침실', style: '모던' },
+    saveState: { status: 'idle' },
+  })
+
+  assert.equal(state.savedBoardContextCopy, '거실 · 트리마제 101동')
+  assert.equal(state.currentBoardContextCopy, '침실 · 래미안 포레스트 84A')
+  assert.equal(state.boardContextMatches, false)
 })
 
 test('buildLayoutAuthPanelState does not force perpetual drift when older saved boards have no persisted recommendation draft', () => {

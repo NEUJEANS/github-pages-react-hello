@@ -258,11 +258,15 @@ export function LayoutEditorPage({
                 {layoutAuthPanelState.currentBoardSummary && layoutAuthPanelState.hasSavedBoard && (
                   <p>{layoutAuthPanelState.currentBoardSummary}</p>
                 )}
-                <p>
-                  {layoutAuthPanelState.savedRoom
-                    ? `${layoutAuthPanelState.savedRoom}${layoutAuthPanelState.draftLabel ? ` · ${layoutAuthPanelState.draftLabel}` : ''}`
-                    : (layoutAuthPanelState.draftLabel ?? '현재 주소 기준으로 저장돼요.')}
-                </p>
+                {layoutAuthPanelState.savedBoardContextCopy && (
+                  <p>저장 기준 · {layoutAuthPanelState.savedBoardContextCopy}</p>
+                )}
+                {!layoutAuthPanelState.savedBoardContextCopy && layoutAuthPanelState.currentBoardContextCopy && (
+                  <p>{layoutAuthPanelState.currentBoardContextCopy}</p>
+                )}
+                {layoutAuthPanelState.savedBoardContextCopy && layoutAuthPanelState.currentBoardContextCopy && !layoutAuthPanelState.boardContextMatches && (
+                  <p>현재 기준 · {layoutAuthPanelState.currentBoardContextCopy}</p>
+                )}
                 {layoutAuthPanelState.boardComparisonCopy && <p>{layoutAuthPanelState.boardComparisonCopy}</p>}
                 {layoutAuthPanelState.message && <p>{layoutAuthPanelState.message}</p>}
               </>
