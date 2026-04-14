@@ -783,14 +783,22 @@ function App() {
       ? { room: persistedAuthUiRestore.recommendationRoom }
       : {}),
   }))
-  const [spaceProfile, setSpaceProfile] = React.useState(() => ({
-    query: '서울 성동구 성수이로 123 HAVENLY Apartments',
-    apartmentType: apartmentSearchResults[0].unitLabel,
-    apartmentSelectionId: apartmentSearchResults[0].id,
-    spaces: persistedAuthUiRestore?.selectedSpaceIds?.length
-      ? persistedAuthUiRestore.selectedSpaceIds
-      : baseZones.filter((zone) => zone.selected).map((zone) => zone.id),
-  }))
+  const [spaceProfile, setSpaceProfile] = React.useState(() => {
+    const restoredApartmentSelectionId = persistedAuthUiRestore?.apartmentSelectionId
+      ?? persistedAuthSession?.accountState?.apartmentSelectionId
+      ?? apartmentSearchResults[0].id
+    const restoredApartment = apartmentSearchResults.find((item) => item.id === restoredApartmentSelectionId)
+      ?? apartmentSearchResults[0]
+
+    return {
+      query: '서울 성동구 성수이로 123 HAVENLY Apartments',
+      apartmentType: restoredApartment.unitLabel,
+      apartmentSelectionId: restoredApartment.id,
+      spaces: persistedAuthUiRestore?.selectedSpaceIds?.length
+        ? persistedAuthUiRestore.selectedSpaceIds
+        : baseZones.filter((zone) => zone.selected).map((zone) => zone.id),
+    }
+  })
   const [bedFilters, setBedFilters] = React.useState({
     search: '',
     sorts: 'recommended',
@@ -818,7 +826,7 @@ function App() {
   const verificationPollTimeoutRef = React.useRef(null)
   const verificationAdvanceTimeoutRef = React.useRef(null)
   const verificationPendingStartedAtRef = React.useRef(null)
-  const appliedAuthSessionRestoreRef = React.useRef(persistedAuthSession?.savedAt ?? null)
+  const appliedAuthSessionRestoreRef = React.useRef(null)
 
   const selectedApartment = React.useMemo(
     () => buildSelectedApartment(apartmentSearchResults, spaceProfile.apartmentSelectionId),
