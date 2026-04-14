@@ -15,7 +15,8 @@
     "smoke:auth:scaffold": "node ./scripts/auth-login-smoke.mjs",
     "smoke:auth:browser": "node ./scripts/auth-login-smoke.mjs --require-browser",
     "smoke:auth:proxy": "node ./scripts/auth-login-smoke.mjs --require-browser --via-proxy",
-    "checkpoint:status": "git status --short --branch && echo '---' && git log --oneline --decorate -5"
+    "checkpoint:status": "git status --short --branch && echo '---' && git log --oneline --decorate -5",
+    "security:secrets": "bash ./scripts/security-trufflehog.sh"
   },
   "dependencies": {
     "react": "^19.1.0",
