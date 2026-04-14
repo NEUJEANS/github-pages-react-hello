@@ -841,39 +841,38 @@ function App() {
     () => buildSelectedApartment(apartmentSearchResults, spaceProfile.apartmentSelectionId),
     [spaceProfile.apartmentSelectionId],
   )
-  const syncSpaceProfileApartmentSelection = React.useCallback((apartmentSelectionId) => {
-    if (!apartmentSelectionId) return
+  const syncSpaceProfileBoardContext = React.useCallback(({ apartmentSelectionId = null, selectedSpaceIds = [] } = {}) => {
+    if (!apartmentSelectionId && !selectedSpaceIds?.length) return
 
-    const apartmentOption = apartmentSearchResults.find((item) => item.id === apartmentSelectionId) ?? null
+    const apartmentOption = apartmentSelectionId
+      ? apartmentSearchResults.find((item) => item.id === apartmentSelectionId) ?? null
+      : null
 
     setSpaceProfile((current) => {
-      if (apartmentOption) {
-        const nextProfile = applyApartmentSelection(current, apartmentOption, formatApartmentOption)
-        return current.apartmentSelectionId === nextProfile.apartmentSelectionId
-          && current.apartmentType === nextProfile.apartmentType
-          && current.query === nextProfile.query
-          ? current
-          : nextProfile
+      const nextProfile = apartmentSelectionId
+        ? apartmentOption
+          ? applyApartmentSelection(current, apartmentOption, formatApartmentOption)
+          : current.apartmentSelectionId === apartmentSelectionId
+            ? current
+            : { ...current, apartmentSelectionId }
+        : current
+
+      if (!selectedSpaceIds?.length) {
+        return nextProfile
       }
 
-      return current.apartmentSelectionId === apartmentSelectionId
-        ? current
-        : { ...current, apartmentSelectionId }
-    })
-  }, [])
-  const syncSpaceProfileSelectedSpaces = React.useCallback((selectedSpaceIds = []) => {
-    if (!selectedSpaceIds?.length) return
-
-    setSpaceProfile((current) => {
-      const currentIds = Array.isArray(current.spaces) ? current.spaces : []
+      const currentIds = Array.isArray(nextProfile.spaces) ? nextProfile.spaces : []
       const nextIds = selectedSpaceIds
-      const unchanged = currentIds.length === nextIds.length && currentIds.every((value, index) => value === nextIds[index])
+      const sameSpaces = currentIds.length === nextIds.length && currentIds.every((value, index) => value === nextIds[index])
 
-      return unchanged
-        ? current
-        : { ...current, spaces: nextIds }
+      return sameSpaces
+        ? nextProfile
+        : { ...nextProfile, spaces: nextIds }
     })
   }, [])
+  const syncSpaceProfileApartmentSelection = React.useCallback((apartmentSelectionId) => {
+    syncSpaceProfileBoardContext({ apartmentSelectionId })
+  }, [syncSpaceProfileBoardContext])
   const recommendationContext = React.useMemo(() => buildRecommendationContext({
     aiForm,
     spaceProfile,
@@ -1542,8 +1541,11 @@ function App() {
     })
     const continuityPatch = buildAccountContinuityPatch(authSession.accountState)
 
-    if (nextRestorePatch?.apartmentSelectionId) {
-      syncSpaceProfileApartmentSelection(nextRestorePatch.apartmentSelectionId)
+    if (nextRestorePatch?.apartmentSelectionId || nextRestorePatch?.selectedSpaceIds?.length) {
+      syncSpaceProfileBoardContext({
+        apartmentSelectionId: nextRestorePatch?.apartmentSelectionId ?? null,
+        selectedSpaceIds: nextRestorePatch?.selectedSpaceIds ?? [],
+      })
     }
 
     if (nextRestorePatch?.recommendationRoom) {
@@ -1554,16 +1556,12 @@ function App() {
       ))
     }
 
-    if (nextRestorePatch?.selectedSpaceIds?.length) {
-      syncSpaceProfileSelectedSpaces(nextRestorePatch.selectedSpaceIds)
-    }
-
     if (continuityPatch) {
-      if (continuityPatch.apartmentSelectionId) {
-        syncSpaceProfileApartmentSelection(continuityPatch.apartmentSelectionId)
-      }
-      if (continuityPatch.selectedSpaceIds?.length) {
-        syncSpaceProfileSelectedSpaces(continuityPatch.selectedSpaceIds)
+      if (continuityPatch.apartmentSelectionId || continuityPatch.selectedSpaceIds?.length) {
+        syncSpaceProfileBoardContext({
+          apartmentSelectionId: continuityPatch.apartmentSelectionId ?? null,
+          selectedSpaceIds: continuityPatch.selectedSpaceIds ?? [],
+        })
       }
       setWishlistedIds(continuityPatch.wishlistIds)
       cart.replaceItems(continuityPatch.cartItems)
@@ -1576,7 +1574,7 @@ function App() {
     }
 
     appliedAuthSessionRestoreRef.current = authSession.savedAt
-  }, [authSession, cart, editor, syncSpaceProfileApartmentSelection])
+  }, [authSession, cart, editor, syncSpaceProfileBoardContext])
 
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 
@@ -2150,13 +2148,12 @@ function App() {
     if (!savedAccountState) return
 
     const savedApartmentSelectionId = authSession?.draftSave?.apartmentSelectionId ?? savedAccountState?.apartmentSelectionId ?? null
-    if (savedApartmentSelectionId) {
-      syncSpaceProfileApartmentSelection(savedApartmentSelectionId)
-    }
-
     const savedSelectedSpaceIds = authSession?.draftSave?.selectedSpaceIds ?? savedAccountState?.selectedSpaceIds ?? []
-    if (savedSelectedSpaceIds.length) {
-      syncSpaceProfileSelectedSpaces(savedSelectedSpaceIds)
+    if (savedApartmentSelectionId || savedSelectedSpaceIds.length) {
+      syncSpaceProfileBoardContext({
+        apartmentSelectionId: savedApartmentSelectionId,
+        selectedSpaceIds: savedSelectedSpaceIds,
+      })
     }
 
     editor.replaceItems(Array.isArray(savedAccountState.layoutItems) ? savedAccountState.layoutItems : [])
@@ -2171,7 +2168,7 @@ function App() {
       message: '계정에 저장된 보드를 다시 불러왔어요.',
       savedAt: authSession?.savedAt ?? null,
     })
-  }, [aiProducts, authSession, editor, syncSpaceProfileApartmentSelection, syncSpaceProfileSelectedSpaces])
+  }, [aiProducts, authSession, editor, syncSpaceProfileBoardContext])
 
   const handleSaveLayoutToAccount = React.useCallback(async () => {
     if (!authSession) return
