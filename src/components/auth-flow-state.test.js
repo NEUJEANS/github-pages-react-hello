@@ -8,6 +8,7 @@ import {
   buildAuthStatusCopy,
   buildAuthSubmitPlan,
   buildGuestDraftSnapshot,
+  resolveContinuationSubmitIntent,
 } from './auth-flow-state.js'
 
 test('buildGuestDraftSnapshot keeps the login handoff payload serializable and focused', () => {
@@ -58,6 +59,53 @@ test('buildGuestDraftSnapshot keeps the login handoff payload serializable and f
       layoutTrayItems: [{ id: 'plant-001', name: '플랜트', priceLabel: '₩89,000', uiOnly: true }],
     },
   })
+})
+
+test('resolveContinuationSubmitIntent prefers the pre-blocker product intent over the blocker intent', () => {
+  const intent = resolveContinuationSubmitIntent({
+    sessionIntent: {
+      source: 'auth-modal',
+      action: 'complete-profile',
+      label: '프로필 마무리',
+      returnScreen: 'home',
+    },
+    formIntent: {
+      source: 'layout-editor',
+      action: 'save-layout-draft',
+      label: '로그인 후 보드 저장',
+      returnScreen: 'layout',
+      draftLabel: '84A · 3개 공간 선택',
+    },
+    handoffIntent: {
+      source: 'auth-modal',
+      action: 'complete-profile',
+      label: '프로필 마무리',
+      returnScreen: 'home',
+    },
+    blockerAction: 'complete-profile',
+  })
+
+  assert.deepEqual(intent, {
+    source: 'layout-editor',
+    action: 'save-layout-draft',
+    label: '로그인 후 보드 저장',
+    returnScreen: 'layout',
+    draftLabel: '84A · 3개 공간 선택',
+  })
+})
+
+test('resolveContinuationSubmitIntent drops blocker-only intent when no post-blocker action exists', () => {
+  const intent = resolveContinuationSubmitIntent({
+    sessionIntent: {
+      source: 'auth-modal',
+      action: 'complete-profile',
+      label: '프로필 마무리',
+      returnScreen: 'home',
+    },
+    blockerAction: 'complete-profile',
+  })
+
+  assert.equal(intent, null)
 })
 
 test('buildAuthContinuationPlan prepares a serializable follow-up auth contract payload', () => {

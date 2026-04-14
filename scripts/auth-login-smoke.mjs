@@ -1246,16 +1246,23 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     }
 
     await saveDraftPage.getByRole('button', { name: '공간 정보' }).click()
-    const saveDraftRaemianOption = saveDraftPage.getByRole('button', { name: '래미안 포레스트 84A' })
+    const spaceOverlay = saveDraftPage.locator('.setupCard').filter({ has: saveDraftPage.getByText('공간 정보 연결') }).last()
+    await spaceOverlay.waitFor()
+    const saveDraftRaemianOption = spaceOverlay.getByRole('button', { name: '래미안 포레스트 84A' })
     await saveDraftRaemianOption.click()
     await saveDraftPage.waitForFunction(() => {
-      const targetButton = Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.trim() === '래미안 포레스트 84A')
-      const otherButton = Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.trim() === '아크로 리버뷰 101A')
+      const overlays = Array.from(document.querySelectorAll('.setupCard'))
+      const activeOverlay = overlays.at(-1)
+      if (!activeOverlay) return false
+      const targetButton = Array.from(activeOverlay.querySelectorAll('button')).find((node) => node.textContent?.trim() === '래미안 포레스트 84A')
+      const otherButton = Array.from(activeOverlay.querySelectorAll('button')).find((node) => node.textContent?.trim() === '아크로 리버뷰 101A')
+      const resultCardText = activeOverlay.querySelector('.resultCard.selected strong')?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
       return Boolean(targetButton)
         && targetButton.classList.contains('solid')
         && (!otherButton || !otherButton.classList.contains('solid'))
+        && resultCardText.includes('래미안 포레스트 84A')
     }, undefined, { timeout: 15000 })
-    await saveDraftPage.getByRole('button', { name: '닫기', exact: true }).click()
+    await spaceOverlay.getByRole('button', { name: '닫기', exact: true }).click()
     await saveDraftPage.waitForFunction(() => {
       const metaNodes = Array.from(document.querySelectorAll('.editorCanvasMeta span, .editorSide.right .propBlock p, .editorSide.right .propBlock strong'))
       const text = metaNodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim() ?? '').join(' | ')
@@ -1418,6 +1425,9 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
       expectedAccountLabel: 'Havenly User',
     })
     const completeProfileResumedStatus = completeProfileReady.notice
+    if (typeof completeProfileResumedStatus === 'string' && completeProfileResumedStatus.includes('프로필 보완 필요')) {
+      throw new Error(`Complete-profile continuation stayed blocked after submit: ${completeProfileResumedStatus}`)
+    }
     await capture(completeProfilePage, 'auth-login-complete-profile-ready.png')
     await completeProfilePage.close()
 

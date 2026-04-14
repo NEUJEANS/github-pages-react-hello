@@ -19,6 +19,7 @@ import {
   buildAuthStatusCopy,
   buildAuthSubmitPlan,
   buildGuestDraftSnapshot,
+  resolveContinuationSubmitIntent,
 } from './components/auth-flow-state.js'
 import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan, submitAuthSignupPlan } from './components/auth-submit.js'
 import { detectLocalPagesAuthConfig, resolveAuthConfig } from './components/auth-config.js'
@@ -1830,7 +1831,12 @@ function App() {
       const nextContinuation = buildSerializableAuthContinuation(result?.data)
       const nextConnection = resolveAuthConnectionOverride(result, currentAuthSession?.connection ?? currentHandoff?.connection ?? authConnectionSummary)
       const persistedConnection = resolvePersistedAuthConnection(result, currentAuthSession?.connection ?? currentHandoff?.connection ?? authConnectionSummary)
-      const nextIntent = currentAuthSession?.intent ?? loginForm.intent ?? currentHandoff?.summary?.intent ?? null
+      const nextIntent = resolveContinuationSubmitIntent({
+        sessionIntent: currentAuthSession?.intent ?? null,
+        formIntent: loginForm.intent ?? null,
+        handoffIntent: currentHandoff?.summary?.intent ?? null,
+        blockerAction: authContinuationPlan.summary?.continuation?.nextAction ?? currentAuthSession?.continuation?.nextAction ?? currentHandoff?.continuation?.nextAction ?? null,
+      })
 
       if (result.ok) {
         const nextResultSummary = buildAuthResultSummary(result, {

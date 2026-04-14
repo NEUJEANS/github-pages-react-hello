@@ -143,6 +143,51 @@ function buildSerializableContinuationFields(fields = null) {
   return Object.fromEntries(entries)
 }
 
+function buildSerializableIntent(intent = null) {
+  if (!intent || typeof intent !== 'object' || Array.isArray(intent)) return null
+
+  const source = typeof intent.source === 'string' ? intent.source.trim() : ''
+  const action = typeof intent.action === 'string' ? normalizeContinuationNextAction(intent.action.trim()) : ''
+  const label = typeof intent.label === 'string' ? intent.label.trim() : ''
+  const returnScreen = typeof intent.returnScreen === 'string' ? intent.returnScreen.trim() : ''
+  const draftLabel = typeof intent.draftLabel === 'string' ? intent.draftLabel.trim() : ''
+
+  if (!source && !action && !label && !returnScreen && !draftLabel) return null
+
+  return {
+    source: source || null,
+    action: action || null,
+    label: label || null,
+    returnScreen: returnScreen || null,
+    draftLabel: draftLabel || null,
+  }
+}
+
+export function resolveContinuationSubmitIntent({
+  sessionIntent = null,
+  formIntent = null,
+  handoffIntent = null,
+  blockerAction = null,
+} = {}) {
+  const normalizedBlockerAction = normalizeContinuationNextAction(
+    typeof blockerAction === 'string' ? blockerAction.trim() : '',
+  )
+
+  const candidates = [sessionIntent, formIntent, handoffIntent]
+    .map((intent) => buildSerializableIntent(intent))
+    .filter(Boolean)
+
+  const nonBlockerIntent = candidates.find((intent) => intent.action && intent.action !== normalizedBlockerAction)
+  if (nonBlockerIntent) return nonBlockerIntent
+
+  if (normalizedBlockerAction) {
+    const nonActionIntent = candidates.find((intent) => !intent.action && (intent.label || intent.returnScreen || intent.draftLabel || intent.source))
+    return nonActionIntent ?? null
+  }
+
+  return candidates.find((intent) => intent.action || intent.label || intent.returnScreen || intent.draftLabel || intent.source) ?? null
+}
+
 function buildSerializableRecommendationDraft(recommendationDraft = null, recommendationRoom = null) {
   if (!recommendationDraft || typeof recommendationDraft !== 'object' || Array.isArray(recommendationDraft)) {
     return null
