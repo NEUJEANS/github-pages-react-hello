@@ -104,11 +104,12 @@ test('buildLayoutAuthPanelState enables restore when tray-only drift exists', ()
     editorItems: [{ id: 'chair-1', x: 10, y: 20 }],
     trayItems: [{ id: 'table-1', name: '테이블' }],
     currentRecommendationDraft: { room: '거실', style: '모던' },
-    saveState: { status: 'saved' },
+    saveState: { status: 'saved', message: '현재 배치를 계정 저장본으로 업데이트했어요.' },
   })
 
   assert.equal(state.hasDrift, true)
   assert.equal(state.restoreDisabled, false)
+  assert.equal(state.message, null)
 })
 
 test('buildLayoutAuthPanelState enables restore when recommendation draft drift exists', () => {
@@ -130,6 +131,25 @@ test('buildLayoutAuthPanelState enables restore when recommendation draft drift 
   assert.equal(state.restoreDisabled, false)
 })
 
+
+test('buildLayoutAuthPanelState keeps success copy visible while the board still matches the saved account state', () => {
+  const state = buildLayoutAuthPanelState({
+    authSession: {
+      accountState: {
+        layoutItems: [{ id: 'chair-1', x: 10, y: 20 }],
+        layoutTrayItems: [{ id: 'table-1', name: '테이블' }],
+        recommendationDraft: { room: '거실', style: '모던' },
+      },
+    },
+    editorItems: [{ id: 'chair-1', x: 10, y: 20 }],
+    trayItems: [{ id: 'table-1', name: '테이블' }],
+    currentRecommendationDraft: { room: '거실', style: '모던' },
+    saveState: { status: 'saved', message: '현재 배치를 계정 저장본으로 업데이트했어요.' },
+  })
+
+  assert.equal(state.hasDrift, false)
+  assert.equal(state.message, '현재 배치를 계정 저장본으로 업데이트했어요.')
+})
 
 test('buildLayoutAuthPanelState explains first-save state when no account board exists yet', () => {
   const state = buildLayoutAuthPanelState({

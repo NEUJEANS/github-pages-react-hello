@@ -49,6 +49,8 @@ export function buildLayoutAuthPanelState({
     && JSON.stringify(savedRecommendationDraft) !== JSON.stringify(currentRecommendationDraftNormalized)
   const hasDrift = layoutDrift || trayDrift || recommendationDrift
   const status = saveState?.status ?? 'idle'
+  const rawMessage = typeof saveState?.message === 'string' && saveState.message.trim() ? saveState.message.trim() : null
+  const shouldHideStaleStatusMessage = hasDrift && (status === 'saved' || status === 'restored')
 
   const savedBoardSummary = hasSavedBoard
     ? `저장본 배치 ${savedLayoutCount}개 · 트레이 ${savedTrayCount}개`
@@ -82,7 +84,7 @@ export function buildLayoutAuthPanelState({
     boardComparisonCopy,
     lastSavedAt: toIsoString(saveState?.savedAt ?? authSession?.savedAt ?? null),
     status,
-    message: typeof saveState?.message === 'string' && saveState.message.trim() ? saveState.message.trim() : null,
+    message: shouldHideStaleStatusMessage ? null : rawMessage,
     saveButtonLabel: status === 'saving'
       ? '보드 저장 중…'
       : hasSavedBoard
