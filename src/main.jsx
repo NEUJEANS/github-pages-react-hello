@@ -935,7 +935,7 @@ function App() {
   React.useEffect(() => {
     let cancelled = false
 
-    if (baseAuthConfig.isConfigured) {
+    if (baseAuthConfig.isConfigured || baseAuthConfig.loopbackProbeBlockedReason || !baseAuthConfig.allowLoopbackProbe) {
       setDetectedAuthConfig(null)
       return () => {
         cancelled = true
@@ -946,6 +946,7 @@ function App() {
       currentOrigin: baseAuthConfig.currentOrigin,
       appBasePath: baseAuthConfig.appBasePath,
       source: baseAuthConfig.source,
+      allowLoopbackProbe: baseAuthConfig.allowLoopbackProbe,
     }).then((resolvedConfig) => {
       if (cancelled || !resolvedConfig) return
       setDetectedAuthConfig((current) => {

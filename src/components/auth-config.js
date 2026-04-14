@@ -69,6 +69,7 @@ export async function detectLocalPagesAuthConfig({
   currentOrigin = globalThis?.location?.origin ?? '',
   appBasePath = '/',
   source = 'default',
+  allowLoopbackProbe = false,
   fetchImpl = globalThis?.fetch,
   candidates = [
     'http://127.0.0.1:4175',
@@ -152,6 +153,7 @@ export function resolveAuthConfig({
   const envCredentialMode = readCredentialMode(env?.VITE_AUTH_CREDENTIALS)
   const runtimeAppBasePath = readString(runtimeConfig?.appBasePath)
   const envAppBasePath = readString(env?.BASE_URL)
+  const allowLoopbackProbe = runtimeConfig?.allowLoopbackProbe === true || params.get('authLoopbackProbe') === '1'
   const loopbackProbeBlockedReason = readLoopbackProbeBlockedReason(runtimeConfig?.loopbackProbeBlockedReason)
 
   const apiBaseUrl = trimTrailingSlash(
@@ -237,8 +239,9 @@ export function resolveAuthConfig({
       || queryCredentialMode
       || envCredentialMode
       || 'include',
+    allowLoopbackProbe,
     loopbackProbeBlockedReason,
     source,
-    isConfigured: resolveAuthConfigConfigured(source),
+    isConfigured: resolveAuthConfigConfigured(source, { allowLoopbackProbe }),
   }
 }

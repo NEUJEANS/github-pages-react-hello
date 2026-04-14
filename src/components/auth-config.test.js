@@ -24,6 +24,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
       continueEndpoint: '/api/auth/continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      allowLoopbackProbe: false,
       loopbackProbeBlockedReason: '',
       source: 'runtime',
       isConfigured: true,
@@ -50,6 +51,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
       continueEndpoint: '/api/auth/continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      allowLoopbackProbe: false,
       loopbackProbeBlockedReason: '',
       source: 'query',
       isConfigured: true,
@@ -73,6 +75,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
       continueEndpoint: '/api/auth/continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      allowLoopbackProbe: false,
       loopbackProbeBlockedReason: '',
       source: 'env:VITE_API_BASE_URL',
       isConfigured: true,
@@ -92,6 +95,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
       continueEndpoint: '/api/auth/continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      allowLoopbackProbe: false,
       loopbackProbeBlockedReason: '',
       source: 'default',
       isConfigured: false,
@@ -131,6 +135,7 @@ test('resolveAuthConfig carries login/session/pending/continue endpoint and cred
       continueEndpoint: '/internal/auth/continue',
       logoutEndpoint: '/internal/auth/logout',
       credentialsMode: 'omit',
+      allowLoopbackProbe: false,
       loopbackProbeBlockedReason: '',
       source: 'runtime',
       isConfigured: true,
@@ -156,6 +161,7 @@ test('resolveAuthConfig marks query and env endpoint-only overrides as configure
       continueEndpoint: '/query-continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'same-origin',
+      allowLoopbackProbe: false,
       loopbackProbeBlockedReason: '',
       source: 'query',
       isConfigured: true,
@@ -182,6 +188,7 @@ test('resolveAuthConfig marks query and env endpoint-only overrides as configure
       continueEndpoint: '/env-continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      allowLoopbackProbe: false,
       loopbackProbeBlockedReason: '',
       source: 'env:auth-endpoint',
       isConfigured: true,
@@ -209,6 +216,7 @@ test('resolveAuthConfig carries the Vite base path for same-origin scaffold rout
       continueEndpoint: '/api/auth/continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      allowLoopbackProbe: false,
       loopbackProbeBlockedReason: '',
       source: 'default',
       isConfigured: false,
@@ -216,12 +224,13 @@ test('resolveAuthConfig carries the Vite base path for same-origin scaffold rout
   )
 })
 
-test('shouldProbeLocalPagesAuthConfig only enables loopback probing for default GitHub Pages subpath deploys', () => {
+test('shouldProbeLocalPagesAuthConfig only enables loopback probing for explicit opt-in on default GitHub Pages subpath deploys', () => {
   assert.equal(
     shouldProbeLocalPagesAuthConfig({
       currentOrigin: 'https://neujeans.github.io',
       appBasePath: '/github-pages-react-hello/',
       source: 'default',
+      allowLoopbackProbe: true,
     }),
     true,
   )
@@ -231,6 +240,7 @@ test('shouldProbeLocalPagesAuthConfig only enables loopback probing for default 
       currentOrigin: 'https://neujeans.github.io',
       appBasePath: '/',
       source: 'default',
+      allowLoopbackProbe: true,
     }),
     false,
   )
@@ -240,17 +250,19 @@ test('shouldProbeLocalPagesAuthConfig only enables loopback probing for default 
       currentOrigin: 'https://neujeans.github.io',
       appBasePath: '/github-pages-react-hello/',
       source: 'runtime',
+      allowLoopbackProbe: true,
     }),
     false,
   )
 })
 
-test('detectLocalPagesAuthConfig resolves the local standalone auth backend when the health probe succeeds', async () => {
+test('detectLocalPagesAuthConfig resolves the local standalone auth backend when explicit loopback probing is enabled', async () => {
   const calls = []
   const result = await detectLocalPagesAuthConfig({
     currentOrigin: 'https://neujeans.github.io',
     appBasePath: '/github-pages-react-hello/',
     source: 'default',
+    allowLoopbackProbe: true,
     candidates: ['http://127.0.0.1:4175'],
     fetchImpl: async (url) => {
       calls.push(url)
@@ -296,7 +308,35 @@ test('resolveAuthConfig preserves a loopback probe blocker hint from runtime con
       continueEndpoint: '/api/auth/continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      allowLoopbackProbe: false,
       loopbackProbeBlockedReason: 'loopback-address-space-denied',
+      source: 'default',
+      isConfigured: false,
+    },
+  )
+})
+
+test('resolveAuthConfig exposes explicit query opt-in for loopback probing', () => {
+  assert.deepEqual(
+    resolveAuthConfig({
+      env: { BASE_URL: '/github-pages-react-hello/' },
+      runtimeConfig: null,
+      locationSearch: '?authLoopbackProbe=1',
+      locationOrigin: 'https://neujeans.github.io',
+    }),
+    {
+      apiBaseUrl: '',
+      currentOrigin: 'https://neujeans.github.io',
+      appBasePath: '/github-pages-react-hello/',
+      loginEndpoint: '/api/auth/login',
+      signupEndpoint: '/api/auth/signup',
+      sessionEndpoint: '/api/auth/session',
+      pendingEndpoint: '/api/auth/pending',
+      continueEndpoint: '/api/auth/continue',
+      logoutEndpoint: '/api/auth/logout',
+      credentialsMode: 'include',
+      allowLoopbackProbe: true,
+      loopbackProbeBlockedReason: '',
       source: 'default',
       isConfigured: false,
     },

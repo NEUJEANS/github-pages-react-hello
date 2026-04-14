@@ -20,80 +20,14 @@
       const params = new URLSearchParams(globalThis.location?.search ?? '')
       const queryApiBaseUrl = params.get('authApiBaseUrl')?.trim() ?? ''
       const queryCredentialsMode = params.get('authCredentials')?.trim() ?? ''
-      const currentHost = globalThis.location?.host ?? ''
-      const currentPath = globalThis.location?.pathname ?? ''
-      const hasExplicitRuntimeConfig = Boolean(
-        queryApiBaseUrl
-        || (stored && typeof stored === 'object' && stored.apiBaseUrl)
-        || (existing && typeof existing === 'object' && existing.apiBaseUrl),
-      )
-      const canAutoDetectLocalAuth = !hasExplicitRuntimeConfig
-        && /github\.io$/i.test(currentHost)
-        && currentPath !== '/'
-      const localAuthCandidates = [
-        'http://127.0.0.1:4175',
-        'http://localhost:4175',
-      ]
-
-      async function detectLocalAuthApiBaseUrl() {
-        let blockedReason = ''
-
-        for (const candidate of localAuthCandidates) {
-          try {
-            const controller = new AbortController()
-            const timeoutId = globalThis.setTimeout(() => controller.abort(), 900)
-            const response = await fetch(`${candidate}/api/auth/health`, {
-              method: 'GET',
-              cache: 'no-store',
-              signal: controller.signal,
-            })
-            globalThis.clearTimeout(timeoutId)
-
-            if (!response.ok) continue
-
-            const payload = await response.json().catch(() => null)
-            if (payload?.ok) {
-              return {
-                apiBaseUrl: candidate,
-                blockedReason: '',
-              }
-            }
-          } catch (error) {
-            const message = typeof error?.message === 'string' ? error.message : ''
-            if (/loopback address space/i.test(message)) {
-              blockedReason = 'loopback-address-space-denied'
-              break
-            }
-          }
-        }
-
-        return {
-          apiBaseUrl: '',
-          blockedReason,
-        }
-      }
-
-      const localAuthProbeResult = canAutoDetectLocalAuth
-        ? await detectLocalAuthApiBaseUrl()
-        : { apiBaseUrl: '', blockedReason: '' }
+      const queryLoopbackProbe = params.get('authLoopbackProbe') === '1'
 
       globalThis.__HAVENLY_AUTH_CONFIG__ = {
         ...(stored && typeof stored === 'object' ? stored : {}),
         ...(existing && typeof existing === 'object' ? existing : {}),
-        ...(localAuthProbeResult.apiBaseUrl
-          ? {
-              apiBaseUrl: localAuthProbeResult.apiBaseUrl,
-              credentialsMode: 'include',
-              autoDetectedLocalAuth: true,
-            }
-          : {}),
-        ...(localAuthProbeResult.blockedReason
-          ? {
-              loopbackProbeBlockedReason: localAuthProbeResult.blockedReason,
-            }
-          : {}),
         ...(queryApiBaseUrl ? { apiBaseUrl: queryApiBaseUrl.replace(/\/$/, '') } : {}),
         ...(queryCredentialsMode ? { credentialsMode: queryCredentialsMode } : {}),
+        ...(queryLoopbackProbe ? { allowLoopbackProbe: true } : {}),
       }
 
       await import('/src/main.jsx')

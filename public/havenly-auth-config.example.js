@@ -11,10 +11,11 @@
 //
 // Or append ?authApiBaseUrl=https://your-auth-host.example.com to the live URL.
 //
-// Recent Pages behavior:
-// - if the live site is opened on a machine already running `npm run dev:auth-server`
-//   on 127.0.0.1:4175 or localhost:4175, HAVENLY now auto-detects that local auth
-//   backend and uses it without requiring query params or manual localStorage setup.
+// Optional local-only fallback for debugging:
+// - append ?authLoopbackProbe=1 only when you explicitly want HAVENLY to try a local
+//   127.0.0.1:4175/localhost:4175 auth server from the live Pages app.
+// - By default the live Pages build no longer auto-probes loopback, because browsers
+//   increasingly block GitHub Pages -> localhost access and that produced noisy false paths.
 
 globalThis.__HAVENLY_AUTH_CONFIG__ = {
   apiBaseUrl: 'https://your-auth-host.example.com',
