@@ -10,6 +10,11 @@
 // location.reload()
 //
 // Or append ?authApiBaseUrl=https://your-auth-host.example.com to the live URL.
+//
+// Recent Pages behavior:
+// - if the live site is opened on a machine already running `npm run dev:auth-server`
+//   on 127.0.0.1:4175 or localhost:4175, HAVENLY now auto-detects that local auth
+//   backend and uses it without requiring query params or manual localStorage setup.
 
 globalThis.__HAVENLY_AUTH_CONFIG__ = {
   apiBaseUrl: 'https://your-auth-host.example.com',

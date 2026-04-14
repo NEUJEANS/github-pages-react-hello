@@ -4,33 +4,81 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HAVENLY React Conversion</title>
-    <script>
-      ;(() => {
-        const existing = globalThis.__HAVENLY_AUTH_CONFIG__
-        const storedRaw = globalThis.localStorage?.getItem('havenly.auth.runtimeConfig')
-        let stored = null
+    <script type="module">
+      const existing = globalThis.__HAVENLY_AUTH_CONFIG__
+      const storedRaw = globalThis.localStorage?.getItem('havenly.auth.runtimeConfig')
+      let stored = null
 
-        if (storedRaw) {
+      if (storedRaw) {
+        try {
+          stored = JSON.parse(storedRaw)
+        } catch {
+          stored = null
+        }
+      }
+
+      const params = new URLSearchParams(globalThis.location?.search ?? '')
+      const queryApiBaseUrl = params.get('authApiBaseUrl')?.trim() ?? ''
+      const queryCredentialsMode = params.get('authCredentials')?.trim() ?? ''
+      const currentHost = globalThis.location?.host ?? ''
+      const currentPath = globalThis.location?.pathname ?? ''
+      const hasExplicitRuntimeConfig = Boolean(
+        queryApiBaseUrl
+        || (stored && typeof stored === 'object' && stored.apiBaseUrl)
+        || (existing && typeof existing === 'object' && existing.apiBaseUrl),
+      )
+      const canAutoDetectLocalAuth = !hasExplicitRuntimeConfig
+        && /github\.io$/i.test(currentHost)
+        && currentPath !== '/'
+      const localAuthCandidates = [
+        'http://127.0.0.1:4175',
+        'http://localhost:4175',
+      ]
+
+      async function detectLocalAuthApiBaseUrl() {
+        for (const candidate of localAuthCandidates) {
           try {
-            stored = JSON.parse(storedRaw)
+            const controller = new AbortController()
+            const timeoutId = globalThis.setTimeout(() => controller.abort(), 900)
+            const response = await fetch(`${candidate}/api/auth/health`, {
+              method: 'GET',
+              cache: 'no-store',
+              signal: controller.signal,
+            })
+            globalThis.clearTimeout(timeoutId)
+
+            if (!response.ok) continue
+
+            const payload = await response.json().catch(() => null)
+            if (payload?.ok) return candidate
           } catch {
-            stored = null
+            // try the next candidate
           }
         }
 
-        const params = new URLSearchParams(globalThis.location?.search ?? '')
-        const queryApiBaseUrl = params.get('authApiBaseUrl')?.trim() ?? ''
-        const queryCredentialsMode = params.get('authCredentials')?.trim() ?? ''
+        return ''
+      }
 
-        globalThis.__HAVENLY_AUTH_CONFIG__ = {
-          ...(stored && typeof stored === 'object' ? stored : {}),
-          ...(existing && typeof existing === 'object' ? existing : {}),
-          ...(queryApiBaseUrl ? { apiBaseUrl: queryApiBaseUrl.replace(/\/$/, '') } : {}),
-          ...(queryCredentialsMode ? { credentialsMode: queryCredentialsMode } : {}),
-        }
-      })()
+      const autoDetectedApiBaseUrl = canAutoDetectLocalAuth
+        ? await detectLocalAuthApiBaseUrl()
+        : ''
+
+      globalThis.__HAVENLY_AUTH_CONFIG__ = {
+        ...(stored && typeof stored === 'object' ? stored : {}),
+        ...(existing && typeof existing === 'object' ? existing : {}),
+        ...(autoDetectedApiBaseUrl
+          ? {
+              apiBaseUrl: autoDetectedApiBaseUrl,
+              credentialsMode: 'include',
+              autoDetectedLocalAuth: true,
+            }
+          : {}),
+        ...(queryApiBaseUrl ? { apiBaseUrl: queryApiBaseUrl.replace(/\/$/, '') } : {}),
+        ...(queryCredentialsMode ? { credentialsMode: queryCredentialsMode } : {}),
+      }
+
+      await import('/src/main.jsx')
     </script>
-    <script type="module" src="/src/main.jsx"></script>
   </head>
   <body>
     <div id="root"></div>
