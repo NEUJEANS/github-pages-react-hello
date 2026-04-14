@@ -4,7 +4,7 @@ import {
   AddressSetupScreen,
   SpaceSelectionBoard,
 } from './components/space-profile.jsx'
-import { toggleRequiredSelection } from './components/space-profile-state.js'
+import { applyApartmentSelection, toggleRequiredSelection } from './components/space-profile-state.js'
 import {
   buildInputBrief,
   buildRecommendationSummary,
@@ -832,6 +832,26 @@ function App() {
     () => buildSelectedApartment(apartmentSearchResults, spaceProfile.apartmentSelectionId),
     [spaceProfile.apartmentSelectionId],
   )
+  const syncSpaceProfileApartmentSelection = React.useCallback((apartmentSelectionId) => {
+    if (!apartmentSelectionId) return
+
+    const apartmentOption = apartmentSearchResults.find((item) => item.id === apartmentSelectionId) ?? null
+
+    setSpaceProfile((current) => {
+      if (apartmentOption) {
+        const nextProfile = applyApartmentSelection(current, apartmentOption, formatApartmentOption)
+        return current.apartmentSelectionId === nextProfile.apartmentSelectionId
+          && current.apartmentType === nextProfile.apartmentType
+          && current.query === nextProfile.query
+          ? current
+          : nextProfile
+      }
+
+      return current.apartmentSelectionId === apartmentSelectionId
+        ? current
+        : { ...current, apartmentSelectionId }
+    })
+  }, [])
   const recommendationContext = React.useMemo(() => buildRecommendationContext({
     aiForm,
     spaceProfile,
@@ -1462,11 +1482,7 @@ function App() {
     const continuityPatch = buildAccountContinuityPatch(authSession.accountState)
 
     if (nextRestorePatch?.apartmentSelectionId) {
-      setSpaceProfile((current) => (
-        current.apartmentSelectionId === nextRestorePatch.apartmentSelectionId
-          ? current
-          : { ...current, apartmentSelectionId: nextRestorePatch.apartmentSelectionId }
-      ))
+      syncSpaceProfileApartmentSelection(nextRestorePatch.apartmentSelectionId)
     }
 
     if (nextRestorePatch?.recommendationRoom) {
@@ -1491,11 +1507,7 @@ function App() {
 
     if (continuityPatch) {
       if (continuityPatch.apartmentSelectionId) {
-        setSpaceProfile((current) => (
-          current.apartmentSelectionId === continuityPatch.apartmentSelectionId
-            ? current
-            : { ...current, apartmentSelectionId: continuityPatch.apartmentSelectionId }
-        ))
+        syncSpaceProfileApartmentSelection(continuityPatch.apartmentSelectionId)
       }
       setWishlistedIds(continuityPatch.wishlistIds)
       cart.replaceItems(continuityPatch.cartItems)
@@ -1508,7 +1520,7 @@ function App() {
     }
 
     appliedAuthSessionRestoreRef.current = authSession.savedAt
-  }, [authSession, cart, editor])
+  }, [authSession, cart, editor, syncSpaceProfileApartmentSelection])
 
   const { reasons: loginGuardReasons, hasLoginGuard, metrics: loginGuardMetrics } = loginGuardSnapshot
 
@@ -2078,11 +2090,7 @@ function App() {
 
     const savedApartmentSelectionId = authSession?.draftSave?.apartmentSelectionId ?? savedAccountState?.apartmentSelectionId ?? null
     if (savedApartmentSelectionId) {
-      setSpaceProfile((current) => (
-        current.apartmentSelectionId === savedApartmentSelectionId
-          ? current
-          : { ...current, apartmentSelectionId: savedApartmentSelectionId }
-      ))
+      syncSpaceProfileApartmentSelection(savedApartmentSelectionId)
     }
 
     editor.replaceItems(Array.isArray(savedAccountState.layoutItems) ? savedAccountState.layoutItems : [])
@@ -2097,7 +2105,7 @@ function App() {
       message: '계정에 저장된 보드를 다시 불러왔어요.',
       savedAt: authSession?.savedAt ?? null,
     })
-  }, [aiProducts, authSession, editor])
+  }, [aiProducts, authSession, editor, syncSpaceProfileApartmentSelection])
 
   const handleSaveLayoutToAccount = React.useCallback(async () => {
     if (!authSession) return
