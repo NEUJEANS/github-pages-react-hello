@@ -41,7 +41,7 @@ export function buildPostAuthContinuityPatch(result) {
     wishlistIds: [...(accountState?.wishlistIds ?? [])],
     cartItems: cloneCartItems(accountState?.cartItems),
     layoutItems: cloneLayoutItems(accountState?.layoutItems),
-    ...(layoutTrayItems.length > 0 ? { layoutTrayItems } : {}),
+    ...(Array.isArray(accountState?.layoutTrayItems) ? { layoutTrayItems } : {}),
     recommendationDraft: cloneRecommendationDraft(accountState?.recommendationDraft),
   }
 }

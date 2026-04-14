@@ -339,7 +339,7 @@ function buildSerializableDraftSave(draftSave = null) {
     ...(recommendationDraft ? { recommendationDraft } : {}),
     selectedSpaceIds,
     layoutItems,
-    ...(layoutTrayItems.length > 0 ? { layoutTrayItems } : {}),
+    ...(Array.isArray(draftSave.layoutTrayItems) ? { layoutTrayItems } : {}),
     layoutItemCount: typeof draftSave.layoutItemCount === 'number' ? draftSave.layoutItemCount : layoutItems.length,
   }
 }
@@ -375,7 +375,7 @@ function buildSerializableAuthAccountState(accountState = null) {
     wishlistIds,
     cartItems,
     layoutItems,
-    ...(layoutTrayItems.length > 0 ? { layoutTrayItems } : {}),
+    ...(Array.isArray(accountState.layoutTrayItems) ? { layoutTrayItems } : {}),
     recommendationDraft,
   }
 }

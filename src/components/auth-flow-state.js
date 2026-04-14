@@ -211,7 +211,7 @@ function buildSerializableDraftSaveHandoff(draftSave = null) {
     ...(payload.recommendationDraft ? { recommendationDraft: payload.recommendationDraft } : {}),
     selectedSpaceIds: payload.selectedSpaceIds,
     layoutItems: payload.layoutItems,
-    ...(payload.layoutTrayItems.length > 0 ? { layoutTrayItems: payload.layoutTrayItems } : {}),
+    ...(Array.isArray(draftSave.layoutTrayItems) ? { layoutTrayItems: payload.layoutTrayItems } : {}),
     layoutItemCount: payload.layoutItemCount,
   }
 }

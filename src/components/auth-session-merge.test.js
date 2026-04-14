@@ -46,3 +46,26 @@ test('buildPostAuthContinuityPatch extracts replacement account state for client
     },
   })
 })
+
+test('buildPostAuthContinuityPatch preserves explicit empty tray state from the account snapshot', () => {
+  assert.deepEqual(buildPostAuthContinuityPatch({
+    data: {
+      mergedGuestDraft: {
+        mode: 'replaced',
+      },
+      accountState: {
+        wishlistIds: [],
+        cartItems: [],
+        layoutItems: [],
+        layoutTrayItems: [],
+        recommendationDraft: {
+          room: '거실',
+          style: '모던',
+          priority: null,
+          lifestyle: [],
+          extraRequest: '',
+        },
+      },
+    },
+  })?.layoutTrayItems, [])
+})

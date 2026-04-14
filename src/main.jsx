@@ -2061,7 +2061,7 @@ function App() {
 
     editor.replaceItems(Array.isArray(savedAccountState.layoutItems) ? savedAccountState.layoutItems : [])
     setLayoutTrayItems(
-      Array.isArray(savedAccountState.layoutTrayItems) && savedAccountState.layoutTrayItems.length > 0
+      Array.isArray(savedAccountState.layoutTrayItems)
         ? savedAccountState.layoutTrayItems.map((item) => ({ ...item }))
         : aiProducts.map((item) => ({ ...item })),
     )

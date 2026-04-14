@@ -255,9 +255,9 @@ export function LayoutEditorPage({
             ) : (
               <>
                 <strong>
-                  {layoutAuthPanelState.hasSavedLayout
-                    ? `저장본 ${layoutAuthPanelState.savedLayoutCount}개 · 현재 ${layoutAuthPanelState.currentLayoutCount}개`
-                    : `현재 배치 ${layoutAuthPanelState.currentLayoutCount}개`}
+                  {layoutAuthPanelState.hasSavedBoard
+                    ? `저장본 배치 ${layoutAuthPanelState.savedLayoutCount}개 · 트레이 ${layoutAuthPanelState.savedTrayCount}개`
+                    : `현재 배치 ${layoutAuthPanelState.currentLayoutCount}개 · 트레이 ${layoutAuthPanelState.currentTrayCount}개`}
                 </strong>
                 <p>
                   {layoutAuthPanelState.savedRoom

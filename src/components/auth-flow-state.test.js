@@ -300,6 +300,19 @@ test('buildAuthSubmitPlan prepares a backend-friendly login request with handoff
   assert.equal(plan.summary.hasDraftSave, true)
 })
 
+test('buildAuthContinuationPlan preserves an explicit empty layout tray snapshot', () => {
+  const plan = buildAuthContinuationPlan({
+    draftSave: {
+      draftLabel: '거실 보드',
+      recommendationRoom: '거실',
+      layoutItems: [],
+      layoutTrayItems: [],
+    },
+  })
+
+  assert.deepEqual(plan.request.draftSave?.layoutTrayItems, [])
+})
+
 test('buildAuthResultSummary extracts backend auth response details without widening the login flow contract', () => {
   const summary = buildAuthResultSummary({
     data: {

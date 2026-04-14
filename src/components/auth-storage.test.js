@@ -1087,6 +1087,31 @@ test('buildPersistedAuthSession falls back to backend session context when no gu
   })
 })
 
+test('buildPersistedAuthSession preserves explicit empty layout tray snapshots', () => {
+  const session = buildPersistedAuthSession({
+    sessionId: 'session-empty-tray',
+    handoffId: 'handoff-empty-tray',
+    accountLabel: 'user@example.com',
+  }, {
+    draftSave: {
+      draftLabel: '거실 보드',
+      recommendationRoom: '거실',
+      layoutItems: [],
+      layoutTrayItems: [],
+    },
+    accountState: {
+      wishlistIds: [],
+      cartItems: [],
+      layoutItems: [],
+      layoutTrayItems: [],
+      recommendationDraft: { room: '거실' },
+    },
+  })
+
+  assert.deepEqual(session.draftSave?.layoutTrayItems, [])
+  assert.deepEqual(session.accountState?.layoutTrayItems, [])
+})
+
 test('buildPersistedAuthSession can derive restore-ready guest draft context from serialized draft-save payloads', () => {
   const session = buildPersistedAuthSession({
     sessionId: 'sess_draftsave',
