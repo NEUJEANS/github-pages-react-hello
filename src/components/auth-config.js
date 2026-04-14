@@ -40,6 +40,11 @@ function resolveAuthConfigConfigured(source = 'default') {
   return source !== 'default'
 }
 
+function readLoopbackProbeBlockedReason(value) {
+  const normalized = readString(value)
+  return normalized || ''
+}
+
 function resolveCurrentOrigin(locationOrigin = globalThis?.location?.origin ?? '') {
   return readString(locationOrigin)
 }
@@ -147,6 +152,7 @@ export function resolveAuthConfig({
   const envCredentialMode = readCredentialMode(env?.VITE_AUTH_CREDENTIALS)
   const runtimeAppBasePath = readString(runtimeConfig?.appBasePath)
   const envAppBasePath = readString(env?.BASE_URL)
+  const loopbackProbeBlockedReason = readLoopbackProbeBlockedReason(runtimeConfig?.loopbackProbeBlockedReason)
 
   const apiBaseUrl = trimTrailingSlash(
     runtimeApiBaseUrl
@@ -231,6 +237,7 @@ export function resolveAuthConfig({
       || queryCredentialMode
       || envCredentialMode
       || 'include',
+    loopbackProbeBlockedReason,
     source,
     isConfigured: resolveAuthConfigConfigured(source),
   }

@@ -36,6 +36,8 @@
       ]
 
       async function detectLocalAuthApiBaseUrl() {
+        let blockedReason = ''
+
         for (const candidate of localAuthCandidates) {
           try {
             const controller = new AbortController()
@@ -50,27 +52,44 @@
             if (!response.ok) continue
 
             const payload = await response.json().catch(() => null)
-            if (payload?.ok) return candidate
-          } catch {
-            // try the next candidate
+            if (payload?.ok) {
+              return {
+                apiBaseUrl: candidate,
+                blockedReason: '',
+              }
+            }
+          } catch (error) {
+            const message = typeof error?.message === 'string' ? error.message : ''
+            if (/loopback address space/i.test(message)) {
+              blockedReason = 'loopback-address-space-denied'
+              break
+            }
           }
         }
 
-        return ''
+        return {
+          apiBaseUrl: '',
+          blockedReason,
+        }
       }
 
-      const autoDetectedApiBaseUrl = canAutoDetectLocalAuth
+      const localAuthProbeResult = canAutoDetectLocalAuth
         ? await detectLocalAuthApiBaseUrl()
-        : ''
+        : { apiBaseUrl: '', blockedReason: '' }
 
       globalThis.__HAVENLY_AUTH_CONFIG__ = {
         ...(stored && typeof stored === 'object' ? stored : {}),
         ...(existing && typeof existing === 'object' ? existing : {}),
-        ...(autoDetectedApiBaseUrl
+        ...(localAuthProbeResult.apiBaseUrl
           ? {
-              apiBaseUrl: autoDetectedApiBaseUrl,
+              apiBaseUrl: localAuthProbeResult.apiBaseUrl,
               credentialsMode: 'include',
               autoDetectedLocalAuth: true,
+            }
+          : {}),
+        ...(localAuthProbeResult.blockedReason
+          ? {
+              loopbackProbeBlockedReason: localAuthProbeResult.blockedReason,
             }
           : {}),
         ...(queryApiBaseUrl ? { apiBaseUrl: queryApiBaseUrl.replace(/\/$/, '') } : {}),

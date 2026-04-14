@@ -107,15 +107,18 @@ function shouldUseUnconfiguredPagesMode({ apiBaseUrl, source = 'default', curren
   return isGithubPagesHost && hasPagesBasePath && isDefaultSource && !hasExternalAuthConfig
 }
 
-function buildUnconfiguredPagesAuthResult({ endpoint, source = 'default', appBasePath = '/', currentOrigin, credentialsMode = 'include' } = {}) {
+function buildUnconfiguredPagesAuthResult({ endpoint, source = 'default', appBasePath = '/', currentOrigin, credentialsMode = 'include', loopbackProbeBlockedReason = '' } = {}) {
   const resolvedEndpoint = resolveAuthEndpoint(endpoint, { appBasePath, currentOrigin })
   const targetLabel = resolveAuthTargetLabel(resolvedEndpoint, { currentOrigin })
+  const isLoopbackProbeBlocked = loopbackProbeBlockedReason === 'loopback-address-space-denied'
 
   return {
     ok: false,
     status: 503,
     data: {
-      message: 'GitHub Pages auth backend is not configured yet. Add window.__HAVENLY_AUTH_CONFIG__.apiBaseUrl (or use ?authApiBaseUrl=...) to point the live site at a real /api/auth service.',
+      message: isLoopbackProbeBlocked
+        ? 'GitHub Pages cannot reach the local HAVENLY auth server from this browser because loopback access was denied. Use a real public authApiBaseUrl runtime config (or open the app through a local preview/proxy) before trying live login again.'
+        : 'GitHub Pages auth backend is not configured yet. Add window.__HAVENLY_AUTH_CONFIG__.apiBaseUrl (or use ?authApiBaseUrl=...) to point the live site at a real /api/auth service.',
       connection: {
         method: endpoint === '/api/auth/session' || endpoint === '/api/auth/pending' ? 'GET' : 'POST',
         endpoint,
@@ -129,7 +132,7 @@ function buildUnconfiguredPagesAuthResult({ endpoint, source = 'default', appBas
     },
     meta: {
       authMode: 'remote',
-      authTransport: 'unconfigured-pages',
+      authTransport: isLoopbackProbeBlocked ? 'unconfigured-pages-loopback-blocked' : 'unconfigured-pages',
     },
   }
 }
@@ -577,6 +580,7 @@ export async function submitAuthLoginPlan(plan, options = {}) {
       currentOrigin: options?.currentOrigin,
       appBasePath: options?.appBasePath,
       credentialsMode: options?.credentialsMode,
+      loopbackProbeBlockedReason: options?.loopbackProbeBlockedReason,
     })
   }
 
@@ -596,13 +600,14 @@ export async function submitAuthSignupPlan(plan, options = {}) {
       currentOrigin: options?.currentOrigin,
       appBasePath: options?.appBasePath,
       credentialsMode: options?.credentialsMode,
+      loopbackProbeBlockedReason: options?.loopbackProbeBlockedReason,
     })
   }
 
   return submitAuthAccessPlan(plan, options)
 }
 
-export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiBaseUrl, appBasePath, currentOrigin, credentialsMode = 'include', source = 'default' } = {}) {
+export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiBaseUrl, appBasePath, currentOrigin, credentialsMode = 'include', source = 'default', loopbackProbeBlockedReason = '' } = {}) {
   if (shouldUseUnconfiguredPagesMode({ apiBaseUrl, source, currentOrigin, appBasePath })) {
     return buildUnconfiguredPagesAuthResult({
       endpoint: plan?.endpoint ?? '/api/auth/continue',
@@ -610,6 +615,7 @@ export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiB
       currentOrigin,
       appBasePath,
       credentialsMode,
+      loopbackProbeBlockedReason,
     })
   }
 
@@ -676,6 +682,7 @@ export async function readAuthSession({
   credentialsMode = 'include',
   source = apiBaseUrl ? 'env/runtime-configured' : 'default',
   connectionFallbackOverride = null,
+  loopbackProbeBlockedReason = '',
 } = {}) {
   if (shouldUseUnconfiguredPagesMode({ apiBaseUrl, source, currentOrigin, appBasePath })) {
     return buildUnconfiguredPagesAuthResult({
@@ -684,6 +691,7 @@ export async function readAuthSession({
       currentOrigin,
       appBasePath,
       credentialsMode,
+      loopbackProbeBlockedReason,
     })
   }
 
@@ -743,6 +751,7 @@ export async function readAuthPending({
   credentialsMode = 'include',
   source = apiBaseUrl ? 'env/runtime-configured' : 'default',
   connectionFallbackOverride = null,
+  loopbackProbeBlockedReason = '',
 } = {}) {
   if (shouldUseUnconfiguredPagesMode({ apiBaseUrl, source, currentOrigin, appBasePath })) {
     return buildUnconfiguredPagesAuthResult({
@@ -751,6 +760,7 @@ export async function readAuthPending({
       currentOrigin,
       appBasePath,
       credentialsMode,
+      loopbackProbeBlockedReason,
     })
   }
 
@@ -809,6 +819,7 @@ export async function signOutAuthSession({
   currentOrigin,
   credentialsMode = 'include',
   source = apiBaseUrl ? 'env/runtime-configured' : 'default',
+  loopbackProbeBlockedReason = '',
 } = {}) {
   if (shouldUseUnconfiguredPagesMode({ apiBaseUrl, source, currentOrigin, appBasePath })) {
     return buildUnconfiguredPagesAuthResult({
@@ -817,6 +828,7 @@ export async function signOutAuthSession({
       currentOrigin,
       appBasePath,
       credentialsMode,
+      loopbackProbeBlockedReason,
     })
   }
 

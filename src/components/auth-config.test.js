@@ -24,6 +24,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
       continueEndpoint: '/api/auth/continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      loopbackProbeBlockedReason: '',
       source: 'runtime',
       isConfigured: true,
     },
@@ -49,6 +50,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
       continueEndpoint: '/api/auth/continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      loopbackProbeBlockedReason: '',
       source: 'query',
       isConfigured: true,
     },
@@ -71,6 +73,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
       continueEndpoint: '/api/auth/continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      loopbackProbeBlockedReason: '',
       source: 'env:VITE_API_BASE_URL',
       isConfigured: true,
     },
@@ -89,6 +92,7 @@ test('resolveAuthConfig prefers runtime overrides, then query params, then env f
       continueEndpoint: '/api/auth/continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      loopbackProbeBlockedReason: '',
       source: 'default',
       isConfigured: false,
     },
@@ -127,6 +131,7 @@ test('resolveAuthConfig carries login/session/pending/continue endpoint and cred
       continueEndpoint: '/internal/auth/continue',
       logoutEndpoint: '/internal/auth/logout',
       credentialsMode: 'omit',
+      loopbackProbeBlockedReason: '',
       source: 'runtime',
       isConfigured: true,
     },
@@ -151,6 +156,7 @@ test('resolveAuthConfig marks query and env endpoint-only overrides as configure
       continueEndpoint: '/query-continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'same-origin',
+      loopbackProbeBlockedReason: '',
       source: 'query',
       isConfigured: true,
     },
@@ -176,6 +182,7 @@ test('resolveAuthConfig marks query and env endpoint-only overrides as configure
       continueEndpoint: '/env-continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      loopbackProbeBlockedReason: '',
       source: 'env:auth-endpoint',
       isConfigured: true,
     },
@@ -202,6 +209,7 @@ test('resolveAuthConfig carries the Vite base path for same-origin scaffold rout
       continueEndpoint: '/api/auth/continue',
       logoutEndpoint: '/api/auth/logout',
       credentialsMode: 'include',
+      loopbackProbeBlockedReason: '',
       source: 'default',
       isConfigured: false,
     },
@@ -268,4 +276,29 @@ test('detectLocalPagesAuthConfig resolves the local standalone auth backend when
     source: 'runtime',
     isConfigured: true,
   })
+})
+
+test('resolveAuthConfig preserves a loopback probe blocker hint from runtime config', () => {
+  assert.deepEqual(
+    resolveAuthConfig({
+      env: { BASE_URL: '/github-pages-react-hello/' },
+      runtimeConfig: { loopbackProbeBlockedReason: 'loopback-address-space-denied' },
+      locationOrigin: 'https://neujeans.github.io',
+    }),
+    {
+      apiBaseUrl: '',
+      currentOrigin: 'https://neujeans.github.io',
+      appBasePath: '/github-pages-react-hello/',
+      loginEndpoint: '/api/auth/login',
+      signupEndpoint: '/api/auth/signup',
+      sessionEndpoint: '/api/auth/session',
+      pendingEndpoint: '/api/auth/pending',
+      continueEndpoint: '/api/auth/continue',
+      logoutEndpoint: '/api/auth/logout',
+      credentialsMode: 'include',
+      loopbackProbeBlockedReason: 'loopback-address-space-denied',
+      source: 'default',
+      isConfigured: false,
+    },
+  )
 })

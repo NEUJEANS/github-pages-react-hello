@@ -1227,3 +1227,22 @@ test('readAuthSession falls back to the local scaffold when a same-origin previe
   assert.equal(session.meta.authTransport, 'local-fallback')
   assert.equal(session.data.user.email, 'user@example.com')
 })
+
+test('readAuthSession surfaces a loopback-blocked live Pages hint when browser policy blocks local auth probing', async () => {
+  const result = await readAuthSession({
+    endpoint: '/api/auth/session',
+    appBasePath: '/github-pages-react-hello/',
+    currentOrigin: 'https://neujeans.github.io',
+    credentialsMode: 'include',
+    source: 'default',
+    loopbackProbeBlockedReason: 'loopback-address-space-denied',
+    fetchImpl: async () => {
+      throw new Error('should not fetch')
+    },
+  })
+
+  assert.equal(result.ok, false)
+  assert.equal(result.status, 503)
+  assert.equal(result.meta.authTransport, 'unconfigured-pages-loopback-blocked')
+  assert.match(result.data.message, /loopback access was denied/i)
+})

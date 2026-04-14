@@ -423,9 +423,11 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
     const isUnconfiguredPages = result?.meta?.authTransport === 'unconfigured-pages'
     return {
       tone: 'service',
-      message: isUnconfiguredPages
-        ? '라이브 GitHub Pages 인증 백엔드가 아직 연결되지 않았어요. 실제 로그인/보드 저장을 쓰려면 배포 페이지에 authApiBaseUrl 런타임 설정이 필요해요.'
-        : (message ?? '인증 서비스 연결을 아직 준비 중이에요. 잠시 후 다시 시도해주세요.'),
+      message: result?.meta?.authTransport === 'unconfigured-pages-loopback-blocked'
+        ? '이 브라우저에서는 GitHub Pages가 로컬 인증 서버에 직접 닿지 못하고 있어요. 실제 로그인/보드 저장을 쓰려면 공개 authApiBaseUrl을 연결하거나 로컬 프리뷰 경로로 열어야 해요.'
+        : isUnconfiguredPages
+          ? '라이브 GitHub Pages 인증 백엔드가 아직 연결되지 않았어요. 실제 로그인/보드 저장을 쓰려면 배포 페이지에 authApiBaseUrl 런타임 설정이 필요해요.'
+          : (message ?? '인증 서비스 연결을 아직 준비 중이에요. 잠시 후 다시 시도해주세요.'),
       summary: buildFallbackSummary(fallbackSummary),
       resumeToken: data.resumeToken ?? null,
       nextAction: normalizeContinuationNextAction(data.nextAction ?? null),

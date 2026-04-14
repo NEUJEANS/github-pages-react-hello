@@ -1039,6 +1039,7 @@ function App() {
         appBasePath: authConfig.appBasePath,
         currentOrigin: authConfig.currentOrigin,
         credentialsMode: authConfig.credentialsMode,
+        loopbackProbeBlockedReason: authConfig.loopbackProbeBlockedReason,
         source: authConfig.isConfigured ? 'env/runtime-configured' : 'default',
       })
       verificationPendingStartedAtRef.current = null
