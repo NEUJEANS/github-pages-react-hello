@@ -252,6 +252,7 @@ export function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
 
   return {
     apartmentLabel: continuity.apartmentLabel ?? null,
+    ...(guestDraftSnapshot.spaceProfile?.apartmentSelectionId ? { apartmentSelectionId: guestDraftSnapshot.spaceProfile.apartmentSelectionId } : {}),
     selectedRoomCount: selectedRooms.length,
     selectedRooms,
     selectedSpaceIds: Array.isArray(guestDraftSnapshot.spaceProfile?.spaces)
@@ -270,6 +271,7 @@ function buildGuestDraftSummaryFromDraftSave(draftSave = null) {
 
   return {
     apartmentLabel: serializableDraftSave.apartmentLabel ?? serializableDraftSave.draftLabel ?? null,
+    ...(serializableDraftSave.apartmentSelectionId ? { apartmentSelectionId: serializableDraftSave.apartmentSelectionId } : {}),
     selectedRoomCount: Array.isArray(serializableDraftSave.selectedSpaceIds)
       ? serializableDraftSave.selectedSpaceIds.length
       : 0,
@@ -323,18 +325,22 @@ function buildSerializableDraftSave(draftSave = null) {
     ? draftSave.layoutTrayItems.map((item) => ({ ...item }))
     : []
   const recommendationDraft = buildSerializableRecommendationDraft(draftSave.recommendationDraft, draftSave.recommendationRoom)
+  const apartmentSelectionId = typeof draftSave.apartmentSelectionId === 'string' && draftSave.apartmentSelectionId.trim()
+    ? draftSave.apartmentSelectionId.trim()
+    : null
 
   const recommendationRoom = typeof draftSave.recommendationRoom === 'string' && draftSave.recommendationRoom.trim()
     ? draftSave.recommendationRoom.trim()
     : (recommendationDraft?.room ?? null)
 
-  if (!selectedSpaceIds.length && !layoutItems.length && !layoutTrayItems.length && !draftSave.draftLabel && !draftSave.apartmentLabel && !recommendationRoom) {
+  if (!selectedSpaceIds.length && !layoutItems.length && !layoutTrayItems.length && !draftSave.draftLabel && !draftSave.apartmentLabel && !apartmentSelectionId && !recommendationRoom) {
     return null
   }
 
   return {
     draftLabel: typeof draftSave.draftLabel === 'string' ? draftSave.draftLabel.trim() || null : null,
     apartmentLabel: typeof draftSave.apartmentLabel === 'string' ? draftSave.apartmentLabel.trim() || null : null,
+    ...(apartmentSelectionId ? { apartmentSelectionId } : {}),
     recommendationRoom,
     ...(recommendationDraft ? { recommendationDraft } : {}),
     selectedSpaceIds,
@@ -359,6 +365,9 @@ function buildSerializableAuthAccountState(accountState = null) {
   const layoutTrayItems = Array.isArray(accountState.layoutTrayItems)
     ? accountState.layoutTrayItems.map((item) => ({ ...item }))
     : []
+  const apartmentSelectionId = typeof accountState.apartmentSelectionId === 'string' && accountState.apartmentSelectionId.trim()
+    ? accountState.apartmentSelectionId.trim()
+    : null
   const recommendationDraft = accountState.recommendationDraft && typeof accountState.recommendationDraft === 'object'
     ? {
         room: accountState.recommendationDraft.room ?? null,
@@ -369,13 +378,14 @@ function buildSerializableAuthAccountState(accountState = null) {
       }
     : null
 
-  if (!wishlistIds.length && !cartItems.length && !layoutItems.length && !layoutTrayItems.length && !recommendationDraft) return null
+  if (!wishlistIds.length && !cartItems.length && !layoutItems.length && !layoutTrayItems.length && !apartmentSelectionId && !recommendationDraft) return null
 
   return {
     wishlistIds,
     cartItems,
     layoutItems,
     ...(Array.isArray(accountState.layoutTrayItems) ? { layoutTrayItems } : {}),
+    ...(apartmentSelectionId ? { apartmentSelectionId } : {}),
     recommendationDraft,
   }
 }

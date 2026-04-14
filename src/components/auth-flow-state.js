@@ -190,10 +190,14 @@ function buildSerializableDraftSaveHandoff(draftSave = null) {
     ? draftSave.layoutTrayItems.map((item) => ({ ...item }))
     : []
   const recommendationDraft = buildSerializableRecommendationDraft(draftSave.recommendationDraft, draftSave.recommendationRoom)
+  const apartmentSelectionId = typeof draftSave.apartmentSelectionId === 'string' && draftSave.apartmentSelectionId.trim()
+    ? draftSave.apartmentSelectionId.trim()
+    : ''
 
   const payload = {
     draftLabel: typeof draftSave.draftLabel === 'string' ? draftSave.draftLabel.trim() : '',
     apartmentLabel: typeof draftSave.apartmentLabel === 'string' ? draftSave.apartmentLabel.trim() : '',
+    apartmentSelectionId,
     recommendationRoom: typeof draftSave.recommendationRoom === 'string' && draftSave.recommendationRoom.trim()
       ? draftSave.recommendationRoom.trim()
       : (recommendationDraft?.room ?? ''),
@@ -204,13 +208,14 @@ function buildSerializableDraftSaveHandoff(draftSave = null) {
     layoutItemCount: layoutItems.length,
   }
 
-  if (!payload.draftLabel && !payload.apartmentLabel && !payload.recommendationRoom && !payload.selectedSpaceIds.length && !payload.layoutItems.length && !payload.layoutTrayItems.length) {
+  if (!payload.draftLabel && !payload.apartmentLabel && !payload.apartmentSelectionId && !payload.recommendationRoom && !payload.selectedSpaceIds.length && !payload.layoutItems.length && !payload.layoutTrayItems.length) {
     return null
   }
 
   return {
     draftLabel: payload.draftLabel || null,
     apartmentLabel: payload.apartmentLabel || null,
+    ...(payload.apartmentSelectionId ? { apartmentSelectionId: payload.apartmentSelectionId } : {}),
     recommendationRoom: payload.recommendationRoom || null,
     ...(payload.recommendationDraft ? { recommendationDraft: payload.recommendationDraft } : {}),
     selectedSpaceIds: payload.selectedSpaceIds,

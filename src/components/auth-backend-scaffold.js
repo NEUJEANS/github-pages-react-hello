@@ -73,6 +73,7 @@ function buildMergedGuestAccountState(guestDraftSnapshot = null, persistedAccoun
     wishlistIds: Array.isArray(continuity.wishlistIds) && continuity.wishlistIds.length > 0
       ? [...continuity.wishlistIds]
       : [...(baseState.wishlistIds ?? [])],
+    apartmentSelectionId: guestDraftSnapshot?.spaceProfile?.apartmentSelectionId ?? baseState.apartmentSelectionId ?? null,
     cartItems: Array.isArray(continuity.cartItems) && continuity.cartItems.length > 0
       ? continuity.cartItems.map((item) => ({ ...item }))
       : (baseState.cartItems ?? []).map((item) => ({ ...item })),
@@ -120,6 +121,7 @@ function buildGuestDraftSessionSummary(guestDraftSnapshot = null) {
 
   return {
     apartmentLabel: continuity.apartmentLabel ?? null,
+    ...(guestDraftSnapshot?.spaceProfile?.apartmentSelectionId ? { apartmentSelectionId: guestDraftSnapshot.spaceProfile.apartmentSelectionId } : {}),
     selectedRoomCount: selectedRooms.length,
     selectedRooms,
     selectedSpaceIds: Array.isArray(guestDraftSnapshot.spaceProfile?.spaces)
@@ -265,14 +267,20 @@ function buildDraftSaveState(request = {}, guestDraftSnapshot = null) {
     : (Array.isArray(guestDraftSnapshot?.spaceProfile?.spaces)
       ? [...guestDraftSnapshot.spaceProfile.spaces]
       : [])
+  const apartmentSelectionId = typeof requestDraftSave?.apartmentSelectionId === 'string' && requestDraftSave.apartmentSelectionId.trim()
+    ? requestDraftSave.apartmentSelectionId.trim()
+    : (typeof guestDraftSnapshot?.spaceProfile?.apartmentSelectionId === 'string' && guestDraftSnapshot.spaceProfile.apartmentSelectionId.trim()
+      ? guestDraftSnapshot.spaceProfile.apartmentSelectionId.trim()
+      : null)
 
-  if (!requestDraftSave && !layoutItems.length && !selectedSpaceIds.length && !continuity.apartmentLabel && !guestDraftSnapshot?.recommendationDraft?.room) {
+  if (!requestDraftSave && !layoutItems.length && !selectedSpaceIds.length && !continuity.apartmentLabel && !apartmentSelectionId && !guestDraftSnapshot?.recommendationDraft?.room) {
     return null
   }
 
   return {
     draftLabel: requestDraftSave?.draftLabel ?? continuity.apartmentLabel ?? null,
     apartmentLabel: requestDraftSave?.apartmentLabel ?? continuity.apartmentLabel ?? null,
+    ...(apartmentSelectionId ? { apartmentSelectionId } : {}),
     recommendationRoom: requestDraftSave?.recommendationRoom ?? guestDraftSnapshot?.recommendationDraft?.room ?? null,
     selectedSpaceIds,
     layoutItems,

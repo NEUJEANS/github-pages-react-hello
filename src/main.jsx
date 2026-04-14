@@ -661,17 +661,19 @@ function buildAuthDraftSavePayload(loginFormDraftSave = null, authSessionDraftSa
   const apartmentLabel = guestDraftSnapshot.continuity?.apartmentLabel ?? null
   const recommendationDraft = guestDraftSnapshot.recommendationDraft ?? null
   const recommendationRoom = recommendationDraft?.room ?? null
+  const apartmentSelectionId = guestDraftSnapshot.spaceProfile?.apartmentSelectionId ?? null
   const selectedSpaceIds = guestDraftSnapshot.spaceProfile?.spaces ?? []
   const layoutItems = guestDraftSnapshot.continuity?.layoutItems ?? []
   const layoutTrayItems = guestDraftSnapshot.continuity?.layoutTrayItems ?? []
 
-  if (!draftLabel && !apartmentLabel && !recommendationRoom && !selectedSpaceIds.length && !layoutItems.length && !layoutTrayItems.length) {
+  if (!draftLabel && !apartmentLabel && !apartmentSelectionId && !recommendationRoom && !selectedSpaceIds.length && !layoutItems.length && !layoutTrayItems.length) {
     return null
   }
 
   return {
     draftLabel,
     apartmentLabel,
+    apartmentSelectionId,
     recommendationRoom,
     recommendationDraft,
     selectedSpaceIds,
@@ -1451,6 +1453,14 @@ function App() {
     })
     const continuityPatch = buildAccountContinuityPatch(authSession.accountState)
 
+    if (nextRestorePatch?.apartmentSelectionId) {
+      setSpaceProfile((current) => (
+        current.apartmentSelectionId === nextRestorePatch.apartmentSelectionId
+          ? current
+          : { ...current, apartmentSelectionId: nextRestorePatch.apartmentSelectionId }
+      ))
+    }
+
     if (nextRestorePatch?.recommendationRoom) {
       setAiForm((current) => (
         current.room === nextRestorePatch.recommendationRoom
@@ -1472,6 +1482,13 @@ function App() {
     }
 
     if (continuityPatch) {
+      if (continuityPatch.apartmentSelectionId) {
+        setSpaceProfile((current) => (
+          current.apartmentSelectionId === continuityPatch.apartmentSelectionId
+            ? current
+            : { ...current, apartmentSelectionId: continuityPatch.apartmentSelectionId }
+        ))
+      }
       setWishlistedIds(continuityPatch.wishlistIds)
       cart.replaceItems(continuityPatch.cartItems)
       editor.replaceItems(continuityPatch.layoutItems)
@@ -2051,6 +2068,15 @@ function App() {
     const savedAccountState = authSession?.accountState
     if (!savedAccountState) return
 
+    const savedApartmentSelectionId = authSession?.draftSave?.apartmentSelectionId ?? savedAccountState?.apartmentSelectionId ?? null
+    if (savedApartmentSelectionId) {
+      setSpaceProfile((current) => (
+        current.apartmentSelectionId === savedApartmentSelectionId
+          ? current
+          : { ...current, apartmentSelectionId: savedApartmentSelectionId }
+      ))
+    }
+
     editor.replaceItems(Array.isArray(savedAccountState.layoutItems) ? savedAccountState.layoutItems : [])
     setLayoutTrayItems(
       Array.isArray(savedAccountState.layoutTrayItems)
@@ -2063,7 +2089,7 @@ function App() {
       message: '계정에 저장된 보드를 다시 불러왔어요.',
       savedAt: authSession?.savedAt ?? null,
     })
-  }, [authSession, editor])
+  }, [aiProducts, authSession, editor])
 
   const handleSaveLayoutToAccount = React.useCallback(async () => {
     if (!authSession) return
@@ -2081,6 +2107,7 @@ function App() {
       draftSave: {
         ...authDraftSavePayload,
         draftLabel: buildLayoutAddressSummary(spaceProfile),
+        apartmentSelectionId: selectedApartment?.id ?? spaceProfile.apartmentSelectionId ?? authDraftSavePayload?.apartmentSelectionId ?? null,
         layoutTrayItems: layoutTrayItems.map((item) => ({ ...item })),
       },
     })

@@ -114,6 +114,7 @@ function buildUser({ email, password, name, createdAt = new Date().toISOString()
       wishlistIds: [],
       cartItems: [],
       layoutItems: [],
+      apartmentSelectionId: null,
       recommendationDraft: null,
     },
   }
@@ -277,7 +278,7 @@ function readUser(email, source = null) {
     createdAt: row.created_at,
     profile: parseJson(row.profile_json, null),
     verifiedAt: row.verified_at ?? null,
-    accountState: parseJson(row.account_state_json, { wishlistIds: [], cartItems: [], layoutItems: [], layoutTrayItems: [], recommendationDraft: null }),
+    accountState: parseJson(row.account_state_json, { wishlistIds: [], cartItems: [], layoutItems: [], layoutTrayItems: [], apartmentSelectionId: null, recommendationDraft: null }),
   })
 }
 
@@ -515,6 +516,7 @@ function buildGuestDraftSummary(guestDraftSnapshot = null) {
 
   return {
     apartmentLabel: continuity.apartmentLabel ?? null,
+    apartmentSelectionId: guestDraftSnapshot?.spaceProfile?.apartmentSelectionId ?? null,
     selectedRoomCount: selectedRooms.length,
     selectedRooms,
     selectedSpaceIds: Array.isArray(guestDraftSnapshot.spaceProfile?.spaces) ? [...guestDraftSnapshot.spaceProfile.spaces] : [],
@@ -539,14 +541,20 @@ function buildDraftSaveState(request = {}, guestDraftSnapshot = null) {
   const selectedSpaceIds = Array.isArray(requestDraftSave?.selectedSpaceIds)
     ? [...requestDraftSave.selectedSpaceIds]
     : (Array.isArray(guestDraftSnapshot?.spaceProfile?.spaces) ? [...guestDraftSnapshot.spaceProfile.spaces] : [])
+  const apartmentSelectionId = typeof requestDraftSave?.apartmentSelectionId === 'string' && requestDraftSave.apartmentSelectionId.trim()
+    ? requestDraftSave.apartmentSelectionId.trim()
+    : (typeof guestDraftSnapshot?.spaceProfile?.apartmentSelectionId === 'string' && guestDraftSnapshot.spaceProfile.apartmentSelectionId.trim()
+      ? guestDraftSnapshot.spaceProfile.apartmentSelectionId.trim()
+      : null)
 
-  if (!requestDraftSave && !layoutItems.length && !layoutTrayItems.length && !selectedSpaceIds.length && !continuity.apartmentLabel && !guestDraftSnapshot?.recommendationDraft?.room) {
+  if (!requestDraftSave && !layoutItems.length && !layoutTrayItems.length && !selectedSpaceIds.length && !continuity.apartmentLabel && !apartmentSelectionId && !guestDraftSnapshot?.recommendationDraft?.room) {
     return null
   }
 
   return {
     draftLabel: requestDraftSave?.draftLabel ?? continuity.apartmentLabel ?? null,
     apartmentLabel: requestDraftSave?.apartmentLabel ?? continuity.apartmentLabel ?? null,
+    apartmentSelectionId,
     recommendationRoom: requestDraftSave?.recommendationRoom ?? requestDraftSave?.recommendationDraft?.room ?? guestDraftSnapshot?.recommendationDraft?.room ?? null,
     recommendationDraft: requestDraftSave?.recommendationDraft
       ? normalizeRecommendationDraftInput(requestDraftSave.recommendationDraft, requestDraftSave?.recommendationRoom ?? null)
@@ -654,6 +662,7 @@ function mergeGuestDraftIntoAccount(user, guestDraftSnapshot = null, mergeResolu
     cartItems: Array.isArray(continuity.cartItems) ? clone(continuity.cartItems) : [],
     layoutItems: Array.isArray(continuity.layoutItems) ? clone(continuity.layoutItems) : [],
     layoutTrayItems: Array.isArray(continuity.layoutTrayItems) ? clone(continuity.layoutTrayItems) : [],
+    apartmentSelectionId: guestDraftSnapshot?.spaceProfile?.apartmentSelectionId ?? null,
     recommendationDraft: guestDraftSnapshot.recommendationDraft ? clone(guestDraftSnapshot.recommendationDraft) : null,
   }
 }
@@ -695,11 +704,18 @@ function applyDraftSaveToAccountState(user, draftSave = null) {
       }
     : null
 
+  const nextApartmentSelectionId = typeof draftSave.apartmentSelectionId === 'string' && draftSave.apartmentSelectionId.trim()
+    ? draftSave.apartmentSelectionId.trim()
+    : (typeof user.accountState?.apartmentSelectionId === 'string' && user.accountState.apartmentSelectionId.trim()
+      ? user.accountState.apartmentSelectionId.trim()
+      : null)
+
   const nextAccountState = {
     wishlistIds: Array.isArray(user.accountState?.wishlistIds) ? [...user.accountState.wishlistIds] : [],
     cartItems: Array.isArray(user.accountState?.cartItems) ? clone(user.accountState.cartItems) : [],
     layoutItems: nextLayoutItems ?? (Array.isArray(user.accountState?.layoutItems) ? clone(user.accountState.layoutItems) : []),
     layoutTrayItems: nextLayoutTrayItems ?? (Array.isArray(user.accountState?.layoutTrayItems) ? clone(user.accountState.layoutTrayItems) : []),
+    apartmentSelectionId: nextApartmentSelectionId,
     recommendationDraft: nextRecommendationDraft ?? clone(user.accountState?.recommendationDraft ?? null),
   }
 

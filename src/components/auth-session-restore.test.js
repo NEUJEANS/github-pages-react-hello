@@ -13,6 +13,9 @@ test('shouldApplyPostAuthSessionRestore only applies new backend session snapsho
 
 test('buildPostAuthSessionRestorePatch revives serializable selected space ids and recommendation room', () => {
   assert.deepEqual(buildPostAuthSessionRestorePatch({
+    draftSave: {
+      apartmentSelectionId: 'apt-84a',
+    },
     guestDraftSummary: {
       selectedSpaceIds: ['living', 'bed1'],
       selectedRooms: ['거실', '침실'],
@@ -25,6 +28,7 @@ test('buildPostAuthSessionRestorePatch revives serializable selected space ids a
     ],
     roomOptions: ['거실', '침실', '주방', '서재'],
   }), {
+    apartmentSelectionId: 'apt-84a',
     selectedSpaceIds: ['living', 'bed1'],
     recommendationRoom: '침실',
   })

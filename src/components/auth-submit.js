@@ -301,6 +301,7 @@ function buildGuestDraftSummaryFromSnapshot(guestDraftSnapshot = null) {
 
   return {
     apartmentLabel: continuity.apartmentLabel ?? null,
+    ...(guestDraftSnapshot.spaceProfile?.apartmentSelectionId ? { apartmentSelectionId: guestDraftSnapshot.spaceProfile.apartmentSelectionId } : {}),
     selectedRoomCount: selectedRooms.length,
     selectedRooms,
     selectedSpaceIds: Array.isArray(guestDraftSnapshot.spaceProfile?.spaces)

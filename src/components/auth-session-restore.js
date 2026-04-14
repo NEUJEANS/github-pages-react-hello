@@ -56,7 +56,14 @@ export function buildPostAuthSessionRestorePatch(session, { spaceZones = [], roo
 
   if (!selectedSpaceIds.length && recommendationRoom === fallbackRoom) return null
 
+  const apartmentSelectionId = typeof session?.draftSave?.apartmentSelectionId === 'string' && session.draftSave.apartmentSelectionId.trim()
+    ? session.draftSave.apartmentSelectionId.trim()
+    : (typeof summary.apartmentSelectionId === 'string' && summary.apartmentSelectionId.trim()
+      ? summary.apartmentSelectionId.trim()
+      : null)
+
   return {
+    ...(apartmentSelectionId ? { apartmentSelectionId } : {}),
     selectedSpaceIds,
     recommendationRoom,
   }

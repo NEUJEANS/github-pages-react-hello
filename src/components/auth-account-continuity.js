@@ -42,6 +42,9 @@ export function buildAccountContinuityPatch(accountState = null) {
     ...(Array.isArray(accountState.layoutTrayItems)
       ? { layoutTrayItems: cloneLayoutTrayItems(accountState.layoutTrayItems) }
       : {}),
+    ...(typeof accountState.apartmentSelectionId === 'string' && accountState.apartmentSelectionId.trim()
+      ? { apartmentSelectionId: accountState.apartmentSelectionId.trim() }
+      : {}),
     recommendationDraft: cloneRecommendationDraft(accountState.recommendationDraft),
   }
 }
