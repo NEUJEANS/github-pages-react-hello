@@ -368,6 +368,15 @@ function buildSerializableAuthAccountState(accountState = null) {
   const apartmentSelectionId = typeof accountState.apartmentSelectionId === 'string' && accountState.apartmentSelectionId.trim()
     ? accountState.apartmentSelectionId.trim()
     : null
+  const draftLabel = typeof accountState.draftLabel === 'string' && accountState.draftLabel.trim()
+    ? accountState.draftLabel.trim()
+    : null
+  const apartmentLabel = typeof accountState.apartmentLabel === 'string' && accountState.apartmentLabel.trim()
+    ? accountState.apartmentLabel.trim()
+    : null
+  const selectedSpaceIds = Array.isArray(accountState.selectedSpaceIds)
+    ? accountState.selectedSpaceIds.filter((value, index, array) => typeof value === 'string' && value.trim() && array.indexOf(value) === index)
+    : []
   const recommendationDraft = accountState.recommendationDraft && typeof accountState.recommendationDraft === 'object'
     ? {
         room: accountState.recommendationDraft.room ?? null,
@@ -381,7 +390,7 @@ function buildSerializableAuthAccountState(accountState = null) {
     ? accountState.layoutBoardSavedAt.trim()
     : null
 
-  if (!wishlistIds.length && !cartItems.length && !layoutItems.length && !layoutTrayItems.length && !apartmentSelectionId && !layoutBoardSavedAt && !recommendationDraft) return null
+  if (!wishlistIds.length && !cartItems.length && !layoutItems.length && !layoutTrayItems.length && !apartmentSelectionId && !draftLabel && !apartmentLabel && !selectedSpaceIds.length && !layoutBoardSavedAt && !recommendationDraft) return null
 
   return {
     wishlistIds,
@@ -389,6 +398,9 @@ function buildSerializableAuthAccountState(accountState = null) {
     layoutItems,
     ...(Array.isArray(accountState.layoutTrayItems) ? { layoutTrayItems } : {}),
     ...(apartmentSelectionId ? { apartmentSelectionId } : {}),
+    ...(draftLabel ? { draftLabel } : {}),
+    ...(apartmentLabel ? { apartmentLabel } : {}),
+    ...(selectedSpaceIds.length ? { selectedSpaceIds } : {}),
     ...(layoutBoardSavedAt ? { layoutBoardSavedAt } : {}),
     recommendationDraft,
   }

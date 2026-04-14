@@ -255,6 +255,9 @@ test('save-layout continuation persists the latest layout draft into sqlite-back
       { id: 'tray-plant-1', sourceId: 'plant-001', name: '플랜트', priceLabel: '₩89,000' },
     ])
     assert.equal(session.data.accountState.apartmentSelectionId, 'hannam-hyundai-84a')
+    assert.equal(session.data.accountState.draftLabel, '한남 더현대 84A')
+    assert.equal(session.data.accountState.apartmentLabel, '한남 더현대 84A')
+    assert.deepEqual(session.data.accountState.selectedSpaceIds, ['living-room'])
     assert.equal(typeof session.data.accountState.layoutBoardSavedAt, 'string')
     assert.equal(session.data.accountState.recommendationDraft?.room, '거실')
     assert.equal(session.data.accountState.recommendationDraft?.style, '모던')

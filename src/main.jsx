@@ -1510,6 +1510,14 @@ function App() {
       if (continuityPatch.apartmentSelectionId) {
         syncSpaceProfileApartmentSelection(continuityPatch.apartmentSelectionId)
       }
+      if (continuityPatch.selectedSpaceIds?.length) {
+        setSpaceProfile((current) => {
+          const currentIds = Array.isArray(current.spaces) ? current.spaces : []
+          const nextIds = continuityPatch.selectedSpaceIds
+          const unchanged = currentIds.length === nextIds.length && currentIds.every((value, index) => value === nextIds[index])
+          return unchanged ? current : { ...current, spaces: nextIds }
+        })
+      }
       setWishlistedIds(continuityPatch.wishlistIds)
       cart.replaceItems(continuityPatch.cartItems)
       editor.replaceItems(continuityPatch.layoutItems)

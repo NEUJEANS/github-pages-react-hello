@@ -54,6 +54,8 @@ export function buildLayoutAuthPanelState({
   const currentRecommendationDraftNormalized = normalizeRecommendationDraft(currentRecommendationDraft)
   const savedDraftLabel = normalizeLabel(authSession?.draftSave?.apartmentLabel)
     ?? normalizeLabel(authSession?.draftSave?.draftLabel)
+    ?? normalizeLabel(accountState?.apartmentLabel)
+    ?? normalizeLabel(accountState?.draftLabel)
   const currentDraftLabel = normalizeLabel(draftLabel)
   const savedApartmentSelectionId = normalizeLabel(authSession?.draftSave?.apartmentSelectionId)
     ?? normalizeLabel(accountState?.apartmentSelectionId)

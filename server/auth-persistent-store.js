@@ -279,7 +279,7 @@ function readUser(email, source = null) {
     createdAt: row.created_at,
     profile: parseJson(row.profile_json, null),
     verifiedAt: row.verified_at ?? null,
-    accountState: parseJson(row.account_state_json, { wishlistIds: [], cartItems: [], layoutItems: [], layoutTrayItems: [], apartmentSelectionId: null, layoutBoardSavedAt: null, recommendationDraft: null }),
+    accountState: parseJson(row.account_state_json, { wishlistIds: [], cartItems: [], layoutItems: [], layoutTrayItems: [], apartmentSelectionId: null, draftLabel: null, apartmentLabel: null, selectedSpaceIds: [], layoutBoardSavedAt: null, recommendationDraft: null }),
   })
 }
 
@@ -711,6 +711,19 @@ function applyDraftSaveToAccountState(user, draftSave = null) {
     : (typeof user.accountState?.apartmentSelectionId === 'string' && user.accountState.apartmentSelectionId.trim()
       ? user.accountState.apartmentSelectionId.trim()
       : null)
+  const nextDraftLabel = typeof draftSave.draftLabel === 'string' && draftSave.draftLabel.trim()
+    ? draftSave.draftLabel.trim()
+    : (typeof user.accountState?.draftLabel === 'string' && user.accountState.draftLabel.trim()
+      ? user.accountState.draftLabel.trim()
+      : null)
+  const nextApartmentLabel = typeof draftSave.apartmentLabel === 'string' && draftSave.apartmentLabel.trim()
+    ? draftSave.apartmentLabel.trim()
+    : (typeof user.accountState?.apartmentLabel === 'string' && user.accountState.apartmentLabel.trim()
+      ? user.accountState.apartmentLabel.trim()
+      : null)
+  const nextSelectedSpaceIds = Array.isArray(draftSave.selectedSpaceIds)
+    ? draftSave.selectedSpaceIds.filter((value, index, array) => typeof value === 'string' && value.trim() && array.indexOf(value) === index)
+    : (Array.isArray(user.accountState?.selectedSpaceIds) ? [...user.accountState.selectedSpaceIds] : [])
 
   const nextAccountState = {
     wishlistIds: Array.isArray(user.accountState?.wishlistIds) ? [...user.accountState.wishlistIds] : [],
@@ -718,6 +731,9 @@ function applyDraftSaveToAccountState(user, draftSave = null) {
     layoutItems: nextLayoutItems ?? (Array.isArray(user.accountState?.layoutItems) ? clone(user.accountState.layoutItems) : []),
     layoutTrayItems: nextLayoutTrayItems ?? (Array.isArray(user.accountState?.layoutTrayItems) ? clone(user.accountState.layoutTrayItems) : []),
     apartmentSelectionId: nextApartmentSelectionId,
+    draftLabel: nextDraftLabel,
+    apartmentLabel: nextApartmentLabel,
+    selectedSpaceIds: nextSelectedSpaceIds,
     layoutBoardSavedAt: new Date().toISOString(),
     recommendationDraft: nextRecommendationDraft ?? clone(user.accountState?.recommendationDraft ?? null),
   }

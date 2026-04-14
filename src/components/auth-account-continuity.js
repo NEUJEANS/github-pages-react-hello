@@ -28,12 +28,26 @@ function cloneRecommendationDraft(draft = null) {
   }
 }
 
+function cloneSelectedSpaceIds(selectedSpaceIds = []) {
+  return Array.isArray(selectedSpaceIds)
+    ? selectedSpaceIds.filter((value, index, array) => typeof value === 'string' && value.trim() && array.indexOf(value) === index)
+    : []
+}
+
+function normalizeLabel(value = null) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
 export function buildRestoredRecommendationDraft(accountState = null, fallbackDraft = null) {
   return cloneRecommendationDraft(accountState?.recommendationDraft) ?? cloneRecommendationDraft(fallbackDraft)
 }
 
 export function buildAccountContinuityPatch(accountState = null) {
   if (!accountState || typeof accountState !== 'object') return null
+
+  const selectedSpaceIds = cloneSelectedSpaceIds(accountState.selectedSpaceIds)
+  const draftLabel = normalizeLabel(accountState.draftLabel)
+  const apartmentLabel = normalizeLabel(accountState.apartmentLabel)
 
   return {
     wishlistIds: [...(accountState.wishlistIds ?? [])],
@@ -45,6 +59,9 @@ export function buildAccountContinuityPatch(accountState = null) {
     ...(typeof accountState.apartmentSelectionId === 'string' && accountState.apartmentSelectionId.trim()
       ? { apartmentSelectionId: accountState.apartmentSelectionId.trim() }
       : {}),
+    ...(draftLabel ? { draftLabel } : {}),
+    ...(apartmentLabel ? { apartmentLabel } : {}),
+    ...(selectedSpaceIds.length ? { selectedSpaceIds } : {}),
     ...(typeof accountState.layoutBoardSavedAt === 'string' && accountState.layoutBoardSavedAt.trim()
       ? { layoutBoardSavedAt: accountState.layoutBoardSavedAt.trim() }
       : {}),

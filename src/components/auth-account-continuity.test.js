@@ -9,6 +9,9 @@ test('buildAccountContinuityPatch clones persisted account continuity state', ()
     cartItems: [{ id: 'cart-account-1', qty: 2 }],
     layoutItems: [{ id: 'layout-account-1', x: 12, y: 16 }],
     apartmentSelectionId: 'apt-84a',
+    draftLabel: '84A · 3개 공간 선택',
+    apartmentLabel: '래미안 포레스트 84A',
+    selectedSpaceIds: ['living', 'bed1', 'living'],
     layoutBoardSavedAt: '2026-04-14T09:12:00.000Z',
     recommendationDraft: {
       room: '침실',
@@ -22,6 +25,9 @@ test('buildAccountContinuityPatch clones persisted account continuity state', ()
     cartItems: [{ id: 'cart-account-1', qty: 2 }],
     layoutItems: [{ id: 'layout-account-1', x: 12, y: 16 }],
     apartmentSelectionId: 'apt-84a',
+    draftLabel: '84A · 3개 공간 선택',
+    apartmentLabel: '래미안 포레스트 84A',
+    selectedSpaceIds: ['living', 'bed1'],
     layoutBoardSavedAt: '2026-04-14T09:12:00.000Z',
     recommendationDraft: {
       room: '침실',
