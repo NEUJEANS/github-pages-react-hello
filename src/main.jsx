@@ -21,7 +21,7 @@ import {
   buildGuestDraftSnapshot,
 } from './components/auth-flow-state.js'
 import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan, submitAuthSignupPlan } from './components/auth-submit.js'
-import { resolveAuthConfig } from './components/auth-config.js'
+import { detectLocalPagesAuthConfig, resolveAuthConfig } from './components/auth-config.js'
 import { openIdentityVerificationWindow, readIdentityVerificationStatus, startIdentityVerification } from './components/auth-verification.js'
 import { trackLayoutComponentEvent } from './components/layout-backend.js'
 import { buildLayoutAuthPanelState } from './components/layout-auth-panel-state.js'
@@ -925,10 +925,39 @@ function App() {
     layoutTrayItems,
   }), [aiForm, cart.items, editor.items, engagement, layoutTrayItems, selectedApartment, selectedSpaceSummary, spaceProfile, wishlistedIds])
 
-  const authConfig = React.useMemo(
+  const baseAuthConfig = React.useMemo(
     () => resolveAuthConfig({ env: import.meta.env }),
     [],
   )
+  const [detectedAuthConfig, setDetectedAuthConfig] = React.useState(null)
+  const authConfig = detectedAuthConfig ?? baseAuthConfig
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    if (baseAuthConfig.isConfigured) {
+      setDetectedAuthConfig(null)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    detectLocalPagesAuthConfig({
+      currentOrigin: baseAuthConfig.currentOrigin,
+      appBasePath: baseAuthConfig.appBasePath,
+      source: baseAuthConfig.source,
+    }).then((resolvedConfig) => {
+      if (cancelled || !resolvedConfig) return
+      setDetectedAuthConfig((current) => {
+        if (JSON.stringify(current) === JSON.stringify(resolvedConfig)) return current
+        return resolvedConfig
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [baseAuthConfig])
 
   React.useEffect(() => () => {
     verificationPendingStartedAtRef.current = null

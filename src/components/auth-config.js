@@ -40,10 +40,84 @@ function resolveAuthConfigConfigured(source = 'default') {
   return source !== 'default'
 }
 
+function resolveCurrentOrigin(locationOrigin = globalThis?.location?.origin ?? '') {
+  return readString(locationOrigin)
+}
+
+export function shouldProbeLocalPagesAuthConfig({
+  currentOrigin = '',
+  appBasePath = '/',
+  source = 'default',
+} = {}) {
+  if (source !== 'default') return false
+  if (!appBasePath || appBasePath === '/') return false
+
+  try {
+    const origin = new URL(currentOrigin)
+    return origin.host === 'neujeans.github.io' || origin.host.endsWith('.github.io')
+  } catch {
+    return false
+  }
+}
+
+export async function detectLocalPagesAuthConfig({
+  currentOrigin = globalThis?.location?.origin ?? '',
+  appBasePath = '/',
+  source = 'default',
+  fetchImpl = globalThis?.fetch,
+  candidates = [
+    'http://127.0.0.1:4175',
+    'http://localhost:4175',
+  ],
+} = {}) {
+  if (!shouldProbeLocalPagesAuthConfig({ currentOrigin, appBasePath, source })) return null
+  if (typeof fetchImpl !== 'function') return null
+
+  for (const candidate of candidates) {
+    const apiBaseUrl = trimTrailingSlash(candidate)
+    if (!apiBaseUrl) continue
+
+    try {
+      const response = await fetchImpl(`${apiBaseUrl}/api/auth/health`, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit',
+        headers: {
+          accept: 'application/json',
+        },
+      })
+      if (!response.ok) continue
+
+      const payload = await response.json().catch(() => null)
+      if (!payload?.ok || payload?.storage !== 'sqlite') continue
+
+      return {
+        apiBaseUrl,
+        appBasePath,
+        loginEndpoint: '/api/auth/login',
+        signupEndpoint: '/api/auth/signup',
+        sessionEndpoint: '/api/auth/session',
+        pendingEndpoint: '/api/auth/pending',
+        continueEndpoint: '/api/auth/continue',
+        logoutEndpoint: '/api/auth/logout',
+        credentialsMode: 'include',
+        currentOrigin: resolveCurrentOrigin(currentOrigin),
+        source: 'runtime',
+        isConfigured: true,
+      }
+    } catch {
+      // try the next loopback candidate
+    }
+  }
+
+  return null
+}
+
 export function resolveAuthConfig({
   env = {},
   runtimeConfig = globalThis?.__HAVENLY_AUTH_CONFIG__,
   locationSearch = globalThis?.location?.search ?? '',
+  locationOrigin = globalThis?.location?.origin ?? '',
 } = {}) {
   const params = new URLSearchParams(locationSearch)
   const queryApiBaseUrl = readString(params.get('authApiBaseUrl'))
@@ -116,7 +190,7 @@ export function resolveAuthConfig({
 
   return {
     apiBaseUrl,
-    currentOrigin: readString(globalThis?.location?.origin ?? ''),
+    currentOrigin: resolveCurrentOrigin(locationOrigin),
     appBasePath: readEndpoint(runtimeAppBasePath || envAppBasePath || '/', '/'),
     loginEndpoint: readEndpoint(
       runtimeLoginEndpoint

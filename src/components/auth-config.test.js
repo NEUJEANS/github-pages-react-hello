@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { resolveAuthConfig } from './auth-config.js'
+import { detectLocalPagesAuthConfig, resolveAuthConfig, shouldProbeLocalPagesAuthConfig } from './auth-config.js'
 
 test('resolveAuthConfig prefers runtime overrides, then query params, then env fallbacks', () => {
   assert.deepEqual(
@@ -189,10 +189,11 @@ test('resolveAuthConfig carries the Vite base path for same-origin scaffold rout
       env: { BASE_URL: '/github-pages-react-hello/' },
       runtimeConfig: null,
       locationSearch: '',
+      locationOrigin: 'https://neujeans.github.io',
     }),
     {
       apiBaseUrl: '',
-      currentOrigin: '',
+      currentOrigin: 'https://neujeans.github.io',
       appBasePath: '/github-pages-react-hello/',
       loginEndpoint: '/api/auth/login',
       signupEndpoint: '/api/auth/signup',
@@ -205,4 +206,66 @@ test('resolveAuthConfig carries the Vite base path for same-origin scaffold rout
       isConfigured: false,
     },
   )
+})
+
+test('shouldProbeLocalPagesAuthConfig only enables loopback probing for default GitHub Pages subpath deploys', () => {
+  assert.equal(
+    shouldProbeLocalPagesAuthConfig({
+      currentOrigin: 'https://neujeans.github.io',
+      appBasePath: '/github-pages-react-hello/',
+      source: 'default',
+    }),
+    true,
+  )
+
+  assert.equal(
+    shouldProbeLocalPagesAuthConfig({
+      currentOrigin: 'https://neujeans.github.io',
+      appBasePath: '/',
+      source: 'default',
+    }),
+    false,
+  )
+
+  assert.equal(
+    shouldProbeLocalPagesAuthConfig({
+      currentOrigin: 'https://neujeans.github.io',
+      appBasePath: '/github-pages-react-hello/',
+      source: 'runtime',
+    }),
+    false,
+  )
+})
+
+test('detectLocalPagesAuthConfig resolves the local standalone auth backend when the health probe succeeds', async () => {
+  const calls = []
+  const result = await detectLocalPagesAuthConfig({
+    currentOrigin: 'https://neujeans.github.io',
+    appBasePath: '/github-pages-react-hello/',
+    source: 'default',
+    candidates: ['http://127.0.0.1:4175'],
+    fetchImpl: async (url) => {
+      calls.push(url)
+      return {
+        ok: true,
+        json: async () => ({ ok: true, storage: 'sqlite' }),
+      }
+    },
+  })
+
+  assert.deepEqual(calls, ['http://127.0.0.1:4175/api/auth/health'])
+  assert.deepEqual(result, {
+    apiBaseUrl: 'http://127.0.0.1:4175',
+    currentOrigin: 'https://neujeans.github.io',
+    appBasePath: '/github-pages-react-hello/',
+    loginEndpoint: '/api/auth/login',
+    signupEndpoint: '/api/auth/signup',
+    sessionEndpoint: '/api/auth/session',
+    pendingEndpoint: '/api/auth/pending',
+    continueEndpoint: '/api/auth/continue',
+    logoutEndpoint: '/api/auth/logout',
+    credentialsMode: 'include',
+    source: 'runtime',
+    isConfigured: true,
+  })
 })
