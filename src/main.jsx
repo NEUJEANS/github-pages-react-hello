@@ -10,6 +10,7 @@ import {
   buildRecommendationSummary,
 } from './components/ai-recommendation-state.js'
 import { buildSelectedSpaceSummary } from './components/space-summary.js'
+import { buildAuthDraftSavePayload } from './components/auth-draft-save-payload.js'
 import { buildLoginGuardSnapshot } from './components/login-guard.js'
 import { buildSearchDrawerState } from './components/search-drawer.js'
 import {
@@ -659,36 +660,6 @@ function buildAuthModeLabels(mode = 'login') {
         alternateLabel: '회원가입',
         alternateMode: 'signup',
       }
-}
-
-function buildAuthDraftSavePayload(loginFormDraftSave = null, authSessionDraftSave = null, guestDraftSnapshot = null, intent = null) {
-  if (loginFormDraftSave) return loginFormDraftSave
-  if (authSessionDraftSave) return authSessionDraftSave
-  if (!guestDraftSnapshot) return null
-
-  const draftLabel = intent?.draftLabel ?? guestDraftSnapshot.continuity?.apartmentLabel ?? null
-  const apartmentLabel = guestDraftSnapshot.continuity?.apartmentLabel ?? null
-  const recommendationDraft = guestDraftSnapshot.recommendationDraft ?? null
-  const recommendationRoom = recommendationDraft?.room ?? null
-  const apartmentSelectionId = guestDraftSnapshot.spaceProfile?.apartmentSelectionId ?? null
-  const selectedSpaceIds = guestDraftSnapshot.spaceProfile?.spaces ?? []
-  const layoutItems = guestDraftSnapshot.continuity?.layoutItems ?? []
-  const layoutTrayItems = guestDraftSnapshot.continuity?.layoutTrayItems ?? []
-
-  if (!draftLabel && !apartmentLabel && !apartmentSelectionId && !recommendationRoom && !selectedSpaceIds.length && !layoutItems.length && !layoutTrayItems.length) {
-    return null
-  }
-
-  return {
-    draftLabel,
-    apartmentLabel,
-    apartmentSelectionId,
-    recommendationRoom,
-    recommendationDraft,
-    selectedSpaceIds,
-    layoutItems,
-    layoutTrayItems,
-  }
 }
 
 function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay, onOpenCart, cartCount, onSearchOpen, onOpenLogin, authSession }) {
