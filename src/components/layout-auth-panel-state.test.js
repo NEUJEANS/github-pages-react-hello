@@ -254,6 +254,40 @@ test('buildLayoutAuthPanelState does not report context drift when apartment ids
   assert.equal(state.boardComparisonCopy, '현재 보드가 계정 저장본과 같아요.')
 })
 
+test('buildLayoutAuthPanelState enables restore when only selected space ids drift', () => {
+  const state = buildLayoutAuthPanelState({
+    authSession: {
+      draftSave: {
+        apartmentLabel: '래미안 포레스트 84A',
+        apartmentSelectionId: 'raemian-forest-84a',
+        selectedSpaceIds: ['living', 'kitchen'],
+      },
+      accountState: {
+        layoutItems: [{ id: 'chair-1', x: 10, y: 20 }],
+        layoutTrayItems: [{ id: 'table-1', name: '테이블' }],
+        apartmentSelectionId: 'raemian-forest-84a',
+        selectedSpaceIds: ['living', 'kitchen'],
+        recommendationDraft: { room: '거실', style: '모던' },
+      },
+    },
+    editorItems: [{ id: 'chair-1', x: 10, y: 20 }],
+    trayItems: [{ id: 'table-1', name: '테이블' }],
+    draftLabel: '84A · 3개 공간 선택',
+    currentApartmentSelectionId: 'raemian-forest-84a',
+    currentSelectedSpaceIds: ['living'],
+    recommendationRoom: '거실',
+    currentRecommendationDraft: { room: '거실', style: '모던' },
+    saveState: { status: 'idle' },
+  })
+
+  assert.equal(state.savedBoardContextCopy, '거실 · 래미안 포레스트 84A · 선택 공간 2개')
+  assert.equal(state.currentBoardContextCopy, '거실 · 84A · 3개 공간 선택 · 선택 공간 1개')
+  assert.equal(state.contextDrift, true)
+  assert.equal(state.hasDrift, true)
+  assert.equal(state.restoreDisabled, false)
+  assert.equal(state.boardComparisonCopy, '현재 보드가 계정 저장본과 달라졌어요. 다시 저장하거나 저장본으로 되돌릴 수 있어요.')
+})
+
 test('buildLayoutAuthPanelState enables restore when only the saved/current context copy drifts', () => {
   const state = buildLayoutAuthPanelState({
     authSession: {

@@ -1138,6 +1138,7 @@ function App() {
     trayItems: layoutTrayItems,
     draftLabel: buildLayoutAddressSummary(spaceProfile),
     currentApartmentSelectionId: spaceProfile.apartmentSelectionId,
+    currentSelectedSpaceIds: spaceProfile.spaces,
     recommendationRoom: aiForm.room,
     currentRecommendationDraft: aiForm,
     saveState: layoutBoardSaveState,

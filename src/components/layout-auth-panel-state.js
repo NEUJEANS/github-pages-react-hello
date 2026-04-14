@@ -31,8 +31,18 @@ function cloneTrayItems(items = []) {
   return Array.isArray(items) ? items.map((item) => ({ ...item })) : []
 }
 
-function buildBoardContextCopy({ room = null, draftLabel = null } = {}) {
+function normalizeSelectedSpaceIds(selectedSpaceIds = []) {
+  return Array.isArray(selectedSpaceIds)
+    ? selectedSpaceIds.filter((value, index, array) => typeof value === 'string' && value.trim() && array.indexOf(value) === index)
+    : []
+}
+
+function buildBoardContextCopy({ room = null, draftLabel = null, selectedSpaceIds = [] } = {}) {
   const parts = [normalizeLabel(room), normalizeLabel(draftLabel)].filter(Boolean)
+  const normalizedSelectedSpaceIds = normalizeSelectedSpaceIds(selectedSpaceIds)
+  if (normalizedSelectedSpaceIds.length > 0) {
+    parts.push(`선택 공간 ${normalizedSelectedSpaceIds.length}개`)
+  }
   return parts.length ? parts.join(' · ') : null
 }
 
@@ -42,6 +52,7 @@ export function buildLayoutAuthPanelState({
   trayItems = [],
   draftLabel = null,
   currentApartmentSelectionId = null,
+  currentSelectedSpaceIds = [],
   recommendationRoom = null,
   currentRecommendationDraft = null,
   saveState = null,
@@ -72,7 +83,11 @@ export function buildLayoutAuthPanelState({
       ?? normalizeLabel(authSession?.draftSave?.apartmentSelectionId)
     : normalizeLabel(authSession?.draftSave?.apartmentSelectionId)
       ?? normalizeLabel(accountState?.apartmentSelectionId)
+  const savedSelectedSpaceIds = hasPersistedAccountBoardContext
+    ? normalizeSelectedSpaceIds(accountState?.selectedSpaceIds ?? authSession?.draftSave?.selectedSpaceIds)
+    : normalizeSelectedSpaceIds(authSession?.draftSave?.selectedSpaceIds ?? accountState?.selectedSpaceIds)
   const normalizedCurrentApartmentSelectionId = normalizeLabel(currentApartmentSelectionId)
+  const normalizedCurrentSelectedSpaceIds = normalizeSelectedSpaceIds(currentSelectedSpaceIds)
   const layoutBoardSavedAt = toIsoString(accountState?.layoutBoardSavedAt ?? saveState?.savedAt ?? authSession?.savedAt ?? null)
   const savedLayoutCount = savedLayoutItems.length
   const currentLayoutCount = Array.isArray(editorItems) ? editorItems.length : 0
@@ -92,14 +107,18 @@ export function buildLayoutAuthPanelState({
   const savedBoardContextCopy = buildBoardContextCopy({
     room: savedRoom,
     draftLabel: savedDraftLabel,
+    selectedSpaceIds: savedSelectedSpaceIds,
   })
   const currentBoardContextCopy = buildBoardContextCopy({
     room: recommendationRoom,
     draftLabel: currentDraftLabel,
+    selectedSpaceIds: normalizedCurrentSelectedSpaceIds,
   })
+  const selectedSpaceIdsMatch = JSON.stringify(savedSelectedSpaceIds) === JSON.stringify(normalizedCurrentSelectedSpaceIds)
   const boardContextMatches = savedApartmentSelectionId && normalizedCurrentApartmentSelectionId
     ? savedApartmentSelectionId === normalizedCurrentApartmentSelectionId
       && (savedRoom ?? null) === (recommendationRoom ?? null)
+      && selectedSpaceIdsMatch
     : savedBoardContextCopy && currentBoardContextCopy
       ? savedBoardContextCopy === currentBoardContextCopy
       : savedBoardContextCopy === currentBoardContextCopy
