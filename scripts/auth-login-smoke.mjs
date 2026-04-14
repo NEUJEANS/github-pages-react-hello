@@ -1419,6 +1419,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     await completeProfilePage.getByRole('button', { name: '프로필 보완 제출' }).click()
     const completeProfileReady = await waitForAuthReadySignal(completeProfilePage, {
       expectedAccountLabel: 'Havenly User',
+      forbiddenNoticeIncludes: ['프로필 보완 필요'],
     })
     const completeProfileResumedStatus = completeProfileReady.notice
     if (typeof completeProfileResumedStatus === 'string' && completeProfileResumedStatus.includes('프로필 보완 필요')) {

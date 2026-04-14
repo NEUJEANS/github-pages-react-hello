@@ -5,6 +5,7 @@ import {
   canResumePostAuthIntent,
   resolvePostAuthScreen,
   shouldAttachDraftSaveToAuthContinuation,
+  shouldAutoResumeReadyAuthModal,
   shouldCloseLoginModalAfterAuth,
   shouldOpenCartAfterAuthResume,
   shouldSubmitContinuationBeforeResume,
@@ -54,6 +55,16 @@ test('shouldOpenCartAfterAuthResume reopens checkout intent flows after auth com
   assert.equal(shouldOpenCartAfterAuthResume(null, { nextAction: 'checkout-cart' }), true)
   assert.equal(shouldOpenCartAfterAuthResume({ action: 'login' }, { nextAction: 'save-layout-draft' }), false)
   assert.equal(shouldOpenCartAfterAuthResume(null, { nextAction: 'resume-authenticated-flow' }), false)
+})
+
+test('shouldAutoResumeReadyAuthModal only auto-advances ready layout resumptions', () => {
+  assert.equal(shouldAutoResumeReadyAuthModal({ action: 'save-layout-draft' }, { nextAction: 'save-layout-draft', status: 'ready' }), true)
+  assert.equal(shouldAutoResumeReadyAuthModal({ action: 'resume-account-state' }, { nextAction: 'resume-account-state', status: 'ready' }), true)
+  assert.equal(shouldAutoResumeReadyAuthModal(null, { nextAction: 'resume-guest-draft', status: 'ready' }), true)
+  assert.equal(shouldAutoResumeReadyAuthModal({ action: 'checkout-cart' }, { nextAction: 'checkout-cart', status: 'ready' }), false)
+  assert.equal(shouldAutoResumeReadyAuthModal({ action: 'save-layout-draft' }, { nextAction: 'save-layout-draft', status: 'action-required' }), false)
+  assert.equal(shouldAutoResumeReadyAuthModal({ action: 'login' }, { nextAction: 'save-layout-draft', status: 'ready' }), false)
+  assert.equal(shouldAutoResumeReadyAuthModal(null, { nextAction: 'verify-email', status: 'ready' }), false)
 })
 
 test('shouldAttachDraftSaveToAuthContinuation keeps layout draft payloads attached for layout-oriented intents and resumptions', () => {

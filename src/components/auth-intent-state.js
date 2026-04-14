@@ -71,6 +71,22 @@ export function shouldOpenCartAfterAuthResume(intent = null, continuation = null
   return readIntentAction(intent) === 'checkout-cart' || readContinuationNextAction(continuation) === 'checkout-cart'
 }
 
+export function shouldAutoResumeReadyAuthModal(intent = null, continuation = null) {
+  const intentAction = readIntentAction(intent)
+  const nextAction = readContinuationNextAction(continuation)
+  const status = typeof continuation?.status === 'string' ? continuation.status.trim() : ''
+
+  if (status !== 'ready') return false
+  if (!['save-layout-draft', 'resume-layout-checkout', 'resume-guest-draft', 'resume-account-state'].includes(nextAction)) return false
+
+  return [
+    'save-layout-draft',
+    'resume-layout-checkout',
+    'resume-guest-draft',
+    'resume-account-state',
+  ].includes(intentAction) || !intentAction
+}
+
 function readContinuationAction(result) {
   return typeof result?.data?.nextAction === 'string' ? result.data.nextAction.trim() : ''
 }

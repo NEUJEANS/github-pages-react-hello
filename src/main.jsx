@@ -64,6 +64,7 @@ import {
   canResumePostAuthIntent,
   resolvePostAuthScreen,
   shouldAttachDraftSaveToAuthContinuation,
+  shouldAutoResumeReadyAuthModal,
   shouldCloseLoginModalAfterAuth,
   shouldOpenCartAfterAuthResume,
   shouldSubmitContinuationBeforeResume,
@@ -774,6 +775,7 @@ function App() {
   const verificationAdvanceTimeoutRef = React.useRef(null)
   const verificationPendingStartedAtRef = React.useRef(null)
   const appliedAuthSessionRestoreRef = React.useRef(null)
+  const autoResumedAuthReadyKeyRef = React.useRef('')
 
   const selectedApartment = React.useMemo(
     () => buildSelectedApartment(apartmentSearchResults, spaceProfile.apartmentSelectionId),
@@ -1695,6 +1697,25 @@ function App() {
       }))
     }
   }, [authConfig, authConnectionSummary, authContinuationPlan, authDraftSavePayload, authSession, cart, loginForm.continuation, loginForm.handoffId, loginForm.intent, navigate, screen])
+
+  React.useEffect(() => {
+    const nextIntent = authSession?.intent ?? loginForm.intent ?? null
+    const nextContinuation = authSession?.continuation ?? loginForm.continuation ?? null
+
+    if (loginModalState !== 'open' || loginForm.status !== 'ready') return
+    if (!authSession?.accountLabel || !shouldAutoResumeReadyAuthModal(nextIntent, nextContinuation)) return
+
+    const autoResumeKey = [
+      authSession.sessionId ?? authSession.accountLabel ?? '',
+      nextContinuation?.resumeToken ?? '',
+      nextContinuation?.nextAction ?? '',
+    ].join('::')
+
+    if (!autoResumeKey || autoResumedAuthReadyKeyRef.current === autoResumeKey) return
+
+    autoResumedAuthReadyKeyRef.current = autoResumeKey
+    handleResumeAuthenticatedIntent()
+  }, [authSession, handleResumeAuthenticatedIntent, loginForm.continuation, loginForm.intent, loginForm.status, loginModalState])
 
   const handleAuthContinuationFieldChange = React.useCallback((field, value) => {
     const nextFields = buildAuthContinuationFieldState({
