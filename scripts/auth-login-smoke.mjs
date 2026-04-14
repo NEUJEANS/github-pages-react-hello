@@ -109,6 +109,15 @@ function setActiveBaseUrl(url) {
   }
 }
 
+function withBaseUrlQuery(url, params = {}) {
+  const nextUrl = new URL(url)
+  Object.entries(params).forEach(([key, value]) => {
+    if (value == null) return
+    nextUrl.searchParams.set(key, String(value))
+  })
+  return nextUrl.toString()
+}
+
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -1496,7 +1505,10 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     const queryOverridePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     const queryContinueEndpoint = '/v1/session/continue'
     await resetBrowserScenario(queryOverridePage)
-    await queryOverridePage.goto(`${baseUrl}?authContinueEndpoint=${encodeURIComponent(queryContinueEndpoint)}&authCredentials=same-origin`, { waitUntil: 'domcontentloaded' })
+    await queryOverridePage.goto(withBaseUrlQuery(baseUrl, {
+      authContinueEndpoint: queryContinueEndpoint,
+      authCredentials: 'same-origin',
+    }), { waitUntil: 'domcontentloaded' })
     await openLogin(queryOverridePage)
     await continuePastGuardIfPresent(queryOverridePage)
     await fillLoginForm(queryOverridePage, {
