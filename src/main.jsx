@@ -861,6 +861,19 @@ function App() {
         : { ...current, apartmentSelectionId }
     })
   }, [])
+  const syncSpaceProfileSelectedSpaces = React.useCallback((selectedSpaceIds = []) => {
+    if (!selectedSpaceIds?.length) return
+
+    setSpaceProfile((current) => {
+      const currentIds = Array.isArray(current.spaces) ? current.spaces : []
+      const nextIds = selectedSpaceIds
+      const unchanged = currentIds.length === nextIds.length && currentIds.every((value, index) => value === nextIds[index])
+
+      return unchanged
+        ? current
+        : { ...current, spaces: nextIds }
+    })
+  }, [])
   const recommendationContext = React.useMemo(() => buildRecommendationContext({
     aiForm,
     spaceProfile,
@@ -1542,15 +1555,7 @@ function App() {
     }
 
     if (nextRestorePatch?.selectedSpaceIds?.length) {
-      setSpaceProfile((current) => {
-        const currentIds = Array.isArray(current.spaces) ? current.spaces : []
-        const nextIds = nextRestorePatch.selectedSpaceIds
-        const unchanged = currentIds.length === nextIds.length && currentIds.every((value, index) => value === nextIds[index])
-
-        return unchanged
-          ? current
-          : { ...current, spaces: nextIds }
-      })
+      syncSpaceProfileSelectedSpaces(nextRestorePatch.selectedSpaceIds)
     }
 
     if (continuityPatch) {
@@ -1558,12 +1563,7 @@ function App() {
         syncSpaceProfileApartmentSelection(continuityPatch.apartmentSelectionId)
       }
       if (continuityPatch.selectedSpaceIds?.length) {
-        setSpaceProfile((current) => {
-          const currentIds = Array.isArray(current.spaces) ? current.spaces : []
-          const nextIds = continuityPatch.selectedSpaceIds
-          const unchanged = currentIds.length === nextIds.length && currentIds.every((value, index) => value === nextIds[index])
-          return unchanged ? current : { ...current, spaces: nextIds }
-        })
+        syncSpaceProfileSelectedSpaces(continuityPatch.selectedSpaceIds)
       }
       setWishlistedIds(continuityPatch.wishlistIds)
       cart.replaceItems(continuityPatch.cartItems)
@@ -2154,6 +2154,11 @@ function App() {
       syncSpaceProfileApartmentSelection(savedApartmentSelectionId)
     }
 
+    const savedSelectedSpaceIds = authSession?.draftSave?.selectedSpaceIds ?? savedAccountState?.selectedSpaceIds ?? []
+    if (savedSelectedSpaceIds.length) {
+      syncSpaceProfileSelectedSpaces(savedSelectedSpaceIds)
+    }
+
     editor.replaceItems(Array.isArray(savedAccountState.layoutItems) ? savedAccountState.layoutItems : [])
     setLayoutTrayItems(
       Array.isArray(savedAccountState.layoutTrayItems)
@@ -2166,7 +2171,7 @@ function App() {
       message: '계정에 저장된 보드를 다시 불러왔어요.',
       savedAt: authSession?.savedAt ?? null,
     })
-  }, [aiProducts, authSession, editor, syncSpaceProfileApartmentSelection])
+  }, [aiProducts, authSession, editor, syncSpaceProfileApartmentSelection, syncSpaceProfileSelectedSpaces])
 
   const handleSaveLayoutToAccount = React.useCallback(async () => {
     if (!authSession) return
