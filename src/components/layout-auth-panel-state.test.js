@@ -288,6 +288,34 @@ test('buildLayoutAuthPanelState enables restore when only selected space ids dri
   assert.equal(state.boardComparisonCopy, '현재 보드가 계정 저장본과 달라졌어요. 다시 저장하거나 저장본으로 되돌릴 수 있어요.')
 })
 
+test('buildLayoutAuthPanelState prefers the hydrated current apartment label over the shorter layout summary', () => {
+  const state = buildLayoutAuthPanelState({
+    authSession: {
+      accountState: {
+        layoutItems: [{ id: 'chair-1', x: 10, y: 20 }],
+        layoutTrayItems: [{ id: 'table-1', name: '테이블' }],
+        apartmentSelectionId: 'raemian-forest-84a',
+        apartmentLabel: '래미안 포레스트 84A',
+        selectedSpaceIds: ['living', 'kitchen'],
+        recommendationDraft: { room: '거실', style: '모던' },
+      },
+    },
+    editorItems: [{ id: 'chair-1', x: 10, y: 20 }],
+    trayItems: [{ id: 'table-1', name: '테이블' }],
+    draftLabel: '101A · 3개 공간 선택',
+    currentApartmentLabel: '아크로 리버뷰 101A',
+    currentApartmentSelectionId: 'acrovista-river-101a',
+    currentSelectedSpaceIds: ['living', 'kitchen', 'bed1'],
+    recommendationRoom: '거실',
+    currentRecommendationDraft: { room: '거실', style: '모던' },
+    saveState: { status: 'idle' },
+  })
+
+  assert.equal(state.currentBoardContextCopy, '거실 · 아크로 리버뷰 101A · 선택 공간 3개')
+  assert.equal(state.contextDrift, true)
+  assert.equal(state.restoreDisabled, false)
+})
+
 test('buildLayoutAuthPanelState enables restore when only the saved/current context copy drifts', () => {
   const state = buildLayoutAuthPanelState({
     authSession: {

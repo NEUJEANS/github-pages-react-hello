@@ -1137,12 +1137,13 @@ function App() {
     editorItems: editor.items,
     trayItems: layoutTrayItems,
     draftLabel: buildLayoutAddressSummary(spaceProfile),
+    currentApartmentLabel: selectedApartment ? formatApartmentOption(selectedApartment) : null,
     currentApartmentSelectionId: spaceProfile.apartmentSelectionId,
     currentSelectedSpaceIds: spaceProfile.spaces,
     recommendationRoom: aiForm.room,
     currentRecommendationDraft: aiForm,
     saveState: layoutBoardSaveState,
-  }), [aiForm, authSession, editor.items, layoutBoardSaveState, layoutTrayItems, spaceProfile])
+  }), [aiForm, authSession, editor.items, layoutBoardSaveState, layoutTrayItems, selectedApartment, spaceProfile])
 
   const authSubmitPlan = React.useMemo(() => buildAuthSubmitPlan({
     email: loginForm.email,

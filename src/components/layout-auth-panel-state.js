@@ -37,8 +37,8 @@ function normalizeSelectedSpaceIds(selectedSpaceIds = []) {
     : []
 }
 
-function buildBoardContextCopy({ room = null, draftLabel = null, selectedSpaceIds = [] } = {}) {
-  const parts = [normalizeLabel(room), normalizeLabel(draftLabel)].filter(Boolean)
+function buildBoardContextCopy({ room = null, apartmentLabel = null, draftLabel = null, selectedSpaceIds = [] } = {}) {
+  const parts = [normalizeLabel(room), normalizeLabel(apartmentLabel) ?? normalizeLabel(draftLabel)].filter(Boolean)
   const normalizedSelectedSpaceIds = normalizeSelectedSpaceIds(selectedSpaceIds)
   if (normalizedSelectedSpaceIds.length > 0) {
     parts.push(`선택 공간 ${normalizedSelectedSpaceIds.length}개`)
@@ -51,6 +51,7 @@ export function buildLayoutAuthPanelState({
   editorItems = [],
   trayItems = [],
   draftLabel = null,
+  currentApartmentLabel = null,
   currentApartmentSelectionId = null,
   currentSelectedSpaceIds = [],
   recommendationRoom = null,
@@ -78,6 +79,7 @@ export function buildLayoutAuthPanelState({
       ?? normalizeLabel(accountState?.apartmentLabel)
       ?? normalizeLabel(accountState?.draftLabel)
   const currentDraftLabel = normalizeLabel(draftLabel)
+  const currentApartmentLabelNormalized = normalizeLabel(currentApartmentLabel)
   const savedApartmentSelectionId = hasPersistedAccountBoardContext
     ? normalizeLabel(accountState?.apartmentSelectionId)
       ?? normalizeLabel(authSession?.draftSave?.apartmentSelectionId)
@@ -106,11 +108,13 @@ export function buildLayoutAuthPanelState({
     && JSON.stringify(savedRecommendationDraft) !== JSON.stringify(currentRecommendationDraftNormalized)
   const savedBoardContextCopy = buildBoardContextCopy({
     room: savedRoom,
+    apartmentLabel: savedDraftLabel,
     draftLabel: savedDraftLabel,
     selectedSpaceIds: savedSelectedSpaceIds,
   })
   const currentBoardContextCopy = buildBoardContextCopy({
     room: recommendationRoom,
+    apartmentLabel: currentApartmentLabelNormalized,
     draftLabel: currentDraftLabel,
     selectedSpaceIds: normalizedCurrentSelectedSpaceIds,
   })
