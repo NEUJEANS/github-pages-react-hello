@@ -12,7 +12,8 @@ import { startAuthHttpServer } from '../server/auth-http-server.js'
 const cliArgs = process.argv.slice(2)
 const requireBrowser = cliArgs.includes('--require-browser')
 const useProxyBackend = cliArgs.includes('--via-proxy')
-const positionalArgs = cliArgs.filter((arg) => arg !== '--require-browser' && arg !== '--via-proxy')
+const layoutSaveOnly = cliArgs.includes('--layout-save-only')
+const positionalArgs = cliArgs.filter((arg) => arg !== '--require-browser' && arg !== '--via-proxy' && arg !== '--layout-save-only')
 const defaultBaseUrl = positionalArgs[0] || 'http://127.0.0.1:4174/github-pages-react-hello/'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -272,8 +273,19 @@ function isAppShellStartupError(error) {
   return error instanceof Error && error.message.includes('App shell did not render before auth smoke started')
 }
 
+function shouldUseLocalPreview(url) {
+  try {
+    const parsed = new URL(url)
+    return ['127.0.0.1', 'localhost', '0.0.0.0'].includes(parsed.hostname)
+  } catch {
+    return true
+  }
+}
+
 async function ensureBrowserBaseUrl(url, { forcePreview = true, extraEnv = {}, maxPortHops = 5 } = {}) {
-  if (!forcePreview && await isBaseUrlReachable(url)) {
+  const shouldPreview = forcePreview && shouldUseLocalPreview(url)
+
+  if ((!shouldPreview || !forcePreview) && await isBaseUrlReachable(url)) {
     return {
       process: null,
       started: false,
@@ -281,10 +293,14 @@ async function ensureBrowserBaseUrl(url, { forcePreview = true, extraEnv = {}, m
     }
   }
 
+  if (!shouldPreview) {
+    throw new Error(`Remote browser base URL is not reachable: ${url}`)
+  }
+
   let candidateUrl = url
   let remainingHops = maxPortHops
 
-  while (forcePreview && remainingHops > 0 && await isBaseUrlReachable(candidateUrl)) {
+  while (remainingHops > 0 && await isBaseUrlReachable(candidateUrl)) {
     candidateUrl = buildFallbackBaseUrl(candidateUrl)
     remainingHops -= 1
   }
@@ -1197,12 +1213,59 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
       throw new Error(`Save-draft board panel lost the saved timestamp after reload. Saw: ${reloadedBoardPanelText}`)
     }
 
+    await saveDraftPage.getByRole('button', { name: '공간 정보' }).click()
+    await saveDraftPage.getByRole('button', { name: '래미안 포레스트 84A' }).click()
+    await saveDraftPage.getByRole('button', { name: '닫기', exact: true }).click()
+    const restoreButton = saveDraftPage.getByRole('button', { name: '계정 저장본 불러오기' })
+    await saveDraftPage.waitForFunction(() => {
+      const button = Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.trim() === '계정 저장본 불러오기')
+      return Boolean(button) && !button.disabled
+    }, undefined, { timeout: 15000 })
+    const driftedBoardPanelText = normalizeUiText(await reloadedBoardPanel.innerText())
+    if (!driftedBoardPanelText.includes('현재 보드가 계정 저장본과 달라졌어요')) {
+      throw new Error(`Save-draft board panel did not report drift after apartment-context change. Saw: ${driftedBoardPanelText}`)
+    }
+    if (!driftedBoardPanelText.includes('현재 기준 · 거실 · 84A · 3개 공간 선택')) {
+      throw new Error(`Save-draft board panel did not expose the drifted apartment context. Saw: ${driftedBoardPanelText}`)
+    }
+    await restoreButton.click()
+    await saveDraftPage.waitForFunction(() => {
+      const button = Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.trim() === '계정 저장본 불러오기')
+      const panel = Array.from(document.querySelectorAll('.editorSide.right .propBlock')).find((node) => node.textContent?.includes('계정 보드'))
+      return Boolean(button)
+        && button.disabled
+        && panel?.textContent?.includes('저장 기준 · 거실 · 아크로 리버뷰 101A')
+        && panel?.textContent?.includes('현재 보드가 계정 저장본과 같아요.')
+        && panel?.textContent?.includes('계정에 저장된 보드를 다시 불러왔어요.')
+    }, undefined, { timeout: 15000 })
+    await saveDraftPage.getByRole('button', { name: '공간 정보' }).click()
+    const restoredApartmentClass = await saveDraftPage.getByRole('button', { name: '아크로 리버뷰 101A' }).getAttribute('class')
+    await saveDraftPage.getByRole('button', { name: '닫기', exact: true }).click()
+    if (!restoredApartmentClass?.split(/\s+/).includes('solid')) {
+      throw new Error(`Restore flow did not reselect the saved apartment. class=${restoredApartmentClass}`)
+    }
+
     await saveDraftPage.locator('.authSessionNotice').waitFor()
     await getAccountTrigger(saveDraftPage).click()
     await saveDraftPage.getByRole('button', { name: '보드 저장 이어가기' }).waitFor()
     const saveDraftReloadedStatus = await saveDraftPage.locator('.authPrepCard .muted').first().innerText()
     await capture(saveDraftPage, 'auth-login-save-layout-ready.png')
     await saveDraftPage.close()
+
+    if (layoutSaveOnly) {
+      markSmokeStage('browser-scenarios:done')
+      return {
+        mode: 'browser',
+        baseUrl,
+        saveLayoutDraft: {
+          status: saveDraftStatus,
+          readyCard: saveDraftReadyCard,
+          notice: saveDraftNotice,
+          hashAfterResume: saveDraftHashAfterResume,
+          reloadedStatus: saveDraftReloadedStatus,
+        },
+      }
+    }
 
     markSmokeStage('merge-scenario:start')
     const mergePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
