@@ -101,6 +101,32 @@ Focused on the live auth/layout feedback loop itself before touching more produc
 ### Next step
 Commit the harness fix to `main`, push, and rerun the live Pages smoke against a fresh public auth tunnel so the next checkpoint is based on the deployed site rather than local parity alone.
 
+## Follow-up checkpoint at 13:18–13:22 UTC
+- pushed `main` commit `2af4498` (`Harden live auth smoke URL override flow`)
+- opened a fresh public auth tunnel: `https://50137b391b98b2.lhr.life`
+- verified public auth health on the tunnel: ✅
+- reran the deployed Pages save-layout-only smoke against:
+  - `https://neujeans.github.io/github-pages-react-hello/?authApiBaseUrl=https%3A%2F%2F50137b391b98b2.lhr.life`
+
+### What the live rerun proved
+A debug-assisted live pass reached and observed the previously failing post-reload apartment-switch state correctly on the deployed site:
+- saved context still showed `거실 · 아크로 리버뷰 101A`
+- current context updated to `거실 · 84A · 3개 공간 선택`
+- drift copy appeared: `현재 보드가 계정 저장본과 달라졌어요...`
+
+That means the live product state is now behaving correctly for this slice; the remaining instability is in the Playwright timing around the restore-button enablement after the overlay closes.
+
+### Additional grouped smoke changes after the live rerun
+Still keeping scope narrow to the same auth/layout validation slice, the smoke now:
+- waits for the apartment-option selection state (`solid` class) before closing the overlay in the save-draft scenario
+- waits for the board panel drift text plus enabled restore CTA together after the reload-time apartment switch
+- captures a post-switch screenshot (`auth-login-save-layout-after-raemian-switch.png`) before that final wait, which made the live flow reproducible in the deployed Pages run
+
+### Current state
+- **Product path:** good in the live deployed Pages flow for the save→reload→switch-apartment drift step
+- **Remaining issue:** smoke harness timing is still somewhat fragile without the post-switch capture/render settle point
+- **Best next slice:** convert this into a cleaner deterministic settle/wait helper or continue to the next real auth/backend/layout product priority once this live check is stable enough
+
 ## Notes
 - Browser tool was unavailable from the OpenClaw browser server in this session, so live validation used the existing Playwright smoke path instead.
 - Detailed progress stored here instead of chat per instruction.

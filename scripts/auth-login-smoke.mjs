@@ -1210,7 +1210,12 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     const saveDraftHashAfterResume = await saveDraftPage.evaluate(() => globalThis.location.hash)
 
     await saveDraftPage.getByRole('button', { name: '공간 정보' }).click()
-    await saveDraftPage.getByRole('button', { name: '아크로 리버뷰 101A' }).click()
+    const saveDraftAcroOption = saveDraftPage.getByRole('button', { name: '아크로 리버뷰 101A' })
+    await saveDraftAcroOption.click()
+    await saveDraftPage.waitForFunction(() => {
+      const button = Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.trim() === '아크로 리버뷰 101A')
+      return Boolean(button) && button.classList.contains('solid')
+    }, undefined, { timeout: 15000 })
     await saveDraftPage.getByRole('button', { name: '닫기', exact: true }).click()
 
     const boardPanel = saveDraftPage.locator('.editorSide.right .propBlock').filter({ has: saveDraftPage.getByText('계정 보드') }).first()
@@ -1241,12 +1246,26 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     }
 
     await saveDraftPage.getByRole('button', { name: '공간 정보' }).click()
-    await saveDraftPage.getByRole('button', { name: '래미안 포레스트 84A' }).click()
+    const saveDraftRaemianOption = saveDraftPage.getByRole('button', { name: '래미안 포레스트 84A' })
+    await saveDraftRaemianOption.click()
+    await saveDraftPage.waitForFunction(() => {
+      const targetButton = Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.trim() === '래미안 포레스트 84A')
+      const otherButton = Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.trim() === '아크로 리버뷰 101A')
+      return Boolean(targetButton)
+        && targetButton.classList.contains('solid')
+        && (!otherButton || !otherButton.classList.contains('solid'))
+    }, undefined, { timeout: 15000 })
     await saveDraftPage.getByRole('button', { name: '닫기', exact: true }).click()
     const restoreButton = saveDraftPage.getByRole('button', { name: '계정 저장본 불러오기' })
+    await capture(saveDraftPage, 'auth-login-save-layout-after-raemian-switch.png')
     await saveDraftPage.waitForFunction(() => {
+      const panel = Array.from(document.querySelectorAll('.editorSide.right .propBlock')).find((node) => node.textContent?.includes('계정 보드'))
       const button = Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.trim() === '계정 저장본 불러오기')
-      return Boolean(button) && !button.disabled
+      const panelText = panel?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+      return panelText.includes('현재 보드가 계정 저장본과 달라졌어요')
+        && panelText.includes('현재 기준 · 거실 · 84A · 3개 공간 선택')
+        && Boolean(button)
+        && !button.disabled
     }, undefined, { timeout: 15000 })
     const driftedBoardPanelText = normalizeUiText(await reloadedBoardPanel.innerText())
     if (!driftedBoardPanelText.includes('현재 보드가 계정 저장본과 달라졌어요')) {
