@@ -658,7 +658,8 @@ function buildAuthDraftSavePayload(loginFormDraftSave = null, authSessionDraftSa
 
   const draftLabel = intent?.draftLabel ?? guestDraftSnapshot.continuity?.apartmentLabel ?? null
   const apartmentLabel = guestDraftSnapshot.continuity?.apartmentLabel ?? null
-  const recommendationRoom = guestDraftSnapshot.recommendationDraft?.room ?? null
+  const recommendationDraft = guestDraftSnapshot.recommendationDraft ?? null
+  const recommendationRoom = recommendationDraft?.room ?? null
   const selectedSpaceIds = guestDraftSnapshot.spaceProfile?.spaces ?? []
   const layoutItems = guestDraftSnapshot.continuity?.layoutItems ?? []
 
@@ -670,6 +671,7 @@ function buildAuthDraftSavePayload(loginFormDraftSave = null, authSessionDraftSa
     draftLabel,
     apartmentLabel,
     recommendationRoom,
+    recommendationDraft,
     selectedSpaceIds,
     layoutItems,
   }

@@ -544,7 +544,10 @@ function buildDraftSaveState(request = {}, guestDraftSnapshot = null) {
   return {
     draftLabel: requestDraftSave?.draftLabel ?? continuity.apartmentLabel ?? null,
     apartmentLabel: requestDraftSave?.apartmentLabel ?? continuity.apartmentLabel ?? null,
-    recommendationRoom: requestDraftSave?.recommendationRoom ?? guestDraftSnapshot?.recommendationDraft?.room ?? null,
+    recommendationRoom: requestDraftSave?.recommendationRoom ?? requestDraftSave?.recommendationDraft?.room ?? guestDraftSnapshot?.recommendationDraft?.room ?? null,
+    recommendationDraft: requestDraftSave?.recommendationDraft
+      ? normalizeRecommendationDraftInput(requestDraftSave.recommendationDraft, requestDraftSave?.recommendationRoom ?? null)
+      : (guestDraftSnapshot?.recommendationDraft ? normalizeRecommendationDraftInput(guestDraftSnapshot.recommendationDraft) : null),
     selectedSpaceIds,
     layoutItems,
     layoutItemCount: layoutItems.length,
@@ -650,16 +653,37 @@ function mergeGuestDraftIntoAccount(user, guestDraftSnapshot = null, mergeResolu
   }
 }
 
+function normalizeRecommendationDraftInput(recommendationDraft = null, recommendationRoom = null) {
+  if ((!recommendationDraft || typeof recommendationDraft !== 'object' || Array.isArray(recommendationDraft)) && !(typeof recommendationRoom === 'string' && recommendationRoom.trim())) {
+    return null
+  }
+
+  const room = typeof recommendationDraft?.room === 'string' && recommendationDraft.room.trim()
+    ? recommendationDraft.room.trim()
+    : (typeof recommendationRoom === 'string' && recommendationRoom.trim() ? recommendationRoom.trim() : null)
+  const style = typeof recommendationDraft?.style === 'string' && recommendationDraft.style.trim() ? recommendationDraft.style.trim() : null
+  const priority = typeof recommendationDraft?.priority === 'string' && recommendationDraft.priority.trim() ? recommendationDraft.priority.trim() : null
+  const lifestyle = Array.isArray(recommendationDraft?.lifestyle)
+    ? recommendationDraft.lifestyle.filter((value, index, array) => typeof value === 'string' && value.trim() && array.indexOf(value) === index)
+    : []
+  const extraRequest = typeof recommendationDraft?.extraRequest === 'string' ? recommendationDraft.extraRequest.trim() : ''
+
+  if (!room && !style && !priority && !lifestyle.length && !extraRequest) return null
+
+  return { room, style, priority, lifestyle, extraRequest }
+}
+
 function applyDraftSaveToAccountState(user, draftSave = null) {
   if (!user || !draftSave || typeof draftSave !== 'object' || Array.isArray(draftSave)) return false
 
   const nextLayoutItems = Array.isArray(draftSave.layoutItems)
     ? draftSave.layoutItems.map((item) => ({ ...item }))
     : null
-  const nextRecommendationDraft = typeof draftSave.recommendationRoom === 'string' && draftSave.recommendationRoom.trim()
+  const normalizedRecommendationDraft = normalizeRecommendationDraftInput(draftSave.recommendationDraft, draftSave.recommendationRoom)
+  const nextRecommendationDraft = normalizedRecommendationDraft
     ? {
         ...(user.accountState?.recommendationDraft ?? {}),
-        room: draftSave.recommendationRoom.trim(),
+        ...normalizedRecommendationDraft,
       }
     : null
 

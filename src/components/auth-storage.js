@@ -284,6 +284,32 @@ function buildGuestDraftSummaryFromDraftSave(draftSave = null) {
   }
 }
 
+function buildSerializableRecommendationDraft(recommendationDraft = null, recommendationRoom = null) {
+  if (!recommendationDraft || typeof recommendationDraft !== 'object' || Array.isArray(recommendationDraft)) {
+    return null
+  }
+
+  const room = typeof recommendationDraft?.room === 'string' && recommendationDraft.room.trim()
+    ? recommendationDraft.room.trim()
+    : (typeof recommendationRoom === 'string' && recommendationRoom.trim() ? recommendationRoom.trim() : null)
+  const style = typeof recommendationDraft?.style === 'string' && recommendationDraft.style.trim() ? recommendationDraft.style.trim() : null
+  const priority = typeof recommendationDraft?.priority === 'string' && recommendationDraft.priority.trim() ? recommendationDraft.priority.trim() : null
+  const lifestyle = Array.isArray(recommendationDraft?.lifestyle)
+    ? recommendationDraft.lifestyle.filter((value, index, array) => typeof value === 'string' && value.trim() && array.indexOf(value) === index)
+    : []
+  const extraRequest = typeof recommendationDraft?.extraRequest === 'string' ? recommendationDraft.extraRequest.trim() : ''
+
+  if (!room && !style && !priority && !lifestyle.length && !extraRequest) return null
+
+  return {
+    room,
+    style,
+    priority,
+    lifestyle,
+    extraRequest,
+  }
+}
+
 function buildSerializableDraftSave(draftSave = null) {
   if (!draftSave || typeof draftSave !== 'object' || Array.isArray(draftSave)) return null
 
@@ -293,15 +319,21 @@ function buildSerializableDraftSave(draftSave = null) {
   const layoutItems = Array.isArray(draftSave.layoutItems)
     ? draftSave.layoutItems.map((item) => ({ ...item }))
     : []
+  const recommendationDraft = buildSerializableRecommendationDraft(draftSave.recommendationDraft, draftSave.recommendationRoom)
 
-  if (!selectedSpaceIds.length && !layoutItems.length && !draftSave.draftLabel && !draftSave.apartmentLabel && !draftSave.recommendationRoom) {
+  const recommendationRoom = typeof draftSave.recommendationRoom === 'string' && draftSave.recommendationRoom.trim()
+    ? draftSave.recommendationRoom.trim()
+    : (recommendationDraft?.room ?? null)
+
+  if (!selectedSpaceIds.length && !layoutItems.length && !draftSave.draftLabel && !draftSave.apartmentLabel && !recommendationRoom) {
     return null
   }
 
   return {
     draftLabel: typeof draftSave.draftLabel === 'string' ? draftSave.draftLabel.trim() || null : null,
     apartmentLabel: typeof draftSave.apartmentLabel === 'string' ? draftSave.apartmentLabel.trim() || null : null,
-    recommendationRoom: typeof draftSave.recommendationRoom === 'string' ? draftSave.recommendationRoom.trim() || null : null,
+    recommendationRoom,
+    ...(recommendationDraft ? { recommendationDraft } : {}),
     selectedSpaceIds,
     layoutItems,
     layoutItemCount: typeof draftSave.layoutItemCount === 'number' ? draftSave.layoutItemCount : layoutItems.length,

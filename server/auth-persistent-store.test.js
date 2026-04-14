@@ -213,6 +213,13 @@ test('save-layout continuation persists the latest layout draft into sqlite-back
           draftLabel: '한남 더현대 84A',
           apartmentLabel: '한남 더현대 84A',
           recommendationRoom: '거실',
+          recommendationDraft: {
+            room: '거실',
+            style: '모던',
+            priority: '수납',
+            lifestyle: ['재택근무', '반려동물'],
+            extraRequest: '창가 소파를 중심으로 보고 싶어요',
+          },
           selectedSpaceIds: ['living-room'],
           layoutItems: [
             { id: 'layout-sofa-1', sourceId: 'sofa-001', x: 24, y: 38, rotation: 0, colorIndex: 1 },
@@ -236,6 +243,10 @@ test('save-layout continuation persists the latest layout draft into sqlite-back
     assert.equal(session.data.accountState.layoutItems.length, 2)
     assert.equal(session.data.accountState.layoutItems[1].sourceId, 'table-001')
     assert.equal(session.data.accountState.recommendationDraft?.room, '거실')
+    assert.equal(session.data.accountState.recommendationDraft?.style, '모던')
+    assert.equal(session.data.accountState.recommendationDraft?.priority, '수납')
+    assert.deepEqual(session.data.accountState.recommendationDraft?.lifestyle, ['재택근무', '반려동물'])
+    assert.equal(session.data.accountState.recommendationDraft?.extraRequest, '창가 소파를 중심으로 보고 싶어요')
   })
 })
 

@@ -139,6 +139,32 @@ function buildSerializableContinuationFields(fields = null) {
   return Object.fromEntries(entries)
 }
 
+function buildSerializableRecommendationDraft(recommendationDraft = null, recommendationRoom = null) {
+  if (!recommendationDraft || typeof recommendationDraft !== 'object' || Array.isArray(recommendationDraft)) {
+    return null
+  }
+
+  const room = typeof recommendationDraft?.room === 'string' && recommendationDraft.room.trim()
+    ? recommendationDraft.room.trim()
+    : (typeof recommendationRoom === 'string' && recommendationRoom.trim() ? recommendationRoom.trim() : null)
+  const style = typeof recommendationDraft?.style === 'string' && recommendationDraft.style.trim() ? recommendationDraft.style.trim() : null
+  const priority = typeof recommendationDraft?.priority === 'string' && recommendationDraft.priority.trim() ? recommendationDraft.priority.trim() : null
+  const lifestyle = Array.isArray(recommendationDraft?.lifestyle)
+    ? recommendationDraft.lifestyle.filter((value, index, array) => typeof value === 'string' && value.trim() && array.indexOf(value) === index)
+    : []
+  const extraRequest = typeof recommendationDraft?.extraRequest === 'string' ? recommendationDraft.extraRequest.trim() : ''
+
+  if (!room && !style && !priority && !lifestyle.length && !extraRequest) return null
+
+  return {
+    room,
+    style,
+    priority,
+    lifestyle,
+    extraRequest,
+  }
+}
+
 function buildSerializableDraftSaveHandoff(draftSave = null) {
   if (!draftSave || typeof draftSave !== 'object' || Array.isArray(draftSave)) return null
 
@@ -156,11 +182,15 @@ function buildSerializableDraftSaveHandoff(draftSave = null) {
   const selectedSpaceIds = Array.isArray(draftSave.selectedSpaceIds)
     ? draftSave.selectedSpaceIds.filter((value, index, array) => typeof value === 'string' && value.trim() && array.indexOf(value) === index)
     : []
+  const recommendationDraft = buildSerializableRecommendationDraft(draftSave.recommendationDraft, draftSave.recommendationRoom)
 
   const payload = {
     draftLabel: typeof draftSave.draftLabel === 'string' ? draftSave.draftLabel.trim() : '',
     apartmentLabel: typeof draftSave.apartmentLabel === 'string' ? draftSave.apartmentLabel.trim() : '',
-    recommendationRoom: typeof draftSave.recommendationRoom === 'string' ? draftSave.recommendationRoom.trim() : '',
+    recommendationRoom: typeof draftSave.recommendationRoom === 'string' && draftSave.recommendationRoom.trim()
+      ? draftSave.recommendationRoom.trim()
+      : (recommendationDraft?.room ?? ''),
+    recommendationDraft,
     selectedSpaceIds,
     layoutItems,
     layoutItemCount: layoutItems.length,
@@ -174,6 +204,7 @@ function buildSerializableDraftSaveHandoff(draftSave = null) {
     draftLabel: payload.draftLabel || null,
     apartmentLabel: payload.apartmentLabel || null,
     recommendationRoom: payload.recommendationRoom || null,
+    ...(payload.recommendationDraft ? { recommendationDraft: payload.recommendationDraft } : {}),
     selectedSpaceIds: payload.selectedSpaceIds,
     layoutItems: payload.layoutItems,
     layoutItemCount: payload.layoutItemCount,
