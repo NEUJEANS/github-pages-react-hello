@@ -22,6 +22,12 @@ let baseUrl = defaultBaseUrl
 let base = new URL(baseUrl)
 let apiBaseUrl = base.origin
 let appBasePath = base.pathname.endsWith('/') ? base.pathname.slice(0, -1) || '/' : base.pathname
+
+function withBaseUrlHash(hash = '') {
+  const nextUrl = new URL(baseUrl)
+  nextUrl.hash = hash ? (hash.startsWith('#') ? hash : `#${hash}`) : ''
+  return nextUrl.toString()
+}
 function createCookieAwareFetch(fetchImpl = fetch) {
   const cookieJar = new Map()
 
@@ -1119,7 +1125,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     markSmokeStage('signup-scenario:start')
     const signupPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(signupPage)
-    await signupPage.goto(`${baseUrl}#layout`, { waitUntil: 'domcontentloaded' })
+    await signupPage.goto(withBaseUrlHash('layout'), { waitUntil: 'domcontentloaded' })
     await signupPage.getByRole('button', { name: '로그인 후 보드 저장' }).click()
     await continuePastGuardIfPresent(signupPage)
     await signupPage.locator('.authModeSwitch').getByRole('button', { name: '회원가입' }).click()
@@ -1194,7 +1200,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     markSmokeStage('save-draft-scenario:start')
     const saveDraftPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(saveDraftPage)
-    await saveDraftPage.goto(`${baseUrl}#layout`, { waitUntil: 'domcontentloaded' })
+    await saveDraftPage.goto(withBaseUrlHash('layout'), { waitUntil: 'domcontentloaded' })
     await saveDraftPage.getByRole('button', { name: '로그인 후 보드 저장' }).click()
     await continuePastGuardIfPresent(saveDraftPage)
     await submitLogin(saveDraftPage, {
@@ -1497,7 +1503,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     markSmokeStage('layout-tray-drag-scenario:start')
     const layoutTrayPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
     await resetBrowserScenario(layoutTrayPage)
-    await layoutTrayPage.goto(`${baseUrl}#layout`, { waitUntil: 'domcontentloaded' })
+    await layoutTrayPage.goto(withBaseUrlHash('layout'), { waitUntil: 'domcontentloaded' })
     const roomFrame = layoutTrayPage.locator('.roomFrame')
     await roomFrame.waitFor({ state: 'visible', timeout: 15000 })
     const initialTrayCount = await layoutTrayPage.locator('.recommendStrip .recommendCard').count()
