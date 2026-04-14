@@ -21,6 +21,7 @@ export function LayoutEditorPage({
   onSaveLayoutToAccount,
   onRestoreSavedLayout,
   layoutAuthPanelState,
+  isAuthBootstrapPending = false,
   buildVisibleLibrary,
   buildLibraryEmptyState,
   layoutLibraryCategoryTabs,
@@ -138,6 +139,34 @@ export function LayoutEditorPage({
   const handleActionButton = React.useCallback((action) => {
     runLayoutEditorCommands(buildLayoutEditorActionCommands(action), actionCommandHandlers)
   }, [actionCommandHandlers, buildLayoutEditorActionCommands, runLayoutEditorCommands])
+
+  const guestLayoutAuthAction = React.useMemo(() => {
+    if (authSession) {
+      return null
+    }
+
+    if (isAuthBootstrapPending) {
+      return {
+        label: '로그인 준비 중…',
+        helper: '계정 연결 상태를 확인한 뒤 보드 저장 흐름을 열어드릴게요.',
+        disabled: true,
+        onClick: null,
+      }
+    }
+
+    return {
+      label: '로그인 후 보드 저장',
+      helper: null,
+      disabled: false,
+      onClick: () => onOpenLogin({
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        draftLabel: addressSummary,
+        returnScreen: 'layout',
+      }),
+    }
+  }, [addressSummary, authSession, isAuthBootstrapPending, onOpenLogin])
 
   return (
     <div className="screenCanvas editorBg">
@@ -274,19 +303,18 @@ export function LayoutEditorPage({
             )}
           </div>
           <div className="propBlock actionBlock">
-            {!authSession && (
-              <button
-                className="ghost"
-                onClick={() => onOpenLogin({
-                  source: 'layout-editor',
-                  action: 'save-layout-draft',
-                  label: '로그인 후 보드 저장',
-                  draftLabel: addressSummary,
-                  returnScreen: 'layout',
-                })}
-              >
-                로그인 후 보드 저장
-              </button>
+            {guestLayoutAuthAction && (
+              <>
+                <button
+                  className="ghost"
+                  disabled={guestLayoutAuthAction.disabled}
+                  aria-disabled={guestLayoutAuthAction.disabled}
+                  onClick={guestLayoutAuthAction.onClick ?? undefined}
+                >
+                  {guestLayoutAuthAction.label}
+                </button>
+                {guestLayoutAuthAction.helper && <p>{guestLayoutAuthAction.helper}</p>}
+              </>
             )}
             {authSession && (
               <>

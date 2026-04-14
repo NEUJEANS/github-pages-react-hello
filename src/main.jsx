@@ -795,6 +795,7 @@ function App() {
       ?? buildEmptyLoginForm()
   ))
   const [authSession, setAuthSession] = React.useState(() => persistedAuthSession)
+  const [isAuthBootstrapPending, setIsAuthBootstrapPending] = React.useState(true)
   const [authContinuationFields, setAuthContinuationFields] = React.useState(() => buildAuthContinuationFieldState(
     persistedAuthHandoff?.continuationFields ?? persistedAuthSession?.continuationFields ?? null,
   ))
@@ -1329,123 +1330,130 @@ function App() {
 
   React.useEffect(() => {
     let cancelled = false
+    setIsAuthBootstrapPending(true)
 
     ;(async () => {
-      const result = await readAuthSession({
-        endpoint: authConfig.sessionEndpoint,
-        connectionFallbackOverride: persistedAuthSession?.connection ?? authLoginConnectionSummary,
-        ...authConfig,
-      })
-
-      if (result.ok && !cancelled) {
-        const sessionConnection = buildAuthConnectionSummary({
+      try {
+        const result = await readAuthSession({
           endpoint: authConfig.sessionEndpoint,
-          method: 'GET',
-        }, authConfig)
-        const bootstrapFallbackSummary = {
-          handoffId: persistedAuthSession?.handoffId ?? persistedAuthHandoff?.handoffId ?? null,
-          wishlistCount: persistedAuthSession?.wishlistCount ?? persistedAuthHandoff?.summary?.wishlistCount ?? 0,
-          cartCount: persistedAuthSession?.cartCount ?? persistedAuthHandoff?.summary?.cartCount ?? 0,
-          layoutItemCount: persistedAuthSession?.layoutItemCount ?? persistedAuthHandoff?.summary?.layoutItemCount ?? 0,
-          hasRecommendationDraft: persistedAuthSession?.hasRecommendationDraft ?? persistedAuthHandoff?.summary?.hasRecommendationDraft ?? false,
-          guestDraftSummary: persistedAuthSession?.guestDraftSummary ?? null,
-          intent: persistedAuthSession?.intent ?? persistedAuthHandoff?.summary?.intent ?? null,
-          connection: persistedAuthSession?.connection ?? persistedAuthHandoff?.connection ?? authLoginConnectionSummary ?? sessionConnection,
-          continuation: persistedAuthSession?.continuation ?? persistedAuthHandoff?.continuation ?? null,
-          authMode: persistedAuthSession?.authMode ?? null,
-          authTransport: persistedAuthSession?.authTransport ?? null,
-        }
-        const resultSummary = buildAuthResultSummary(result, bootstrapFallbackSummary)
-        const nextSession = buildPersistedAuthSession(resultSummary, {
-          connection: resultSummary?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary ?? sessionConnection,
-          actionConnection: persistedAuthSession?.actionConnection ?? persistedAuthHandoff?.actionConnection ?? authContinuationConnectionSummary,
-          continuation: buildSerializableAuthContinuation(result?.data),
-          continuationFields: result?.data?.continuationFields
-            ?? persistedAuthSession?.continuationFields
-            ?? persistedAuthHandoff?.continuationFields
-            ?? null,
-          draftSave: result?.data?.draftSave
-            ?? persistedAuthSession?.draftSave
-            ?? persistedAuthHandoff?.draftSave
-            ?? null,
-          accountState: result?.data?.accountState ?? null,
+          connectionFallbackOverride: persistedAuthSession?.connection ?? authLoginConnectionSummary,
+          ...authConfig,
         })
 
-        clearPersistedAuthHandoff(globalThis.sessionStorage)
-        persistAuthSession(globalThis.localStorage, nextSession)
-        setAuthSession(nextSession)
-        setLoginForm((current) => {
-          if (current.status === 'submitting') return current
-          return buildAuthReadyState(nextSession, {
-            intent: current.intent ?? nextSession.intent ?? null,
-          }) ?? current
-        })
-        return
-      }
+        if (result.ok && !cancelled) {
+          const sessionConnection = buildAuthConnectionSummary({
+            endpoint: authConfig.sessionEndpoint,
+            method: 'GET',
+          }, authConfig)
+          const bootstrapFallbackSummary = {
+            handoffId: persistedAuthSession?.handoffId ?? persistedAuthHandoff?.handoffId ?? null,
+            wishlistCount: persistedAuthSession?.wishlistCount ?? persistedAuthHandoff?.summary?.wishlistCount ?? 0,
+            cartCount: persistedAuthSession?.cartCount ?? persistedAuthHandoff?.summary?.cartCount ?? 0,
+            layoutItemCount: persistedAuthSession?.layoutItemCount ?? persistedAuthHandoff?.summary?.layoutItemCount ?? 0,
+            hasRecommendationDraft: persistedAuthSession?.hasRecommendationDraft ?? persistedAuthHandoff?.summary?.hasRecommendationDraft ?? false,
+            guestDraftSummary: persistedAuthSession?.guestDraftSummary ?? null,
+            intent: persistedAuthSession?.intent ?? persistedAuthHandoff?.summary?.intent ?? null,
+            connection: persistedAuthSession?.connection ?? persistedAuthHandoff?.connection ?? authLoginConnectionSummary ?? sessionConnection,
+            continuation: persistedAuthSession?.continuation ?? persistedAuthHandoff?.continuation ?? null,
+            authMode: persistedAuthSession?.authMode ?? null,
+            authTransport: persistedAuthSession?.authTransport ?? null,
+          }
+          const resultSummary = buildAuthResultSummary(result, bootstrapFallbackSummary)
+          const nextSession = buildPersistedAuthSession(resultSummary, {
+            connection: resultSummary?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary ?? sessionConnection,
+            actionConnection: persistedAuthSession?.actionConnection ?? persistedAuthHandoff?.actionConnection ?? authContinuationConnectionSummary,
+            continuation: buildSerializableAuthContinuation(result?.data),
+            continuationFields: result?.data?.continuationFields
+              ?? persistedAuthSession?.continuationFields
+              ?? persistedAuthHandoff?.continuationFields
+              ?? null,
+            draftSave: result?.data?.draftSave
+              ?? persistedAuthSession?.draftSave
+              ?? persistedAuthHandoff?.draftSave
+              ?? null,
+            accountState: result?.data?.accountState ?? null,
+          })
 
-      if (!cancelled && persistedAuthSession) {
-        if (shouldPreservePersistedAuthSessionOnBootstrapFailure(result, persistedAuthSession)) {
-          setAuthSession(persistedAuthSession)
-          setAuthNoticeDismissed(false)
+          clearPersistedAuthHandoff(globalThis.sessionStorage)
+          persistAuthSession(globalThis.localStorage, nextSession)
+          setAuthSession(nextSession)
           setLoginForm((current) => {
             if (current.status === 'submitting') return current
-            return buildAuthReadyState(persistedAuthSession, {
-              intent: current.intent ?? persistedAuthSession.intent ?? null,
+            return buildAuthReadyState(nextSession, {
+              intent: current.intent ?? nextSession.intent ?? null,
             }) ?? current
           })
           return
         }
 
-        clearPersistedAuthSession(globalThis.localStorage)
-        setAuthSession(null)
-        setAuthNoticeDismissed(false)
-        setLoginForm((current) => {
-          if (current.status === 'submitting') return current
-          if (current.status === 'resume-ready' && current.handoff) return current
-          return buildEmptyLoginForm(current.intent)
-        })
-      }
+        if (!cancelled && persistedAuthSession) {
+          if (shouldPreservePersistedAuthSessionOnBootstrapFailure(result, persistedAuthSession)) {
+            setAuthSession(persistedAuthSession)
+            setAuthNoticeDismissed(false)
+            setLoginForm((current) => {
+              if (current.status === 'submitting') return current
+              return buildAuthReadyState(persistedAuthSession, {
+                intent: current.intent ?? persistedAuthSession.intent ?? null,
+              }) ?? current
+            })
+            return
+          }
 
-      if (persistedAuthHandoff) {
-        if (!cancelled) {
-          setLoginForm((current) => (
-            current.status === 'submitting'
-              ? current
-              : (buildAuthResumeState(persistedAuthHandoff, persistedAuthSession) ?? current)
-          ))
-          setLoginModalState('form')
+          clearPersistedAuthSession(globalThis.localStorage)
+          setAuthSession(null)
+          setAuthNoticeDismissed(false)
+          setLoginForm((current) => {
+            if (current.status === 'submitting') return current
+            if (current.status === 'resume-ready' && current.handoff) return current
+            return buildEmptyLoginForm(current.intent)
+          })
         }
-        return
+
+        if (persistedAuthHandoff) {
+          if (!cancelled) {
+            setLoginForm((current) => (
+              current.status === 'submitting'
+                ? current
+                : (buildAuthResumeState(persistedAuthHandoff, persistedAuthSession) ?? current)
+            ))
+            setLoginModalState('form')
+          }
+          return
+        }
+        if (cancelled) return
+
+        const pendingResult = await readAuthPending({
+          endpoint: authConfig.pendingEndpoint,
+          connectionFallbackOverride: persistedAuthHandoff?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary,
+          ...authConfig,
+        })
+
+        if (!pendingResult.ok || cancelled) return
+
+        const bootstrappedPendingHandoff = {
+          ...pendingResult.data,
+          connection: pendingResult.data?.connection
+            ?? persistedAuthHandoff?.connection
+            ?? persistedAuthSession?.connection
+            ?? authLoginConnectionSummary,
+          actionConnection: pendingResult.data?.actionConnection
+            ?? persistedAuthHandoff?.actionConnection
+            ?? persistedAuthSession?.actionConnection
+            ?? authContinuationConnectionSummary,
+        }
+
+        persistAuthHandoff(globalThis.sessionStorage, bootstrappedPendingHandoff)
+        setLoginForm((current) => (
+          current.status === 'submitting'
+            ? current
+            : (buildAuthResumeState(bootstrappedPendingHandoff, persistedAuthSession) ?? current)
+        ))
+        setLoginModalState('form')
+      } finally {
+        if (!cancelled) {
+          setIsAuthBootstrapPending(false)
+        }
       }
-      if (cancelled) return
-
-      const pendingResult = await readAuthPending({
-        endpoint: authConfig.pendingEndpoint,
-        connectionFallbackOverride: persistedAuthHandoff?.connection ?? persistedAuthSession?.connection ?? authLoginConnectionSummary,
-        ...authConfig,
-      })
-
-      if (!pendingResult.ok || cancelled) return
-
-      const bootstrappedPendingHandoff = {
-        ...pendingResult.data,
-        connection: pendingResult.data?.connection
-          ?? persistedAuthHandoff?.connection
-          ?? persistedAuthSession?.connection
-          ?? authLoginConnectionSummary,
-        actionConnection: pendingResult.data?.actionConnection
-          ?? persistedAuthHandoff?.actionConnection
-          ?? persistedAuthSession?.actionConnection
-          ?? authContinuationConnectionSummary,
-      }
-
-      persistAuthHandoff(globalThis.sessionStorage, bootstrappedPendingHandoff)
-      setLoginForm((current) => (
-        current.status === 'submitting'
-          ? current
-          : (buildAuthResumeState(bootstrappedPendingHandoff, persistedAuthSession) ?? current)
-      ))
-      setLoginModalState('form')
     })()
 
     return () => {
@@ -2246,6 +2254,7 @@ function App() {
     onSaveLayoutToAccount: handleSaveLayoutToAccount,
     onRestoreSavedLayout: handleRestoreSavedLayout,
     layoutAuthPanelState,
+    isAuthBootstrapPending,
     trackBoardProgress,
     trackFurniturePlacement,
     authSession,
