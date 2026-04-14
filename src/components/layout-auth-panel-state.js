@@ -2,6 +2,16 @@ function toIsoString(value = null) {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
+function formatBoardSavedAtLabel(value = null) {
+  const iso = toIsoString(value)
+  if (!iso) return null
+
+  const parsed = new Date(iso)
+  if (Number.isNaN(parsed.getTime())) return null
+
+  return `최근 저장 · ${parsed.toISOString().slice(0, 16).replace('T', ' ')} UTC`
+}
+
 function normalizeLabel(value = null) {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
@@ -48,6 +58,7 @@ export function buildLayoutAuthPanelState({
   const savedApartmentSelectionId = normalizeLabel(authSession?.draftSave?.apartmentSelectionId)
     ?? normalizeLabel(accountState?.apartmentSelectionId)
   const normalizedCurrentApartmentSelectionId = normalizeLabel(currentApartmentSelectionId)
+  const layoutBoardSavedAt = toIsoString(accountState?.layoutBoardSavedAt ?? saveState?.savedAt ?? authSession?.savedAt ?? null)
   const savedLayoutCount = savedLayoutItems.length
   const currentLayoutCount = Array.isArray(editorItems) ? editorItems.length : 0
   const savedTrayCount = savedTrayItems.length
@@ -119,7 +130,8 @@ export function buildLayoutAuthPanelState({
     savedBoardSummary,
     currentBoardSummary,
     boardComparisonCopy,
-    lastSavedAt: toIsoString(saveState?.savedAt ?? authSession?.savedAt ?? null),
+    lastSavedAt: layoutBoardSavedAt,
+    lastSavedAtLabel: formatBoardSavedAtLabel(layoutBoardSavedAt),
     status,
     message: shouldHideStaleStatusMessage ? null : rawMessage,
     saveButtonLabel: status === 'saving'

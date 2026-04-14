@@ -45,6 +45,9 @@ export function buildAccountContinuityPatch(accountState = null) {
     ...(typeof accountState.apartmentSelectionId === 'string' && accountState.apartmentSelectionId.trim()
       ? { apartmentSelectionId: accountState.apartmentSelectionId.trim() }
       : {}),
+    ...(typeof accountState.layoutBoardSavedAt === 'string' && accountState.layoutBoardSavedAt.trim()
+      ? { layoutBoardSavedAt: accountState.layoutBoardSavedAt.trim() }
+      : {}),
     recommendationDraft: cloneRecommendationDraft(accountState.recommendationDraft),
   }
 }

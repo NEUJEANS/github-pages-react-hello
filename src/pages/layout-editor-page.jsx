@@ -268,6 +268,7 @@ export function LayoutEditorPage({
                   <p>현재 기준 · {layoutAuthPanelState.currentBoardContextCopy}</p>
                 )}
                 {layoutAuthPanelState.boardComparisonCopy && <p>{layoutAuthPanelState.boardComparisonCopy}</p>}
+                {layoutAuthPanelState.lastSavedAtLabel && <p>{layoutAuthPanelState.lastSavedAtLabel}</p>}
                 {layoutAuthPanelState.message && <p>{layoutAuthPanelState.message}</p>}
               </>
             )}

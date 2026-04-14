@@ -60,6 +60,7 @@ function buildMergedGuestAccountState(guestDraftSnapshot = null, persistedAccoun
         wishlistIds: [],
         cartItems: [],
         layoutItems: [],
+        layoutBoardSavedAt: null,
         recommendationDraft: null,
       }
 
@@ -303,6 +304,7 @@ function buildUpdatedAccountStateForDraftSave(currentSession = null, draftSave =
         wishlistIds: [],
         cartItems: [],
         layoutItems: [],
+        layoutBoardSavedAt: null,
         recommendationDraft: null,
       }
 
@@ -322,6 +324,7 @@ function buildUpdatedAccountStateForDraftSave(currentSession = null, draftSave =
     ...(typeof draftSave.apartmentSelectionId === 'string' && draftSave.apartmentSelectionId.trim()
       ? { apartmentSelectionId: draftSave.apartmentSelectionId.trim() }
       : {}),
+    layoutBoardSavedAt: new Date().toISOString(),
     layoutItems: Array.isArray(draftSave.layoutItems)
       ? draftSave.layoutItems.map((item) => ({ ...item }))
       : cloneValue(baseState.layoutItems ?? []),

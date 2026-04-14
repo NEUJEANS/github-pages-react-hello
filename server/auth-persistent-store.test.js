@@ -233,6 +233,7 @@ test('save-layout continuation persists the latest layout draft into sqlite-back
     assert.equal(continuation.data.nextAction, 'save-layout-draft')
     assert.equal(continuation.data.accountState.layoutItems.length, 2)
     assert.equal(continuation.data.accountState.layoutItems[0].id, 'layout-sofa-1')
+    assert.equal(typeof continuation.data.accountState.layoutBoardSavedAt, 'string')
     assert.equal(continuation.data.accountState.recommendationDraft?.room, '거실')
 
     const session = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
@@ -242,6 +243,7 @@ test('save-layout continuation persists the latest layout draft into sqlite-back
     assert.equal(session.status, 200)
     assert.equal(session.data.accountState.layoutItems.length, 2)
     assert.equal(session.data.accountState.layoutItems[1].sourceId, 'table-001')
+    assert.equal(typeof session.data.accountState.layoutBoardSavedAt, 'string')
     assert.equal(session.data.accountState.recommendationDraft?.room, '거실')
     assert.equal(session.data.accountState.recommendationDraft?.style, '모던')
     assert.equal(session.data.accountState.recommendationDraft?.priority, '수납')

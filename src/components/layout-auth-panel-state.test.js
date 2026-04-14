@@ -37,6 +37,8 @@ test('buildLayoutAuthPanelState exposes authenticated save + restore affordances
   assert.equal(state.savedBoardContextCopy, '거실 · 래미안 포레스트 84A')
   assert.equal(state.currentBoardContextCopy, '거실 · 거실 84A')
   assert.equal(state.boardContextMatches, true)
+  assert.equal(state.lastSavedAt, '2026-04-14T03:23:00.000Z')
+  assert.equal(state.lastSavedAtLabel, '최근 저장 · 2026-04-14 03:23 UTC')
   assert.equal(state.boardComparisonCopy, '현재 보드가 계정 저장본과 달라졌어요. 다시 저장하거나 저장본으로 되돌릴 수 있어요.')
 })
 
@@ -279,4 +281,25 @@ test('buildLayoutAuthPanelState enables restore when only the saved/current cont
   assert.equal(state.hasDrift, true)
   assert.equal(state.restoreDisabled, false)
   assert.equal(state.boardComparisonCopy, '현재 보드가 계정 저장본과 달라졌어요. 다시 저장하거나 저장본으로 되돌릴 수 있어요.')
+})
+
+test('buildLayoutAuthPanelState prefers persisted board save timestamps over session timestamps', () => {
+  const state = buildLayoutAuthPanelState({
+    authSession: {
+      savedAt: '2026-04-14T03:23:00.000Z',
+      accountState: {
+        layoutItems: [{ id: 'chair-1' }],
+        layoutTrayItems: [{ id: 'table-1', name: '테이블' }],
+        layoutBoardSavedAt: '2026-04-14T09:18:00.000Z',
+        recommendationDraft: { room: '거실' },
+      },
+    },
+    editorItems: [{ id: 'chair-1' }],
+    trayItems: [{ id: 'table-1', name: '테이블' }],
+    currentRecommendationDraft: { room: '거실' },
+    saveState: { status: 'idle' },
+  })
+
+  assert.equal(state.lastSavedAt, '2026-04-14T09:18:00.000Z')
+  assert.equal(state.lastSavedAtLabel, '최근 저장 · 2026-04-14 09:18 UTC')
 })

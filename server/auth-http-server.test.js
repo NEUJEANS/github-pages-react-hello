@@ -443,6 +443,7 @@ test('auth http server persists layout draft saves into account state across ses
       const continuedPayload = await continueResponse.json()
       assert.equal(continuedPayload.accountState.layoutItems.length, 1)
       assert.equal(continuedPayload.accountState.layoutItems[0].sourceId, 'bed-001')
+      assert.equal(typeof continuedPayload.accountState.layoutBoardSavedAt, 'string')
       assert.equal(continuedPayload.accountState.recommendationDraft?.room, '침실')
 
       const sessionResponse = await fetch(`${authServer.url}/api/auth/session`, {
@@ -455,6 +456,7 @@ test('auth http server persists layout draft saves into account state across ses
       const sessionPayload = await sessionResponse.json()
       assert.equal(sessionPayload.accountState.layoutItems.length, 1)
       assert.equal(sessionPayload.accountState.layoutItems[0].id, 'layout-bed-1')
+      assert.equal(typeof sessionPayload.accountState.layoutBoardSavedAt, 'string')
       assert.equal(sessionPayload.accountState.recommendationDraft?.room, '침실')
     } finally {
       await authServer.close()

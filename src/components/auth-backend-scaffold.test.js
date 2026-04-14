@@ -257,6 +257,7 @@ test('buildAuthScaffoldResponse can switch to the account state after a merge co
     wishlistIds: [],
     cartItems: [],
     layoutItems: [],
+    layoutBoardSavedAt: null,
     recommendationDraft: null,
   })
 })
@@ -920,18 +921,23 @@ test('submitAuthScaffoldContinuation persists layout saves back into account sta
   assert.equal(completed.data.status, 'ready')
   assert.equal(completed.data.statusLabel, '보드 저장 완료')
   assert.equal(completed.data.draftSave?.apartmentSelectionId, 'apt-101a')
-  assert.deepEqual(completed.data.accountState, {
+  assert.deepEqual({
+    ...completed.data.accountState,
+    layoutBoardSavedAt: typeof completed.data.accountState?.layoutBoardSavedAt,
+  }, {
     wishlistIds: [],
     cartItems: [],
     apartmentSelectionId: 'apt-101a',
     layoutItems: [{ id: 'layout-new' }],
     layoutTrayItems: [{ id: 'tray-new' }],
+    layoutBoardSavedAt: 'string',
     recommendationDraft: { room: '주방' },
   })
 
   const resumed = readAuthScaffoldSession()
   assert.equal(resumed.status, 200)
   assert.equal(resumed.data.accountState?.apartmentSelectionId, 'apt-101a')
+  assert.equal(typeof resumed.data.accountState?.layoutBoardSavedAt, 'string')
   assert.deepEqual(resumed.data.accountState?.layoutTrayItems, [{ id: 'tray-new' }])
 })
 

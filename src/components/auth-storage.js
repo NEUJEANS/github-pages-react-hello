@@ -377,8 +377,11 @@ function buildSerializableAuthAccountState(accountState = null) {
         extraRequest: accountState.recommendationDraft.extraRequest ?? '',
       }
     : null
+  const layoutBoardSavedAt = typeof accountState.layoutBoardSavedAt === 'string' && accountState.layoutBoardSavedAt.trim()
+    ? accountState.layoutBoardSavedAt.trim()
+    : null
 
-  if (!wishlistIds.length && !cartItems.length && !layoutItems.length && !layoutTrayItems.length && !apartmentSelectionId && !recommendationDraft) return null
+  if (!wishlistIds.length && !cartItems.length && !layoutItems.length && !layoutTrayItems.length && !apartmentSelectionId && !layoutBoardSavedAt && !recommendationDraft) return null
 
   return {
     wishlistIds,
@@ -386,6 +389,7 @@ function buildSerializableAuthAccountState(accountState = null) {
     layoutItems,
     ...(Array.isArray(accountState.layoutTrayItems) ? { layoutTrayItems } : {}),
     ...(apartmentSelectionId ? { apartmentSelectionId } : {}),
+    ...(layoutBoardSavedAt ? { layoutBoardSavedAt } : {}),
     recommendationDraft,
   }
 }

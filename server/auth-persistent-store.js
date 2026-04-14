@@ -115,6 +115,7 @@ function buildUser({ email, password, name, createdAt = new Date().toISOString()
       cartItems: [],
       layoutItems: [],
       apartmentSelectionId: null,
+      layoutBoardSavedAt: null,
       recommendationDraft: null,
     },
   }
@@ -278,7 +279,7 @@ function readUser(email, source = null) {
     createdAt: row.created_at,
     profile: parseJson(row.profile_json, null),
     verifiedAt: row.verified_at ?? null,
-    accountState: parseJson(row.account_state_json, { wishlistIds: [], cartItems: [], layoutItems: [], layoutTrayItems: [], apartmentSelectionId: null, recommendationDraft: null }),
+    accountState: parseJson(row.account_state_json, { wishlistIds: [], cartItems: [], layoutItems: [], layoutTrayItems: [], apartmentSelectionId: null, layoutBoardSavedAt: null, recommendationDraft: null }),
   })
 }
 
@@ -663,6 +664,7 @@ function mergeGuestDraftIntoAccount(user, guestDraftSnapshot = null, mergeResolu
     layoutItems: Array.isArray(continuity.layoutItems) ? clone(continuity.layoutItems) : [],
     layoutTrayItems: Array.isArray(continuity.layoutTrayItems) ? clone(continuity.layoutTrayItems) : [],
     apartmentSelectionId: guestDraftSnapshot?.spaceProfile?.apartmentSelectionId ?? null,
+    layoutBoardSavedAt: typeof user.accountState?.layoutBoardSavedAt === 'string' ? user.accountState.layoutBoardSavedAt : null,
     recommendationDraft: guestDraftSnapshot.recommendationDraft ? clone(guestDraftSnapshot.recommendationDraft) : null,
   }
 }
@@ -716,6 +718,7 @@ function applyDraftSaveToAccountState(user, draftSave = null) {
     layoutItems: nextLayoutItems ?? (Array.isArray(user.accountState?.layoutItems) ? clone(user.accountState.layoutItems) : []),
     layoutTrayItems: nextLayoutTrayItems ?? (Array.isArray(user.accountState?.layoutTrayItems) ? clone(user.accountState.layoutTrayItems) : []),
     apartmentSelectionId: nextApartmentSelectionId,
+    layoutBoardSavedAt: new Date().toISOString(),
     recommendationDraft: nextRecommendationDraft ?? clone(user.accountState?.recommendationDraft ?? null),
   }
 

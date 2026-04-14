@@ -2146,6 +2146,15 @@ function App() {
       }
 
       const savedAt = new Date().toISOString()
+      const nextAccountState = result?.data?.accountState && typeof result.data.accountState === 'object'
+        ? {
+            ...result.data.accountState,
+            layoutBoardSavedAt: result.data.accountState.layoutBoardSavedAt ?? savedAt,
+          }
+        : {
+            ...(authSession.accountState ?? {}),
+            layoutBoardSavedAt: savedAt,
+          }
       const nextResultSummary = buildAuthResultSummary(result, {
         sessionId: authSession.sessionId ?? null,
         accountLabel: authSession.accountLabel ?? null,
@@ -2168,7 +2177,7 @@ function App() {
         continuation: buildSerializableAuthContinuation(result?.data) ?? { nextAction: 'save-layout-draft', status: 'ready', statusLabel: '보드 저장 완료' },
         continuationFields: authSession.continuationFields ?? null,
         draftSave: savePlan.request.draftSave,
-        accountState: result?.data?.accountState ?? authSession.accountState ?? null,
+        accountState: nextAccountState,
         savedAt,
       })
 

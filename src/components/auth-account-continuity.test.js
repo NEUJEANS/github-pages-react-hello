@@ -9,6 +9,7 @@ test('buildAccountContinuityPatch clones persisted account continuity state', ()
     cartItems: [{ id: 'cart-account-1', qty: 2 }],
     layoutItems: [{ id: 'layout-account-1', x: 12, y: 16 }],
     apartmentSelectionId: 'apt-84a',
+    layoutBoardSavedAt: '2026-04-14T09:12:00.000Z',
     recommendationDraft: {
       room: '침실',
       style: 'natural',
@@ -21,6 +22,7 @@ test('buildAccountContinuityPatch clones persisted account continuity state', ()
     cartItems: [{ id: 'cart-account-1', qty: 2 }],
     layoutItems: [{ id: 'layout-account-1', x: 12, y: 16 }],
     apartmentSelectionId: 'apt-84a',
+    layoutBoardSavedAt: '2026-04-14T09:12:00.000Z',
     recommendationDraft: {
       room: '침실',
       style: 'natural',
