@@ -47,6 +47,7 @@ import {
   readPersistedAuthSession,
 } from './components/auth-storage.js'
 import { buildAuthGuardPanelState, buildAuthLoginPanelState, buildAuthReadyPanelState, buildAuthResumePanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './components/auth-session-view-state.js'
+import { buildAccountContinuityPatch } from './components/auth-account-continuity.js'
 import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
 import { shouldPreservePersistedAuthSessionOnBootstrapFailure } from './components/auth-bootstrap-state.js'
@@ -1447,14 +1448,7 @@ function App() {
       roomOptions,
       fallbackRoom: initialAiForm.room,
     })
-    const continuityPatch = authSession.accountState
-      ? {
-          wishlistIds: [...(authSession.accountState.wishlistIds ?? [])],
-          cartItems: [...(authSession.accountState.cartItems ?? [])],
-          layoutItems: [...(authSession.accountState.layoutItems ?? [])],
-          recommendationDraft: authSession.accountState.recommendationDraft ?? null,
-        }
-      : null
+    const continuityPatch = buildAccountContinuityPatch(authSession.accountState)
 
     if (nextRestorePatch?.recommendationRoom) {
       setAiForm((current) => (
@@ -1480,6 +1474,9 @@ function App() {
       setWishlistedIds(continuityPatch.wishlistIds)
       cart.replaceItems(continuityPatch.cartItems)
       editor.replaceItems(continuityPatch.layoutItems)
+      if (Object.hasOwn(continuityPatch, 'layoutTrayItems')) {
+        setLayoutTrayItems(continuityPatch.layoutTrayItems)
+      }
       setAiForm((current) => (
         continuityPatch.recommendationDraft
           ? { ...current, ...continuityPatch.recommendationDraft }
@@ -1632,6 +1629,9 @@ function App() {
         setWishlistedIds(continuityPatch.wishlistIds)
         cart.replaceItems(continuityPatch.cartItems)
         editor.replaceItems(continuityPatch.layoutItems)
+        if (Object.hasOwn(continuityPatch, 'layoutTrayItems')) {
+          setLayoutTrayItems(continuityPatch.layoutTrayItems)
+        }
         setAiForm(
           continuityPatch.recommendationDraft
             ? { ...initialAiForm, ...continuityPatch.recommendationDraft }
@@ -1938,6 +1938,9 @@ function App() {
           setWishlistedIds(continuityPatch.wishlistIds)
           cart.replaceItems(continuityPatch.cartItems)
           editor.replaceItems(continuityPatch.layoutItems)
+          if (Object.hasOwn(continuityPatch, 'layoutTrayItems')) {
+            setLayoutTrayItems(continuityPatch.layoutTrayItems)
+          }
           setAiForm(
             continuityPatch.recommendationDraft
               ? { ...initialAiForm, ...continuityPatch.recommendationDraft }

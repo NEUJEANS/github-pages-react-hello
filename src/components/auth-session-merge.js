@@ -1,32 +1,4 @@
-function cloneCartItems(items = []) {
-  return Array.isArray(items)
-    ? items.map((item) => ({ id: item.id, qty: item.qty ?? 1 }))
-    : []
-}
-
-function cloneLayoutItems(items = []) {
-  return Array.isArray(items)
-    ? items.map((item) => ({ ...item }))
-    : []
-}
-
-function cloneLayoutTrayItems(items = []) {
-  return Array.isArray(items)
-    ? items.map((item) => ({ ...item }))
-    : []
-}
-
-function cloneRecommendationDraft(draft = null) {
-  if (!draft || typeof draft !== 'object') return null
-
-  return {
-    room: draft.room ?? null,
-    style: draft.style ?? null,
-    priority: draft.priority ?? null,
-    lifestyle: [...(draft.lifestyle ?? [])],
-    extraRequest: draft.extraRequest ?? '',
-  }
-}
+import { buildAccountContinuityPatch } from './auth-account-continuity.js'
 
 export function buildPostAuthContinuityPatch(result) {
   const mergedDraft = result?.data?.mergedGuestDraft ?? null
@@ -34,14 +6,8 @@ export function buildPostAuthContinuityPatch(result) {
 
   if (!mergedDraft || mergedDraft.mode !== 'replaced') return null
 
-  const layoutTrayItems = cloneLayoutTrayItems(accountState?.layoutTrayItems)
-
   return {
     mergeMode: mergedDraft.mode,
-    wishlistIds: [...(accountState?.wishlistIds ?? [])],
-    cartItems: cloneCartItems(accountState?.cartItems),
-    layoutItems: cloneLayoutItems(accountState?.layoutItems),
-    ...(Array.isArray(accountState?.layoutTrayItems) ? { layoutTrayItems } : {}),
-    recommendationDraft: cloneRecommendationDraft(accountState?.recommendationDraft),
+    ...buildAccountContinuityPatch(accountState),
   }
 }
