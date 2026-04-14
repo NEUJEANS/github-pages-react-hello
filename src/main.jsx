@@ -1304,11 +1304,18 @@ function App() {
     setLoginModalState('form')
   }, [loginForm.continuation, loginForm.handoff, loginForm.status, loginModalState])
 
+  const authContinuationIntent = React.useMemo(() => resolveContinuationSubmitIntent({
+    sessionIntent: authSession?.intent ?? null,
+    formIntent: loginForm.intent ?? null,
+    handoffIntent: loginForm.handoff?.summary?.intent ?? null,
+    blockerAction: activeAuthReadyPanelState?.nextAction ?? authSession?.continuation?.nextAction ?? loginForm.continuation?.nextAction ?? null,
+  }), [activeAuthReadyPanelState?.nextAction, authSession?.continuation?.nextAction, authSession?.intent, loginForm.continuation?.nextAction, loginForm.handoff?.summary?.intent, loginForm.intent])
+
   const authContinuationPlan = React.useMemo(() => buildAuthContinuationPlan({
     endpoint: authConfig.continueEndpoint,
     continuation: authSession?.continuation ?? loginForm.continuation ?? null,
     handoffId: authSession?.handoffId ?? loginForm.handoffId ?? null,
-    intent: buildSerializableAuthIntent(authSession?.intent ?? loginForm.intent ?? null),
+    intent: authContinuationIntent,
     fields: activeAuthReadyPanelState?.nextAction === 'complete-profile'
       ? {
           displayName: authContinuationFields.displayName,
@@ -1328,12 +1335,12 @@ function App() {
               }
             : null,
     draftSave: shouldAttachDraftSaveToAuthContinuation(
-      authSession?.intent ?? loginForm.intent ?? null,
+      authContinuationIntent,
       authSession?.continuation ?? loginForm.continuation ?? null,
     )
       ? authDraftSavePayload
       : null,
-  }), [activeAuthReadyPanelState?.nextAction, authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.mergeResolution, authContinuationFields.phone, authContinuationFields.verificationCode, authDraftSavePayload, authSession?.continuation, authSession?.handoffId, authSession?.intent, loginForm.continuation, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution])
+  }), [activeAuthReadyPanelState?.nextAction, authConfig.continueEndpoint, authContinuationFields.displayName, authContinuationFields.mergeResolution, authContinuationFields.phone, authContinuationFields.verificationCode, authContinuationIntent, authDraftSavePayload, authSession?.continuation, authSession?.handoffId, loginForm.continuation, loginForm.handoffId, loginForm.mergeResolution])
 
   React.useEffect(() => {
     let cancelled = false
