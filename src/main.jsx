@@ -1080,10 +1080,12 @@ function App() {
   const layoutAuthPanelState = React.useMemo(() => buildLayoutAuthPanelState({
     authSession,
     editorItems: editor.items,
+    trayItems: layoutTrayItems,
     draftLabel: buildLayoutAddressSummary(selectedApartment),
     recommendationRoom: aiForm.room,
+    currentRecommendationDraft: aiForm,
     saveState: layoutBoardSaveState,
-  }), [aiForm.room, authSession, editor.items, layoutBoardSaveState, selectedApartment])
+  }), [aiForm, authSession, editor.items, layoutBoardSaveState, layoutTrayItems, selectedApartment])
 
   const authSubmitPlan = React.useMemo(() => buildAuthSubmitPlan({
     email: loginForm.email,

@@ -44,14 +44,19 @@ test('buildLayoutAuthPanelState disables save and restore while signed out or em
 
 test('buildLayoutAuthPanelState keeps restore disabled when editor already matches the saved board', () => {
   const items = [{ id: 'chair-1', x: 10, y: 20 }]
+  const trayItems = [{ id: 'sofa-1', name: '소파' }]
+  const recommendationDraft = { room: '거실', style: '모던' }
   const state = buildLayoutAuthPanelState({
     authSession: {
       accountState: {
         layoutItems: items,
-        recommendationDraft: null,
+        layoutTrayItems: trayItems,
+        recommendationDraft,
       },
     },
     editorItems: [{ id: 'chair-1', x: 10, y: 20 }],
+    trayItems: [{ id: 'sofa-1', name: '소파' }],
+    currentRecommendationDraft: { style: '모던', room: '거실' },
     saveState: { status: 'saving' },
   })
 
@@ -59,4 +64,42 @@ test('buildLayoutAuthPanelState keeps restore disabled when editor already match
   assert.equal(state.saveDisabled, true)
   assert.equal(state.restoreDisabled, true)
   assert.equal(state.saveButtonLabel, '보드 저장 중…')
+})
+
+test('buildLayoutAuthPanelState enables restore when tray-only drift exists', () => {
+  const state = buildLayoutAuthPanelState({
+    authSession: {
+      accountState: {
+        layoutItems: [{ id: 'chair-1', x: 10, y: 20 }],
+        layoutTrayItems: [{ id: 'sofa-1', name: '소파' }, { id: 'table-1', name: '테이블' }],
+        recommendationDraft: { room: '거실', style: '모던' },
+      },
+    },
+    editorItems: [{ id: 'chair-1', x: 10, y: 20 }],
+    trayItems: [{ id: 'table-1', name: '테이블' }],
+    currentRecommendationDraft: { room: '거실', style: '모던' },
+    saveState: { status: 'saved' },
+  })
+
+  assert.equal(state.hasDrift, true)
+  assert.equal(state.restoreDisabled, false)
+})
+
+test('buildLayoutAuthPanelState enables restore when recommendation draft drift exists', () => {
+  const state = buildLayoutAuthPanelState({
+    authSession: {
+      accountState: {
+        layoutItems: [{ id: 'chair-1', x: 10, y: 20 }],
+        layoutTrayItems: [{ id: 'sofa-1', name: '소파' }],
+        recommendationDraft: { room: '거실', style: '모던', priority: '수납' },
+      },
+    },
+    editorItems: [{ id: 'chair-1', x: 10, y: 20 }],
+    trayItems: [{ id: 'sofa-1', name: '소파' }],
+    currentRecommendationDraft: { room: '거실', style: '미니멀', priority: '수납' },
+    saveState: { status: 'saved' },
+  })
+
+  assert.equal(state.hasDrift, true)
+  assert.equal(state.restoreDisabled, false)
 })

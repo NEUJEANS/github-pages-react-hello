@@ -2,22 +2,46 @@ function toIsoString(value = null) {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
+function normalizeRecommendationDraft(draft = null) {
+  if (!draft || typeof draft !== 'object') return null
+
+  const entries = Object.entries(draft)
+    .filter(([, value]) => value !== null && value !== undefined && value !== '')
+    .sort(([left], [right]) => left.localeCompare(right))
+
+  if (!entries.length) return null
+  return Object.fromEntries(entries)
+}
+
+function cloneTrayItems(items = []) {
+  return Array.isArray(items) ? items.map((item) => ({ ...item })) : []
+}
+
 export function buildLayoutAuthPanelState({
   authSession = null,
   editorItems = [],
+  trayItems = [],
   draftLabel = null,
   recommendationRoom = null,
+  currentRecommendationDraft = null,
   saveState = null,
 } = {}) {
   const accountState = authSession?.accountState ?? null
-  const savedLayoutCount = Array.isArray(accountState?.layoutItems) ? accountState.layoutItems.length : 0
+  const savedLayoutItems = Array.isArray(accountState?.layoutItems) ? accountState.layoutItems : []
+  const savedTrayItems = cloneTrayItems(accountState?.layoutTrayItems)
+  const currentTrayItems = cloneTrayItems(trayItems)
+  const savedLayoutCount = savedLayoutItems.length
   const currentLayoutCount = Array.isArray(editorItems) ? editorItems.length : 0
   const savedRoom = typeof accountState?.recommendationDraft?.room === 'string' && accountState.recommendationDraft.room.trim()
     ? accountState.recommendationDraft.room.trim()
     : (typeof recommendationRoom === 'string' && recommendationRoom.trim() ? recommendationRoom.trim() : null)
   const hasSavedLayout = savedLayoutCount > 0
   const hasCurrentLayout = currentLayoutCount > 0
-  const hasDrift = hasSavedLayout && JSON.stringify(accountState.layoutItems) !== JSON.stringify(editorItems)
+  const layoutDrift = hasSavedLayout && JSON.stringify(savedLayoutItems) !== JSON.stringify(editorItems)
+  const trayDrift = savedTrayItems.length > 0 && JSON.stringify(savedTrayItems) !== JSON.stringify(currentTrayItems)
+  const recommendationDrift = Boolean(normalizeRecommendationDraft(accountState?.recommendationDraft) || normalizeRecommendationDraft(currentRecommendationDraft))
+    && JSON.stringify(normalizeRecommendationDraft(accountState?.recommendationDraft)) !== JSON.stringify(normalizeRecommendationDraft(currentRecommendationDraft))
+  const hasDrift = layoutDrift || trayDrift || recommendationDrift
   const status = saveState?.status ?? 'idle'
 
   return {
