@@ -307,6 +307,37 @@ test('buildLayoutAuthPanelState prefers persisted account board context when dra
   assert.equal(state.contextDrift, false)
 })
 
+test('buildLayoutAuthPanelState prefers persisted account board context over stale draftSave labels', () => {
+  const state = buildLayoutAuthPanelState({
+    authSession: {
+      draftSave: {
+        apartmentSelectionId: 'raemian-forest-84a',
+        apartmentLabel: '래미안 포레스트 84A',
+      },
+      accountState: {
+        layoutItems: [{ id: 'chair-1' }],
+        layoutTrayItems: [{ id: 'table-1', name: '테이블' }],
+        apartmentSelectionId: 'acrovista-river-101a',
+        apartmentLabel: '아크로 리버뷰 101A',
+        recommendationDraft: { room: '거실' },
+      },
+    },
+    editorItems: [{ id: 'chair-1' }],
+    trayItems: [{ id: 'table-1', name: '테이블' }],
+    draftLabel: '84A · 3개 공간 선택',
+    currentApartmentSelectionId: 'raemian-forest-84a',
+    recommendationRoom: '거실',
+    currentRecommendationDraft: { room: '거실' },
+    saveState: { status: 'idle' },
+  })
+
+  assert.equal(state.savedBoardContextCopy, '거실 · 아크로 리버뷰 101A')
+  assert.equal(state.currentBoardContextCopy, '거실 · 84A · 3개 공간 선택')
+  assert.equal(state.contextDrift, true)
+  assert.equal(state.hasDrift, true)
+  assert.equal(state.restoreDisabled, false)
+})
+
 test('buildLayoutAuthPanelState prefers persisted board save timestamps over session timestamps', () => {
   const state = buildLayoutAuthPanelState({
     authSession: {

@@ -52,13 +52,26 @@ export function buildLayoutAuthPanelState({
   const currentTrayItems = cloneTrayItems(trayItems)
   const savedRecommendationDraft = normalizeRecommendationDraft(accountState?.recommendationDraft)
   const currentRecommendationDraftNormalized = normalizeRecommendationDraft(currentRecommendationDraft)
-  const savedDraftLabel = normalizeLabel(authSession?.draftSave?.apartmentLabel)
-    ?? normalizeLabel(authSession?.draftSave?.draftLabel)
-    ?? normalizeLabel(accountState?.apartmentLabel)
-    ?? normalizeLabel(accountState?.draftLabel)
+  const hasPersistedAccountBoardContext = Boolean(
+    normalizeLabel(accountState?.apartmentSelectionId)
+    || normalizeLabel(accountState?.apartmentLabel)
+    || normalizeLabel(accountState?.draftLabel),
+  )
+  const savedDraftLabel = hasPersistedAccountBoardContext
+    ? normalizeLabel(accountState?.apartmentLabel)
+      ?? normalizeLabel(accountState?.draftLabel)
+      ?? normalizeLabel(authSession?.draftSave?.apartmentLabel)
+      ?? normalizeLabel(authSession?.draftSave?.draftLabel)
+    : normalizeLabel(authSession?.draftSave?.apartmentLabel)
+      ?? normalizeLabel(authSession?.draftSave?.draftLabel)
+      ?? normalizeLabel(accountState?.apartmentLabel)
+      ?? normalizeLabel(accountState?.draftLabel)
   const currentDraftLabel = normalizeLabel(draftLabel)
-  const savedApartmentSelectionId = normalizeLabel(authSession?.draftSave?.apartmentSelectionId)
-    ?? normalizeLabel(accountState?.apartmentSelectionId)
+  const savedApartmentSelectionId = hasPersistedAccountBoardContext
+    ? normalizeLabel(accountState?.apartmentSelectionId)
+      ?? normalizeLabel(authSession?.draftSave?.apartmentSelectionId)
+    : normalizeLabel(authSession?.draftSave?.apartmentSelectionId)
+      ?? normalizeLabel(accountState?.apartmentSelectionId)
   const normalizedCurrentApartmentSelectionId = normalizeLabel(currentApartmentSelectionId)
   const layoutBoardSavedAt = toIsoString(accountState?.layoutBoardSavedAt ?? saveState?.savedAt ?? authSession?.savedAt ?? null)
   const savedLayoutCount = savedLayoutItems.length
