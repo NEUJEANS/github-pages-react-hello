@@ -59,7 +59,19 @@ export function buildLayoutAuthPanelState({
   const trayDrift = JSON.stringify(savedTrayItems) !== JSON.stringify(currentTrayItems)
   const recommendationDrift = Boolean(savedRecommendationDraft)
     && JSON.stringify(savedRecommendationDraft) !== JSON.stringify(currentRecommendationDraftNormalized)
-  const hasDrift = layoutDrift || trayDrift || recommendationDrift
+  const savedBoardContextCopy = buildBoardContextCopy({
+    room: savedRoom,
+    draftLabel: savedDraftLabel,
+  })
+  const currentBoardContextCopy = buildBoardContextCopy({
+    room: recommendationRoom,
+    draftLabel: currentDraftLabel,
+  })
+  const boardContextMatches = savedBoardContextCopy && currentBoardContextCopy
+    ? savedBoardContextCopy === currentBoardContextCopy
+    : savedBoardContextCopy === currentBoardContextCopy
+  const contextDrift = Boolean(savedBoardContextCopy && currentBoardContextCopy && !boardContextMatches)
+  const hasDrift = layoutDrift || trayDrift || recommendationDrift || contextDrift
   const status = saveState?.status ?? 'idle'
   const rawMessage = typeof saveState?.message === 'string' && saveState.message.trim() ? saveState.message.trim() : null
   const shouldHideStaleStatusMessage = hasDrift && (status === 'saved' || status === 'restored')
@@ -77,18 +89,6 @@ export function buildLayoutAuthPanelState({
       : hasDrift
         ? '현재 보드가 계정 저장본과 달라졌어요. 다시 저장하거나 저장본으로 되돌릴 수 있어요.'
         : '현재 보드가 계정 저장본과 같아요.'
-  const savedBoardContextCopy = buildBoardContextCopy({
-    room: savedRoom,
-    draftLabel: savedDraftLabel,
-  })
-  const currentBoardContextCopy = buildBoardContextCopy({
-    room: recommendationRoom,
-    draftLabel: currentDraftLabel,
-  })
-  const boardContextMatches = savedBoardContextCopy && currentBoardContextCopy
-    ? savedBoardContextCopy === currentBoardContextCopy
-    : savedBoardContextCopy === currentBoardContextCopy
-
   return {
     isAuthenticated: Boolean(authSession),
     draftLabel: currentDraftLabel,
@@ -97,6 +97,7 @@ export function buildLayoutAuthPanelState({
     savedBoardContextCopy,
     currentBoardContextCopy,
     boardContextMatches,
+    contextDrift,
     currentLayoutCount,
     savedLayoutCount,
     currentTrayCount,
