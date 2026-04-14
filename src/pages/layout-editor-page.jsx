@@ -18,6 +18,9 @@ export function LayoutEditorPage({
   layoutTrayItems,
   onLayoutTrayDropToRoom,
   onLayoutTrayAbandon,
+  onSaveLayoutToAccount,
+  onRestoreSavedLayout,
+  layoutAuthPanelState,
   buildVisibleLibrary,
   buildLibraryEmptyState,
   layoutLibraryCategoryTabs,
@@ -245,6 +248,26 @@ export function LayoutEditorPage({
           <div className="propBlock"><label>위치</label><div className="split"><span>X {propertyPanelState.selectionSnapshot.position.x}</span><span>Y {propertyPanelState.selectionSnapshot.position.y}</span></div></div>
           <div className="propBlock"><label>컬러</label><div className="colorDots">{propertyPanelState.colorOptions.map((option) => <button key={option.color} className={`colorDot ${option.isActive ? 'active' : ''}`} style={{ background: option.color }} onClick={() => editor.setSelectedColor(option.index)} />)}</div><button className="ghost full" onClick={editor.cycleColor}>컬러 바꾸기</button></div>
           <div className="propBlock"><label>배치 메모</label><p>{propertyPanelState.selectionSnapshot.selectedBlurb}</p></div>
+          <div className="propBlock">
+            <label>계정 보드</label>
+            {!layoutAuthPanelState?.isAuthenticated ? (
+              <p>로그인하면 현재 배치를 계정 저장본으로 이어서 보관할 수 있어요.</p>
+            ) : (
+              <>
+                <strong>
+                  {layoutAuthPanelState.hasSavedLayout
+                    ? `저장본 ${layoutAuthPanelState.savedLayoutCount}개 · 현재 ${layoutAuthPanelState.currentLayoutCount}개`
+                    : `현재 배치 ${layoutAuthPanelState.currentLayoutCount}개`}
+                </strong>
+                <p>
+                  {layoutAuthPanelState.savedRoom
+                    ? `${layoutAuthPanelState.savedRoom}${layoutAuthPanelState.draftLabel ? ` · ${layoutAuthPanelState.draftLabel}` : ''}`
+                    : (layoutAuthPanelState.draftLabel ?? '현재 주소 기준으로 저장돼요.')}
+                </p>
+                {layoutAuthPanelState.message && <p>{layoutAuthPanelState.message}</p>}
+              </>
+            )}
+          </div>
           <div className="propBlock actionBlock">
             {!authSession && (
               <button
@@ -259,6 +282,18 @@ export function LayoutEditorPage({
               >
                 로그인 후 보드 저장
               </button>
+            )}
+            {authSession && (
+              <>
+                <button className="cta" disabled={layoutAuthPanelState?.saveDisabled} onClick={onSaveLayoutToAccount}>
+                  {layoutAuthPanelState?.saveButtonLabel ?? '현재 배치 계정에 저장'}
+                </button>
+                {layoutAuthPanelState?.restoreButtonLabel && (
+                  <button className="ghost" disabled={layoutAuthPanelState.restoreDisabled} onClick={onRestoreSavedLayout}>
+                    {layoutAuthPanelState.restoreButtonLabel}
+                  </button>
+                )}
+              </>
             )}
             {propertyPanelState.actionButtons.map((button) => (
               <button

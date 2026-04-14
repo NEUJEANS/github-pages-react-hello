@@ -24,6 +24,7 @@ import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthContinu
 import { resolveAuthConfig } from './components/auth-config.js'
 import { openIdentityVerificationWindow, readIdentityVerificationStatus, startIdentityVerification } from './components/auth-verification.js'
 import { trackLayoutComponentEvent } from './components/layout-backend.js'
+import { buildLayoutAuthPanelState } from './components/layout-auth-panel-state.js'
 import {
   buildAuthConnectionSummary,
   buildAuthReadyState,
@@ -804,6 +805,7 @@ function App() {
   ))
   const [authNoticeDismissed, setAuthNoticeDismissed] = React.useState(false)
   const [engagement, setEngagement] = React.useState(initialEngagement)
+  const [layoutBoardSaveState, setLayoutBoardSaveState] = React.useState({ status: 'idle', message: '', savedAt: null })
   const [layoutTrayItems, setLayoutTrayItems] = React.useState(() => aiProducts.map((item) => ({ ...item })))
   const [identityVerification, setIdentityVerification] = React.useState({ status: 'idle', verificationId: null, message: '', startedAt: null })
   const verificationPollTimeoutRef = React.useRef(null)
@@ -1070,6 +1072,14 @@ function App() {
     ),
     [authSession?.draftSave, authSession?.intent, guestDraftSnapshot, loginForm.draftSave, loginForm.intent],
   )
+
+  const layoutAuthPanelState = React.useMemo(() => buildLayoutAuthPanelState({
+    authSession,
+    editorItems: editor.items,
+    draftLabel: buildLayoutAddressSummary(selectedApartment),
+    recommendationRoom: aiForm.room,
+    saveState: layoutBoardSaveState,
+  }), [aiForm.room, authSession, editor.items, layoutBoardSaveState, selectedApartment])
 
   const authSubmitPlan = React.useMemo(() => buildAuthSubmitPlan({
     email: loginForm.email,
@@ -2039,6 +2049,96 @@ function App() {
     trackLayoutComponentEvent({ authConfig, eventType: 'abandonedComponent', item: product })
   }, [authConfig])
 
+  const handleRestoreSavedLayout = React.useCallback(() => {
+    const savedAccountState = authSession?.accountState
+    if (!savedAccountState) return
+
+    editor.replaceItems(Array.isArray(savedAccountState.layoutItems) ? savedAccountState.layoutItems : [])
+    if (savedAccountState.recommendationDraft) {
+      setAiForm((current) => ({ ...current, ...savedAccountState.recommendationDraft }))
+    }
+    setLayoutBoardSaveState({
+      status: 'restored',
+      message: '계정에 저장된 보드를 다시 불러왔어요.',
+      savedAt: authSession?.savedAt ?? null,
+    })
+  }, [authSession, editor])
+
+  const handleSaveLayoutToAccount = React.useCallback(async () => {
+    if (!authSession) return
+
+    const savePlan = buildAuthContinuationPlan({
+      endpoint: authConfig.continueEndpoint,
+      continuation: { nextAction: 'save-layout-draft' },
+      handoffId: authSession.handoffId ?? loginForm.handoffId ?? null,
+      intent: buildSerializableAuthIntent({
+        action: 'save-layout-draft',
+        label: '보드 저장 이어가기',
+        draftLabel: buildLayoutAddressSummary(selectedApartment),
+        returnScreen: 'layout',
+      }),
+      draftSave: {
+        ...authDraftSavePayload,
+        draftLabel: buildLayoutAddressSummary(selectedApartment),
+      },
+    })
+
+    setLayoutBoardSaveState({ status: 'saving', message: '현재 배치를 계정에 저장하고 있어요.', savedAt: null })
+
+    try {
+      const result = await submitAuthContinuationPlan(savePlan, authConfig)
+      if (!result.ok) {
+        setLayoutBoardSaveState({
+          status: 'error',
+          message: result?.data?.message ?? '보드 저장에 실패했어요.',
+          savedAt: null,
+        })
+        return
+      }
+
+      const savedAt = new Date().toISOString()
+      const nextResultSummary = buildAuthResultSummary(result, {
+        sessionId: authSession.sessionId ?? null,
+        accountLabel: authSession.accountLabel ?? null,
+        handoffId: authSession.handoffId ?? loginForm.handoffId ?? null,
+        wishlistCount: wishlistedIds.length,
+        cartCount: cart.count,
+        layoutItemCount: editor.items.length,
+        hasRecommendationDraft: Boolean(authDraftSavePayload?.recommendationRoom),
+        guestDraftSummary: authSession.guestDraftSummary ?? null,
+        intent: savePlan.request.intent,
+        connection: authSession.connection ?? authConnectionSummary,
+        continuation: { nextAction: 'save-layout-draft', status: 'ready', statusLabel: '보드 저장 완료' },
+        authMode: authSession.authMode ?? null,
+        authTransport: authSession.authTransport ?? null,
+      })
+      const nextSession = buildPersistedAuthSession(nextResultSummary, {
+        intent: savePlan.request.intent,
+        connection: authSession.connection ?? authConnectionSummary,
+        actionConnection: authSession.actionConnection ?? authContinuationConnectionSummary,
+        continuation: buildSerializableAuthContinuation(result?.data) ?? { nextAction: 'save-layout-draft', status: 'ready', statusLabel: '보드 저장 완료' },
+        continuationFields: authSession.continuationFields ?? null,
+        draftSave: savePlan.request.draftSave,
+        accountState: result?.data?.accountState ?? authSession.accountState ?? null,
+        savedAt,
+      })
+
+      persistAuthSession(globalThis.localStorage, nextSession)
+      setAuthSession(nextSession)
+      setLayoutBoardSaveState({
+        status: 'saved',
+        message: '현재 배치를 계정 저장본으로 업데이트했어요.',
+        savedAt,
+      })
+    } catch {
+      setLayoutBoardSaveState({
+        status: 'error',
+        message: '보드 저장 요청이 중간에 끊겼어요.',
+        savedAt: null,
+      })
+    }
+  }, [authConfig, authConnectionSummary, authContinuationConnectionSummary, authDraftSavePayload, authSession, cart.count, editor, loginForm.handoffId, selectedApartment, wishlistedIds.length])
+
   const shared = {
     navigate,
     openOverlay,
@@ -2050,6 +2150,9 @@ function App() {
     layoutTrayItems,
     onLayoutTrayDropToRoom: handleLayoutTrayDropToRoom,
     onLayoutTrayAbandon: handleLayoutTrayAbandon,
+    onSaveLayoutToAccount: handleSaveLayoutToAccount,
+    onRestoreSavedLayout: handleRestoreSavedLayout,
+    layoutAuthPanelState,
     trackBoardProgress,
     trackFurniturePlacement,
     authSession,

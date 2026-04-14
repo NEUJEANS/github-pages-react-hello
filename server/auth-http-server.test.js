@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const modulePath = '/home/user1_admin/.openclaw/workspace/havenly-live-parallel/server/auth-http-server.js'
+const modulePath = new URL('./auth-http-server.js', import.meta.url).pathname
 
 async function withTempCwd(run) {
   const originalCwd = process.cwd()

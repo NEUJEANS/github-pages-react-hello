@@ -6,7 +6,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
 
-const modulePath = '/home/user1_admin/.openclaw/workspace/havenly-live-parallel/server/auth-persistent-store.js'
+const modulePath = new URL('./auth-persistent-store.js', import.meta.url).pathname
 
 async function withTempCwd(run) {
   const originalCwd = process.cwd()
