@@ -46,5 +46,18 @@ Now the auth/layout continuity path is more consistent end-to-end:
 - Live-site feedback before fix:
   - GitHub Pages auth signup flow reproduced a panel/tray mismatch (`saved tray 0` vs visible tray `3`)
 
-## Next live verification target
-Push this follow-up checkpoint, then re-run the live auth signup/save/reload flow and confirm the layout panel tray count matches the visible tray count immediately after auth and after reload.
+## Live verification after deploy
+- GitHub Pages bundle updated to `index-Dp9eRo5L.js`
+- headless browser verification against `https://neujeans.github.io/github-pages-react-hello/#layout`
+- fresh signup account on live site:
+  - initial authenticated panel showed `저장본 배치 5개 · 트레이 3개`
+  - visible tray count was `3`
+  - after explicit account save, panel still showed tray `3`
+  - after full reload/session bootstrap, panel still showed tray `3`
+  - visible tray count after reload remained `3`
+- no accidental debug/report/process UI was observed in the rendered layout screen
+
+## Next likely slice
+Now that guest-handoff + persisted-hydration tray continuity are aligned, the next coherent auth/layout/backend slice should focus on one of:
+1. authenticated live coverage for tray mutations beyond the default `3 → 3` baseline (for example tray abandonment / partial tray saves), or
+2. richer account-board metadata/copy in the layout panel so saved state differences are clearer without introducing log-like UI.
