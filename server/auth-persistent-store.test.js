@@ -21,9 +21,12 @@ async function withTempCwd(run) {
   }
 }
 
-function buildRequest({ cookie = '' } = {}) {
+function buildRequest({ cookie = '', headers = {} } = {}) {
   return {
-    headers: cookie ? { cookie } : {},
+    headers: {
+      ...(cookie ? { cookie } : {}),
+      ...headers,
+    },
   }
 }
 
@@ -101,6 +104,57 @@ test('signup persists a hashed password and login upgrades legacy plaintext pass
     assert.notEqual(legacyUser.password, 'legacy-pass-123')
 
     db.close()
+  })
+})
+
+test('public GitHub Pages auth requests receive cross-site secure session cookies', async () => {
+  await withTempCwd(async () => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { handleAuthRequest } = await import(moduleUrl)
+
+    const signup = handleAuthRequest(buildRequest({
+      headers: {
+        origin: 'https://neujeans.github.io',
+        'x-forwarded-proto': 'https',
+      },
+    }), {
+      pathName: '/api/auth/signup',
+      body: {
+        email: 'public-pages@example.com',
+        password: 'password123',
+        displayName: 'Public Pages User',
+      },
+    })
+
+    assert.equal(signup.status, 200)
+    const sessionCookie = signup.cookies.find((value) => value.startsWith('havenly_auth_session='))
+    assert.match(sessionCookie ?? '', /SameSite=None/)
+    assert.match(sessionCookie ?? '', /Secure/)
+  })
+})
+
+test('local auth requests keep lax non-secure cookies for same-machine preview flows', async () => {
+  await withTempCwd(async () => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { handleAuthRequest } = await import(moduleUrl)
+
+    const signup = handleAuthRequest(buildRequest({
+      headers: {
+        origin: 'http://127.0.0.1:4174',
+      },
+    }), {
+      pathName: '/api/auth/signup',
+      body: {
+        email: 'local-preview@example.com',
+        password: 'password123',
+        displayName: 'Local Preview User',
+      },
+    })
+
+    assert.equal(signup.status, 200)
+    const sessionCookie = signup.cookies.find((value) => value.startsWith('havenly_auth_session='))
+    assert.match(sessionCookie ?? '', /SameSite=Lax/)
+    assert.doesNotMatch(sessionCookie ?? '', /Secure/)
   })
 })
 

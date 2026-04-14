@@ -483,8 +483,30 @@ function readCookies(req) {
   }))
 }
 
-function serializeCookie(name, value, { maxAge = null } = {}) {
-  const parts = [`${name}=${encodeURIComponent(value)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax']
+function readRequestOrigin(req) {
+  return typeof req?.headers?.origin === 'string' ? req.headers.origin.trim() : ''
+}
+
+function readForwardedProto(req) {
+  return typeof req?.headers?.['x-forwarded-proto'] === 'string'
+    ? req.headers['x-forwarded-proto'].trim().toLowerCase()
+    : ''
+}
+
+function shouldUseCrossSiteSecureCookies(req) {
+  const origin = readRequestOrigin(req)
+  const forwardedProto = readForwardedProto(req)
+
+  const isGithubPagesOrigin = /^https:\/\/[\w.-]+\.github\.io$/i.test(origin)
+  if (!isGithubPagesOrigin) return false
+
+  if (forwardedProto === 'https') return true
+  return /^https:\/\//i.test(origin)
+}
+
+function serializeCookie(name, value, { maxAge = null, sameSite = 'Lax', secure = false } = {}) {
+  const parts = [`${name}=${encodeURIComponent(value)}`, 'Path=/', 'HttpOnly', `SameSite=${sameSite}`]
+  if (secure) parts.push('Secure')
   if (maxAge != null) parts.push(`Max-Age=${maxAge}`)
   return parts.join('; ')
 }
@@ -762,6 +784,9 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
   const sessionRecord = sessionId ? readSessionRecord(sessionId, storeSource) : null
 
   const cookieHeaders = []
+  const cookieOptions = shouldUseCrossSiteSecureCookies(req)
+    ? { sameSite: 'None', secure: true }
+    : { sameSite: 'Lax', secure: false }
 
   if (pathName === '/api/auth/verification/start') {
     if (!sessionRecord) return { status: 401, data: { message: 'No auth session', nextAction: 'login-required', connection, actionConnection }, cookies: cookieHeaders }
@@ -892,8 +917,8 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
   if (pathName === '/api/auth/logout') {
     if (sessionId) deleteSessionRecord(sessionId, storeSource)
     if (handoffCookie) deletePendingRecord(handoffCookie, storeSource)
-    cookieHeaders.push(serializeCookie(sessionCookieName, '', { maxAge: 0 }))
-    cookieHeaders.push(serializeCookie(handoffCookieName, '', { maxAge: 0 }))
+    cookieHeaders.push(serializeCookie(sessionCookieName, '', { ...cookieOptions, maxAge: 0 }))
+    cookieHeaders.push(serializeCookie(handoffCookieName, '', { ...cookieOptions, maxAge: 0 }))
     return { status: 200, data: { ok: true, nextAction: 'login-required', connection, actionConnection }, cookies: cookieHeaders }
   }
 
@@ -960,7 +985,7 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
         status: 409,
       }
       if (handoffId) savePendingRecord(handoffId, pending, {}, storeSource)
-      if (handoffId) cookieHeaders.push(serializeCookie(handoffCookieName, handoffId, { maxAge: 60 * 60 * 24 * 7 }))
+      if (handoffId) cookieHeaders.push(serializeCookie(handoffCookieName, handoffId, { ...cookieOptions, maxAge: 60 * 60 * 24 * 7 }))
       return {
         status: 409,
         data: {
@@ -1002,8 +1027,8 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
       savedAt: new Date().toISOString(),
     }, storeSource)
     if (handoffId) deletePendingRecord(handoffId, storeSource)
-    cookieHeaders.push(serializeCookie(sessionCookieName, newSessionId, { maxAge: 60 * 60 * 24 * 30 }))
-    cookieHeaders.push(serializeCookie(handoffCookieName, handoffId ?? '', { maxAge: handoffId ? 60 * 60 * 24 * 7 : 0 }))
+    cookieHeaders.push(serializeCookie(sessionCookieName, newSessionId, { ...cookieOptions, maxAge: 60 * 60 * 24 * 30 }))
+    cookieHeaders.push(serializeCookie(handoffCookieName, handoffId ?? '', { ...cookieOptions, maxAge: handoffId ? 60 * 60 * 24 * 7 : 0 }))
     return { status: 200, data: payload, cookies: cookieHeaders }
   }
 
@@ -1040,8 +1065,8 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
       const newSessionId = randomId('session')
       saveSessionRecord(newSessionId, { userEmail: user.email, payload, savedAt: new Date().toISOString() }, storeSource)
       deletePendingRecord(effectiveHandoffId, storeSource)
-      cookieHeaders.push(serializeCookie(sessionCookieName, newSessionId, { maxAge: 60 * 60 * 24 * 30 }))
-      cookieHeaders.push(serializeCookie(handoffCookieName, effectiveHandoffId, { maxAge: 60 * 60 * 24 * 7 }))
+      cookieHeaders.push(serializeCookie(sessionCookieName, newSessionId, { ...cookieOptions, maxAge: 60 * 60 * 24 * 30 }))
+      cookieHeaders.push(serializeCookie(handoffCookieName, effectiveHandoffId, { ...cookieOptions, maxAge: 60 * 60 * 24 * 7 }))
       return { status: 200, data: payload, cookies: cookieHeaders }
     }
 
