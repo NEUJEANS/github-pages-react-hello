@@ -1256,6 +1256,12 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
         && (!otherButton || !otherButton.classList.contains('solid'))
     }, undefined, { timeout: 15000 })
     await saveDraftPage.getByRole('button', { name: '닫기', exact: true }).click()
+    await saveDraftPage.waitForFunction(() => {
+      const metaNodes = Array.from(document.querySelectorAll('.editorCanvasMeta span, .editorSide.right .propBlock p, .editorSide.right .propBlock strong'))
+      const text = metaNodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim() ?? '').join(' | ')
+      return text.includes('84A · 3개 공간 선택')
+        && text.includes('현재 기준 · 거실 · 84A · 3개 공간 선택')
+    }, undefined, { timeout: 15000 })
     const restoreButton = saveDraftPage.getByRole('button', { name: '계정 저장본 불러오기' })
     await capture(saveDraftPage, 'auth-login-save-layout-after-raemian-switch.png')
     await saveDraftPage.waitForFunction(() => {
