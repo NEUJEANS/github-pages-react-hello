@@ -45,7 +45,7 @@ export function buildLayoutAuthPanelState({
   const hasCurrentBoard = hasCurrentLayout || currentTrayCount > 0 || Boolean(currentRecommendationDraftNormalized)
   const layoutDrift = hasSavedLayout && JSON.stringify(savedLayoutItems) !== JSON.stringify(editorItems)
   const trayDrift = JSON.stringify(savedTrayItems) !== JSON.stringify(currentTrayItems)
-  const recommendationDrift = Boolean(savedRecommendationDraft || currentRecommendationDraftNormalized)
+  const recommendationDrift = Boolean(savedRecommendationDraft)
     && JSON.stringify(savedRecommendationDraft) !== JSON.stringify(currentRecommendationDraftNormalized)
   const hasDrift = layoutDrift || trayDrift || recommendationDrift
   const status = saveState?.status ?? 'idle'

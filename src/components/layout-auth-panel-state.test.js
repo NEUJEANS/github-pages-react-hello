@@ -169,3 +169,23 @@ test('buildLayoutAuthPanelState explains first-save state when no account board 
   assert.equal(state.currentBoardSummary, '현재 보드 배치 1개 · 트레이 0개')
   assert.equal(state.boardComparisonCopy, '아직 계정 저장본이 없어요. 지금 보드를 첫 저장본으로 만들 수 있어요.')
 })
+
+test('buildLayoutAuthPanelState does not force perpetual drift when older saved boards have no persisted recommendation draft', () => {
+  const state = buildLayoutAuthPanelState({
+    authSession: {
+      accountState: {
+        layoutItems: [{ id: 'chair-1', x: 10, y: 20 }],
+        layoutTrayItems: [{ id: 'table-1', name: '테이블' }],
+        recommendationDraft: null,
+      },
+    },
+    editorItems: [{ id: 'chair-1', x: 10, y: 20 }],
+    trayItems: [{ id: 'table-1', name: '테이블' }],
+    currentRecommendationDraft: { room: '거실', style: 'minimal', priority: 'flow', lifestyle: ['기본'] },
+    saveState: { status: 'restored', message: '계정에 저장된 보드를 다시 불러왔어요.' },
+  })
+
+  assert.equal(state.hasDrift, false)
+  assert.equal(state.restoreDisabled, true)
+  assert.equal(state.boardComparisonCopy, '현재 보드가 계정 저장본과 같아요.')
+})

@@ -47,7 +47,7 @@ import {
   readPersistedAuthSession,
 } from './components/auth-storage.js'
 import { buildAuthGuardPanelState, buildAuthLoginPanelState, buildAuthReadyPanelState, buildAuthResumePanelState, buildAuthSessionNotice, shouldAutoOpenAuthReadyPanel } from './components/auth-session-view-state.js'
-import { buildAccountContinuityPatch } from './components/auth-account-continuity.js'
+import { buildAccountContinuityPatch, buildRestoredRecommendationDraft } from './components/auth-account-continuity.js'
 import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
 import { shouldPreservePersistedAuthSessionOnBootstrapFailure } from './components/auth-bootstrap-state.js'
@@ -1478,11 +1478,7 @@ function App() {
       if (Object.hasOwn(continuityPatch, 'layoutTrayItems')) {
         setLayoutTrayItems(continuityPatch.layoutTrayItems)
       }
-      setAiForm((current) => (
-        continuityPatch.recommendationDraft
-          ? { ...current, ...continuityPatch.recommendationDraft }
-          : current
-      ))
+      setAiForm(buildRestoredRecommendationDraft(authSession.accountState, initialAiForm) ?? initialAiForm)
       setEngagement(initialEngagement)
     }
 
@@ -1633,11 +1629,7 @@ function App() {
         if (Object.hasOwn(continuityPatch, 'layoutTrayItems')) {
           setLayoutTrayItems(continuityPatch.layoutTrayItems)
         }
-        setAiForm(
-          continuityPatch.recommendationDraft
-            ? { ...initialAiForm, ...continuityPatch.recommendationDraft }
-            : initialAiForm,
-        )
+        setAiForm(buildRestoredRecommendationDraft(nextSession.accountState, initialAiForm) ?? initialAiForm)
         setEngagement(initialEngagement)
       }
 
@@ -1942,11 +1934,7 @@ function App() {
           if (Object.hasOwn(continuityPatch, 'layoutTrayItems')) {
             setLayoutTrayItems(continuityPatch.layoutTrayItems)
           }
-          setAiForm(
-            continuityPatch.recommendationDraft
-              ? { ...initialAiForm, ...continuityPatch.recommendationDraft }
-              : initialAiForm,
-          )
+          setAiForm(buildRestoredRecommendationDraft(nextSession.accountState, initialAiForm) ?? initialAiForm)
           setEngagement(initialEngagement)
         }
 
@@ -2069,9 +2057,7 @@ function App() {
         ? savedAccountState.layoutTrayItems.map((item) => ({ ...item }))
         : aiProducts.map((item) => ({ ...item })),
     )
-    if (savedAccountState.recommendationDraft) {
-      setAiForm((current) => ({ ...current, ...savedAccountState.recommendationDraft }))
-    }
+    setAiForm(buildRestoredRecommendationDraft(savedAccountState, initialAiForm) ?? initialAiForm)
     setLayoutBoardSaveState({
       status: 'restored',
       message: '계정에 저장된 보드를 다시 불러왔어요.',

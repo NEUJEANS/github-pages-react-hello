@@ -28,6 +28,10 @@ function cloneRecommendationDraft(draft = null) {
   }
 }
 
+export function buildRestoredRecommendationDraft(accountState = null, fallbackDraft = null) {
+  return cloneRecommendationDraft(accountState?.recommendationDraft) ?? cloneRecommendationDraft(fallbackDraft)
+}
+
 export function buildAccountContinuityPatch(accountState = null) {
   if (!accountState || typeof accountState !== 'object') return null
 
