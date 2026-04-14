@@ -50,6 +50,20 @@ export function buildLayoutAuthPanelState({
   const hasDrift = layoutDrift || trayDrift || recommendationDrift
   const status = saveState?.status ?? 'idle'
 
+  const savedBoardSummary = hasSavedBoard
+    ? `저장본 배치 ${savedLayoutCount}개 · 트레이 ${savedTrayCount}개`
+    : null
+  const currentBoardSummary = hasCurrentBoard
+    ? `현재 보드 배치 ${currentLayoutCount}개 · 트레이 ${currentTrayCount}개`
+    : null
+  const boardComparisonCopy = !authSession
+    ? null
+    : !hasSavedBoard
+      ? (currentBoardSummary ? '아직 계정 저장본이 없어요. 지금 보드를 첫 저장본으로 만들 수 있어요.' : '로그인 후 보드를 계정 저장본으로 만들 수 있어요.')
+      : hasDrift
+        ? '현재 보드가 계정 저장본과 달라졌어요. 다시 저장하거나 저장본으로 되돌릴 수 있어요.'
+        : '현재 보드가 계정 저장본과 같아요.'
+
   return {
     isAuthenticated: Boolean(authSession),
     draftLabel: typeof draftLabel === 'string' && draftLabel.trim() ? draftLabel.trim() : null,
@@ -63,6 +77,9 @@ export function buildLayoutAuthPanelState({
     hasSavedBoard,
     hasCurrentBoard,
     hasDrift,
+    savedBoardSummary,
+    currentBoardSummary,
+    boardComparisonCopy,
     lastSavedAt: toIsoString(saveState?.savedAt ?? authSession?.savedAt ?? null),
     status,
     message: typeof saveState?.message === 'string' && saveState.message.trim() ? saveState.message.trim() : null,

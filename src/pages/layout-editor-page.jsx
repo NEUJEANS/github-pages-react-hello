@@ -254,16 +254,16 @@ export function LayoutEditorPage({
               <p>로그인하면 현재 배치를 계정 저장본으로 이어서 보관할 수 있어요.</p>
             ) : (
               <>
-                <strong>
-                  {layoutAuthPanelState.hasSavedBoard
-                    ? `저장본 배치 ${layoutAuthPanelState.savedLayoutCount}개 · 트레이 ${layoutAuthPanelState.savedTrayCount}개`
-                    : `현재 배치 ${layoutAuthPanelState.currentLayoutCount}개 · 트레이 ${layoutAuthPanelState.currentTrayCount}개`}
-                </strong>
+                {layoutAuthPanelState.savedBoardSummary && <strong>{layoutAuthPanelState.savedBoardSummary}</strong>}
+                {layoutAuthPanelState.currentBoardSummary && layoutAuthPanelState.hasSavedBoard && (
+                  <p>{layoutAuthPanelState.currentBoardSummary}</p>
+                )}
                 <p>
                   {layoutAuthPanelState.savedRoom
                     ? `${layoutAuthPanelState.savedRoom}${layoutAuthPanelState.draftLabel ? ` · ${layoutAuthPanelState.draftLabel}` : ''}`
                     : (layoutAuthPanelState.draftLabel ?? '현재 주소 기준으로 저장돼요.')}
                 </p>
+                {layoutAuthPanelState.boardComparisonCopy && <p>{layoutAuthPanelState.boardComparisonCopy}</p>}
                 {layoutAuthPanelState.message && <p>{layoutAuthPanelState.message}</p>}
               </>
             )}

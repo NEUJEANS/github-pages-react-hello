@@ -27,6 +27,9 @@ test('buildLayoutAuthPanelState exposes authenticated save + restore affordances
   assert.equal(state.saveButtonLabel, '현재 보드 다시 저장')
   assert.equal(state.restoreButtonLabel, '계정 저장본 불러오기')
   assert.equal(state.savedRoom, '거실')
+  assert.equal(state.savedBoardSummary, '저장본 배치 1개 · 트레이 0개')
+  assert.equal(state.currentBoardSummary, '현재 보드 배치 2개 · 트레이 0개')
+  assert.equal(state.boardComparisonCopy, '현재 보드가 계정 저장본과 달라졌어요. 다시 저장하거나 저장본으로 되돌릴 수 있어요.')
 })
 
 test('buildLayoutAuthPanelState disables save and restore while signed out or empty', () => {
@@ -86,6 +89,7 @@ test('buildLayoutAuthPanelState keeps restore disabled when editor already match
   assert.equal(state.saveDisabled, true)
   assert.equal(state.restoreDisabled, true)
   assert.equal(state.saveButtonLabel, '보드 저장 중…')
+  assert.equal(state.boardComparisonCopy, '현재 보드가 계정 저장본과 같아요.')
 })
 
 test('buildLayoutAuthPanelState enables restore when tray-only drift exists', () => {
@@ -124,4 +128,24 @@ test('buildLayoutAuthPanelState enables restore when recommendation draft drift 
 
   assert.equal(state.hasDrift, true)
   assert.equal(state.restoreDisabled, false)
+})
+
+
+test('buildLayoutAuthPanelState explains first-save state when no account board exists yet', () => {
+  const state = buildLayoutAuthPanelState({
+    authSession: {
+      accountState: {
+        layoutItems: [],
+        layoutTrayItems: [],
+        recommendationDraft: null,
+      },
+    },
+    editorItems: [{ id: 'chair-1', x: 10, y: 20 }],
+    trayItems: [],
+    saveState: { status: 'idle' },
+  })
+
+  assert.equal(state.hasSavedBoard, false)
+  assert.equal(state.currentBoardSummary, '현재 보드 배치 1개 · 트레이 0개')
+  assert.equal(state.boardComparisonCopy, '아직 계정 저장본이 없어요. 지금 보드를 첫 저장본으로 만들 수 있어요.')
 })
