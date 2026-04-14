@@ -182,6 +182,9 @@ function buildSerializableDraftSaveHandoff(draftSave = null) {
   const selectedSpaceIds = Array.isArray(draftSave.selectedSpaceIds)
     ? draftSave.selectedSpaceIds.filter((value, index, array) => typeof value === 'string' && value.trim() && array.indexOf(value) === index)
     : []
+  const layoutTrayItems = Array.isArray(draftSave.layoutTrayItems)
+    ? draftSave.layoutTrayItems.map((item) => ({ ...item }))
+    : []
   const recommendationDraft = buildSerializableRecommendationDraft(draftSave.recommendationDraft, draftSave.recommendationRoom)
 
   const payload = {
@@ -193,10 +196,11 @@ function buildSerializableDraftSaveHandoff(draftSave = null) {
     recommendationDraft,
     selectedSpaceIds,
     layoutItems,
+    layoutTrayItems,
     layoutItemCount: layoutItems.length,
   }
 
-  if (!payload.draftLabel && !payload.apartmentLabel && !payload.recommendationRoom && !payload.selectedSpaceIds.length && !payload.layoutItems.length) {
+  if (!payload.draftLabel && !payload.apartmentLabel && !payload.recommendationRoom && !payload.selectedSpaceIds.length && !payload.layoutItems.length && !payload.layoutTrayItems.length) {
     return null
   }
 
@@ -207,6 +211,7 @@ function buildSerializableDraftSaveHandoff(draftSave = null) {
     ...(payload.recommendationDraft ? { recommendationDraft: payload.recommendationDraft } : {}),
     selectedSpaceIds: payload.selectedSpaceIds,
     layoutItems: payload.layoutItems,
+    ...(payload.layoutTrayItems.length > 0 ? { layoutTrayItems: payload.layoutTrayItems } : {}),
     layoutItemCount: payload.layoutItemCount,
   }
 }

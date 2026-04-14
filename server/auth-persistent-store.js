@@ -277,7 +277,7 @@ function readUser(email, source = null) {
     createdAt: row.created_at,
     profile: parseJson(row.profile_json, null),
     verifiedAt: row.verified_at ?? null,
-    accountState: parseJson(row.account_state_json, { wishlistIds: [], cartItems: [], layoutItems: [], recommendationDraft: null }),
+    accountState: parseJson(row.account_state_json, { wishlistIds: [], cartItems: [], layoutItems: [], layoutTrayItems: [], recommendationDraft: null }),
   })
 }
 
@@ -533,11 +533,14 @@ function buildDraftSaveState(request = {}, guestDraftSnapshot = null) {
   const layoutItems = Array.isArray(requestDraftSave?.layoutItems)
     ? requestDraftSave.layoutItems.map((item) => ({ ...item }))
     : (Array.isArray(continuity.layoutItems) ? continuity.layoutItems.map((item) => ({ ...item })) : [])
+  const layoutTrayItems = Array.isArray(requestDraftSave?.layoutTrayItems)
+    ? requestDraftSave.layoutTrayItems.map((item) => ({ ...item }))
+    : (Array.isArray(continuity.layoutTrayItems) ? continuity.layoutTrayItems.map((item) => ({ ...item })) : [])
   const selectedSpaceIds = Array.isArray(requestDraftSave?.selectedSpaceIds)
     ? [...requestDraftSave.selectedSpaceIds]
     : (Array.isArray(guestDraftSnapshot?.spaceProfile?.spaces) ? [...guestDraftSnapshot.spaceProfile.spaces] : [])
 
-  if (!requestDraftSave && !layoutItems.length && !selectedSpaceIds.length && !continuity.apartmentLabel && !guestDraftSnapshot?.recommendationDraft?.room) {
+  if (!requestDraftSave && !layoutItems.length && !layoutTrayItems.length && !selectedSpaceIds.length && !continuity.apartmentLabel && !guestDraftSnapshot?.recommendationDraft?.room) {
     return null
   }
 
@@ -550,6 +553,7 @@ function buildDraftSaveState(request = {}, guestDraftSnapshot = null) {
       : (guestDraftSnapshot?.recommendationDraft ? normalizeRecommendationDraftInput(guestDraftSnapshot.recommendationDraft) : null),
     selectedSpaceIds,
     layoutItems,
+    layoutTrayItems,
     layoutItemCount: layoutItems.length,
   }
 }
@@ -649,6 +653,7 @@ function mergeGuestDraftIntoAccount(user, guestDraftSnapshot = null, mergeResolu
     wishlistIds: Array.isArray(continuity.wishlistIds) ? [...continuity.wishlistIds] : [],
     cartItems: Array.isArray(continuity.cartItems) ? clone(continuity.cartItems) : [],
     layoutItems: Array.isArray(continuity.layoutItems) ? clone(continuity.layoutItems) : [],
+    layoutTrayItems: Array.isArray(continuity.layoutTrayItems) ? clone(continuity.layoutTrayItems) : [],
     recommendationDraft: guestDraftSnapshot.recommendationDraft ? clone(guestDraftSnapshot.recommendationDraft) : null,
   }
 }
@@ -679,6 +684,9 @@ function applyDraftSaveToAccountState(user, draftSave = null) {
   const nextLayoutItems = Array.isArray(draftSave.layoutItems)
     ? draftSave.layoutItems.map((item) => ({ ...item }))
     : null
+  const nextLayoutTrayItems = Array.isArray(draftSave.layoutTrayItems)
+    ? draftSave.layoutTrayItems.map((item) => ({ ...item }))
+    : null
   const normalizedRecommendationDraft = normalizeRecommendationDraftInput(draftSave.recommendationDraft, draftSave.recommendationRoom)
   const nextRecommendationDraft = normalizedRecommendationDraft
     ? {
@@ -691,6 +699,7 @@ function applyDraftSaveToAccountState(user, draftSave = null) {
     wishlistIds: Array.isArray(user.accountState?.wishlistIds) ? [...user.accountState.wishlistIds] : [],
     cartItems: Array.isArray(user.accountState?.cartItems) ? clone(user.accountState.cartItems) : [],
     layoutItems: nextLayoutItems ?? (Array.isArray(user.accountState?.layoutItems) ? clone(user.accountState.layoutItems) : []),
+    layoutTrayItems: nextLayoutTrayItems ?? (Array.isArray(user.accountState?.layoutTrayItems) ? clone(user.accountState.layoutTrayItems) : []),
     recommendationDraft: nextRecommendationDraft ?? clone(user.accountState?.recommendationDraft ?? null),
   }
 

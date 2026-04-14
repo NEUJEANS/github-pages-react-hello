@@ -662,8 +662,9 @@ function buildAuthDraftSavePayload(loginFormDraftSave = null, authSessionDraftSa
   const recommendationRoom = recommendationDraft?.room ?? null
   const selectedSpaceIds = guestDraftSnapshot.spaceProfile?.spaces ?? []
   const layoutItems = guestDraftSnapshot.continuity?.layoutItems ?? []
+  const layoutTrayItems = guestDraftSnapshot.continuity?.layoutTrayItems ?? []
 
-  if (!draftLabel && !apartmentLabel && !recommendationRoom && !selectedSpaceIds.length && !layoutItems.length) {
+  if (!draftLabel && !apartmentLabel && !recommendationRoom && !selectedSpaceIds.length && !layoutItems.length && !layoutTrayItems.length) {
     return null
   }
 
@@ -674,6 +675,7 @@ function buildAuthDraftSavePayload(loginFormDraftSave = null, authSessionDraftSa
     recommendationDraft,
     selectedSpaceIds,
     layoutItems,
+    layoutTrayItems,
   }
 }
 
@@ -2056,6 +2058,11 @@ function App() {
     if (!savedAccountState) return
 
     editor.replaceItems(Array.isArray(savedAccountState.layoutItems) ? savedAccountState.layoutItems : [])
+    setLayoutTrayItems(
+      Array.isArray(savedAccountState.layoutTrayItems) && savedAccountState.layoutTrayItems.length > 0
+        ? savedAccountState.layoutTrayItems.map((item) => ({ ...item }))
+        : aiProducts.map((item) => ({ ...item })),
+    )
     if (savedAccountState.recommendationDraft) {
       setAiForm((current) => ({ ...current, ...savedAccountState.recommendationDraft }))
     }
@@ -2082,6 +2089,7 @@ function App() {
       draftSave: {
         ...authDraftSavePayload,
         draftLabel: buildLayoutAddressSummary(selectedApartment),
+        layoutTrayItems: layoutTrayItems.map((item) => ({ ...item })),
       },
     })
 
@@ -2139,7 +2147,7 @@ function App() {
         savedAt: null,
       })
     }
-  }, [authConfig, authConnectionSummary, authContinuationConnectionSummary, authDraftSavePayload, authSession, cart.count, editor, loginForm.handoffId, selectedApartment, wishlistedIds.length])
+  }, [authConfig, authConnectionSummary, authContinuationConnectionSummary, authDraftSavePayload, authSession, cart.count, editor, layoutTrayItems, loginForm.handoffId, selectedApartment, wishlistedIds.length])
 
   const shared = {
     navigate,

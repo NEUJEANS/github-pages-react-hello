@@ -319,13 +319,16 @@ function buildSerializableDraftSave(draftSave = null) {
   const layoutItems = Array.isArray(draftSave.layoutItems)
     ? draftSave.layoutItems.map((item) => ({ ...item }))
     : []
+  const layoutTrayItems = Array.isArray(draftSave.layoutTrayItems)
+    ? draftSave.layoutTrayItems.map((item) => ({ ...item }))
+    : []
   const recommendationDraft = buildSerializableRecommendationDraft(draftSave.recommendationDraft, draftSave.recommendationRoom)
 
   const recommendationRoom = typeof draftSave.recommendationRoom === 'string' && draftSave.recommendationRoom.trim()
     ? draftSave.recommendationRoom.trim()
     : (recommendationDraft?.room ?? null)
 
-  if (!selectedSpaceIds.length && !layoutItems.length && !draftSave.draftLabel && !draftSave.apartmentLabel && !recommendationRoom) {
+  if (!selectedSpaceIds.length && !layoutItems.length && !layoutTrayItems.length && !draftSave.draftLabel && !draftSave.apartmentLabel && !recommendationRoom) {
     return null
   }
 
@@ -336,6 +339,7 @@ function buildSerializableDraftSave(draftSave = null) {
     ...(recommendationDraft ? { recommendationDraft } : {}),
     selectedSpaceIds,
     layoutItems,
+    ...(layoutTrayItems.length > 0 ? { layoutTrayItems } : {}),
     layoutItemCount: typeof draftSave.layoutItemCount === 'number' ? draftSave.layoutItemCount : layoutItems.length,
   }
 }
@@ -352,6 +356,9 @@ function buildSerializableAuthAccountState(accountState = null) {
   const layoutItems = Array.isArray(accountState.layoutItems)
     ? accountState.layoutItems.map((item) => ({ ...item }))
     : []
+  const layoutTrayItems = Array.isArray(accountState.layoutTrayItems)
+    ? accountState.layoutTrayItems.map((item) => ({ ...item }))
+    : []
   const recommendationDraft = accountState.recommendationDraft && typeof accountState.recommendationDraft === 'object'
     ? {
         room: accountState.recommendationDraft.room ?? null,
@@ -362,12 +369,13 @@ function buildSerializableAuthAccountState(accountState = null) {
       }
     : null
 
-  if (!wishlistIds.length && !cartItems.length && !layoutItems.length && !recommendationDraft) return null
+  if (!wishlistIds.length && !cartItems.length && !layoutItems.length && !layoutTrayItems.length && !recommendationDraft) return null
 
   return {
     wishlistIds,
     cartItems,
     layoutItems,
+    ...(layoutTrayItems.length > 0 ? { layoutTrayItems } : {}),
     recommendationDraft,
   }
 }

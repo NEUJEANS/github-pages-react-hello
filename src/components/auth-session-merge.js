@@ -10,6 +10,12 @@ function cloneLayoutItems(items = []) {
     : []
 }
 
+function cloneLayoutTrayItems(items = []) {
+  return Array.isArray(items)
+    ? items.map((item) => ({ ...item }))
+    : []
+}
+
 function cloneRecommendationDraft(draft = null) {
   if (!draft || typeof draft !== 'object') return null
 
@@ -28,11 +34,14 @@ export function buildPostAuthContinuityPatch(result) {
 
   if (!mergedDraft || mergedDraft.mode !== 'replaced') return null
 
+  const layoutTrayItems = cloneLayoutTrayItems(accountState?.layoutTrayItems)
+
   return {
     mergeMode: mergedDraft.mode,
     wishlistIds: [...(accountState?.wishlistIds ?? [])],
     cartItems: cloneCartItems(accountState?.cartItems),
     layoutItems: cloneLayoutItems(accountState?.layoutItems),
+    ...(layoutTrayItems.length > 0 ? { layoutTrayItems } : {}),
     recommendationDraft: cloneRecommendationDraft(accountState?.recommendationDraft),
   }
 }

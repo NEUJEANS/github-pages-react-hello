@@ -65,6 +65,10 @@ function buildMergedGuestAccountState(guestDraftSnapshot = null, persistedAccoun
 
   if (mergeResolution === 'replace-with-account') return baseState
 
+  const layoutTrayItems = Array.isArray(continuity.layoutTrayItems) && continuity.layoutTrayItems.length > 0
+    ? continuity.layoutTrayItems.map((item) => ({ ...item }))
+    : (baseState.layoutTrayItems ?? []).map((item) => ({ ...item }))
+
   return {
     wishlistIds: Array.isArray(continuity.wishlistIds) && continuity.wishlistIds.length > 0
       ? [...continuity.wishlistIds]
@@ -75,6 +79,7 @@ function buildMergedGuestAccountState(guestDraftSnapshot = null, persistedAccoun
     layoutItems: Array.isArray(continuity.layoutItems) && continuity.layoutItems.length > 0
       ? continuity.layoutItems.map((item) => ({ ...item }))
       : (baseState.layoutItems ?? []).map((item) => ({ ...item })),
+    ...(layoutTrayItems.length > 0 ? { layoutTrayItems } : {}),
     recommendationDraft: guestDraftSnapshot?.recommendationDraft
       ? { ...guestDraftSnapshot.recommendationDraft }
       : (baseState.recommendationDraft ? { ...baseState.recommendationDraft } : null),
