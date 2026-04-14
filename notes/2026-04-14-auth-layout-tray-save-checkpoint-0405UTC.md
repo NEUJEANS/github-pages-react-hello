@@ -40,5 +40,8 @@ This slice makes the account/database save path closer to a true resume point fo
 - `dist/index.html`
 - `dist/assets/index-NMVAyafq.js`
 
+## Deployment note
+- GitHub Pages was still serving `docs/` even after the main-code push, so the live deployment needed the fresh build output copied into `docs/` as well before the site could reflect this slice.
+
 ## Next likely live check
 On the deployed GitHub Pages build, verify a save -> mutate tray/items -> restore flow and confirm the recommendation tray count/state really returns to the saved snapshot, not just the placed canvas.
