@@ -65,11 +65,13 @@ test('auth http server exposes CORS headers for the live GitHub Pages origin and
         headers: {
           origin: 'https://neujeans.github.io',
           'access-control-request-method': 'POST',
+          'access-control-request-private-network': 'true',
         },
       })
 
       assert.equal(preflightResponse.status, 204)
       assert.equal(preflightResponse.headers.get('access-control-allow-origin'), 'https://neujeans.github.io')
+      assert.equal(preflightResponse.headers.get('access-control-allow-private-network'), 'true')
       assert.match(preflightResponse.headers.get('access-control-allow-headers') ?? '', /content-type/i)
       assert.match(preflightResponse.headers.get('access-control-allow-headers') ?? '', /x-havenly-auth-handoff-id/i)
     } finally {

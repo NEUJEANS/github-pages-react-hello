@@ -85,6 +85,10 @@ function buildCorsHeaders(req) {
   const allowedOrigin = resolveCorsOrigin(req?.headers?.origin)
   if (!allowedOrigin) return {}
 
+  const wantsPrivateNetworkAccess = req?.headers?.['access-control-request-private-network'] === 'true'
+  const isLoopbackHost = typeof req?.headers?.host === 'string'
+    && /^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(req.headers.host.trim())
+
   return {
     'access-control-allow-origin': allowedOrigin,
     'access-control-allow-credentials': 'true',
@@ -107,7 +111,8 @@ function buildCorsHeaders(req) {
       'x-forwarded-host',
       'x-forwarded-proto',
     ].join(', '),
-    vary: 'Origin',
+    ...((wantsPrivateNetworkAccess || isLoopbackHost) ? { 'access-control-allow-private-network': 'true' } : {}),
+    vary: 'Origin, Access-Control-Request-Private-Network',
   }
 }
 
