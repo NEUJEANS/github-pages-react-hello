@@ -1,4 +1,4 @@
 window.__HAVENLY_AUTH_CONFIG__ = {
-  apiBaseUrl: 'https://64c44ac3267012.lhr.life',
+  apiBaseUrl: 'https://0358c333855251.lhr.life',
   credentialsMode: 'include',
 }
