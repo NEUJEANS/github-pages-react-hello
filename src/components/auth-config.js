@@ -49,6 +49,15 @@ function resolveCurrentOrigin(locationOrigin = globalThis?.location?.origin ?? '
   return readString(locationOrigin)
 }
 
+function isLoopbackOrigin(currentOrigin = '') {
+  try {
+    const origin = new URL(currentOrigin)
+    return ['127.0.0.1', 'localhost'].includes(origin.hostname)
+  } catch {
+    return false
+  }
+}
+
 export function shouldProbeLocalPagesAuthConfig({
   currentOrigin = '',
   appBasePath = '/',
@@ -125,6 +134,7 @@ export function resolveAuthConfig({
   locationSearch = globalThis?.location?.search ?? '',
   locationOrigin = globalThis?.location?.origin ?? '',
 } = {}) {
+  const currentOrigin = resolveCurrentOrigin(locationOrigin)
   const params = new URLSearchParams(locationSearch)
   const queryApiBaseUrl = readString(params.get('authApiBaseUrl'))
   const runtimeApiBaseUrl = readString(runtimeConfig?.apiBaseUrl)
@@ -155,15 +165,20 @@ export function resolveAuthConfig({
   const envAppBasePath = readString(env?.BASE_URL)
   const allowLoopbackProbe = runtimeConfig?.allowLoopbackProbe === true || params.get('authLoopbackProbe') === '1'
   const loopbackProbeBlockedReason = readLoopbackProbeBlockedReason(runtimeConfig?.loopbackProbeBlockedReason)
+  const ignoreRuntimeApiBaseUrlForLoopback = !queryApiBaseUrl
+    && isLoopbackOrigin(currentOrigin)
+    && /^https?:\/\//.test(runtimeApiBaseUrl)
+    && !isLoopbackOrigin(runtimeApiBaseUrl)
+  const effectiveRuntimeApiBaseUrl = ignoreRuntimeApiBaseUrlForLoopback ? '' : runtimeApiBaseUrl
 
   const apiBaseUrl = trimTrailingSlash(
-    runtimeApiBaseUrl
+    effectiveRuntimeApiBaseUrl
       || queryApiBaseUrl
       || explicitEnvApiBaseUrl
       || fallbackEnvApiBaseUrl,
   )
   const source = resolveAuthConfigSource({
-    runtimeApiBaseUrl,
+    runtimeApiBaseUrl: effectiveRuntimeApiBaseUrl,
     queryApiBaseUrl,
     explicitEnvApiBaseUrl,
     fallbackEnvApiBaseUrl,
@@ -198,7 +213,7 @@ export function resolveAuthConfig({
 
   return {
     apiBaseUrl,
-    currentOrigin: resolveCurrentOrigin(locationOrigin),
+    currentOrigin,
     appBasePath: readEndpoint(runtimeAppBasePath || envAppBasePath || '/', '/'),
     loginEndpoint: readEndpoint(
       runtimeLoginEndpoint

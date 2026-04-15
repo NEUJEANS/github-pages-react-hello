@@ -197,6 +197,32 @@ test('resolveAuthConfig marks query and env endpoint-only overrides as configure
 })
 
 
+test('resolveAuthConfig ignores an external runtime apiBaseUrl on loopback previews', () => {
+  assert.deepEqual(
+    resolveAuthConfig({
+      env: { BASE_URL: '/github-pages-react-hello/' },
+      runtimeConfig: { apiBaseUrl: 'https://auth-runtime.example.com/' },
+      locationOrigin: 'http://127.0.0.1:4176',
+    }),
+    {
+      apiBaseUrl: '',
+      currentOrigin: 'http://127.0.0.1:4176',
+      appBasePath: '/github-pages-react-hello/',
+      loginEndpoint: '/api/auth/login',
+      signupEndpoint: '/api/auth/signup',
+      sessionEndpoint: '/api/auth/session',
+      pendingEndpoint: '/api/auth/pending',
+      continueEndpoint: '/api/auth/continue',
+      logoutEndpoint: '/api/auth/logout',
+      credentialsMode: 'include',
+      allowLoopbackProbe: false,
+      loopbackProbeBlockedReason: '',
+      source: 'default',
+      isConfigured: false,
+    },
+  )
+})
+
 test('resolveAuthConfig carries the Vite base path for same-origin scaffold routing under subpath deploys', () => {
   assert.deepEqual(
     resolveAuthConfig({

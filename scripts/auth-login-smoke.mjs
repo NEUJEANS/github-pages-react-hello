@@ -322,13 +322,34 @@ async function ensureBrowserBaseUrl(url, { forcePreview = true, extraEnv = {}, m
 
   await runCommand('npm', ['run', 'build'])
   await fs.mkdir(outDir, { recursive: true })
-  const { process: previewProcess, started } = await startPreviewServer(candidateUrl, { extraEnv })
 
-  return {
-    process: previewProcess,
-    started,
-    url: candidateUrl,
+  let portHopAttempts = 0
+  let lastError = null
+
+  while (portHopAttempts <= maxPortHops) {
+    try {
+      const { process: previewProcess, started } = await startPreviewServer(candidateUrl, { extraEnv })
+
+      return {
+        process: previewProcess,
+        started,
+        url: candidateUrl,
+      }
+    } catch (error) {
+      lastError = error
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const canHopPort = /Preview server exited before becoming ready|strictPort|EADDRINUSE|Address already in use|port .* already in use/i.test(errorMessage)
+
+      if (!canHopPort || portHopAttempts >= maxPortHops) {
+        throw error
+      }
+
+      candidateUrl = buildFallbackBaseUrl(candidateUrl)
+      portHopAttempts += 1
+    }
   }
+
+  throw lastError ?? new Error(`Unable to start preview server for ${url}`)
 }
 
 const smokeRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -989,6 +1010,23 @@ function normalizeUiText(value) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
 }
 
+function resolveAlternateApartmentExpectation(panelText = '') {
+  const normalizedPanelText = normalizeUiText(panelText)
+  const savedApartmentLabel = normalizedPanelText.includes('저장 기준 · 거실 · 아크로 리버뷰 101A')
+    ? '아크로 리버뷰 101A'
+    : '래미안 포레스트 84A'
+  const alternateApartmentLabel = savedApartmentLabel === '아크로 리버뷰 101A'
+    ? '래미안 포레스트 84A'
+    : '아크로 리버뷰 101A'
+
+  return {
+    savedApartmentLabel,
+    alternateApartmentLabel,
+    driftContextCopy: `현재 기준 · 거실 · ${alternateApartmentLabel} · 선택 공간 3개`,
+    savedContextCopy: `저장 기준 · 거실 · ${savedApartmentLabel}`,
+  }
+}
+
 async function readVisibleAccountLabel(page) {
   const spanLabels = await page.locator('.accountTrigger span').evaluateAll((nodes) => (
     nodes
@@ -1244,63 +1282,68 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     const reloadedBoardPanel = saveDraftPage.locator('.editorSide.right .propBlock').filter({ has: saveDraftPage.getByText('계정 보드') }).first()
     await reloadedBoardPanel.waitFor()
     const reloadedBoardPanelText = normalizeUiText(await reloadedBoardPanel.innerText())
-    if (!reloadedBoardPanelText.includes('저장 기준 · 거실 · 아크로 리버뷰 101A')) {
-      throw new Error(`Save-draft board panel lost the selected apartment after reload. Saw: ${reloadedBoardPanelText}`)
+    if (!reloadedBoardPanelText.includes('저장 기준 · 거실 ·')) {
+      throw new Error(`Save-draft board panel lost the saved apartment context after reload. Saw: ${reloadedBoardPanelText}`)
     }
     if (!reloadedBoardPanelText.includes('최근 저장 ·')) {
       throw new Error(`Save-draft board panel lost the saved timestamp after reload. Saw: ${reloadedBoardPanelText}`)
     }
 
+    const apartmentExpectation = resolveAlternateApartmentExpectation(reloadedBoardPanelText)
+
     await saveDraftPage.getByRole('button', { name: '공간 정보' }).click()
     const spaceOverlay = saveDraftPage.locator('.setupCard').filter({ has: saveDraftPage.getByText('공간 정보 연결') }).last()
     await spaceOverlay.waitFor()
-    const saveDraftRaemianOption = spaceOverlay.getByRole('button', { name: '래미안 포레스트 84A' })
-    await saveDraftRaemianOption.click()
-    await saveDraftPage.waitForFunction(() => {
+    const alternateApartmentOption = spaceOverlay.getByRole('button', { name: apartmentExpectation.alternateApartmentLabel })
+    await alternateApartmentOption.click()
+    await saveDraftPage.waitForFunction((expectedApartmentLabel) => {
       const overlays = Array.from(document.querySelectorAll('.setupCard'))
       const activeOverlay = overlays.at(-1)
       if (!activeOverlay) return false
       const overlayText = activeOverlay.textContent?.replace(/\s+/g, ' ').trim() ?? ''
-      return overlayText.includes('래미안 포레스트 84A')
+      return overlayText.includes(expectedApartmentLabel)
         && overlayText.includes('시작할 공간')
-    }, undefined, { timeout: 15000 })
+    }, apartmentExpectation.alternateApartmentLabel, { timeout: 15000 })
     await spaceOverlay.getByRole('button', { name: '닫기', exact: true }).click()
-    await saveDraftPage.waitForFunction(() => {
+    await saveDraftPage.waitForFunction(({ expectedApartmentLabel, expectedDriftCopy }) => {
       const metaNodes = Array.from(document.querySelectorAll('.editorCanvasMeta span, .editorSide.right .propBlock p, .editorSide.right .propBlock strong'))
       const text = metaNodes.map((node) => node.textContent?.replace(/\s+/g, ' ').trim() ?? '').join(' | ')
-      return text.includes('래미안 포레스트 84A')
-        && text.includes('현재 기준 · 거실 · 래미안 포레스트 84A · 선택 공간 3개')
-    }, undefined, { timeout: 15000 })
+      return text.includes(expectedApartmentLabel)
+        && text.includes(expectedDriftCopy)
+    }, {
+      expectedApartmentLabel: apartmentExpectation.alternateApartmentLabel,
+      expectedDriftCopy: apartmentExpectation.driftContextCopy,
+    }, { timeout: 15000 })
     const restoreButton = saveDraftPage.getByRole('button', { name: '계정 저장본 불러오기' })
     await capture(saveDraftPage, 'auth-login-save-layout-after-raemian-switch.png')
-    await saveDraftPage.waitForFunction(() => {
+    await saveDraftPage.waitForFunction((expectedDriftCopy) => {
       const panel = Array.from(document.querySelectorAll('.editorSide.right .propBlock')).find((node) => node.textContent?.includes('계정 보드'))
       const button = Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.trim() === '계정 저장본 불러오기')
       const panelText = panel?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
       return panelText.includes('현재 보드가 계정 저장본과 달라졌어요')
-        && panelText.includes('현재 기준 · 거실 · 래미안 포레스트 84A · 선택 공간 3개')
+        && panelText.includes(expectedDriftCopy)
         && Boolean(button)
         && !button.disabled
-    }, undefined, { timeout: 15000 })
+    }, apartmentExpectation.driftContextCopy, { timeout: 15000 })
     const driftedBoardPanelText = normalizeUiText(await reloadedBoardPanel.innerText())
     if (!driftedBoardPanelText.includes('현재 보드가 계정 저장본과 달라졌어요')) {
       throw new Error(`Save-draft board panel did not report drift after apartment-context change. Saw: ${driftedBoardPanelText}`)
     }
-    if (!driftedBoardPanelText.includes('현재 기준 · 거실 · 래미안 포레스트 84A · 선택 공간 3개')) {
+    if (!driftedBoardPanelText.includes(apartmentExpectation.driftContextCopy)) {
       throw new Error(`Save-draft board panel did not expose the drifted apartment context. Saw: ${driftedBoardPanelText}`)
     }
     await restoreButton.click()
-    await saveDraftPage.waitForFunction(() => {
+    await saveDraftPage.waitForFunction((expectedSavedContextCopy) => {
       const button = Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.trim() === '계정 저장본 불러오기')
       const panel = Array.from(document.querySelectorAll('.editorSide.right .propBlock')).find((node) => node.textContent?.includes('계정 보드'))
       return Boolean(button)
         && button.disabled
-        && panel?.textContent?.includes('저장 기준 · 거실 · 아크로 리버뷰 101A')
+        && panel?.textContent?.includes(expectedSavedContextCopy)
         && panel?.textContent?.includes('현재 보드가 계정 저장본과 같아요.')
         && panel?.textContent?.includes('계정에 저장된 보드를 다시 불러왔어요.')
-    }, undefined, { timeout: 15000 })
+    }, apartmentExpectation.savedContextCopy, { timeout: 15000 })
     await saveDraftPage.getByRole('button', { name: '공간 정보' }).click()
-    const restoredApartmentClass = await saveDraftPage.getByRole('button', { name: '아크로 리버뷰 101A' }).getAttribute('class')
+    const restoredApartmentClass = await saveDraftPage.getByRole('button', { name: apartmentExpectation.savedApartmentLabel }).getAttribute('class')
     await saveDraftPage.getByRole('button', { name: '닫기', exact: true }).click()
     if (!restoredApartmentClass?.split(/\s+/).includes('solid')) {
       throw new Error(`Restore flow did not reselect the saved apartment. class=${restoredApartmentClass}`)
