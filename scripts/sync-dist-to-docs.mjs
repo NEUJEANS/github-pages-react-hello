@@ -28,4 +28,9 @@ if (existsSync(docsAssetsDir)) {
 cpSync(path.join(distDir, 'index.html'), path.join(docsDir, 'index.html'))
 cpSync(path.join(distDir, 'assets'), docsAssetsDir, { recursive: true })
 
-console.log('Synced dist/index.html and dist/assets -> docs/')
+for (const entry of readdirSync(distDir)) {
+  if (entry === 'index.html' || entry === 'assets') continue
+  cpSync(path.join(distDir, entry), path.join(docsDir, entry), { recursive: true })
+}
+
+console.log('Synced dist/index.html, dist/assets, and extra dist files -> docs/')

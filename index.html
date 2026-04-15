@@ -6,6 +6,17 @@
     <title>HAVENLY React Conversion</title>
     <script type="module">
       const existing = globalThis.__HAVENLY_AUTH_CONFIG__
+
+      await new Promise((resolve) => {
+        const runtimeConfigScript = document.createElement('script')
+        runtimeConfigScript.src = new URL('./havenly-auth-config.js', globalThis.location?.href ?? document.baseURI).toString()
+        runtimeConfigScript.async = false
+        runtimeConfigScript.onload = () => resolve()
+        runtimeConfigScript.onerror = () => resolve()
+        document.head.append(runtimeConfigScript)
+      })
+
+      const fileConfig = globalThis.__HAVENLY_AUTH_CONFIG__
       const storedRaw = globalThis.localStorage?.getItem('havenly.auth.runtimeConfig')
       let stored = null
 
@@ -23,6 +34,7 @@
       const queryLoopbackProbe = params.get('authLoopbackProbe') === '1'
 
       globalThis.__HAVENLY_AUTH_CONFIG__ = {
+        ...(fileConfig && typeof fileConfig === 'object' ? fileConfig : {}),
         ...(stored && typeof stored === 'object' ? stored : {}),
         ...(existing && typeof existing === 'object' ? existing : {}),
         ...(queryApiBaseUrl ? { apiBaseUrl: queryApiBaseUrl.replace(/\/$/, '') } : {}),
