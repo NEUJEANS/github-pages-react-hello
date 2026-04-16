@@ -1,7 +1,6 @@
 import React from 'react'
 
 export function LayoutEditorPage({
-  Header,
   navigate,
   openOverlay,
   openCart,

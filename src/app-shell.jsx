@@ -2217,7 +2217,7 @@ function renderScreen(screen, props) {
       return <BedsCategoryPage Header={Header} {...props} />
     case 'home':
     default:
-      return <FurnitureHomePage Header={Header} aiProducts={aiProducts} bedProducts={bedProducts} {...props} />
+      return <FurnitureHomePage aiProducts={aiProducts} bedProducts={bedProducts} {...props} />
   }
 }
 
