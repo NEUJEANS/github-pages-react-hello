@@ -8,7 +8,7 @@ import {
   toggleSpaceProfileZone,
   updateSpaceProfileApartmentType,
   updateSpaceProfileQuery,
-} from './space-profile-state.js'
+} from './address-and-space-selection-state.js'
 
 const apartmentSearchResults = [
   {

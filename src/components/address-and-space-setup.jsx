@@ -5,7 +5,7 @@ import {
   toggleSpaceProfileZone,
   updateSpaceProfileApartmentType,
   updateSpaceProfileQuery,
-} from './space-profile-state.js'
+} from './address-and-space-selection-state.js'
 
 export function SpaceSelectionBoard({ zones, selectedIds, onToggle, compact = false, panelTitle = '선택된 공간' }) {
   const chosenZones = zones.filter((zone) => selectedIds.includes(zone.id))

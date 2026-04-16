@@ -4,9 +4,9 @@ This split is intentionally **screen-level only**.
 App state, persistence, auth bootstrap, overlays, drawers, and shared constants still live in `src/main.jsx`.
 
 ## Current page modules
-- `src/pages/ai-flow-pages.jsx`
+- `src/pages/recommendation-onboarding-pages.jsx`
 - `src/pages/layout-editor-page.jsx`
-- `src/pages/commerce-pages.jsx`
+- `src/pages/catalog-shopping-pages.jsx`
 
 ## How they recombine later
 If the project ever needs to merge back into a single top-level screen file:

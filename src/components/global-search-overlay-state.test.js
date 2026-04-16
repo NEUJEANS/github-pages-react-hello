@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildSearchDrawerState } from './search-drawer.js'
+import { buildSearchDrawerState } from './global-search-overlay-state.js'
 
 const libraryItems = [
   { id: 'sofa-001', name: '코튼베이지 모듈 소파', category: '소파', material: '패브릭', price: 1000 },

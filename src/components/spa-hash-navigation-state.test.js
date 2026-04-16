@@ -6,7 +6,7 @@ import {
   getDirectionalTransition,
   getScreenMeta,
   parseHashState,
-} from './navigation-state.js'
+} from './spa-hash-navigation-state.js'
 
 test('parseHashState resolves default, overlay, and known screens', () => {
   assert.deepEqual(parseHashState(''), { screen: 'home', overlay: null })

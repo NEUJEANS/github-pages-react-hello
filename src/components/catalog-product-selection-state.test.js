@@ -5,7 +5,7 @@ import {
   buildLayoutProduct,
   resolveQuickViewProduct,
   resolveSearchPickMode,
-} from './product-flow-state.js'
+} from './catalog-product-selection-state.js'
 
 const bedProducts = [
   { id: 'bed-001', name: '헤이븐 패브릭 침대', material: '패브릭', category: '침대' },

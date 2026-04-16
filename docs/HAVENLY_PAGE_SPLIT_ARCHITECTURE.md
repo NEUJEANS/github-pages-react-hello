@@ -9,9 +9,9 @@ Reduce `src/main.jsx` screen bloat without destabilizing app state.
 - Kept helpers in existing `src/components/*` state/view modules.
 
 ## Page ownership summary
-- AI funnel: `src/pages/ai-flow-pages.jsx`
+- AI funnel: `src/pages/recommendation-onboarding-pages.jsx`
 - Layout editor: `src/pages/layout-editor-page.jsx`
-- Commerce: `src/pages/commerce-pages.jsx`
+- Commerce: `src/pages/catalog-shopping-pages.jsx`
 
 ## Why this is a good intermediate stop
 - Lower token weight per file for future agents.

@@ -10,7 +10,7 @@ import {
   resolveMovedItemPosition,
   resolveRoomClickTarget,
   stepToward,
-} from './editor-state.js'
+} from './layout-canvas-editor-state.js'
 
 test('resolveMovedItemPosition applies snap-aware step sizes within editor bounds', () => {
   assert.deepEqual(resolveMovedItemPosition({ x: 10, y: 10 }, 1, -1, true), { x: 14, y: 6 })

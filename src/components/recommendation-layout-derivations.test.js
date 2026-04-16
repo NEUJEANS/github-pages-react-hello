@@ -6,7 +6,7 @@ import {
   buildRecommendationContext,
   buildSelectedApartment,
   resolveAiRoomSelection,
-} from './app-state.js'
+} from './recommendation-layout-derivations.js'
 
 test('buildSelectedApartment returns the matching apartment option', () => {
   const apartment = buildSelectedApartment([
