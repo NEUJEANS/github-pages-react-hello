@@ -1,17 +1,8 @@
 import React from 'react'
-import {
-  AddressSetupScreen,
-  SpaceSelectionBoard,
-} from './components/address-and-space-setup.jsx'
-import { applyApartmentSelection, toggleRequiredSelection } from './components/address-and-space-selection-state.js'
-import {
-  buildInputBrief,
-  buildRecommendationSummary,
-} from './components/ai-recommendation-state.js'
+import { applyApartmentSelection } from './components/address-and-space-selection-state.js'
 import { buildSelectedSpaceSummary } from './components/selected-space-summary-state.js'
 import { buildAuthDraftSavePayload } from './components/auth-draft-save-payload.js'
 import { buildLoginGuardSnapshot } from './components/login-guard.js'
-import { buildSearchDrawerState } from './components/global-search-overlay-state.js'
 import {
   buildAuthContinuationPlan,
   buildAuthErrorSummary,
@@ -68,8 +59,6 @@ import {
   shouldOpenCartAfterAuthResume,
   shouldSubmitContinuationBeforeResume,
 } from './components/auth-intent-state.js'
-import { buildFilteredBedProducts } from './components/bed-filter-state.js'
-import { toggleWishlistId } from './components/wishlist-state.js'
 import {
   addCartItem,
   buildCartTotals,
@@ -94,11 +83,7 @@ import {
   getDirectionalTransition,
   parseHashState,
 } from './components/spa-hash-navigation-state.js'
-import {
-  buildLayoutProduct,
-  resolveQuickViewProduct,
-  resolveSearchPickMode,
-} from './components/catalog-product-selection-state.js'
+import { buildLayoutProduct } from './components/catalog-product-selection-state.js'
 import {
   buildLayoutEditorActionCommands,
   buildLayoutEditorHint,
@@ -160,19 +145,6 @@ function pickPersistedAuthContinuationFields(continuation = null, fields = null)
 }
 
 const roomOptions = ['거실', '침실', '주방', '서재']
-const styleOptions = [
-  { id: 'minimal', emoji: '🤍', label: '미니멀' },
-  { id: 'natural', emoji: '🌿', label: '내추럴' },
-  { id: 'lux', emoji: '✨', label: '모던 럭스' },
-]
-
-const priorityOptions = [
-  { id: 'flow', label: '채광/동선 우선' },
-  { id: 'storage', label: '수납 우선' },
-  { id: 'hosting', label: '손님맞이 우선' },
-]
-
-const lifestyleOptions = ['기본', '재택근무', '반려동물', '수납 많이']
 
 const aiProducts = [
   { id: 'sofa-001', category: '소파', emoji: '🛋️', name: '코튼베이지 모듈 소파', price: 1290000, priceLabel: '₩1,290,000', fitScore: 96, blurb: '동선 확보가 쉬운 모듈형 구성이에요.', size: '2200 x 900', colors: ['#eee2d1', '#d4c0a7', '#bda488', '#8b7355'] },
@@ -187,15 +159,6 @@ const libraryItems = [
   { id: 'lamp-001', category: '조명', emoji: '💡', name: '포인트 플로어 램프', price: 179000, priceLabel: '₩179,000', fitScore: 83, blurb: '코너 무드 조명으로 분위기를 정리합니다.', size: '420 x 420', colors: ['#fff7dd', '#f4d38c', '#b8904e'] },
 ]
 
-const bedProducts = [
-  { id: 'bed-001', badge: 'BEST', emoji: '🛏️', name: '헤이븐 패브릭 침대', fit: 'AI 추천 94%', fitScore: 94, price: 890000, priceLabel: '₩890,000', review: '4.9 · 182', color: '아이보리', size: '퀸', material: '패브릭', blurb: '부드러운 헤드보드와 웜 톤 패브릭이 특징이에요.' },
-  { id: 'bed-002', badge: 'NEW', emoji: '🛌', name: '클라우드 쿠션 침대', fit: '중형 침실 적합', fitScore: 87, price: 1120000, priceLabel: '₩1,120,000', review: '4.8 · 74', color: '베이지', size: '킹', material: '패브릭', blurb: '도톰한 쿠션 헤드보드로 호텔라이크 분위기를 줍니다.' },
-  { id: 'bed-003', badge: 'SALE', emoji: '🪵', name: '월넛 프레임 침대', fit: 'AI 추천 88%', fitScore: 88, price: 760000, priceLabel: '₩760,000', review: '4.7 · 58', color: '우드', size: '퀸', material: '원목', blurb: '차분한 월넛 마감으로 공간을 안정감 있게 잡아줘요.' },
-  { id: 'bed-004', badge: 'HOT', emoji: '✨', name: '리넨 헤드보드 침대', fit: '원룸 배치 적합', fitScore: 91, price: 940000, priceLabel: '₩940,000', review: '4.8 · 101', color: '그레이', size: '슈퍼싱글', material: '리넨', blurb: '작은 공간에도 답답하지 않게 들어가는 슬림 헤드 타입.' },
-  { id: 'bed-005', badge: 'BEST', emoji: '🌙', name: '소프트 아이보리 침대', fit: 'AI 추천 91%', fitScore: 91, price: 830000, priceLabel: '₩830,000', review: '4.9 · 133', color: '아이보리', size: '퀸', material: '패브릭', blurb: '아이보리 톤으로 침실을 더 환하게 보이게 해줘요.' },
-  { id: 'bed-006', badge: 'NEW', emoji: '🧸', name: '웜그레이 플랫폼 침대', fit: '패브릭 룩', fitScore: 85, price: 690000, priceLabel: '₩690,000', review: '4.6 · 45', color: '그레이', size: '퀸', material: '합성패브릭', blurb: '로우 플랫폼 구조로 천장이 낮아도 깔끔해 보여요.' },
-]
-
 const baseZones = [
   { id: 'living', icon: '🛋️', name: '거실', size: '23.4㎡', className: 'living', selected: true },
   { id: 'kitchen', icon: '🍳', name: '주방', size: '11.2㎡', className: 'kitchen', selected: false },
@@ -204,8 +167,6 @@ const baseZones = [
   { id: 'bath', icon: '🛁', name: '욕실', size: '4.1㎡', className: 'bath', selected: false },
   { id: 'entry', icon: '🚪', name: '현관', size: '3.7㎡', className: 'entry', selected: true },
 ]
-
-const apartmentTypes = ['84A', '84B', '101A', '59A']
 
 const apartmentSearchResults = [
   { id: 'raemian-forest-84a', brand: '래미안', complex: '포레스트', unitLabel: '84A', areaLabel: '전용 84㎡', layoutLabel: '4Bay', variantLabel: '거실 확장형' },
@@ -317,15 +278,6 @@ function useCart() {
   const { count, subtotal } = buildCartTotals(items)
 
   return { isOpen, setIsOpen, items, addItem, updateQty, replaceItems, clear, count, subtotal }
-}
-
-function useQuickView() {
-  const [product, setProduct] = React.useState(null)
-  return {
-    product,
-    open: setProduct,
-    close: () => setProduct(null),
-  }
 }
 
 function useEditorState() {
@@ -628,44 +580,6 @@ function resolveAccountTriggerAriaLabel(authSession) {
   return accountLabel ? `${accountLabel} 계정 보기` : '로그인 열기'
 }
 
-function Header({ dark = false, active = 'AI 추천', onNavigate, onOpenOverlay, onOpenCart, cartCount, onSearchOpen, onOpenLogin, authSession }) {
-  return (
-    <header className={`topbar ${dark ? 'dark' : ''}`}>
-      <button className="logo logoBtn" onClick={() => onNavigate('home')}>HAVENLY</button>
-      <nav className="navlinks">
-        {[
-          ['AI 추천', 'ai'],
-          ['내가 배치하기', 'layout'],
-          ['가구 먼저 찾기', 'home'],
-        ].map(([label, id]) => (
-          <button key={label} className={active === label ? 'active' : ''} onClick={() => onNavigate(id)}>{label}</button>
-        ))}
-      </nav>
-      <div className="topActions">
-        {!dark && <button className="searchPill" onClick={onSearchOpen}>🔎 스타일 또는 가구 검색</button>}
-        {dark && <button className="miniBtn secondary" onClick={() => onOpenOverlay('address')}>공간 정보</button>}
-        <button
-          className="accountTrigger utilityButton"
-          onClick={onOpenLogin}
-          aria-label={resolveAccountTriggerAriaLabel(authSession)}
-          title={resolveAccountTriggerAriaLabel(authSession)}
-          data-auth-session-state={authSession ? 'authenticated' : 'guest'}
-          data-auth-account-label={authSession?.accountLabel ?? ''}
-        >
-          <span className="accountGlyph" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
-              <circle cx="12" cy="8" r="3.2" />
-              <path d="M5.5 18.2c1.8-3.1 4.4-4.7 6.5-4.7s4.7 1.6 6.5 4.7" />
-            </svg>
-          </span>
-          <span>{resolveLoginButtonLabel(authSession)}</span>
-        </button>
-        <button className="cart utilityButton utilityIconButton" onClick={onOpenCart} aria-label="장바구니 열기">🛒<span>{cartCount}</span></button>
-      </div>
-    </header>
-  )
-}
-
 function StageTransition({ screen, direction, children }) {
   const [displayScreen, setDisplayScreen] = React.useState(screen)
   const [phase, setPhase] = React.useState('enter')
@@ -701,9 +615,8 @@ function StageTransition({ screen, direction, children }) {
 }
 
 export function AppShell() {
-  const { screen, overlay, direction, navigate, openOverlay, closeOverlay } = useSpaNavigation()
+  const { screen, overlay, direction, navigate, openOverlay } = useSpaNavigation()
   const cart = useCart()
-  const quickView = useQuickView()
   const editor = useEditorState()
   const persistedAuthHandoff = React.useMemo(
     () => readPersistedAuthHandoff(globalThis.sessionStorage),
@@ -721,8 +634,6 @@ export function AppShell() {
     }),
     [persistedAuthSession],
   )
-  const [searchDrawerOpen, setSearchDrawerOpen] = React.useState(false)
-  const [searchQuery, setSearchQuery] = React.useState('')
   const [aiForm, setAiForm] = React.useState(() => ({
     ...initialAiForm,
     ...(persistedAuthUiRestore?.recommendationRoom
@@ -744,14 +655,6 @@ export function AppShell() {
         ? persistedAuthUiRestore.selectedSpaceIds
         : baseZones.filter((zone) => zone.selected).map((zone) => zone.id),
     }
-  })
-  const [bedFilters, setBedFilters] = React.useState({
-    search: '',
-    sorts: 'recommended',
-    size: '전체',
-    color: '전체',
-    material: '전체',
-    fit: '전체',
   })
   const [wishlistedIds, setWishlistedIds] = React.useState([])
   const [loginModalState, setLoginModalState] = React.useState(() => (persistedAuthHandoff ? 'form' : 'closed'))
@@ -809,35 +712,9 @@ export function AppShell() {
         : { ...nextProfile, spaces: nextIds }
     })
   }, [])
-  const syncSpaceProfileApartmentSelection = React.useCallback((apartmentSelectionId) => {
-    syncSpaceProfileBoardContext({ apartmentSelectionId })
-  }, [syncSpaceProfileBoardContext])
-  const recommendationContext = React.useMemo(() => buildRecommendationContext({
-    aiForm,
-    spaceProfile,
-    selectedApartment,
-    formatApartmentOption,
-  }), [aiForm, selectedApartment, spaceProfile])
-  const aiSummary = React.useMemo(() => buildRecommendationSummary({
-    ...recommendationContext,
-    styleOptions,
-    priorityOptions,
-  }), [recommendationContext])
-  const inputBrief = React.useMemo(() => buildInputBrief({
-    form: aiForm,
-    spaceProfile,
-    apartmentSearchResults,
-    formatApartmentOption,
-    styleOptions,
-    priorityOptions,
-  }), [aiForm, spaceProfile])
   const selectedSpaceSummary = React.useMemo(
     () => buildSelectedSpaceSummary(baseZones, roomOptions, spaceProfile.spaces),
     [spaceProfile.spaces],
-  )
-  const selectedBed = React.useMemo(
-    () => resolveQuickViewProduct(bedProducts, quickView.product),
-    [quickView.product],
   )
 
   React.useEffect(() => {
@@ -846,17 +723,6 @@ export function AppShell() {
       return current.room === nextRoom ? current : { ...current, room: nextRoom }
     })
   }, [selectedSpaceSummary])
-
-  const searchDrawerState = React.useMemo(() => buildSearchDrawerState({
-    query: searchQuery,
-    libraryItems,
-    bedProducts,
-  }), [searchQuery])
-
-  const filteredBedProducts = React.useMemo(
-    () => buildFilteredBedProducts(bedProducts, bedFilters),
-    [bedFilters],
-  )
 
   const loginGuardSnapshot = React.useMemo(() => buildLoginGuardSnapshot({
     engagement,
@@ -2078,26 +1944,14 @@ export function AppShell() {
     cartCount: cart.count,
   }
 
-  const trackAiRequest = React.useCallback(() => {
-    setEngagement((current) => ({ ...current, aiRequests: current.aiRequests + 1 }))
-  }, [])
-
-  const trackBoardProgress = React.useCallback(() => {
-    setEngagement((current) => ({ ...current, draftBoards: Math.max(current.draftBoards, 1) }))
-  }, [])
-
-  const trackFurniturePlacement = React.useCallback(() => {
+  const addProductToLayout = React.useCallback((product) => {
+    editor.addLibraryItem(buildLayoutProduct(product))
     setEngagement((current) => ({
       ...current,
       furniturePlacements: current.furniturePlacements + 1,
       draftBoards: Math.max(current.draftBoards, 1),
     }))
-  }, [])
-
-  const addProductToLayout = React.useCallback((product) => {
-    editor.addLibraryItem(buildLayoutProduct(product))
-    trackFurniturePlacement()
-  }, [editor, trackFurniturePlacement])
+  }, [editor])
 
   const handleLayoutTrayDropToRoom = React.useCallback((product) => {
     addProductToLayout(product)
@@ -2229,9 +2083,7 @@ export function AppShell() {
   const shared = {
     navigate,
     openOverlay,
-    quickViewOpen: quickView.open,
     addToCart: cart.addItem,
-    onSearchOpen: () => setSearchDrawerOpen(true),
     onOpenLogin: openLogin,
     onAddProductToLayout: addProductToLayout,
     layoutTrayItems,
@@ -2241,51 +2093,17 @@ export function AppShell() {
     onRestoreSavedLayout: handleRestoreSavedLayout,
     layoutAuthPanelState,
     isAuthBootstrapPending,
-    trackBoardProgress,
-    trackFurniturePlacement,
     authSession,
     ...cartActions,
   }
 
   const screenProps = {
-    ai: {
-      form: aiForm,
-      setForm: setAiForm,
-      brief: inputBrief,
-      summary: aiSummary,
-      selectedSpaceSummary,
-      onRecommend: () => {
-        trackAiRequest()
-        navigate('space')
-      },
-      onApplyToLayout: (product) => {
-        addProductToLayout(product)
-        navigate('layout')
-      },
-    },
-    space: {
-      selectedSpaces: spaceProfile.spaces,
-      setSelectedSpaces: (updater) => setSpaceProfile((current) => ({
-        ...current,
-        spaces: typeof updater === 'function' ? updater(current.spaces) : updater,
-      })),
-    },
     layout: {
       editor,
       addressSummary: buildLayoutAddressSummary(spaceProfile, {
         selectedApartment,
         formatApartmentOption,
       }),
-    },
-    beds: {
-      filters: bedFilters,
-      setFilters: setBedFilters,
-      items: filteredBedProducts,
-      wishlistedIds,
-      toggleWishlist: (id) => setWishlistedIds((current) => toggleWishlistId(current, id)),
-    },
-    home: {
-      wishlistedIds,
     },
   }
 
@@ -2312,22 +2130,6 @@ export function AppShell() {
             authSession={authSession}
             onOpenLogin={openLogin}
             onClose={() => cart.setIsOpen(false)}
-          />
-        )}
-
-        {searchDrawerOpen && (
-          <SearchDrawer
-            query={searchQuery}
-            setQuery={setSearchQuery}
-            results={searchDrawerState.results}
-            queryLabel={searchDrawerState.queryLabel}
-            isEmpty={searchDrawerState.isEmpty}
-            onClose={() => setSearchDrawerOpen(false)}
-            onPick={(product) => {
-              setSearchDrawerOpen(false)
-              if (resolveSearchPickMode(product) === 'quickView') quickView.open(product)
-              else cart.addItem(product)
-            }}
           />
         )}
 
