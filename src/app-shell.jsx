@@ -1,5 +1,4 @@
 import React from 'react'
-import { applyApartmentSelection } from './components/address-and-space-selection-state.js'
 import { buildSelectedSpaceSummary } from './components/selected-space-summary-state.js'
 import { buildAuthDraftSavePayload } from './components/auth-draft-save-payload.js'
 import { buildLoginGuardSnapshot } from './components/login-guard.js'
@@ -149,11 +148,8 @@ const baseZones = [
   { id: 'entry', icon: '🚪', name: '현관', size: '3.7㎡', className: 'entry', selected: true },
 ]
 
-const apartmentSearchResults = [
-  { id: 'raemian-forest-84a', brand: '래미안', complex: '포레스트', unitLabel: '84A', areaLabel: '전용 84㎡', layoutLabel: '4Bay', variantLabel: '거실 확장형' },
-  { id: 'acrovista-river-101a', brand: '아크로', complex: '리버뷰', unitLabel: '101A', areaLabel: '전용 101㎡', layoutLabel: '타워형', variantLabel: '주방 확장형' },
-  { id: 'xi-central-59a', brand: '자이', complex: '센트럴', unitLabel: '59A', areaLabel: '전용 59㎡', layoutLabel: '판상형', variantLabel: '기본형' },
-]
+const DEFAULT_LAYOUT_BOARD_ID = 'project-layout-board'
+const DEFAULT_LAYOUT_BOARD_LABEL = '프로젝트 레이아웃 보드'
 
 const initialEditorItems = [
   { id: 'placed-sofa', sourceId: 'sofa-001', name: '코튼베이지 모듈 소파', label: 'SOFA', x: 10, y: 16, w: 28, h: 18, rotation: 0, colorIndex: 2 },
@@ -167,9 +163,6 @@ function formatPrice(value) {
   return `₩${value.toLocaleString('ko-KR')}`
 }
 
-function formatApartmentOption(option) {
-  return [option.brand, option.complex, option.unitLabel].filter(Boolean).join(' ')
-}
 
 function useSpaNavigation() {
   const [{ screen, overlay }, setState] = React.useState(() => parseHashState(window.location.hash))
@@ -565,16 +558,20 @@ export function AppShell() {
       : {}),
   }))
   const [spaceProfile, setSpaceProfile] = React.useState(() => {
-    const restoredApartmentSelectionId = persistedAuthUiRestore?.apartmentSelectionId
+    const restoredBoardLabel = persistedAuthSession?.draftSave?.draftLabel
+      ?? persistedAuthSession?.draftSave?.apartmentLabel
+      ?? persistedAuthSession?.accountState?.draftLabel
+      ?? persistedAuthSession?.accountState?.apartmentLabel
+      ?? DEFAULT_LAYOUT_BOARD_LABEL
+    const restoredBoardSelectionId = persistedAuthUiRestore?.apartmentSelectionId
+      ?? persistedAuthSession?.draftSave?.apartmentSelectionId
       ?? persistedAuthSession?.accountState?.apartmentSelectionId
-      ?? apartmentSearchResults[0].id
-    const restoredApartment = apartmentSearchResults.find((item) => item.id === restoredApartmentSelectionId)
-      ?? apartmentSearchResults[0]
+      ?? DEFAULT_LAYOUT_BOARD_ID
 
     return {
-      query: '서울 성동구 성수이로 123 HAVENLY Apartments',
-      apartmentType: restoredApartment.unitLabel,
-      apartmentSelectionId: restoredApartment.id,
+      query: restoredBoardLabel,
+      apartmentType: restoredBoardLabel,
+      apartmentSelectionId: restoredBoardSelectionId,
       spaces: persistedAuthUiRestore?.selectedSpaceIds?.length
         ? persistedAuthUiRestore.selectedSpaceIds
         : baseZones.filter((zone) => zone.selected).map((zone) => zone.id),
@@ -603,25 +600,23 @@ export function AppShell() {
   const appliedAuthSessionRestoreRef = React.useRef(null)
   const autoResumedAuthReadyKeyRef = React.useRef('')
 
-  const selectedApartment = React.useMemo(
-    () => buildSelectedApartment(apartmentSearchResults, spaceProfile.apartmentSelectionId),
-    [spaceProfile.apartmentSelectionId],
-  )
-  const syncSpaceProfileBoardContext = React.useCallback(({ apartmentSelectionId = null, selectedSpaceIds = [] } = {}) => {
-    if (!apartmentSelectionId && !selectedSpaceIds?.length) return
-
-    const apartmentOption = apartmentSelectionId
-      ? apartmentSearchResults.find((item) => item.id === apartmentSelectionId) ?? null
-      : null
+  const syncSpaceProfileBoardContext = React.useCallback(({ apartmentSelectionId = null, selectedSpaceIds = [], boardLabel = null } = {}) => {
+    if (!apartmentSelectionId && !selectedSpaceIds?.length && !boardLabel) return
 
     setSpaceProfile((current) => {
-      const nextProfile = apartmentSelectionId
-        ? apartmentOption
-          ? applyApartmentSelection(current, apartmentOption, formatApartmentOption)
-          : current.apartmentSelectionId === apartmentSelectionId
-            ? current
-            : { ...current, apartmentSelectionId }
-        : current
+      const normalizedBoardLabel = typeof boardLabel === 'string' && boardLabel.trim()
+        ? boardLabel.trim()
+        : current.apartmentType
+      const nextProfile = {
+        ...current,
+        ...(apartmentSelectionId ? { apartmentSelectionId } : {}),
+        ...(normalizedBoardLabel && (current.apartmentType !== normalizedBoardLabel || current.query !== normalizedBoardLabel)
+          ? {
+              apartmentType: normalizedBoardLabel,
+              query: normalizedBoardLabel,
+            }
+          : {}),
+      }
 
       if (!selectedSpaceIds?.length) {
         return nextProfile
@@ -667,13 +662,12 @@ export function AppShell() {
     engagement,
     aiForm,
     spaceProfile,
-    selectedApartment,
     selectedSpaceSummary,
     wishlistedIds,
     cartItems: cart.items,
     editorItems: editor.items,
     layoutTrayItems,
-  }), [aiForm, cart.items, editor.items, engagement, layoutTrayItems, selectedApartment, selectedSpaceSummary, spaceProfile, wishlistedIds])
+  }), [aiForm, cart.items, editor.items, engagement, layoutTrayItems, selectedSpaceSummary, spaceProfile, wishlistedIds])
 
   const authConfig = React.useMemo(
     () => resolveAuthConfig({ env: import.meta.env }),
@@ -1973,10 +1967,7 @@ export function AppShell() {
   const screenProps = {
     layout: {
       editor,
-      addressSummary: buildLayoutAddressSummary(spaceProfile, {
-        selectedApartment,
-        formatApartmentOption,
-      }),
+      addressSummary: buildLayoutAddressSummary(spaceProfile),
     },
   }
 
@@ -2142,27 +2133,6 @@ function CartDrawer({ cart, authSession, onOpenLogin, onClose }) {
                   }}
                 >
                   {authSession ? '주문하기 (데모)' : '로그인 후 주문 이어가기'}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </aside>
-    </div>
-  )
-}
-               >
-                  {authSession ? '주문하기 (데모)' : '로그인 후 주문 이어가기'}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </aside>
-    </div>
-  )
-}
-         {authSession ? '주문하기 (데모)' : '로그인 후 주문 이어가기'}
                 </button>
               </div>
             </>

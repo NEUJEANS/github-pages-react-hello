@@ -78,7 +78,11 @@ export function buildGuestDraftSnapshot({
     continuity: {
       apartmentLabel: selectedApartment
         ? [selectedApartment.brand, selectedApartment.complex, selectedApartment.unitLabel].filter(Boolean).join(' ')
-        : null,
+        : (typeof spaceProfile?.apartmentType === 'string' && spaceProfile.apartmentType.trim()
+          ? spaceProfile.apartmentType.trim()
+          : (typeof spaceProfile?.query === 'string' && spaceProfile.query.trim()
+            ? spaceProfile.query.trim()
+            : null)),
       selectedRooms: [...(selectedSpaceSummary?.availableRooms ?? [])],
       wishlistIds: [...wishlistedIds],
       cartItems: cartItems.map((item) => ({
