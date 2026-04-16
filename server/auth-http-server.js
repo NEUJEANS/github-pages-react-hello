@@ -17,7 +17,7 @@ import {
   AUTH_SCAFFOLD_HEADER,
   AUTH_STATUS_HEADER,
   AUTH_STATUS_LABEL_HEADER,
-} from '../src/components/auth-submit.js'
+} from '../src/components/auth-headers.js'
 import { handleAuthRequest, readAuthStorePaths } from './auth-persistent-store.js'
 
 function readRequestBody(req) {

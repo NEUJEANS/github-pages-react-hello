@@ -5,23 +5,43 @@ import {
   submitAuthScaffoldContinuation,
   submitAuthScaffoldRequest,
 } from './auth-backend-scaffold.js'
+import {
+  AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
+  AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
+  AUTH_ACTION_CONNECTION_METHOD_HEADER,
+  AUTH_ACTION_CONNECTION_SOURCE_HEADER,
+  AUTH_ACTION_CONNECTION_TARGET_HEADER,
+  AUTH_CONNECTION_CREDENTIALS_HEADER,
+  AUTH_CONNECTION_ENDPOINT_HEADER,
+  AUTH_CONNECTION_METHOD_HEADER,
+  AUTH_CONNECTION_SOURCE_HEADER,
+  AUTH_CONNECTION_TARGET_HEADER,
+  AUTH_HANDOFF_HEADER,
+  AUTH_NEXT_ACTION_HEADER,
+  AUTH_RESUME_TOKEN_HEADER,
+  AUTH_SCAFFOLD_HEADER,
+  AUTH_STATUS_HEADER,
+  AUTH_STATUS_LABEL_HEADER,
+} from './auth-headers.js'
 
-export const AUTH_SCAFFOLD_HEADER = 'x-havenly-auth-scaffold'
-export const AUTH_HANDOFF_HEADER = 'x-havenly-auth-handoff-id'
-export const AUTH_RESUME_TOKEN_HEADER = 'x-havenly-auth-resume-token'
-export const AUTH_NEXT_ACTION_HEADER = 'x-havenly-auth-next-action'
-export const AUTH_STATUS_HEADER = 'x-havenly-auth-status'
-export const AUTH_STATUS_LABEL_HEADER = 'x-havenly-auth-status-label'
-export const AUTH_CONNECTION_METHOD_HEADER = 'x-havenly-auth-connection-method'
-export const AUTH_CONNECTION_ENDPOINT_HEADER = 'x-havenly-auth-connection-endpoint'
-export const AUTH_CONNECTION_TARGET_HEADER = 'x-havenly-auth-connection-target'
-export const AUTH_CONNECTION_CREDENTIALS_HEADER = 'x-havenly-auth-connection-credentials'
-export const AUTH_CONNECTION_SOURCE_HEADER = 'x-havenly-auth-connection-source'
-export const AUTH_ACTION_CONNECTION_METHOD_HEADER = 'x-havenly-auth-action-connection-method'
-export const AUTH_ACTION_CONNECTION_ENDPOINT_HEADER = 'x-havenly-auth-action-connection-endpoint'
-export const AUTH_ACTION_CONNECTION_TARGET_HEADER = 'x-havenly-auth-action-connection-target'
-export const AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER = 'x-havenly-auth-action-connection-credentials'
-export const AUTH_ACTION_CONNECTION_SOURCE_HEADER = 'x-havenly-auth-action-connection-source'
+export {
+  AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
+  AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
+  AUTH_ACTION_CONNECTION_METHOD_HEADER,
+  AUTH_ACTION_CONNECTION_SOURCE_HEADER,
+  AUTH_ACTION_CONNECTION_TARGET_HEADER,
+  AUTH_CONNECTION_CREDENTIALS_HEADER,
+  AUTH_CONNECTION_ENDPOINT_HEADER,
+  AUTH_CONNECTION_METHOD_HEADER,
+  AUTH_CONNECTION_SOURCE_HEADER,
+  AUTH_CONNECTION_TARGET_HEADER,
+  AUTH_HANDOFF_HEADER,
+  AUTH_NEXT_ACTION_HEADER,
+  AUTH_RESUME_TOKEN_HEADER,
+  AUTH_SCAFFOLD_HEADER,
+  AUTH_STATUS_HEADER,
+  AUTH_STATUS_LABEL_HEADER,
+}
 
 function trimTrailingSlash(value = '') {
   return value.endsWith('/') ? value.slice(0, -1) : value

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
-import { DatabaseSync } from 'node:sqlite'
+import Database from 'better-sqlite3'
 
 const sessionCookieName = 'havenly_auth_session'
 const handoffCookieName = 'havenly_auth_handoff'
@@ -142,10 +142,10 @@ function ensureDatabase(source = null) {
   }
 
   ensureDataDir(resolvedSource)
-  database = new DatabaseSync(sqlitePath)
+  database = new Database(sqlitePath)
   databasePath = sqlitePath
+  database.pragma('journal_mode = WAL')
   database.exec(`
-    PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS users (
       email TEXT PRIMARY KEY,
       password TEXT NOT NULL,

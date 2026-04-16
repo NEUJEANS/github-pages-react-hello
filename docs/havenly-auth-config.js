@@ -1,4 +1,4 @@
 window.__HAVENLY_AUTH_CONFIG__ = {
-  apiBaseUrl: 'https://afe13a38f5e94c.lhr.life',
+  apiBaseUrl: 'https://havenly-auth-backend-production.up.railway.app',
   credentialsMode: 'include',
 }
