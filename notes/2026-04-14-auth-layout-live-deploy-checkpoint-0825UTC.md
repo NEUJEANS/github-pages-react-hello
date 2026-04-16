@@ -13,7 +13,7 @@ Validate the current apartment-context restore fix from the main worktree, rebui
 - Latest source-side fix note: `notes/2026-04-14-auth-layout-restore-apartment-context-hydration-checkpoint-0815UTC.md`
 - Focused modules only:
   - `src/main.jsx`
-  - `src/components/space-profile-state.js`
+  - `src/components/address-and-space-selection-state.js`
   - `src/components/layout-auth-panel-state.js`
   - `src/components/auth-session-restore.js`
   - `src/components/auth-account-continuity.js`

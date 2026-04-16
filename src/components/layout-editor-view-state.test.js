@@ -192,27 +192,17 @@ test('buildLayoutEditorSelectionSnapshot exposes stable property-panel copy and 
 })
 
 
-test('buildLayoutEditorActionButtons exposes action metadata and disables add-to-cart until a selection exists', () => {
+test('buildLayoutEditorActionButtons exposes the trimmed layout-focused action set and disables add-to-cart until a selection exists', () => {
   assert.deepEqual(buildLayoutEditorActionButtons(true), [
-    { id: 'browse-more', label: '가구 더 보기', tone: 'cta', action: 'navigate-beds', disabled: false },
-    { id: 'reselect-space', label: '공간 다시 선택', tone: 'ghost', action: 'open-address-overlay', disabled: false },
-    { id: 'add-selected-to-cart', label: '선택 가구 담기', tone: 'ghost', action: 'add-selected-to-cart', disabled: false },
+    { id: 'add-selected-to-cart', label: '선택 가구 담기', tone: 'cta', action: 'add-selected-to-cart', disabled: false },
     { id: 'reset-layout', label: '초기 배치 복원', tone: 'ghost', action: 'reset-layout', disabled: false },
   ])
 
-  assert.equal(buildLayoutEditorActionButtons(false)[2].disabled, true)
+  assert.equal(buildLayoutEditorActionButtons(false)[0].disabled, true)
 })
 
 
-test('buildLayoutEditorActionCommands exposes stable property-panel command sequences', () => {
-  assert.deepEqual(buildLayoutEditorActionCommands('navigate-beds'), [
-    { type: 'navigate', value: 'beds' },
-  ])
-
-  assert.deepEqual(buildLayoutEditorActionCommands('open-address-overlay'), [
-    { type: 'open-overlay', value: 'address' },
-  ])
-
+test('buildLayoutEditorActionCommands exposes stable layout-focused property-panel command sequences', () => {
   assert.deepEqual(buildLayoutEditorActionCommands('add-selected-to-cart'), [
     { type: 'add-selected-to-cart' },
   ])
@@ -221,6 +211,8 @@ test('buildLayoutEditorActionCommands exposes stable property-panel command sequ
     { type: 'reset-layout' },
   ])
 
+  assert.deepEqual(buildLayoutEditorActionCommands('navigate-beds'), [])
+  assert.deepEqual(buildLayoutEditorActionCommands('open-address-overlay'), [])
   assert.deepEqual(buildLayoutEditorActionCommands('unknown'), [])
 })
 
@@ -251,13 +243,11 @@ test('buildLayoutEditorPropertyPanelState composes selection, color, movement, a
       ],
       movementNote: defaultLayoutEditorMovementNote,
       actionButtons: [
-        { id: 'browse-more', label: '가구 더 보기', tone: 'cta', action: 'navigate-beds', disabled: false },
-        { id: 'reselect-space', label: '공간 다시 선택', tone: 'ghost', action: 'open-address-overlay', disabled: false },
-        { id: 'add-selected-to-cart', label: '선택 가구 담기', tone: 'ghost', action: 'add-selected-to-cart', disabled: false },
+        { id: 'add-selected-to-cart', label: '선택 가구 담기', tone: 'cta', action: 'add-selected-to-cart', disabled: false },
         { id: 'reset-layout', label: '초기 배치 복원', tone: 'ghost', action: 'reset-layout', disabled: false },
       ],
     },
   )
 
-  assert.equal(buildLayoutEditorPropertyPanelState(undefined, undefined).actionButtons[2].disabled, true)
+  assert.equal(buildLayoutEditorPropertyPanelState(undefined, undefined).actionButtons[0].disabled, true)
 })

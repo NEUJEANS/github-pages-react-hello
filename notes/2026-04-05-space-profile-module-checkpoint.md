@@ -1,7 +1,7 @@
 # HAVENLY parallel checkpoint — 2026-04-05 space profile module slice
 
 ## What changed
-- Moved the shared space-profile helpers out of `src/main.jsx` into `src/components/space-profile.jsx`.
+- Moved the shared space-profile helpers out of `src/main.jsx` into `src/components/address-and-space-setup.jsx`.
 - Centralized the shared space selection board, required-selection toggle helper, and address overlay/profile fields in one focused module.
 - Kept `src/main.jsx` responsible for app state orchestration while passing apartment/zone config into the extracted module as props.
 - Left routine checkpoint output source-only by intentionally not carrying forward fresh `dist/` artifacts.

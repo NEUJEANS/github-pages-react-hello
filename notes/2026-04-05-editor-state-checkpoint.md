@@ -1,8 +1,8 @@
 # HAVENLY parallel checkpoint — 2026-04-05 editor state helpers
 
 ## What changed
-- Extracted editor placement and movement math from `src/main.jsx` into `src/components/editor-state.js`.
-- Added focused Node-test coverage in `src/components/editor-state.test.js` for snap-aware keyboard movement, animated target snapping, drag position math, library item creation, and click-to-move target centering.
+- Extracted editor placement and movement math from `src/main.jsx` into `src/components/layout-canvas-layout-canvas-editor-state.js`.
+- Added focused Node-test coverage in `src/components/layout-canvas-editor-state.test.js` for snap-aware keyboard movement, animated target snapping, drag position math, library item creation, and click-to-move target centering.
 - Updated the layout editor flow in `src/main.jsx` to consume the new helper module while preserving existing behavior.
 
 ## Validation

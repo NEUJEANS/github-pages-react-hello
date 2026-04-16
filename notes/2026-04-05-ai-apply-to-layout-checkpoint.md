@@ -17,7 +17,7 @@
 ## Next smallest checkpoint
 1. Add a similarly narrow test or behavior polish around the extracted space-profile fields.
 2. Or tighten another small continuity issue between quick-view / AI recommendation / layout flows.
-3. Consider light component test coverage for `space-profile.jsx` only if it can stay isolated and not require broad tooling churn.
+3. Consider light component test coverage for `address-and-space-setup.jsx` only if it can stay isolated and not require broad tooling churn.
 
 ## Branch
 - `havenly/parallel-loop-2026-04-04`

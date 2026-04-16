@@ -27,7 +27,7 @@ That meant the product could not reach the very auth/layout area this loop is su
   - no accidental debug/report/process UI was observed in the rendered screen copy
 - Live GitHub Pages verification before this fix:
   - reproduced runtime crash on `https://neujeans.github.io/github-pages-react-hello/#layout`
-  - stack resolved to `buildLayoutAddressSummary()` path in `src/components/app-state.js` via `src/main.jsx`
+  - stack resolved to `buildLayoutAddressSummary()` path in `src/components/recommendation-layout-derivations.js` via `src/main.jsx`
 
 ## Next likely live check
 After republish, re-open the GitHub Pages layout page and confirm the crash is gone there too. Once the live shell is healthy again, return to the intended auth/layout checkpoint: verify that authenticated restore CTA gating now reacts to tray-only board drift.

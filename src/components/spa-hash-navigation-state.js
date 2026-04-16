@@ -1,8 +1,6 @@
 export const screenMeta = {
   ai: { column: 0, step: 0 },
-  space: { column: 0, step: 1 },
   layout: { column: 1, step: 0 },
-  address: { column: 1, step: 1 },
   beds: { column: 2, step: 0 },
   home: { column: 2, step: 1 },
 }
@@ -10,7 +8,8 @@ export const screenMeta = {
 export function parseHashState(hashValue) {
   const hash = hashValue.replace(/^#/, '')
   if (!hash) return { screen: 'home', overlay: null }
-  if (hash === 'address') return { screen: 'layout', overlay: 'address' }
+  if (hash === 'address') return { screen: 'layout', overlay: null }
+  if (hash === 'space') return { screen: 'ai', overlay: null }
   if (screenMeta[hash]) return { screen: hash, overlay: null }
   return { screen: 'home', overlay: null }
 }
@@ -33,5 +32,5 @@ export function getDirectionalTransition(fromScreen, toScreen) {
 }
 
 export function buildNavigationHash(nextScreen, nextOverlay) {
-  return nextOverlay === 'address' ? 'address' : nextScreen
+  return nextOverlay === 'address' ? 'layout' : nextScreen
 }

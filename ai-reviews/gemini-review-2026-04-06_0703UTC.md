@@ -64,8 +64,8 @@ package.json
 scripts/gemini-review.sh
 src/components/ai-recommendation-state.js
 src/components/ai-recommendation-state.test.js
-src/components/app-state.js
-src/components/app-state.test.js
+src/components/recommendation-layout-derivations.js
+src/components/recommendation-layout-derivations.test.js
 src/components/auth-flow-state.js
 src/components/auth-flow-state.test.js
 src/components/auth-submit.js
@@ -74,8 +74,8 @@ src/components/bed-filter-state.js
 src/components/bed-filter-state.test.js
 src/components/cart-state.js
 src/components/cart-state.test.js
-src/components/editor-state.js
-src/components/editor-state.test.js
+src/components/layout-canvas-layout-canvas-editor-state.js
+src/components/layout-canvas-editor-state.test.js
 src/components/layout-editor-command-handlers.js
 src/components/layout-editor-command-handlers.test.js
 src/components/layout-editor-command-runner.js
@@ -86,17 +86,17 @@ src/components/layout-library-state.js
 src/components/layout-library-state.test.js
 src/components/login-guard.js
 src/components/login-guard.test.js
-src/components/navigation-state.js
-src/components/navigation-state.test.js
-src/components/product-flow-state.js
-src/components/product-flow-state.test.js
-src/components/search-drawer.js
-src/components/search-drawer.test.js
-src/components/space-profile-state.js
-src/components/space-profile-state.test.js
-src/components/space-profile.jsx
-src/components/space-summary.js
-src/components/space-summary.test.js
+src/components/spa-hash-spa-hash-navigation-state.js
+src/components/spa-hash-navigation-state.test.js
+src/components/catalog-product-selection-state.js
+src/components/catalog-product-selection-state.test.js
+src/components/global-search-overlay-state.js
+src/components/global-search-overlay-state.test.js
+src/components/address-and-space-selection-state.js
+src/components/address-and-space-selection-state.test.js
+src/components/address-and-space-setup.jsx
+src/components/selected-space-summary-state.js
+src/components/selected-space-summary-state.test.js
 src/components/wishlist-state.js
 src/components/wishlist-state.test.js
 src/main.jsx
@@ -161,8 +161,8 @@ src/components/auth-storage.test.js
  scripts/gemini-review.sh                           |  69 ++
  src/components/ai-recommendation-state.js          |  43 ++
  src/components/ai-recommendation-state.test.js     | 120 +++
- src/components/app-state.js                        |  23 +
- src/components/app-state.test.js                   |  91 +++
+ src/components/recommendation-layout-derivations.js                        |  23 +
+ src/components/recommendation-layout-derivations.test.js                   |  91 +++
  src/components/auth-flow-state.js                  | 108 +++
  src/components/auth-flow-state.test.js             | 120 +++
  src/components/auth-submit.js                      |  49 ++
@@ -171,8 +171,8 @@ src/components/auth-storage.test.js
  src/components/bed-filter-state.test.js            |  59 ++
  src/components/cart-state.js                       |  25 +
  src/components/cart-state.test.js                  |  57 ++
- src/components/editor-state.js                     |  74 ++
- src/components/editor-state.test.js                |  87 +++
+ src/components/layout-canvas-layout-canvas-editor-state.js                     |  74 ++
+ src/components/layout-canvas-editor-state.test.js                |  87 +++
  src/components/layout-editor-command-handlers.js   |  19 +
  .../layout-editor-command-handlers.test.js         |  69 ++
  src/components/layout-editor-command-runner.js     |  18 +
@@ -183,17 +183,17 @@ src/components/auth-storage.test.js
  src/components/layout-library-state.test.js        |  58 ++
  src/components/login-guard.js                      |  22 +
  src/components/login-guard.test.js                 |  38 +
- src/components/navigation-state.js                 |  37 +
- src/components/navigation-state.test.js            |  34 +
- src/components/product-flow-state.js               |  16 +
- src/components/product-flow-state.test.js          |  37 +
- src/components/search-drawer.js                    |  33 +
- src/components/search-drawer.test.js               |  39 +
- src/components/space-profile-state.js              |  59 ++
- src/components/space-profile-state.test.js         | 105 +++
- src/components/space-profile.jsx                   | 123 ++++
- src/components/space-summary.js                    |  22 +
- src/components/space-summary.test.js               |  40 +
+ src/components/spa-hash-spa-hash-navigation-state.js                 |  37 +
+ src/components/spa-hash-navigation-state.test.js            |  34 +
+ src/components/catalog-product-selection-state.js               |  16 +
+ src/components/catalog-product-selection-state.test.js          |  37 +
+ src/components/global-search-overlay-state.js                    |  33 +
+ src/components/global-search-overlay-state.test.js               |  39 +
+ src/components/address-and-space-selection-state.js              |  59 ++
+ src/components/address-and-space-selection-state.test.js         | 105 +++
+ src/components/address-and-space-setup.jsx                   | 123 ++++
+ src/components/selected-space-summary-state.js                    |  22 +
+ src/components/selected-space-summary-state.test.js               |  40 +
  src/components/wishlist-state.js                   |   5 +
  src/components/wishlist-state.test.js              |  19 +
  src/main.jsx                                       | 811 ++++++++++++++-------

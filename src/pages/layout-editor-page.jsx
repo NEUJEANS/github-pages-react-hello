@@ -140,6 +140,8 @@ export function LayoutEditorPage({
     runLayoutEditorCommands(buildLayoutEditorActionCommands(action), actionCommandHandlers)
   }, [actionCommandHandlers, buildLayoutEditorActionCommands, runLayoutEditorCommands])
 
+  const boardSummary = addressSummary?.trim() || '프로젝트 레이아웃 보드'
+
   const guestLayoutAuthAction = React.useMemo(() => {
     if (authSession) {
       return null
@@ -162,15 +164,37 @@ export function LayoutEditorPage({
         source: 'layout-editor',
         action: 'save-layout-draft',
         label: '로그인 후 보드 저장',
-        draftLabel: addressSummary,
+        draftLabel: boardSummary,
         returnScreen: 'layout',
       }),
     }
-  }, [addressSummary, authSession, isAuthBootstrapPending, onOpenLogin])
+  }, [authSession, boardSummary, isAuthBootstrapPending, onOpenLogin])
 
   return (
     <div className="screenCanvas editorBg">
-      <Header dark active="내가 배치하기" onNavigate={navigate} onOpenOverlay={openOverlay} onOpenCart={openCart} cartCount={cartCount} onSearchOpen={onSearchOpen} onOpenLogin={onOpenLogin} authSession={authSession} />
+      <section className="heroBanner">
+        <div>
+          <div className="eyebrow darkEyebrow">LAYOUT EDITOR</div>
+          <h2>프로젝트 레이아웃 보드</h2>
+          <p>아파트 탐색/브라우징 UI를 걷어내고 실제 진행 가능한 레이아웃 편집과 계정 저장 흐름만 남겼어요.</p>
+          <div className="heroActions">
+            <button className="cta" onClick={() => navigate('layout')}>편집 유지</button>
+            <button className="ghost" onClick={openCart}>장바구니 ({cartCount})</button>
+            <button
+              className="ghost"
+              onClick={() => onOpenLogin({
+                source: 'layout-editor-header',
+                action: authSession ? 'resume-authenticated-flow' : 'save-layout-draft',
+                label: authSession ? '계정 상태 확인' : '로그인 후 보드 저장',
+                draftLabel: boardSummary,
+                returnScreen: 'layout',
+              })}
+            >
+              {authSession ? '계정 보기' : '로그인 / 회원가입'}
+            </button>
+          </div>
+        </div>
+      </section>
       <section className="editorLayout">
         <aside className="editorSide left">
           <div className="sideHead"><h3>가구 라이브러리</h3><input value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="가구 검색" /></div>
@@ -210,7 +234,7 @@ export function LayoutEditorPage({
           </div>
           <div className="editorCanvasShell">
             <div className="editorCanvasMeta">
-              <span>{addressSummary}</span>
+              <span>{boardSummary}</span>
               <button className={`metaToggle ${editor.snapOn ? 'on' : ''}`} onClick={() => editor.setSnapOn((current) => !current)}>{editor.snapOn ? '스냅 ON' : '스냅 OFF'}</button>
               <span>{editor.notice}</span>
               <span>{editorHint.description}</span>

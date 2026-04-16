@@ -1,9 +1,9 @@
 # HAVENLY parallel checkpoint — 2026-04-05 app state slice
 
 ## What changed
-- Extracted a small set of `App`-level derived state helpers from `src/main.jsx` into `src/components/app-state.js`.
+- Extracted a small set of `App`-level derived state helpers from `src/main.jsx` into `src/components/recommendation-layout-derivations.js`.
 - Moved selected apartment lookup, AI recommendation context building, AI room reconciliation, and layout address summary formatting into pure functions.
-- Added focused coverage in `src/components/app-state.test.js` for apartment lookup, recommendation context fallback behavior, room reconciliation, and layout summary formatting.
+- Added focused coverage in `src/components/recommendation-layout-derivations.test.js` for apartment lookup, recommendation context fallback behavior, room reconciliation, and layout summary formatting.
 - Updated `src/main.jsx` to consume the new helper module so the top-level app flow stays a bit slimmer while preserving existing behavior.
 
 ## Validation

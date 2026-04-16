@@ -1,9 +1,9 @@
 # HAVENLY parallel checkpoint — 2026-04-05 product flow state helpers
 
 ## What changed
-- Extracted small product-flow decisions from `src/main.jsx` into `src/components/product-flow-state.js`.
+- Extracted small product-flow decisions from `src/main.jsx` into `src/components/catalog-product-selection-state.js`.
 - Centralized three behaviors there: search-result pick mode (`quickView` vs `cart`), canonical quick-view product resolution for beds, and layout-editor product normalization when applying from quick view.
-- Added focused Node-test coverage in `src/components/product-flow-state.test.js` for all three behaviors.
+- Added focused Node-test coverage in `src/components/catalog-product-selection-state.test.js` for all three behaviors.
 - Updated `src/main.jsx` to consume the helper module so product routing is easier to follow and safer to refactor later.
 
 ## Validation

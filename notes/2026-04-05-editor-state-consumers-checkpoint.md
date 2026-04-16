@@ -1,7 +1,7 @@
 # HAVENLY parallel checkpoint — 2026-04-05 editor state consumer cleanup
 
 ## What changed
-- Updated `src/main.jsx` so `useEditorState` now consumes the existing pure helpers from `src/components/editor-state.js` instead of repeating the same geometry and placement logic inline.
+- Updated `src/main.jsx` so `useEditorState` now consumes the existing pure helpers from `src/components/layout-canvas-layout-canvas-editor-state.js` instead of repeating the same geometry and placement logic inline.
 - Swapped keyboard nudges over to `resolveMovedItemPosition`, click-to-move target snapping over to `resolveAnimatedTarget`, drag updates over to `resolveDragPosition`, and library insertions over to `buildPlacedLibraryItem`.
 - Kept the change source-only by reverting regenerated `dist/index.html` after validation.
 

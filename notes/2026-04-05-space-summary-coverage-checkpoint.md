@@ -1,9 +1,9 @@
 # HAVENLY parallel checkpoint — 2026-04-05 shared space summary coverage slice
 
 ## What changed
-- Extracted the shared-space summary / available-room derivation into a dedicated helper module (`src/components/space-summary.js`) so the AI room-availability logic is easier to reason about and protect.
+- Extracted the shared-space summary / available-room derivation into a dedicated helper module (`src/components/selected-space-summary-state.js`) so the AI room-availability logic is easier to reason about and protect.
 - Updated `src/main.jsx` to consume the shared helper instead of keeping the derivation inline.
-- Added a tiny Node test file (`src/components/space-summary.test.js`) covering three key cases: linked living+study flow, bedroom-only fallback, and no-space fallback.
+- Added a tiny Node test file (`src/components/selected-space-summary-state.test.js`) covering three key cases: linked living+study flow, bedroom-only fallback, and no-space fallback.
 - Added a lightweight `npm test` script to make this regression check easy to rerun in future small checkpoints.
 
 ## Validation

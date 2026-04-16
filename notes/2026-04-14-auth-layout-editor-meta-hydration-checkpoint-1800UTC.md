@@ -11,8 +11,8 @@ Keep progressing in the main worktree on a coherent layout/auth slice discovered
 
 ## Page-context slice used
 Focused only on the layout editor page wiring and the app-state helper that feeds the page:
-- `src/components/app-state.js`
-- `src/components/app-state.test.js`
+- `src/components/recommendation-layout-derivations.js`
+- `src/components/recommendation-layout-derivations.test.js`
 - `src/main.jsx`
 - `scripts/auth-login-smoke.mjs`
 

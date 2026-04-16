@@ -1,8 +1,8 @@
 # HAVENLY parallel checkpoint — 2026-04-05 navigation state slice
 
 ## What changed
-- Extracted the hash parsing and screen-direction helpers from `src/main.jsx` into `src/components/navigation-state.js`.
-- Added focused Node-test coverage in `src/components/navigation-state.test.js` for default hash fallback, address overlay routing, metadata fallback, transition direction, and hash serialization.
+- Extracted the hash parsing and screen-direction helpers from `src/main.jsx` into `src/components/spa-hash-spa-hash-navigation-state.js`.
+- Added focused Node-test coverage in `src/components/spa-hash-navigation-state.test.js` for default hash fallback, address overlay routing, metadata fallback, transition direction, and hash serialization.
 - Updated `useSpaNavigation()` in `src/main.jsx` to consume the new helper module while keeping the runtime behavior unchanged.
 
 ## Validation

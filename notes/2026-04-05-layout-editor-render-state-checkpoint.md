@@ -3,7 +3,7 @@
 ## What changed
 - Extended `src/components/layout-editor-view-state.js` with two pure render helpers: one for placed-item classnames and one for the inline style object used by each placed furniture node.
 - Updated `src/main.jsx` so the layout editor now consumes those helpers instead of rebuilding the class/style strings inline.
-- Swapped the layout editor's click-to-move centering math over to the already-tested `resolveRoomClickTarget` helper from `src/components/editor-state.js`, removing another tiny chunk of duplicated geometry logic from `main.jsx`.
+- Swapped the layout editor's click-to-move centering math over to the already-tested `resolveRoomClickTarget` helper from `src/components/layout-canvas-layout-canvas-editor-state.js`, removing another tiny chunk of duplicated geometry logic from `main.jsx`.
 - Added focused tests in `src/components/layout-editor-view-state.test.js` covering the new classname/style helpers.
 
 ## Validation

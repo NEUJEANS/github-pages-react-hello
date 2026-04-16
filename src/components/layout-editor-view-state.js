@@ -91,23 +91,9 @@ export function buildLayoutEditorSelectionSnapshot(selectedItem, selectedMeta) {
 export function buildLayoutEditorActionButtons(hasSelectedMeta) {
   return [
     {
-      id: 'browse-more',
-      label: '가구 더 보기',
-      tone: 'cta',
-      action: 'navigate-beds',
-      disabled: false,
-    },
-    {
-      id: 'reselect-space',
-      label: '공간 다시 선택',
-      tone: 'ghost',
-      action: 'open-address-overlay',
-      disabled: false,
-    },
-    {
       id: 'add-selected-to-cart',
       label: '선택 가구 담기',
-      tone: 'ghost',
+      tone: 'cta',
       action: 'add-selected-to-cart',
       disabled: !hasSelectedMeta,
     },
@@ -122,8 +108,6 @@ export function buildLayoutEditorActionButtons(hasSelectedMeta) {
 }
 
 export function buildLayoutEditorActionCommands(action) {
-  if (action === 'navigate-beds') return [{ type: 'navigate', value: 'beds' }]
-  if (action === 'open-address-overlay') return [{ type: 'open-overlay', value: 'address' }]
   if (action === 'add-selected-to-cart') return [{ type: 'add-selected-to-cart' }]
   if (action === 'reset-layout') return [{ type: 'reset-layout' }]
   return []

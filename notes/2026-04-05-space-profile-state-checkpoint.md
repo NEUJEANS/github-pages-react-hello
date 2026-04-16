@@ -1,9 +1,9 @@
 # HAVENLY parallel checkpoint — 2026-04-05 space profile state slice
 
 ## What changed
-- Extracted the apartment/zone selection state transitions from `space-profile.jsx` into a new pure helper module: `src/components/space-profile-state.js`.
-- Moved the shared selection guard (`toggleRequiredSelection`) into that module so both `space-profile.jsx` and `main.jsx` use the same tested logic without depending on JSX imports.
-- Added focused tests for apartment selection snapshots, query/type updates, required-zone toggling, and the address overlay room filter in `src/components/space-profile-state.test.js`.
+- Extracted the apartment/zone selection state transitions from `address-and-space-setup.jsx` into a new pure helper module: `src/components/address-and-space-selection-state.js`.
+- Moved the shared selection guard (`toggleRequiredSelection`) into that module so both `address-and-space-setup.jsx` and `main.jsx` use the same tested logic without depending on JSX imports.
+- Added focused tests for apartment selection snapshots, query/type updates, required-zone toggling, and the address overlay room filter in `src/components/address-and-space-selection-state.test.js`.
 - Kept the UI behavior unchanged while making the state logic easier to extend and safer to review.
 
 ## Validation
