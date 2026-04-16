@@ -398,6 +398,37 @@ export function resetAuthScaffoldState() {
   scaffoldState.pending = null
 }
 
+export function completeAuthScaffoldVerification() {
+  const currentSession = cloneValue(scaffoldState.session)
+  if (!currentSession) {
+    return {
+      status: 404,
+      data: null,
+    }
+  }
+
+  const verifiedAt = new Date().toISOString()
+  persistAccountRecord(currentSession.user?.email ?? '', {
+    user: cloneValue(currentSession.user ?? null),
+    profile: cloneValue(currentSession.profile ?? null),
+    verifiedAt,
+    accountState: cloneValue(currentSession.accountState ?? null),
+  })
+
+  scaffoldState.session = {
+    ...currentSession,
+    verifiedAt,
+    nextAction: resolvePostBlockerNextAction(currentSession, 'verify-email', currentSession.intent ?? null),
+    status: 'ready',
+    statusLabel: '이메일 인증 완료',
+  }
+
+  return {
+    status: 200,
+    data: cloneValue(scaffoldState.session),
+  }
+}
+
 export function submitAuthScaffoldRequest({ request = {}, connection = null, actionConnection = null, submittedAt = new Date().toISOString() } = {}) {
   const requestConnection = request?.connection && typeof request.connection === 'object' && !Array.isArray(request.connection)
     ? cloneValue(request.connection)

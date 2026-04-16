@@ -43,7 +43,7 @@ function createMemoryStorage() {
   }
 }
 
-test('buildAuthConnectionSummary resolves same-origin and external auth targets', () => {
+test('buildAuthConnectionSummary stays on the same-origin scaffold even when legacy api base values are present', () => {
   assert.deepEqual(
     buildAuthConnectionSummary({ endpoint: '/api/auth/login', method: 'POST' }),
     {
@@ -66,7 +66,7 @@ test('buildAuthConnectionSummary resolves same-origin and external auth targets'
     {
       method: 'POST',
       endpoint: '/api/auth/login',
-      resolvedUrl: 'https://havenly.example.com/api/auth/login',
+      resolvedUrl: '/api/auth/login',
       targetLabel: 'same-origin /api auth scaffold',
       isExternal: false,
       isSameOriginScaffold: true,
@@ -83,10 +83,10 @@ test('buildAuthConnectionSummary resolves same-origin and external auth targets'
     {
       method: 'POST',
       endpoint: '/api/auth/login',
-      resolvedUrl: 'https://api.example.com/api/auth/login',
-      targetLabel: 'api.example.com',
-      isExternal: true,
-      isSameOriginScaffold: false,
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      isExternal: false,
+      isSameOriginScaffold: true,
       credentialsMode: 'include',
       source: 'default',
     },
@@ -121,7 +121,7 @@ test('buildAuthConnectionSummary resolves same-origin and external auth targets'
     {
       method: 'POST',
       endpoint: '/api/auth/continue',
-      resolvedUrl: 'https://havenly.example.com/github-pages-react-hello/api/auth/continue',
+      resolvedUrl: '/github-pages-react-hello/api/auth/continue',
       targetLabel: 'same-origin /api auth scaffold',
       isExternal: false,
       isSameOriginScaffold: true,

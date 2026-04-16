@@ -1,7 +1,7 @@
 # HAVENLY Page 03 · Commerce
 
 ## File
-- `src/pages/catalog-shopping-pages.jsx`
+- `src/pages/final-surface-page.jsx`
 
 ## Owns
 - `FurnitureHomePage`

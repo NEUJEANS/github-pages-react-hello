@@ -46,11 +46,10 @@ function AuthGuardView({ guardPanelState, engagement, reasons, onClose, onProcee
           {reasons.map((reason) => <span key={reason}>{reason}</span>)}
         </div>
         <div className="guardSummary compact">
-          <div><label>선택 공간</label><b>{guardPanelState.selectedSpaceCount}개</b></div>
-          <div><label>추천 초안</label><b>{guardPanelState.recommendationRoom ?? '없음'}</b></div>
           <div><label>배치 아이템</label><b>{guardPanelState.layoutItemCount}개</b></div>
           <div><label>찜</label><b>{engagement.wishlistCount}개</b></div>
           <div><label>장바구니</label><b>{engagement.cartCount}개</b></div>
+          <div><label>저장 보드</label><b>{engagement.draftBoards}개</b></div>
         </div>
         {guardPanelState.draftContextBits.length > 0 && (
           <p className="muted">{guardPanelState.draftContextBits.join(' · ')}</p>
@@ -155,9 +154,8 @@ function AuthCredentialsView({
   modeLabels,
   authSubmitPlan,
   authSignupPlan,
-  authStatusMessage,
+  authStatusCopy,
   authErrorSummary,
-  authConnectionSummary,
   loginPanelState,
   onChangeForm,
   onDismissResume,
@@ -232,7 +230,7 @@ function AuthCredentialsView({
             </div>
           </div>
         )}
-        {authStatusMessage?.body && !isMergeContinuationPending && <p className="muted">{authStatusMessage.body}</p>}
+        {authStatusCopy && !isMergeContinuationPending && <p className="muted">{authStatusCopy}</p>}
       </div>
       <div className="footerButtons stackOnMobile">
         <button
@@ -262,7 +260,7 @@ function AuthCredentialsView({
   )
 }
 
-export function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authStatusMessage, authErrorSummary, authConnectionSummary, authReadyPanelState, guestDraftSnapshot, identityVerification, onStartVerification, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
+export function LoginModal({ state, engagement, reasons, form, authSubmitPlan, authSignupPlan, authContinuationPlan, authContinuationFields, authStatusCopy, authErrorSummary, authReadyPanelState, guestDraftSnapshot, identityVerification, onStartVerification, onChangeForm, onChangeContinuationField, onClose, onProceed, onDismissResume, onResumeAuthenticatedIntent, onSubmitContinuation, onSubmit }) {
   const guarded = state === 'guard'
   const modeLabels = buildAuthModeLabels(form.mode)
   const showReadyPanel = form.status === 'ready' && authReadyPanelState
@@ -271,12 +269,10 @@ export function LoginModal({ state, engagement, reasons, form, authSubmitPlan, a
     reasons,
     guestDraftSnapshot,
     authSummary: authSubmitPlan.summary,
-    connection: authConnectionSummary,
     intent: form.intent,
   })
   const loginPanelState = buildAuthLoginPanelState({
     authSummary: (form.mode === 'signup' ? authSignupPlan : authSubmitPlan).summary,
-    connection: authConnectionSummary,
     intent: form.intent,
   })
 
@@ -319,9 +315,8 @@ export function LoginModal({ state, engagement, reasons, form, authSubmitPlan, a
               modeLabels={modeLabels}
               authSubmitPlan={authSubmitPlan}
               authSignupPlan={authSignupPlan}
-              authStatusMessage={authStatusMessage}
+              authStatusCopy={authStatusCopy}
               authErrorSummary={authErrorSummary}
-              authConnectionSummary={authConnectionSummary}
               loginPanelState={loginPanelState}
               onChangeForm={onChangeForm}
               onDismissResume={onDismissResume}

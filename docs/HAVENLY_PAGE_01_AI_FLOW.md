@@ -1,7 +1,7 @@
 # HAVENLY Page 01 · AI Flow
 
 ## File
-- `src/pages/recommendation-onboarding-pages.jsx`
+- `src/pages/auth-entry-page.jsx`
 
 ## Owns
 - `AiRecommendPage`

@@ -465,14 +465,9 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
   }
 
   if (status >= 500 || status === 0) {
-    const isUnconfiguredPages = result?.meta?.authTransport === 'unconfigured-pages'
     return {
       tone: 'service',
-      message: result?.meta?.authTransport === 'unconfigured-pages-loopback-blocked'
-        ? '이 브라우저에서는 GitHub Pages가 로컬 인증 서버에 직접 닿지 못하고 있어요. 실제 로그인/보드 저장을 쓰려면 공개 authApiBaseUrl을 연결하거나 로컬 프리뷰 경로로 열어야 해요.'
-        : isUnconfiguredPages
-          ? '라이브 GitHub Pages 인증 백엔드가 아직 연결되지 않았어요. 실제 로그인/보드 저장을 쓰려면 배포 페이지에 authApiBaseUrl 런타임 설정이 필요해요.'
-          : (message ?? '인증 서비스 연결을 아직 준비 중이에요. 잠시 후 다시 시도해주세요.'),
+      message: message ?? '인증 데모 상태를 준비하지 못했어요. 잠시 후 다시 시도해주세요.',
       summary: buildFallbackSummary(fallbackSummary),
       resumeToken: data.resumeToken ?? null,
       nextAction: normalizeContinuationNextAction(data.nextAction ?? null),
@@ -486,7 +481,7 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
   }
 }
 
-export function buildAuthStatusCopy(status, summary, resultSummary = null, errorSummary = null, connectionSummary = null) {
+export function buildAuthStatusCopy(status, summary, resultSummary = null, errorSummary = null) {
   if (status === 'resume-ready') {
     return '이전 로그인 시도가 남아 있어요. 이어서 로그인할 수 있어요.'
   }
@@ -506,7 +501,6 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
     if (errorSummary?.tone === 'credentials') return errorSummary.message ?? '이메일 또는 비밀번호를 다시 확인해 주세요.'
     if (errorSummary?.tone === 'merge') return errorSummary.message ?? '어떤 초안을 이어갈지 선택해 주세요.'
     if (errorSummary?.tone === 'service') {
-      if (connectionSummary?.isSameOriginScaffold) return '인증 연결을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.'
       return errorSummary.message ?? '인증 연결을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.'
     }
     return errorSummary?.message ?? '로그인에 실패했어요. 다시 시도해 주세요.'

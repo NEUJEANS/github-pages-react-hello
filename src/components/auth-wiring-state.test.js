@@ -109,7 +109,7 @@ test('buildAuthWiringState resolves same-origin auth endpoints under an app base
   )
 })
 
-test('buildAuthWiringState resolves remote auth targets from configured api base urls', () => {
+test('buildAuthWiringState keeps legacy api base config on the same frontend scaffold targets', () => {
   assert.deepEqual(
     buildAuthWiringState({
       apiBaseUrl: 'https://auth-runtime.example.com',
@@ -132,11 +132,11 @@ test('buildAuthWiringState resolves remote auth targets from configured api base
       targets: {
         login: {
           endpoint: '/v2/runtime/login',
-          resolvedUrl: 'https://auth-runtime.example.com/v2/runtime/login',
-          mode: 'remote',
+          resolvedUrl: '/v2/runtime/login',
+          mode: 'same-origin',
           method: 'POST',
-          targetLabel: 'auth-runtime.example.com',
-          isSameOriginScaffold: false,
+          targetLabel: 'same-origin /api auth scaffold',
+          isSameOriginScaffold: true,
           expectsSerializableHandoff: true,
           carriesDraftSave: true,
           carriesGuestDraftSnapshot: true,
@@ -145,11 +145,11 @@ test('buildAuthWiringState resolves remote auth targets from configured api base
         },
         signup: {
           endpoint: '/v2/runtime/signup',
-          resolvedUrl: 'https://auth-runtime.example.com/v2/runtime/signup',
-          mode: 'remote',
+          resolvedUrl: '/v2/runtime/signup',
+          mode: 'same-origin',
           method: 'POST',
-          targetLabel: 'auth-runtime.example.com',
-          isSameOriginScaffold: false,
+          targetLabel: 'same-origin /api auth scaffold',
+          isSameOriginScaffold: true,
           expectsSerializableHandoff: true,
           carriesDraftSave: true,
           carriesGuestDraftSnapshot: true,
@@ -158,11 +158,11 @@ test('buildAuthWiringState resolves remote auth targets from configured api base
         },
         session: {
           endpoint: '/v2/runtime/session',
-          resolvedUrl: 'https://auth-runtime.example.com/v2/runtime/session',
-          mode: 'remote',
+          resolvedUrl: '/v2/runtime/session',
+          mode: 'same-origin',
           method: 'GET',
-          targetLabel: 'auth-runtime.example.com',
-          isSameOriginScaffold: false,
+          targetLabel: 'same-origin /api auth scaffold',
+          isSameOriginScaffold: true,
           expectsSerializableHandoff: false,
           carriesDraftSave: false,
           carriesGuestDraftSnapshot: false,
@@ -171,11 +171,11 @@ test('buildAuthWiringState resolves remote auth targets from configured api base
         },
         pending: {
           endpoint: '/v2/runtime/pending',
-          resolvedUrl: 'https://auth-runtime.example.com/v2/runtime/pending',
-          mode: 'remote',
+          resolvedUrl: '/v2/runtime/pending',
+          mode: 'same-origin',
           method: 'GET',
-          targetLabel: 'auth-runtime.example.com',
-          isSameOriginScaffold: false,
+          targetLabel: 'same-origin /api auth scaffold',
+          isSameOriginScaffold: true,
           expectsSerializableHandoff: false,
           carriesDraftSave: false,
           carriesGuestDraftSnapshot: false,
@@ -184,11 +184,11 @@ test('buildAuthWiringState resolves remote auth targets from configured api base
         },
         continue: {
           endpoint: '/v2/runtime/continue',
-          resolvedUrl: 'https://auth-runtime.example.com/v2/runtime/continue',
-          mode: 'remote',
+          resolvedUrl: '/v2/runtime/continue',
+          mode: 'same-origin',
           method: 'POST',
-          targetLabel: 'auth-runtime.example.com',
-          isSameOriginScaffold: false,
+          targetLabel: 'same-origin /api auth scaffold',
+          isSameOriginScaffold: true,
           expectsSerializableHandoff: true,
           carriesDraftSave: true,
           carriesGuestDraftSnapshot: false,
@@ -197,11 +197,11 @@ test('buildAuthWiringState resolves remote auth targets from configured api base
         },
         logout: {
           endpoint: '/v2/runtime/logout',
-          resolvedUrl: 'https://auth-runtime.example.com/v2/runtime/logout',
-          mode: 'remote',
+          resolvedUrl: '/v2/runtime/logout',
+          mode: 'same-origin',
           method: 'POST',
-          targetLabel: 'auth-runtime.example.com',
-          isSameOriginScaffold: false,
+          targetLabel: 'same-origin /api auth scaffold',
+          isSameOriginScaffold: true,
           expectsSerializableHandoff: true,
           carriesDraftSave: false,
           carriesGuestDraftSnapshot: false,
@@ -209,7 +209,7 @@ test('buildAuthWiringState resolves remote auth targets from configured api base
           isContinuation: false,
         },
       },
-      scaffoldStrategy: 'remote-auth-service',
+      scaffoldStrategy: 'same-origin-continuation-scaffold',
     },
   )
 })

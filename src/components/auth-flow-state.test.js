@@ -708,7 +708,7 @@ test('buildAuthErrorSummary categorizes backend auth failures for the modal stat
   )
 })
 
-test('buildAuthErrorSummary surfaces explicit GitHub Pages runtime wiring guidance for unconfigured live auth', () => {
+test('buildAuthErrorSummary keeps service failures frontend-focused for scaffold auth', () => {
   const summary = buildAuthErrorSummary(
     {
       ok: false,
@@ -725,8 +725,7 @@ test('buildAuthErrorSummary surfaces explicit GitHub Pages runtime wiring guidan
   )
 
   assert.equal(summary.tone, 'service')
-  assert.match(summary.message, /GitHub Pages/)
-  assert.match(summary.message, /authApiBaseUrl/)
+  assert.equal(summary.message, 'GitHub Pages auth backend is not configured yet.')
 })
 
 test('buildAuthStatusCopy reflects the staged auth handoff state', () => {

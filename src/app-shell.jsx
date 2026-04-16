@@ -13,9 +13,8 @@ import {
   resolveContinuationSubmitIntent,
 } from './components/auth-flow-state.js'
 import { readAuthPending, readAuthSession, signOutAuthSession, submitAuthContinuationPlan, submitAuthLoginPlan, submitAuthSignupPlan } from './components/auth-submit.js'
-import { detectLocalPagesAuthConfig, resolveAuthConfig } from './components/auth-config.js'
+import { resolveAuthConfig } from './components/auth-config.js'
 import { openIdentityVerificationWindow, readIdentityVerificationStatus, startIdentityVerification } from './components/auth-verification.js'
-import { trackLayoutComponentEvent } from './components/layout-backend.js'
 import { buildLayoutAuthPanelState } from './components/layout-auth-panel-state.js'
 import {
   buildAuthConnectionSummary,
@@ -27,8 +26,6 @@ import {
   buildSerializableAuthIntent,
   resolveAuthConnectionOverride,
   resolvePersistedAuthConnection,
-  hasAuthConnectionDrift,
-  buildAuthConnectionDriftSummary,
   buildPersistedAuthSession,
   clearPersistedAuthHandoff,
   clearPersistedAuthSession,
@@ -46,6 +43,12 @@ import {
   shouldAutoOpenAuthReadyPanel,
 } from './components/auth-session-view-state.js'
 import { LoginModal } from './components/auth-modal.jsx'
+import {
+  buildAuthContinuationFieldState,
+  buildAuthSessionResultSummary,
+  buildEmptyLoginForm,
+  pickPersistedAuthContinuationFields,
+} from './components/auth-entry-shell-state.js'
 import { buildAccountContinuityPatch, buildRestoredRecommendationDraft } from './components/auth-account-continuity.js'
 import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
@@ -66,8 +69,6 @@ import {
 } from './components/cart-state.js'
 import {
   buildLayoutAddressSummary,
-  buildRecommendationContext,
-  buildSelectedApartment,
   resolveAiRoomSelection,
 } from './components/recommendation-layout-derivations.js'
 import {
@@ -105,9 +106,9 @@ import {
   buildVisibleLibrary,
   layoutLibraryCategoryTabs,
 } from './components/layout-library-state.js'
-import { AiRecommendPage, SpaceSelectPage } from './pages/recommendation-onboarding-pages.jsx'
+import { AiRecommendPage, SpaceSelectPage } from './pages/auth-entry-page.jsx'
 import { LayoutEditorPage } from './pages/layout-editor-page.jsx'
-import { BedsCategoryPage, FurnitureHomePage } from './pages/catalog-shopping-pages.jsx'
+import { BedsCategoryPage, FurnitureHomePage } from './pages/final-surface-page.jsx'
 import './styles.css'
 
 const initialEngagement = {
@@ -122,26 +123,6 @@ const initialAiForm = {
   priority: 'flow',
   lifestyle: ['기본'],
   extraRequest: '',
-}
-
-const initialAuthContinuationFields = {
-  displayName: '',
-  phone: '',
-  verificationCode: '',
-  mergeResolution: '',
-}
-
-function buildAuthContinuationFieldState(fields = null) {
-  return {
-    ...initialAuthContinuationFields,
-    ...(buildSerializableAuthContinuationFields(fields) ?? {}),
-  }
-}
-
-function pickPersistedAuthContinuationFields(continuation = null, fields = null) {
-  const nextAction = typeof continuation?.nextAction === 'string' ? continuation.nextAction.trim() : ''
-  if (nextAction !== 'complete-profile' && nextAction !== 'verify-email' && nextAction !== 'confirm-merge-resolution') return null
-  return buildSerializableAuthContinuationFields(fields)
 }
 
 const roomOptions = ['거실', '침실', '주방', '서재']
@@ -520,65 +501,8 @@ function useEditorState() {
   }
 }
 
-const LOGIN_BUTTON_LABEL = '로그인'
 const IDENTITY_VERIFICATION_PENDING_MIN_MS = 650
 const IDENTITY_VERIFICATION_SUCCESS_HOLD_MS = 900
-
-function buildEmptyLoginForm(intent = null) {
-  return {
-    mode: 'login',
-    email: '',
-    password: '',
-    displayName: '',
-    confirmPassword: '',
-    agreeToTerms: false,
-    handoffId: null,
-    status: 'idle',
-    result: null,
-    mergeResolution: null,
-    intent: buildSerializableAuthIntent(intent),
-    connection: null,
-  }
-}
-
-function buildAuthSessionResultSummary(session = null) {
-  if (!session) return null
-
-  return {
-    accountLabel: session.accountLabel ?? null,
-    sessionId: session.sessionId ?? null,
-    handoffId: session.handoffId ?? null,
-    mergeMode: session.mergeMode ?? null,
-    mergedDraftCount: session.mergedDraftCount ?? 0,
-    restoredWishlistCount: session.restoredWishlistCount ?? 0,
-    restoredCartCount: session.restoredCartCount ?? 0,
-    restoredLayoutItemCount: session.restoredLayoutItemCount ?? 0,
-    restoredRecommendationDraft: Boolean(session.restoredRecommendationDraft),
-    wishlistCount: session.wishlistCount ?? 0,
-    cartCount: session.cartCount ?? 0,
-    layoutItemCount: session.layoutItemCount ?? 0,
-    hasRecommendationDraft: Boolean(session.hasRecommendationDraft),
-    guestDraftSummary: session.guestDraftSummary ?? null,
-    draftSave: session.draftSave ?? null,
-    intent: session.intent ?? null,
-    connection: session.connection ?? null,
-    resumeToken: session.continuation?.resumeToken ?? null,
-    nextAction: session.continuation?.nextAction ?? null,
-    continuationStatus: session.continuation?.status ?? null,
-    continuationStatusLabel: session.continuation?.statusLabel ?? null,
-    authMode: session.authMode ?? 'remote',
-    authTransport: session.authTransport ?? 'network',
-  }
-}
-
-function resolveLoginButtonLabel(authSession) {
-  return authSession?.accountLabel ?? LOGIN_BUTTON_LABEL
-}
-
-function resolveAccountTriggerAriaLabel(authSession) {
-  const accountLabel = typeof authSession?.accountLabel === 'string' ? authSession.accountLabel.trim() : ''
-  return accountLabel ? `${accountLabel} 계정 보기` : '로그인 열기'
-}
 
 function StageTransition({ screen, direction, children }) {
   const [displayScreen, setDisplayScreen] = React.useState(screen)
@@ -751,40 +675,10 @@ export function AppShell() {
     layoutTrayItems,
   }), [aiForm, cart.items, editor.items, engagement, layoutTrayItems, selectedApartment, selectedSpaceSummary, spaceProfile, wishlistedIds])
 
-  const baseAuthConfig = React.useMemo(
+  const authConfig = React.useMemo(
     () => resolveAuthConfig({ env: import.meta.env }),
     [],
   )
-  const [detectedAuthConfig, setDetectedAuthConfig] = React.useState(null)
-  const authConfig = detectedAuthConfig ?? baseAuthConfig
-
-  React.useEffect(() => {
-    let cancelled = false
-
-    if (baseAuthConfig.isConfigured || baseAuthConfig.loopbackProbeBlockedReason || !baseAuthConfig.allowLoopbackProbe) {
-      setDetectedAuthConfig(null)
-      return () => {
-        cancelled = true
-      }
-    }
-
-    detectLocalPagesAuthConfig({
-      currentOrigin: baseAuthConfig.currentOrigin,
-      appBasePath: baseAuthConfig.appBasePath,
-      source: baseAuthConfig.source,
-      allowLoopbackProbe: baseAuthConfig.allowLoopbackProbe,
-    }).then((resolvedConfig) => {
-      if (cancelled || !resolvedConfig) return
-      setDetectedAuthConfig((current) => {
-        if (JSON.stringify(current) === JSON.stringify(resolvedConfig)) return current
-        return resolvedConfig
-      })
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [baseAuthConfig])
 
   React.useEffect(() => () => {
     verificationPendingStartedAtRef.current = null
@@ -971,13 +865,13 @@ export function AppShell() {
     editorItems: editor.items,
     trayItems: layoutTrayItems,
     draftLabel: buildLayoutAddressSummary(spaceProfile),
-    currentApartmentLabel: selectedApartment ? formatApartmentOption(selectedApartment) : null,
+    currentApartmentLabel: spaceProfile.apartmentType ?? null,
     currentApartmentSelectionId: spaceProfile.apartmentSelectionId,
     currentSelectedSpaceIds: spaceProfile.spaces,
     recommendationRoom: aiForm.room,
     currentRecommendationDraft: aiForm,
     saveState: layoutBoardSaveState,
-  }), [aiForm, authSession, editor.items, layoutBoardSaveState, layoutTrayItems, selectedApartment, spaceProfile])
+  }), [aiForm, authSession, editor.items, layoutBoardSaveState, layoutTrayItems, spaceProfile])
 
   const authSubmitPlan = React.useMemo(() => buildAuthSubmitPlan({
     email: loginForm.email,
@@ -1044,15 +938,6 @@ export function AppShell() {
     [authConfig],
   )
 
-  const authConnectionDriftSummary = React.useMemo(
-    () => buildAuthConnectionDriftSummary(loginForm.connection, authConnectionSummary),
-    [authConnectionSummary, loginForm.connection],
-  )
-  const hasResumeConnectionDrift = React.useMemo(
-    () => loginForm.status === 'resume-ready' && hasAuthConnectionDrift(loginForm.connection, authConnectionSummary),
-    [authConnectionSummary, loginForm.connection, loginForm.status],
-  )
-
   const authResultSummary = React.useMemo(
     () => {
       if (loginForm.result) return buildAuthResultSummary(loginForm.result, activeAuthPlan.summary)
@@ -1067,17 +952,13 @@ export function AppShell() {
     [activeAuthPlan.summary, loginForm.result],
   )
 
-  const activeAuthStatusConnection = loginForm.status === 'resume-ready'
-    ? (loginForm.connection ?? authConnectionSummary)
-    : authConnectionSummary
-
   const activeAuthStatusSummary = loginForm.status === 'resume-ready' && loginForm.continuation
     ? { ...loginForm.continuation }
     : authResultSummary
 
-  const authStatusMessage = React.useMemo(
-    () => buildAuthStatusCopy(loginForm.status, activeAuthPlan.summary, activeAuthStatusSummary, authErrorSummary, activeAuthStatusConnection),
-    [activeAuthPlan.summary, activeAuthStatusConnection, activeAuthStatusSummary, authErrorSummary, loginForm.status],
+  const authStatusCopy = React.useMemo(
+    () => buildAuthStatusCopy(loginForm.status, activeAuthPlan.summary, activeAuthStatusSummary, authErrorSummary),
+    [activeAuthPlan.summary, activeAuthStatusSummary, authErrorSummary, loginForm.status],
   )
 
   const authSessionNotice = React.useMemo(
@@ -1094,18 +975,15 @@ export function AppShell() {
   )
 
   const authReadyPanelState = React.useMemo(
-    () => buildAuthReadyPanelState(authSession, {
-      actionConnection: authContinuationConnectionSummary,
-    }),
-    [authContinuationConnectionSummary, authSession],
+    () => buildAuthReadyPanelState(authSession),
+    [authSession],
   )
 
   const authResumePanelState = React.useMemo(
     () => buildAuthResumePanelState(loginForm.handoff, {
       session: persistedAuthSession,
-      actionConnection: authContinuationConnectionSummary,
     }),
-    [authContinuationConnectionSummary, loginForm.handoff, persistedAuthSession],
+    [loginForm.handoff, persistedAuthSession],
   )
 
   const activeAuthReadyPanelState = authReadyPanelState ?? (loginForm.status === 'resume-ready' ? authResumePanelState : null)
@@ -1396,7 +1274,6 @@ export function AppShell() {
     const requestedIntent = buildSerializableAuthIntent(intent)
 
     cart.setIsOpen(false)
-    setSearchDrawerOpen(false)
 
     if (authSession && requestedIntent) {
       const currentIntent = buildSerializableAuthIntent(authSession.intent)
@@ -1956,13 +1833,11 @@ export function AppShell() {
   const handleLayoutTrayDropToRoom = React.useCallback((product) => {
     addProductToLayout(product)
     setLayoutTrayItems((current) => current.filter((item) => item.id !== product.id))
-    trackLayoutComponentEvent({ authConfig, eventType: 'selectedComponent', item: product })
-  }, [addProductToLayout, authConfig])
+  }, [addProductToLayout])
 
   const handleLayoutTrayAbandon = React.useCallback((product) => {
     setLayoutTrayItems((current) => current.filter((item) => item.id !== product.id))
-    trackLayoutComponentEvent({ authConfig, eventType: 'abandonedComponent', item: product })
-  }, [authConfig])
+  }, [])
 
   const handleRestoreSavedLayout = React.useCallback(() => {
     const savedAccountState = authSession?.accountState
@@ -2007,10 +1882,8 @@ export function AppShell() {
       draftSave: {
         ...authDraftSavePayload,
         draftLabel: buildLayoutAddressSummary(spaceProfile),
-        apartmentLabel: selectedApartment
-          ? formatApartmentOption(selectedApartment)
-          : (authDraftSavePayload?.apartmentLabel ?? null),
-        apartmentSelectionId: selectedApartment?.id ?? spaceProfile.apartmentSelectionId ?? authDraftSavePayload?.apartmentSelectionId ?? null,
+        apartmentLabel: spaceProfile.apartmentType ?? authDraftSavePayload?.apartmentLabel ?? null,
+        apartmentSelectionId: spaceProfile.apartmentSelectionId ?? authDraftSavePayload?.apartmentSelectionId ?? null,
         layoutTrayItems: layoutTrayItems.map((item) => ({ ...item })),
       },
     })
@@ -2078,7 +1951,7 @@ export function AppShell() {
         savedAt: null,
       })
     }
-  }, [authConfig, authConnectionSummary, authContinuationConnectionSummary, authDraftSavePayload, authSession, cart.count, editor, layoutTrayItems, loginForm.handoffId, selectedApartment, wishlistedIds.length])
+  }, [authConfig, authConnectionSummary, authContinuationConnectionSummary, authDraftSavePayload, authSession, cart.count, editor, layoutTrayItems, loginForm.handoffId, spaceProfile, wishlistedIds.length])
 
   const shared = {
     navigate,
@@ -2143,12 +2016,8 @@ export function AppShell() {
             authSignupPlan={authSignupPlan}
             authContinuationPlan={authContinuationPlan}
             authContinuationFields={authContinuationFields}
-            authStatusMessage={authStatusMessage}
-            authResultSummary={authResultSummary}
+            authStatusCopy={authStatusCopy}
             authErrorSummary={authErrorSummary}
-            authConnectionSummary={authConnectionSummary}
-            hasResumeConnectionDrift={hasResumeConnectionDrift}
-            authConnectionDriftSummary={authConnectionDriftSummary}
             authReadyPanelState={activeAuthReadyPanelState}
             guestDraftSnapshot={guestDraftSnapshot}
             identityVerification={identityVerification}
@@ -2179,11 +2048,7 @@ function renderScreen(screen, props) {
     case 'ai':
       return (
         <AiRecommendPage
-          Header={Header}
           roomOptions={roomOptions}
-          styleOptions={styleOptions}
-          priorityOptions={priorityOptions}
-          lifestyleOptions={lifestyleOptions}
           aiProducts={aiProducts}
           {...props}
         />
@@ -2191,7 +2056,6 @@ function renderScreen(screen, props) {
     case 'layout':
       return (
         <LayoutEditorPage
-          Header={Header}
           libraryItems={libraryItems}
           aiProducts={aiProducts}
           buildVisibleLibrary={buildVisibleLibrary}
@@ -2214,10 +2078,10 @@ function renderScreen(screen, props) {
         />
       )
     case 'beds':
-      return <BedsCategoryPage Header={Header} {...props} />
+      return <BedsCategoryPage {...props} />
     case 'home':
     default:
-      return <FurnitureHomePage aiProducts={aiProducts} bedProducts={bedProducts} {...props} />
+      return <FurnitureHomePage {...props} />
   }
 }
 
@@ -2278,6 +2142,27 @@ function CartDrawer({ cart, authSession, onOpenLogin, onClose }) {
                   }}
                 >
                   {authSession ? '주문하기 (데모)' : '로그인 후 주문 이어가기'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </aside>
+    </div>
+  )
+}
+               >
+                  {authSession ? '주문하기 (데모)' : '로그인 후 주문 이어가기'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </aside>
+    </div>
+  )
+}
+         {authSession ? '주문하기 (데모)' : '로그인 후 주문 이어가기'}
                 </button>
               </div>
             </>

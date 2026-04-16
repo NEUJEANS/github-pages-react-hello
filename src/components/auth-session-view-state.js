@@ -30,88 +30,7 @@ function buildIntentCopy(intent) {
   return ` ${label}${draftCopy} 단계까지 이어서 진행할 수 있어요.`
 }
 
-function buildSubmitPayloadPreview(authSummary = null, connection = null) {
-  if (!authSummary && !connection) return null
-
-  const payloadKeys = ['email', 'password', 'handoffId']
-  const expectedResponseKeys = ['handoffId', 'sessionId', 'user', 'connection']
-
-  if ((authSummary?.wishlistCount ?? 0) > 0 || (authSummary?.cartCount ?? 0) > 0 || (authSummary?.layoutItemCount ?? 0) > 0 || authSummary?.hasRecommendationDraft) {
-    payloadKeys.push('guestDraftSnapshot')
-    expectedResponseKeys.push('guestDraftSummary', 'mergedGuestDraft')
-  }
-  if (authSummary?.mergeResolution) payloadKeys.push('mergeResolution')
-  if (authSummary?.intent) {
-    payloadKeys.push('intent')
-    expectedResponseKeys.push('intent')
-  }
-  if (authSummary?.continuation) payloadKeys.push('continuation')
-  if (authSummary?.draftSave) {
-    payloadKeys.push('draftSave')
-    expectedResponseKeys.push('draftSave')
-  }
-  if (connection) payloadKeys.push('connection')
-
-  expectedResponseKeys.push('resumeToken', 'nextAction')
-
-  return {
-    endpoint: connection?.endpoint ?? '/api/auth/login',
-    targetLabel: connection?.targetLabel ?? null,
-    payloadKeys,
-    expectedResponseKeys,
-    handoffId: authSummary?.handoffId ?? null,
-    draftSaveLayoutItemCount: authSummary?.draftSave?.layoutItemCount ?? 0,
-    draftSaveSelectedSpaceCount: Array.isArray(authSummary?.draftSave?.selectedSpaceIds) ? authSummary.draftSave.selectedSpaceIds.length : 0,
-    wishlistCount: authSummary?.wishlistCount ?? 0,
-    cartCount: authSummary?.cartCount ?? 0,
-    layoutItemCount: authSummary?.layoutItemCount ?? 0,
-  }
-}
-
-function buildActionPayloadPreview(nextAction, { resumeToken = null, handoffId = null, connectionLabel = null, connectionEndpoint = null, continuationEndpoint = null, draftSave = null } = {}) {
-  const payloadKeys = ['continuation', 'handoffId']
-  const fieldKeys = []
-  const expectedResponseKeys = ['handoffId', 'sessionId', 'user', 'connection', 'resumeToken', 'nextAction', 'status', 'statusLabel']
-
-  if (resumeToken) payloadKeys.push('resumeToken')
-  if (draftSave) {
-    payloadKeys.push('draftSave')
-    expectedResponseKeys.push('draftSave')
-  }
-
-  switch (nextAction) {
-    case 'complete-profile':
-      fieldKeys.push('displayName', 'phone')
-      break
-    case 'verify-email':
-      fieldKeys.push('verificationCode')
-      break
-    case 'confirm-merge-resolution':
-      fieldKeys.push('mergeResolution')
-      break
-    default:
-      break
-  }
-
-  const normalizedContinuationEndpoint = continuationEndpoint ?? '/api/auth/continue'
-
-  if (!handoffId && !resumeToken && !fieldKeys.length && !draftSave && !connectionEndpoint && !connectionLabel && !normalizedContinuationEndpoint) return null
-
-  return {
-    continuationEndpoint: normalizedContinuationEndpoint,
-    connectionEndpoint: connectionEndpoint ?? null,
-    targetLabel: connectionLabel ?? null,
-    handoffId: handoffId ?? null,
-    resumeToken: resumeToken ?? null,
-    payloadKeys,
-    fieldKeys,
-    expectedResponseKeys,
-    draftSaveLayoutItemCount: draftSave?.layoutItemCount ?? 0,
-    draftSaveSelectedSpaceCount: Array.isArray(draftSave?.selectedSpaceIds) ? draftSave.selectedSpaceIds.length : 0,
-  }
-}
-
-function buildActionChecklist(nextAction, { resumeToken = null, connectionLabel = null, connectionEndpoint = null } = {}) {
+function buildActionChecklist(nextAction) {
   switch (nextAction) {
     case 'complete-profile':
       return {
@@ -162,23 +81,6 @@ function buildContinuationSubtitle(nextAction = null, mergeMode = null) {
         : mergeMode === 'replaced'
           ? '계정 상태로 전환된 상태예요.'
           : '현재 로그인 연결이 유지되고 있어요.'
-  }
-}
-
-function buildContinuationNoticeCopy(nextAction = null, statusLabel = null) {
-  const explicitLabel = typeof statusLabel === 'string' ? statusLabel.trim() : ''
-
-  if (explicitLabel) return ` 현재 단계: ${explicitLabel}.`
-
-  switch (nextAction) {
-    case 'complete-profile':
-      return ' 현재 단계: 프로필 보완 필요.'
-    case 'verify-email':
-      return ' 현재 단계: 이메일 인증 필요.'
-    case 'confirm-merge-resolution':
-      return ' 현재 단계: 초안 병합 방향 확인 필요.'
-    default:
-      return ''
   }
 }
 
@@ -259,8 +161,16 @@ function resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen, mergeR
   }
 }
 
-function shouldUseContinuationConnection(nextAction = null) {
-  return nextAction === 'complete-profile' || nextAction === 'verify-email' || nextAction === 'confirm-merge-resolution'
+function buildGuestDraftSummary(guestDraftSnapshot = null) {
+  if (!guestDraftSnapshot) return null
+
+  return {
+    apartmentLabel: guestDraftSnapshot?.continuity?.apartmentLabel ?? null,
+    selectedRoomCount: Array.isArray(guestDraftSnapshot?.continuity?.selectedRooms)
+      ? guestDraftSnapshot.continuity.selectedRooms.length
+      : 0,
+    recommendationRoom: guestDraftSnapshot?.recommendationDraft?.room ?? null,
+  }
 }
 
 export function buildAuthLoginPanelState({
@@ -268,21 +178,13 @@ export function buildAuthLoginPanelState({
   connection = null,
   intent = null,
 } = {}) {
-  const draftSaveBits = buildDraftSaveBits(authSummary?.draftSave ?? null)
+  void connection
 
   return {
     handoffId: authSummary?.handoffId ?? null,
-    connectionLabel: connection?.targetLabel ?? null,
-    connectionEndpoint: connection?.endpoint ?? null,
-    connectionSource: connection?.source ?? null,
-    connectionCredentialsMode: connection?.credentialsMode ?? null,
     intentLabel: intent?.label ?? null,
     intentDraftLabel: intent?.draftLabel ?? null,
-    draftSaveBits,
-    submitPayloadPreview: buildSubmitPayloadPreview({
-      ...authSummary,
-      intent,
-    }, connection),
+    draftSaveBits: buildDraftSaveBits(authSummary?.draftSave ?? null),
   }
 }
 
@@ -294,11 +196,11 @@ export function buildAuthGuardPanelState({
   connection = null,
   intent = null,
 } = {}) {
+  void connection
+
   const normalizedReasons = Array.isArray(reasons)
     ? reasons.filter((reason) => typeof reason === 'string' && reason.trim())
     : []
-  const draftContextBits = buildDraftContextBits(buildGuestDraftSummary(guestDraftSnapshot))
-  const draftSaveBits = buildDraftSaveBits(authSummary?.draftSave ?? null)
 
   return {
     reasonCount: normalizedReasons.length,
@@ -314,30 +216,10 @@ export function buildAuthGuardPanelState({
       : 0,
     recommendationRoom: guestDraftSnapshot?.recommendationDraft?.room ?? null,
     handoffId: authSummary?.handoffId ?? null,
-    connectionLabel: connection?.targetLabel ?? null,
-    connectionEndpoint: connection?.endpoint ?? null,
-    connectionSource: connection?.source ?? null,
-    connectionCredentialsMode: connection?.credentialsMode ?? null,
     intentLabel: intent?.label ?? null,
     intentDraftLabel: intent?.draftLabel ?? null,
-    draftContextBits,
-    draftSaveBits,
-    submitPayloadPreview: buildSubmitPayloadPreview({
-      ...authSummary,
-      intent,
-    }, connection),
-  }
-}
-
-function buildGuestDraftSummary(guestDraftSnapshot = null) {
-  if (!guestDraftSnapshot) return null
-
-  return {
-    apartmentLabel: guestDraftSnapshot?.continuity?.apartmentLabel ?? null,
-    selectedRoomCount: Array.isArray(guestDraftSnapshot?.continuity?.selectedRooms)
-      ? guestDraftSnapshot.continuity.selectedRooms.length
-      : 0,
-    recommendationRoom: guestDraftSnapshot?.recommendationDraft?.room ?? null,
+    draftContextBits: buildDraftContextBits(buildGuestDraftSummary(guestDraftSnapshot)),
+    draftSaveBits: buildDraftSaveBits(authSummary?.draftSave ?? null),
   }
 }
 
@@ -357,6 +239,9 @@ function buildAuthContinuationPanelState({
   guestDraftSummary = null,
   draftSave = null,
 } = {}, { actionConnection = null } = {}) {
+  void connection
+  void actionConnection
+
   if (!accountLabel) return null
 
   const restoredBits = []
@@ -365,8 +250,6 @@ function buildAuthContinuationPanelState({
   if ((restoredLayoutItemCount ?? 0) > 0) restoredBits.push(`배치 ${restoredLayoutItemCount}개`)
   if (restoredRecommendationDraft) restoredBits.push('추천 초안')
 
-  const draftContextBits = buildDraftContextBits(guestDraftSummary)
-  const draftSaveBits = buildDraftSaveBits(draftSave)
   const intentLabel = intent?.label ?? '저장한 작업'
   const intentDraftLabel = intent?.draftLabel ?? null
   const nextAction = continuation?.nextAction ?? null
@@ -377,38 +260,19 @@ function buildAuthContinuationPanelState({
   const mergeResolution = typeof continuationFields?.mergeResolution === 'string'
     ? continuationFields.mergeResolution.trim()
     : null
-
-  const title = `${accountLabel} 계정 연결됨`
-  const subtitle = buildContinuationSubtitle(nextAction, mergeMode)
-
-  const preferredConnection = shouldUseContinuationConnection(nextAction) && actionConnection
-    ? actionConnection
-    : connection
-  const connectionLabel = preferredConnection?.targetLabel ?? null
-  const connectionEndpoint = preferredConnection?.endpoint ?? null
-  const { primaryActionLabel, primaryActionHint, primaryActionDisabled } = resolveReadyPrimaryAction(nextAction, intentLabel, returnScreen, mergeResolution)
-  const actionChecklist = buildActionChecklist(nextAction, {
-    resumeToken,
-    connectionLabel,
-    connectionEndpoint,
-  })
-  const actionPayloadPreview = buildActionPayloadPreview(nextAction, {
-    resumeToken,
-    handoffId: handoffId ?? null,
-    connectionLabel,
-    connectionEndpoint,
-    continuationEndpoint: shouldUseContinuationConnection(nextAction)
-      ? (actionConnection?.endpoint ?? null)
-      : null,
-    draftSave: draftSave ?? null,
-  })
+  const { primaryActionLabel, primaryActionHint, primaryActionDisabled } = resolveReadyPrimaryAction(
+    nextAction,
+    intentLabel,
+    returnScreen,
+    mergeResolution,
+  )
 
   return {
-    title,
-    subtitle,
+    title: `${accountLabel} 계정 연결됨`,
+    subtitle: buildContinuationSubtitle(nextAction, mergeMode),
     restoredBits,
-    draftContextBits,
-    draftSaveBits,
+    draftContextBits: buildDraftContextBits(guestDraftSummary),
+    draftSaveBits: buildDraftSaveBits(draftSave),
     accountLabel,
     handoffId: handoffId ?? null,
     sessionId: sessionId ?? null,
@@ -420,13 +284,10 @@ function buildAuthContinuationPanelState({
     continuationStatus,
     continuationStatusLabel,
     returnScreen,
-    connectionLabel,
-    connectionEndpoint,
     primaryActionLabel,
     primaryActionHint,
     primaryActionDisabled,
-    actionChecklist,
-    actionPayloadPreview,
+    actionChecklist: buildActionChecklist(nextAction),
   }
 }
 
