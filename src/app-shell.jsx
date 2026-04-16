@@ -105,7 +105,7 @@ import {
   buildVisibleLibrary,
   layoutLibraryCategoryTabs,
 } from './components/layout-library-state.js'
-import { AiRecommendPage, SpaceSelectPage } from './pages/auth-entry-page.jsx'
+import { AiRecommendPage } from './pages/auth-entry-page.jsx'
 import { LayoutEditorPage } from './pages/layout-editor-page.jsx'
 import { BedsCategoryPage, FurnitureHomePage } from './pages/final-surface-page.jsx'
 import './styles.css'

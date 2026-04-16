@@ -67,12 +67,3 @@ export function AiRecommendPage(props) {
   )
 }
 
-export function SpaceSelectPage(props) {
-  return (
-    <RetiredFlowSurface
-      title="공간 선택 준비 단계는 종료되고 바로 편집 흐름으로 연결돼요"
-      body="실측 전제의 사전 공간 선택 단계는 제거했습니다. 남은 작업은 레이아웃 보드에서 바로 이어가고, 필요한 저장/복원은 계정 흐름으로 처리합니다."
-      {...props}
-    />
-  )
-}

@@ -772,8 +772,21 @@ async function readStartupAssetErrors(page) {
   })
 }
 
+function getAuthTriggerCandidates(page) {
+  return [
+    page.locator('.accountTrigger'),
+    page.getByRole('button', { name: '로그인 / 회원가입' }),
+    page.getByRole('button', { name: '로그인 후 보드 저장' }),
+    page.getByRole('button', { name: '계정 보기' }),
+    page.getByRole('button', { name: '계정 상태 확인' }),
+    page.getByRole('button', { name: /^로그인( 열기)?$/ }),
+  ]
+}
+
 function getAccountTrigger(page) {
-  return page.locator('.accountTrigger').first()
+  return getAuthTriggerCandidates(page)
+    .reduce((locator, candidate) => (locator ? locator.or(candidate) : candidate), null)
+    .first()
 }
 
 async function ensureAppShellReady(page) {
@@ -783,14 +796,12 @@ async function ensureAppShellReady(page) {
       return Boolean(root && root.innerHTML.trim())
     }, { timeout: 15000 })
 
-    const loginTrigger = page.getByRole('button', { name: /로그인( 열기)?/ })
+    const loginTrigger = getAccountTrigger(page)
     const logoutTrigger = page.getByRole('button', { name: '로그아웃' })
-    const accountTrigger = getAccountTrigger(page)
 
     await Promise.any([
       loginTrigger.waitFor({ timeout: 10000 }),
       logoutTrigger.waitFor({ timeout: 10000 }),
-      accountTrigger.waitFor({ timeout: 10000 }),
     ])
     return
   } catch {
@@ -875,10 +886,7 @@ async function openLogin(page) {
   await loginTrigger.scrollIntoViewIfNeeded().catch(() => null)
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    await page.evaluate(() => {
-      const trigger = document.querySelector('.accountTrigger')
-      if (trigger instanceof HTMLElement) trigger.click()
-    })
+    await loginTrigger.click({ force: true })
 
     try {
       await waitForLoginModal(page)
@@ -1036,7 +1044,12 @@ async function readVisibleAccountLabel(page) {
   const buttonLabel = normalizeUiText(await page.locator('.accountTrigger').innerText().catch(() => ''))
   const meaningfulSpanLabel = [...spanLabels].reverse().find((value) => value && !/[🧑👤]/.test(value)) ?? ''
 
-  return meaningfulSpanLabel || buttonLabel
+  if (meaningfulSpanLabel || buttonLabel) {
+    return meaningfulSpanLabel || buttonLabel
+  }
+
+  const fallbackTrigger = getAccountTrigger(page)
+  return normalizeUiText(await fallbackTrigger.innerText().catch(() => ''))
 }
 
 async function dragTrayItem(page, sourceLocator, { clientX, clientY }) {
@@ -1070,25 +1083,22 @@ async function waitForAuthReadySignal(page, { expectedAccountLabel = null, expec
   const forbiddenNoticeBits = forbiddenNoticeIncludes.map((value) => normalizeUiText(value)).filter(Boolean)
 
   while (Date.now() - startedAt < timeoutMs) {
-    const authSessionNotice = page.locator('.authSessionNotice')
-    if (await authSessionNotice.count()) {
-      if (await authSessionNotice.first().isVisible().catch(() => false)) {
-        const noticeTitle = normalizeUiText(await page.locator('.authSessionNotice strong').first().innerText().catch(() => ''))
-        const notice = normalizeUiText(await page.locator('.authSessionNotice p').innerText().catch(() => '')) || null
-        const matchesRequiredNotice = requiredNoticeBits.every((value) => notice?.includes(value))
-        const matchesForbiddenNotice = forbiddenNoticeBits.some((value) => notice?.includes(value))
+    const authSessionNotice = page.locator('.authSessionNotice').last()
+    const noticeTitle = normalizeUiText(await authSessionNotice.locator('strong').first().innerText().catch(() => ''))
+    const notice = normalizeUiText(await authSessionNotice.locator('p').first().innerText().catch(() => '')) || null
+    const matchesRequiredNotice = requiredNoticeBits.every((value) => notice?.includes(value))
+    const matchesForbiddenNotice = forbiddenNoticeBits.some((value) => notice?.includes(value))
 
-        if ((!expectedAccountLabel || noticeTitle.includes(expectedAccountLabel) || notice?.includes(expectedAccountLabel) || noticeTitle.includes('계정 연결됨'))
-          && matchesRequiredNotice
-          && !matchesForbiddenNotice) {
-          return {
-            signal: 'session-notice',
-            notice,
-            accountLabel: expectedAccountLabel && noticeTitle.includes(expectedAccountLabel)
-              ? expectedAccountLabel
-              : null,
-          }
-        }
+    if ((noticeTitle || notice)
+      && (!expectedAccountLabel || noticeTitle.includes(expectedAccountLabel) || notice?.includes(expectedAccountLabel) || noticeTitle.includes('계정 연결됨'))
+      && matchesRequiredNotice
+      && !matchesForbiddenNotice) {
+      return {
+        signal: 'session-notice',
+        notice,
+        accountLabel: expectedAccountLabel && noticeTitle.includes(expectedAccountLabel)
+          ? expectedAccountLabel
+          : null,
       }
     }
 
@@ -1142,8 +1152,10 @@ async function waitForLoggedOutSignal(page, { timeoutMs = 15000 } = {}) {
     const normalizedAccountLabel = normalizeUiText(await readVisibleAccountLabel(page))
     const authSessionNoticeVisible = await page.locator('.authSessionNotice').first().isVisible().catch(() => false)
     const loginTriggerVisible = await getAccountTrigger(page).isVisible().catch(() => false)
+    const logoutVisible = await page.getByRole('button', { name: '로그아웃' }).first().isVisible().catch(() => false)
+    const looksLoggedOut = ['로그인', '로그인 / 회원가입', '로그인 후 보드 저장'].includes(normalizedAccountLabel)
 
-    if (normalizedAccountLabel === '로그인' && !authSessionNoticeVisible && loginTriggerVisible) {
+    if (looksLoggedOut && !authSessionNoticeVisible && loginTriggerVisible && !logoutVisible) {
       return {
         accountLabel: normalizedAccountLabel,
       }

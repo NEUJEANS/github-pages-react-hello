@@ -5,7 +5,6 @@ export function LayoutEditorPage({
   openOverlay,
   openCart,
   cartCount,
-  onSearchOpen,
   editor,
   addToCart,
   addressSummary,
