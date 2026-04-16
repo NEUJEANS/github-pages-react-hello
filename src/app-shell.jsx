@@ -2169,21 +2169,6 @@ export function AppShell() {
           />
         )}
 
-        {quickView.product && (
-          <QuickViewModal
-            product={selectedBed ?? quickView.product}
-            onClose={quickView.close}
-            onAddToCart={(product) => {
-              cart.addItem(product)
-              quickView.close()
-            }}
-            onApplyToLayout={(product) => {
-              addProductToLayout(product)
-              quickView.close()
-              navigate('layout')
-            }}
-          />
-        )}
       </section>
     </main>
   )
