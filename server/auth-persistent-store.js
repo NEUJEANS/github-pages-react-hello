@@ -643,6 +643,24 @@ function continuationStatus(nextAction) {
   }
 }
 
+function buildSignupSuccessPayload({ email, displayName, handoffId = null, connection = null, actionConnection = null } = {}) {
+  return {
+    ok: true,
+    created: true,
+    ...(handoffId ? { handoffId } : {}),
+    user: {
+      email,
+      name: displayName,
+    },
+    message: '회원가입이 완료됐어요. 이제 로그인해 주세요.',
+    nextAction: 'retry-login',
+    status: 'signup-complete',
+    statusLabel: '회원가입 완료',
+    connection,
+    actionConnection,
+  }
+}
+
 function buildSessionPayload({ user, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null, continuation = null, draftSave = null, connection = null, actionConnection = null }) {
   const normalizedIntentAction = normalizeIntentAction(typeof intent?.action === 'string' ? intent.action.trim() : '')
   const blocker = continuation?.nextAction || normalizedIntentAction || resolveDemoAuthBlocker(user.email) || (mergeResolution === 'replace-with-account' ? 'resume-account-state' : 'resume-authenticated-flow')
@@ -936,9 +954,22 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
     }
 
     saveUser(buildUser({ email, password: body.password, name: displayName }), storeSource)
+    if (handoffId) deletePendingRecord(handoffId, storeSource)
+
+    return {
+      status: 200,
+      data: buildSignupSuccessPayload({
+        email,
+        displayName,
+        handoffId,
+        connection,
+        actionConnection,
+      }),
+      cookies: cookieHeaders,
+    }
   }
 
-  if (pathName === '/api/auth/login' || pathName === '/api/auth/signup') {
+  if (pathName === '/api/auth/login') {
     const email = normalizeEmail(body.email)
     const password = typeof body.password === 'string' ? body.password : ''
     const user = readUser(email, storeSource)

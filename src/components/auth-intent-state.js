@@ -106,6 +106,7 @@ export function shouldCloseLoginModalAfterAuth(result, intent = null, continuati
   const hasFollowThroughTarget = canResumePostAuthIntent(intent, null, continuation)
 
   if (status === 'action-required') return false
+  if (nextAction === 'retry-login') return false
   if (nextAction === 'complete-profile' || nextAction === 'verify-email' || nextAction === 'confirm-merge-resolution') return false
   if (hasFollowThroughTarget && !isPassiveLoginIntent) return false
 

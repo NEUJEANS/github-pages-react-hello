@@ -80,7 +80,7 @@ test('auth http server exposes CORS headers for the live GitHub Pages origin and
   })
 })
 
-test('auth http server persists signup/login/session state through http cookies and sqlite', async () => {
+test('auth http server keeps signup as account creation only, then issues the session cookie on login', async () => {
   await withTempCwd(async (tempDir) => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
     const { startAuthHttpServer } = await import(moduleUrl)
@@ -100,8 +100,29 @@ test('auth http server persists signup/login/session state through http cookies 
       })
 
       assert.equal(signupResponse.status, 200)
-      const sessionCookie = signupResponse.headers.getSetCookie().find((value) => value.startsWith('havenly_auth_session='))
+      assert.equal(signupResponse.headers.getSetCookie().find((value) => value.startsWith('havenly_auth_session=')), undefined)
+      const signupPayload = await signupResponse.json()
+      assert.equal(signupPayload.nextAction, 'retry-login')
+      assert.equal(signupPayload.status, 'signup-complete')
+
+      const sessionWithoutCookie = await fetch(`${authServer.url}/api/auth/session`)
+      assert.equal(sessionWithoutCookie.status, 401)
+
+      const loginResponse = await fetch(`${authServer.url}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: 'proxy-user@example.com',
+          password: 'password123',
+        }),
+      })
+
+      assert.equal(loginResponse.status, 200)
+      const sessionCookie = loginResponse.headers.getSetCookie().find((value) => value.startsWith('havenly_auth_session='))
       assert.ok(sessionCookie)
+      assert.match(sessionCookie ?? '', /HttpOnly/)
 
       const sessionResponse = await fetch(`${authServer.url}/api/auth/session`, {
         headers: {

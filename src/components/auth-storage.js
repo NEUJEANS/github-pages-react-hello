@@ -166,6 +166,29 @@ function safeUrl(url) {
   }
 }
 
+function trimTrailingSlash(value = '') {
+  return value.endsWith('/') ? value.slice(0, -1) : value
+}
+
+function trimLeadingSlash(value = '') {
+  return value.startsWith('/') ? value.slice(1) : value
+}
+
+function normalizeAppBasePath(appBasePath = '') {
+  const normalized = typeof appBasePath === 'string' ? appBasePath.trim() : ''
+  if (!normalized || normalized === '/') return ''
+  return `/${trimLeadingSlash(trimTrailingSlash(normalized))}`
+}
+
+function resolveCanonicalSameOriginAuthUrl(endpoint = '', { appBasePath } = {}) {
+  if (typeof endpoint !== 'string' || !endpoint.startsWith('/')) return endpoint
+
+  const normalizedAppBasePath = normalizeAppBasePath(appBasePath)
+  if (!normalizedAppBasePath || !endpoint.startsWith('/api/auth/')) return endpoint
+
+  return `${normalizedAppBasePath}${endpoint}`
+}
+
 function readCurrentOrigin(currentOrigin = '') {
   if (typeof currentOrigin === 'string' && currentOrigin.trim()) return currentOrigin.trim()
   if (typeof globalThis?.location?.origin === 'string' && globalThis.location.origin.trim()) return globalThis.location.origin.trim()
@@ -173,10 +196,13 @@ function readCurrentOrigin(currentOrigin = '') {
 }
 
 export function buildAuthConnectionSummary(plan, { apiBaseUrl, appBasePath, currentOrigin, source = 'default', credentialsMode = 'include' } = {}) {
-  const resolvedUrl = resolveAuthEndpoint(plan.endpoint, { apiBaseUrl, appBasePath, currentOrigin })
+  const endpoint = typeof plan?.endpoint === 'string' ? plan.endpoint.trim() : ''
+  const resolvedUrl = endpoint.startsWith('/')
+    ? resolveCanonicalSameOriginAuthUrl(endpoint, { appBasePath })
+    : resolveAuthEndpoint(endpoint, { apiBaseUrl, appBasePath, currentOrigin })
   const resolved = safeUrl(resolvedUrl)
   const canonicalOrigin = readCurrentOrigin(currentOrigin)
-  const isSameOriginScaffold = (!resolved && resolvedUrl.startsWith('/') && resolvedUrl.includes('/api/auth/'))
+  const isSameOriginScaffold = endpoint.startsWith('/')
     || Boolean(
       resolved
       && canonicalOrigin

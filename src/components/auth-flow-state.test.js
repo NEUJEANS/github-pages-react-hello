@@ -765,6 +765,32 @@ test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
 
   assert.equal(
     buildAuthStatusCopy(
+      'signup-success',
+      { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
+      {
+        handoffId: 'auth-20260406123000-2n9c',
+        accountLabel: 'new-user@example.com',
+        nextAction: 'retry-login',
+      },
+    ),
+    '회원가입이 완료됐어요. 이제 로그인해 주세요.',
+  )
+
+  assert.equal(
+    buildAuthStatusCopy(
+      'signup-success',
+      { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
+      {
+        handoffId: 'auth-20260406123000-2n9c',
+        accountLabel: 'fresh@example.com',
+        nextAction: 'retry-login',
+      },
+    ),
+    '회원가입이 완료됐어요. 이제 로그인해 주세요.',
+  )
+
+  assert.equal(
+    buildAuthStatusCopy(
       'error',
       { handoffId: 'auth-20260406123000-2n9c', wishlistCount: 2, cartCount: 1, layoutItemCount: 3 },
       null,

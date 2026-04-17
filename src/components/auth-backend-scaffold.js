@@ -337,6 +337,25 @@ function buildUpdatedAccountStateForDraftSave(currentSession = null, draftSave =
   }
 }
 
+function buildSignupSuccessData({ email, handoffId = null, name = null, guestDraftSnapshot = null, draftSave = null, intent = null } = {}) {
+  return {
+    ok: true,
+    created: true,
+    ...(handoffId ? { handoffId } : {}),
+    user: {
+      email,
+      name: typeof name === 'string' && name.trim() ? name.trim() : email,
+    },
+    guestDraftSummary: buildGuestDraftSessionSummary(guestDraftSnapshot),
+    draftSave: buildDraftSaveState({ draftSave }, guestDraftSnapshot),
+    intent: intent ?? null,
+    message: '회원가입이 완료됐어요. 이제 로그인해 주세요.',
+    nextAction: 'retry-login',
+    status: 'signup-complete',
+    statusLabel: '회원가입 완료',
+  }
+}
+
 function buildSessionData({ email, handoffId = null, guestDraftSnapshot = null, mergeResolution = null, intent = null, continuation = null, draftSave = null, name = null } = {}) {
   const safeSessionId = email.replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'guest'
   const persistedAccount = readAccountRecord(email)
@@ -438,12 +457,36 @@ export function submitAuthScaffoldRequest({ request = {}, connection = null, act
   const resolvedActionConnection = cloneValue(actionConnection ?? buildScaffoldActionConnection(resolvedConnection))
 
   if (response.status >= 200 && response.status < 300) {
+    const existingAccount = readAccountRecord(response.data?.user?.email ?? request.email)
     const persistedAccount = persistAccountRecord(response.data?.user?.email ?? request.email, {
-      user: cloneValue(response.data?.user ?? null),
-      profile: cloneValue(response.data?.profile ?? null),
-      verifiedAt: response.data?.verifiedAt ?? null,
-      accountState: cloneValue(response.data?.accountState ?? null),
+      ...(existingAccount && typeof existingAccount === 'object' ? cloneValue(existingAccount) : {}),
+      ...(existingAccount?.password ? { password: existingAccount.password } : {}),
+      user: cloneValue(response.data?.user ?? existingAccount?.user ?? null),
+      profile: cloneValue(response.data?.profile ?? existingAccount?.profile ?? null),
+      verifiedAt: response.data?.verifiedAt ?? existingAccount?.verifiedAt ?? null,
+      accountState: cloneValue(response.data?.accountState ?? existingAccount?.accountState ?? null),
     })
+
+    const isSignupSuccessHandoff = request.mode === 'signup' && response.data?.nextAction === 'retry-login'
+
+    if (isSignupSuccessHandoff) {
+      scaffoldState.session = null
+      scaffoldState.pending = null
+
+      return {
+        status: response.status,
+        data: {
+          ...cloneValue(response.data),
+          ...(persistedAccount ? {
+            profile: cloneValue(persistedAccount.profile ?? null),
+            verifiedAt: persistedAccount.verifiedAt ?? null,
+            accountState: cloneValue(persistedAccount.accountState ?? null),
+          } : {}),
+          connection: resolvedConnection,
+          actionConnection: resolvedActionConnection,
+        },
+      }
+    }
 
     scaffoldState.session = {
       ...cloneValue(response.data),
@@ -902,7 +945,10 @@ export function buildAuthScaffoldResponse(request = {}) {
   const userName = mode === 'signup'
     ? displayName
     : (persistedAccount?.user?.name ?? email)
+  const nextAccountState = buildMergedGuestAccountState(guestDraftSnapshot, persistedAccount?.accountState ?? null, { mergeResolution })
+
   persistAccountRecord(email, {
+    ...(persistedAccount && typeof persistedAccount === 'object' ? cloneValue(persistedAccount) : {}),
     password,
     user: {
       email,
@@ -910,8 +956,22 @@ export function buildAuthScaffoldResponse(request = {}) {
     },
     profile: cloneValue(persistedAccount?.profile ?? null),
     verifiedAt: persistedAccount?.verifiedAt ?? null,
-    accountState: buildMergedGuestAccountState(guestDraftSnapshot, persistedAccount?.accountState ?? null, { mergeResolution }),
+    accountState: nextAccountState,
   })
+
+  if (mode === 'signup') {
+    return {
+      status: 200,
+      data: buildSignupSuccessData({
+        email,
+        handoffId,
+        name: displayName,
+        guestDraftSnapshot,
+        draftSave: request.draftSave ?? null,
+        intent: request.intent ?? null,
+      }),
+    }
+  }
 
   return {
     status: 200,
@@ -923,7 +983,7 @@ export function buildAuthScaffoldResponse(request = {}) {
       intent: request.intent ?? null,
       continuation: request.continuation ?? null,
       draftSave: request.draftSave ?? null,
-      name: mode === 'signup' ? displayName : null,
+      name: null,
     }),
   }
 }

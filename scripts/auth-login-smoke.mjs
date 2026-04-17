@@ -13,7 +13,8 @@ const cliArgs = process.argv.slice(2)
 const requireBrowser = cliArgs.includes('--require-browser')
 const useProxyBackend = cliArgs.includes('--via-proxy')
 const layoutSaveOnly = cliArgs.includes('--layout-save-only')
-const positionalArgs = cliArgs.filter((arg) => arg !== '--require-browser' && arg !== '--via-proxy' && arg !== '--layout-save-only')
+const authCoreOnly = cliArgs.includes('--auth-core-only')
+const positionalArgs = cliArgs.filter((arg) => arg !== '--require-browser' && arg !== '--via-proxy' && arg !== '--layout-save-only' && arg !== '--auth-core-only')
 const defaultBaseUrl = positionalArgs[0] || 'http://127.0.0.1:4174/github-pages-react-hello/'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -510,6 +511,10 @@ async function runHttpSmoke() {
   }
   const signup = await submitAuthSignupPlan(signupPlan, authConfig)
   const signupResultSummary = signup.ok ? buildAuthResultSummary(signup, signupPlan.summary) : null
+  const signupSessionAfterSignup = await readAuthSession({
+    endpoint: '/api/auth/session',
+    ...authConfig,
+  })
 
   const directPlan = buildPlan({
     email: 'user@example.com',
@@ -666,6 +671,7 @@ async function runHttpSmoke() {
       accountLabel: signupResultSummary?.accountLabel ?? null,
       nextAction: signupResultSummary?.nextAction ?? null,
       resumeToken: signupResultSummary?.resumeToken ?? null,
+      sessionStatusAfterSignup: signupSessionAfterSignup.status,
     },
     directSuccess: {
       ok: direct.result.ok,
@@ -852,6 +858,27 @@ async function ensureLoggedOutUi(page) {
   if (!await accountTrigger.isVisible().catch(() => false)) {
     throw new Error('Browser auth reset did not surface the logged-out login trigger.')
   }
+}
+
+async function readSessionCookie(page, cookieName = 'havenly_auth_session') {
+  const scopedCookies = await page.context().cookies([baseUrl]).catch(() => null)
+  const cookies = Array.isArray(scopedCookies) && scopedCookies.length > 0
+    ? scopedCookies
+    : await page.context().cookies().catch(() => [])
+
+  return cookies.find((cookie) => cookie.name === cookieName) ?? null
+}
+
+async function waitForSessionCookie(page, { cookieName = 'havenly_auth_session', timeoutMs = 5000, intervalMs = 100 } = {}) {
+  const startedAt = Date.now()
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const cookie = await readSessionCookie(page, cookieName)
+    if (cookie) return cookie
+    await delay(intervalMs)
+  }
+
+  return readSessionCookie(page, cookieName)
 }
 
 async function resetBrowserScenario(page) {
@@ -1185,9 +1212,46 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     await signupPage.getByPlaceholder('비밀번호를 한 번 더 입력').fill('password123')
     await signupPage.getByRole('checkbox').check()
     await signupPage.locator('.loginPanel .footerButtons .cta').last().click()
-    const signupReadySignal = await waitForAuthReadySignal(signupPage, { expectedAccountLabel: smokeSignupDisplayName })
+    await signupPage.waitForFunction(() => {
+      const loginModeButton = Array.from(document.querySelectorAll('.authModeSwitch button'))
+        .find((node) => node.textContent?.replace(/\s+/g, ' ').trim() === '로그인')
+      const cta = document.querySelector('.loginPanel .footerButtons .cta:last-child')
+      const muted = document.querySelector('.loginPanel .loginForm > .muted')
+        ?? document.querySelector('.loginPanel .loginForm .muted')
+      const statusText = muted?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+      const ctaLabel = cta?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+
+      return Boolean(loginModeButton?.classList.contains('solid'))
+        && ctaLabel === '로그인'
+        && statusText.includes('회원가입이 완료됐어요')
+    }, { timeout: 15000 })
+
+    const signupLoginModeSelected = await signupPage.locator('.authModeSwitch').getByRole('button', { name: '로그인' }).evaluate((node) => node.classList.contains('solid')).catch(() => false)
+    const signupDisplayNameVisible = await signupPage.getByPlaceholder('홍길동').isVisible().catch(() => false)
+    const signupConfirmPasswordVisible = await signupPage.getByPlaceholder('비밀번호를 한 번 더 입력').isVisible().catch(() => false)
+    const signupStatusMessage = normalizeUiText(await signupPage.locator('.loginPanel .loginForm > .muted').first().innerText().catch(async () => (
+      signupPage.locator('.loginPanel .loginForm .muted').first().innerText().catch(() => '')
+    )))
+    const signupCtaLabel = normalizeUiText(await signupPage.locator('.loginPanel .footerButtons .cta').last().innerText().catch(() => ''))
+    const signupSessionCookieBeforeLogin = await readSessionCookie(signupPage)
+    const signupLogoutVisibleBeforeLogin = await signupPage.getByRole('button', { name: '로그아웃' }).first().isVisible().catch(() => false)
+
+    if (!signupLoginModeSelected || signupDisplayNameVisible || signupConfirmPasswordVisible || signupCtaLabel !== '로그인' || !signupStatusMessage.includes('회원가입이 완료됐어요') || signupSessionCookieBeforeLogin || signupLogoutVisibleBeforeLogin) {
+      throw new Error(`Signup did not hand off into the login block correctly. ${JSON.stringify({ signupLoginModeSelected, signupDisplayNameVisible, signupConfirmPasswordVisible, signupCtaLabel, signupStatusMessage, signupSessionCookieBeforeLogin, signupLogoutVisibleBeforeLogin })}`)
+    }
+
+    await submitLogin(signupPage, {
+      email: smokeSignupEmail,
+      password: 'password123',
+    })
+    const signupReadySignal = await waitForAuthReadySignal(signupPage, { expectedAccountLabel: smokeSignupEmail })
     const signupReadyCard = await readAuthReadyCard(signupPage).catch(() => null)
     const signupNotice = signupReadySignal.notice ?? await signupPage.locator('.authSessionNotice p').innerText().catch(() => null)
+    const signupSessionCookie = await waitForSessionCookie(signupPage)
+    if (!signupSessionCookie?.httpOnly) {
+      throw new Error(`Signup follow-up login did not produce an HttpOnly session cookie. Saw: ${JSON.stringify(signupSessionCookie)}`)
+    }
+
     const signupResumeButton = signupPage.getByRole('button', { name: '보드 저장 이어가기' })
     if (await signupResumeButton.isVisible().catch(() => false)) {
       await signupResumeButton.click()
@@ -1195,10 +1259,10 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     }
     const signupHashAfterResume = await signupPage.evaluate(() => globalThis.location.hash)
     await signupPage.reload({ waitUntil: 'domcontentloaded' })
-    const signupReloadedReady = await waitForAuthReadySignal(signupPage, { expectedAccountLabel: smokeSignupDisplayName })
+    const signupReloadedReady = await waitForAuthReadySignal(signupPage, { expectedAccountLabel: smokeSignupEmail })
     const signupReloadedNotice = signupReloadedReady.notice ?? null
     const signupReloadedAccountLabel = signupReloadedReady.accountLabel ?? await readVisibleAccountLabel(signupPage)
-    await capture(signupPage, 'auth-signup-save-layout-ready.png')
+    await capture(signupPage, 'auth-signup-login-handoff-ready.png')
     await signupPage.close()
 
     markSmokeStage('direct-login-scenario:start')
@@ -1216,6 +1280,10 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     })
 
     const directReady = await waitForAuthReadySignal(page, { expectedAccountLabel: 'user@example.com' })
+    const directSessionCookie = await waitForSessionCookie(page)
+    if (!directSessionCookie?.httpOnly) {
+      throw new Error(`Direct login did not produce an HttpOnly session cookie. Saw: ${JSON.stringify(directSessionCookie)}`)
+    }
     const status = directReady.signal === 'session-notice'
       ? 'modal-closed-after-direct-login'
       : directReady.signal === 'ready-panel'
@@ -1246,6 +1314,45 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     const postLogoutReloadedLabel = await postLogoutTrigger.innerText()
     await capture(page, 'auth-login-direct-success.png')
     await page.close()
+
+    if (authCoreOnly) {
+      markSmokeStage('browser-auth-core:done')
+      return {
+        mode: 'browser',
+        baseUrl,
+        signupSuccess: {
+          handoffStatus: signupStatusMessage,
+          modeSwitchedToLogin: signupLoginModeSelected,
+          ctaLabelBeforeLogin: signupCtaLabel,
+          sessionCookieIssuedBeforeLogin: Boolean(signupSessionCookieBeforeLogin),
+          readyCard: signupReadyCard,
+          notice: signupNotice,
+          sessionCookie: signupSessionCookie
+            ? {
+                name: signupSessionCookie.name,
+                httpOnly: signupSessionCookie.httpOnly,
+                sameSite: signupSessionCookie.sameSite,
+                secure: signupSessionCookie.secure,
+              }
+            : null,
+          hashAfterResume: signupHashAfterResume,
+          reloadedNotice: signupReloadedNotice,
+          reloadedAccountLabel: signupReloadedAccountLabel,
+        },
+        directSuccess: {
+          status,
+          preview: directLoginPreview,
+          notice,
+          accountLabel,
+          reloadedNotice,
+          reloadedAccountLabel,
+          restartRecoveredNotice,
+          restartRecoveredAccountLabel,
+          postLogoutLabel,
+          postLogoutReloadedLabel,
+        },
+      }
+    }
 
     markSmokeStage('save-draft-scenario:start')
     const saveDraftPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
@@ -1663,8 +1770,20 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
       mode: 'browser',
       baseUrl,
       signupSuccess: {
+        handoffStatus: signupStatusMessage,
+        modeSwitchedToLogin: signupLoginModeSelected,
+        ctaLabelBeforeLogin: signupCtaLabel,
+        sessionCookieIssuedBeforeLogin: Boolean(signupSessionCookieBeforeLogin),
         readyCard: signupReadyCard,
         notice: signupNotice,
+        sessionCookie: signupSessionCookie
+          ? {
+              name: signupSessionCookie.name,
+              httpOnly: signupSessionCookie.httpOnly,
+              sameSite: signupSessionCookie.sameSite,
+              secure: signupSessionCookie.secure,
+            }
+          : null,
         hashAfterResume: signupHashAfterResume,
         reloadedNotice: signupReloadedNotice,
         reloadedAccountLabel: signupReloadedAccountLabel,
@@ -1790,8 +1909,11 @@ try {
       markSmokeStage('preview-build-and-start')
       const ensuredBaseUrl = await ensureBrowserBaseUrl(baseUrl, { extraEnv: previewEnv })
       previewServer = ensuredBaseUrl.process
-      setActiveBaseUrl(ensuredBaseUrl.url)
-      markSmokeStage(`preview-ready:${ensuredBaseUrl.url}`)
+      const browserSmokeBaseUrl = useProxyBackend && authProxyServer?.url
+        ? withBaseUrlQuery(ensuredBaseUrl.url, { authApiBaseUrl: authProxyServer.url })
+        : ensuredBaseUrl.url
+      setActiveBaseUrl(browserSmokeBaseUrl)
+      markSmokeStage(`preview-ready:${browserSmokeBaseUrl}`)
 
       try {
         result = {
@@ -1819,7 +1941,10 @@ try {
         markSmokeStage(`preview-retry:${fallbackBaseUrl}`)
         const fallbackPreview = await ensureBrowserBaseUrl(fallbackBaseUrl, { extraEnv: previewEnv })
         previewServer = fallbackPreview.process ?? previewServer
-        setActiveBaseUrl(fallbackPreview.url)
+        const fallbackBrowserSmokeBaseUrl = useProxyBackend && authProxyServer?.url
+          ? withBaseUrlQuery(fallbackPreview.url, { authApiBaseUrl: authProxyServer.url })
+          : fallbackPreview.url
+        setActiveBaseUrl(fallbackBrowserSmokeBaseUrl)
 
         result = {
           ...(await runBrowserSmoke(playwright.module, {

@@ -14,6 +14,69 @@ import {
   submitAuthScaffoldRequest,
 } from './auth-backend-scaffold.js'
 
+test('buildAuthScaffoldResponse keeps signup as account creation only until login completes', () => {
+  resetAuthScaffoldState()
+
+  const signupResponse = submitAuthScaffoldRequest({
+    request: {
+      mode: 'signup',
+      email: 'fresh@example.com',
+      password: 'password123',
+      displayName: 'Fresh User',
+      handoffId: 'auth-signup-1234',
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        returnScreen: 'layout',
+      },
+    },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/signup',
+      resolvedUrl: '/api/auth/signup',
+      targetLabel: 'same-origin /api auth scaffold',
+      credentialsMode: 'include',
+      source: 'default',
+    },
+  })
+
+  assert.equal(signupResponse.status, 200)
+  assert.equal(signupResponse.data.nextAction, 'retry-login')
+  assert.equal(signupResponse.data.status, 'signup-complete')
+  assert.equal(signupResponse.data.sessionId, undefined)
+  assert.equal(readAuthScaffoldSession().status, 401)
+
+  const loginResponse = submitAuthScaffoldRequest({
+    request: {
+      email: 'fresh@example.com',
+      password: 'password123',
+      handoffId: 'auth-signup-1234',
+      intent: {
+        source: 'layout-editor',
+        action: 'save-layout-draft',
+        label: '로그인 후 보드 저장',
+        returnScreen: 'layout',
+      },
+    },
+    connection: {
+      method: 'POST',
+      endpoint: '/api/auth/login',
+      resolvedUrl: '/api/auth/login',
+      targetLabel: 'same-origin /api auth scaffold',
+      credentialsMode: 'include',
+      source: 'default',
+    },
+  })
+
+  assert.equal(loginResponse.status, 200)
+  assert.equal(loginResponse.data.user.email, 'fresh@example.com')
+  assert.equal(readAuthScaffoldSession().status, 200)
+  assert.equal(readAuthScaffoldSession().data.user.email, 'fresh@example.com')
+
+  resetAuthScaffoldState()
+})
+
 test('buildAuthScaffoldResponse returns a merged session payload for valid credentials', () => {
   const response = buildAuthScaffoldResponse({
     email: 'User@Example.com ',
@@ -83,6 +146,48 @@ test('buildAuthScaffoldResponse returns a merged session payload for valid crede
   })
   assert.equal(response.data.resumeToken, null)
   assert.equal(response.data.nextAction, 'save-layout-draft')
+})
+
+test('buildAuthScaffoldResponse keeps signup success as a login handoff instead of creating a session payload', () => {
+  resetAuthScaffoldState()
+
+  const response = buildAuthScaffoldResponse({
+    mode: 'signup',
+    email: 'new-user@example.com',
+    password: 'password123',
+    displayName: '새 사용자',
+    handoffId: 'signup-handoff-001',
+    intent: {
+      action: 'save-layout-draft',
+      label: '로그인 후 보드 저장',
+      returnScreen: 'layout',
+    },
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal(response.data.sessionId, undefined)
+  assert.equal(response.data.nextAction, 'retry-login')
+  assert.equal(response.data.status, 'signup-complete')
+  assert.equal(response.data.statusLabel, '회원가입 완료')
+  assert.equal(response.data.user.email, 'new-user@example.com')
+})
+
+test('submitAuthScaffoldRequest does not persist a signed-in scaffold session for signup success handoff', () => {
+  resetAuthScaffoldState()
+
+  const response = submitAuthScaffoldRequest({
+    request: {
+      mode: 'signup',
+      email: 'signup-handoff@example.com',
+      password: 'password123',
+      displayName: 'Signup Handoff',
+      handoffId: 'signup-handoff-002',
+    },
+  })
+
+  assert.equal(response.status, 200)
+  assert.equal(response.data.nextAction, 'retry-login')
+  assert.equal(readAuthScaffoldSession().status, 401)
 })
 
 test('buildAuthScaffoldResponse preserves an upstream continuation contract when intent is not yet finalized', () => {

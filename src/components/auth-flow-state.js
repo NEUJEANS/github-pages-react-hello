@@ -492,6 +492,12 @@ export function buildAuthStatusCopy(status, summary, resultSummary = null, error
 
   if (status === 'submitting') return '로그인 중…'
 
+  if (status === 'signup-success') {
+    return resultSummary?.nextAction === 'retry-login'
+      ? '회원가입이 완료됐어요. 이제 로그인해 주세요.'
+      : '회원가입이 완료됐어요.'
+  }
+
   if (status === 'ready') {
     if (resultSummary?.nextAction === 'complete-profile') return '프로필을 마저 입력하면 계속할 수 있어요.'
     if (resultSummary?.nextAction === 'verify-email') return '이메일 인증을 마치면 계속할 수 있어요.'

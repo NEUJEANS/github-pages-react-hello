@@ -1718,6 +1718,51 @@ export function AppShell() {
       const nextContinuation = buildSerializableAuthContinuation(result?.data)
       const nextConnection = resolveAuthConnectionOverride(result, authConnectionSummary)
       const persistedConnection = resolvePersistedAuthConnection(result, authConnectionSummary)
+      const isSignupSuccessHandoff = loginForm.mode === 'signup'
+        && result.ok
+        && !shouldResolveMergeViaContinuation
+        && !result?.data?.sessionId
+        && result?.data?.nextAction === 'retry-login'
+
+      if (isSignupSuccessHandoff) {
+        persistAuthHandoff(
+          globalThis.sessionStorage,
+          buildPersistedAuthHandoff(
+            buildAuthSubmitPlan({
+              email: loginForm.email,
+              password: '',
+              guestDraftSnapshot,
+              handoffId: nextHandoffId,
+              endpoint: authConfig.loginEndpoint,
+              intent: buildSerializableAuthIntent(loginForm.intent),
+              draftSave: authDraftSavePayload,
+            }),
+            guestDraftSnapshot,
+            {
+              connection: authLoginConnectionSummary,
+              actionConnection: authContinuationConnectionSummary,
+              continuation: nextContinuation,
+              continuationFields: pickPersistedAuthContinuationFields(nextContinuation, authContinuationFields),
+              draftSave: authDraftSavePayload,
+            },
+          ),
+        )
+
+        setLoginForm((current) => ({
+          ...current,
+          mode: 'login',
+          status: 'signup-success',
+          result,
+          displayName: '',
+          confirmPassword: '',
+          agreeToTerms: false,
+          mergeResolution: null,
+          connection: nextConnection ?? authLoginConnectionSummary,
+          continuation: nextContinuation,
+        }))
+        return
+      }
+
       const nextResultSummary = result.ok
         ? buildAuthResultSummary(result, {
             ...submitPlan.summary,
@@ -1820,7 +1865,7 @@ export function AppShell() {
         mergeResolution: nextMergeResolution,
       }))
     }
-  }, [authConfig, authConnectionSummary, authContinuationConnectionSummary, authContinuationFields, authDraftSavePayload, authSignupPlan, cart, editor, guestDraftSnapshot, loginForm.continuation, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.mode, loginForm.password, screen])
+  }, [authConfig, authConnectionSummary, authContinuationConnectionSummary, authContinuationFields, authDraftSavePayload, authLoginConnectionSummary, authSignupPlan, cart, editor, guestDraftSnapshot, loginForm.continuation, loginForm.email, loginForm.handoffId, loginForm.intent, loginForm.mergeResolution, loginForm.mode, loginForm.password, screen])
 
   const cartActions = {
     openCart: () => cart.setIsOpen(true),

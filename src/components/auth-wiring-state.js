@@ -1,5 +1,28 @@
 import { resolveAuthEndpoint } from './auth-submit.js'
 
+function trimTrailingSlash(value = '') {
+  return value.endsWith('/') ? value.slice(0, -1) : value
+}
+
+function trimLeadingSlash(value = '') {
+  return value.startsWith('/') ? value.slice(1) : value
+}
+
+function normalizeAppBasePath(appBasePath = '') {
+  const normalized = typeof appBasePath === 'string' ? appBasePath.trim() : ''
+  if (!normalized || normalized === '/') return ''
+  return `/${trimLeadingSlash(trimTrailingSlash(normalized))}`
+}
+
+function resolveCanonicalSameOriginAuthUrl(endpoint = '', { appBasePath } = {}) {
+  if (typeof endpoint !== 'string' || !endpoint.startsWith('/')) return endpoint
+
+  const normalizedAppBasePath = normalizeAppBasePath(appBasePath)
+  if (!normalizedAppBasePath || !endpoint.startsWith('/api/auth/')) return endpoint
+
+  return `${normalizedAppBasePath}${endpoint}`
+}
+
 function buildTargetLabel(resolvedUrl, mode, { currentOrigin } = {}) {
   if (mode === 'same-origin') return 'same-origin /api auth scaffold'
 
@@ -20,9 +43,11 @@ function buildTargetLabel(resolvedUrl, mode, { currentOrigin } = {}) {
 function buildWiringTarget(id, endpoint, config = {}) {
   if (typeof endpoint !== 'string' || !endpoint.trim()) return null
 
-  const resolvedUrl = resolveAuthEndpoint(endpoint, config)
+  const resolvedUrl = endpoint.startsWith('/')
+    ? resolveCanonicalSameOriginAuthUrl(endpoint, config)
+    : resolveAuthEndpoint(endpoint, config)
   const isAbsolute = /^https?:\/\//.test(resolvedUrl)
-  const mode = isAbsolute ? 'remote' : 'same-origin'
+  const mode = endpoint.startsWith('/') ? 'same-origin' : (isAbsolute ? 'remote' : 'same-origin')
   const method = id === 'session' || id === 'pending' ? 'GET' : 'POST'
   const isContinuation = id === 'continue'
   const targetLabel = buildTargetLabel(resolvedUrl, mode, config)

@@ -107,7 +107,7 @@ test('signup persists a hashed password and login upgrades legacy plaintext pass
   })
 })
 
-test('public GitHub Pages auth requests receive cross-site secure session cookies', async () => {
+test('public GitHub Pages auth requests receive cross-site secure session cookies on login, not signup', async () => {
   await withTempCwd(async () => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
     const { handleAuthRequest } = await import(moduleUrl)
@@ -127,34 +127,52 @@ test('public GitHub Pages auth requests receive cross-site secure session cookie
     })
 
     assert.equal(signup.status, 200)
-    const sessionCookie = signup.cookies.find((value) => value.startsWith('havenly_auth_session='))
+    assert.equal(signup.data.nextAction, 'retry-login')
+    assert.equal(signup.cookies.find((value) => value.startsWith('havenly_auth_session=')), undefined)
+
+    const login = handleAuthRequest(buildRequest({
+      headers: {
+        origin: 'https://neujeans.github.io',
+        'x-forwarded-proto': 'https',
+      },
+    }), {
+      pathName: '/api/auth/login',
+      body: {
+        email: 'public-pages@example.com',
+        password: 'password123',
+      },
+    })
+
+    assert.equal(login.status, 200)
+    const sessionCookie = login.cookies.find((value) => value.startsWith('havenly_auth_session='))
     assert.match(sessionCookie ?? '', /SameSite=None/)
     assert.match(sessionCookie ?? '', /Secure/)
+    assert.match(sessionCookie ?? '', /HttpOnly/)
   })
 })
 
-test('local auth requests keep lax non-secure cookies for same-machine preview flows', async () => {
+test('local auth requests keep lax non-secure cookies for same-machine preview login flows', async () => {
   await withTempCwd(async () => {
     const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
     const { handleAuthRequest } = await import(moduleUrl)
 
-    const signup = handleAuthRequest(buildRequest({
+    const login = handleAuthRequest(buildRequest({
       headers: {
         origin: 'http://127.0.0.1:4174',
       },
     }), {
-      pathName: '/api/auth/signup',
+      pathName: '/api/auth/login',
       body: {
-        email: 'local-preview@example.com',
+        email: 'user@example.com',
         password: 'password123',
-        displayName: 'Local Preview User',
       },
     })
 
-    assert.equal(signup.status, 200)
-    const sessionCookie = signup.cookies.find((value) => value.startsWith('havenly_auth_session='))
+    assert.equal(login.status, 200)
+    const sessionCookie = login.cookies.find((value) => value.startsWith('havenly_auth_session='))
     assert.match(sessionCookie ?? '', /SameSite=Lax/)
     assert.doesNotMatch(sessionCookie ?? '', /Secure/)
+    assert.match(sessionCookie ?? '', /HttpOnly/)
   })
 })
 
