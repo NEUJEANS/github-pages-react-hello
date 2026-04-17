@@ -106,7 +106,6 @@ import {
   buildVisibleLibrary,
   layoutLibraryCategoryTabs,
 } from './components/layout-library-state.js'
-import { AiRecommendPage } from './pages/auth-entry-page.jsx'
 import { LayoutEditorPage } from './pages/layout-editor-page.jsx'
 import { BedsCategoryPage, FurnitureHomePage } from './pages/final-surface-page.jsx'
 import './styles.css'
@@ -176,13 +175,21 @@ function useSpaNavigation() {
 
   React.useEffect(() => {
     const syncFromLocation = () => {
+      const rawHash = window.location.hash.replace(/^#/, '')
       const next = parseHashState(window.location.hash)
+      const canonicalHash = rawHash ? buildNavigationHash(next.screen, next.overlay) : ''
+
+      if (rawHash && rawHash !== canonicalHash) {
+        window.history.replaceState(null, '', `#${canonicalHash}`)
+      }
+
       setDirection(getDirectionalTransition(currentScreenRef.current, next.screen))
       currentScreenRef.current = next.screen
       setState(next)
     }
     window.addEventListener('hashchange', syncFromLocation)
     window.addEventListener('popstate', syncFromLocation)
+    syncFromLocation()
     return () => {
       window.removeEventListener('hashchange', syncFromLocation)
       window.removeEventListener('popstate', syncFromLocation)
@@ -2043,14 +2050,6 @@ export function AppShell() {
 
 function renderScreen(screen, props) {
   switch (screen) {
-    case 'ai':
-      return (
-        <AiRecommendPage
-          roomOptions={roomOptions}
-          aiProducts={aiProducts}
-          {...props}
-        />
-      )
     case 'layout':
       return (
         <LayoutEditorPage

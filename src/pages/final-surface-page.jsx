@@ -142,9 +142,18 @@ export function FurnitureHomePage({
           <div>🛠️</div>
           <div><strong>보드에서 바로 배치</strong></div>
         </button>
-        <button className="collection buttonCard" onClick={() => navigate('ai')}>
-          <div>✨</div>
-          <div><strong>AI 추천으로 이동</strong></div>
+        <button
+          className="collection buttonCard"
+          onClick={() => onOpenLogin({
+            source: 'furniture-home-page-collection',
+            action: 'resume-authenticated-flow',
+            label: '찜한 가구 이어보기',
+            draftLabel: '가구 찜 컬렉션',
+            returnScreen: 'home',
+          })}
+        >
+          <div>♥</div>
+          <div><strong>{authSession ? '계정 찜/상태 보기' : '로그인 후 찜 이어보기'}</strong></div>
         </button>
         <button className="collection buttonCard" onClick={openCart}>
           <div>🛒</div>
@@ -236,7 +245,6 @@ export function BedsCategoryPage({
             <div className="filterChips">
               <button className="mini" onClick={() => navigate('home')}>홈</button>
               <button className="mini" onClick={() => navigate('layout')}>레이아웃 보드</button>
-              <button className="mini" onClick={() => navigate('ai')}>AI 추천</button>
               <button className="mini" onClick={openCart}>장바구니 ({cartCount})</button>
             </div>
           </div>

@@ -1,0 +1,27 @@
+{
+  "baseUrl": "http://127.0.0.1:4173/github-pages-react-hello/",
+  "steps": [
+    "opened home",
+    "home -> browse",
+    "catalog first item placed",
+    "browse -> place -> board-open -> layout",
+    "direct #ai fallback -> home"
+  ],
+  "assertions": {
+    "homeHasNoAiEntry": true,
+    "browseHasNoAiShortcut": true,
+    "layoutReached": true,
+    "aiHashRedirectsToHome": true
+  },
+  "counts": {
+    "catalogPlaceButtons": 6,
+    "placedItems": 6,
+    "trayCards": 3
+  },
+  "urls": {
+    "home": "http://127.0.0.1:4173/github-pages-react-hello/",
+    "browse": "http://127.0.0.1:4173/github-pages-react-hello/#beds",
+    "layout": "http://127.0.0.1:4173/github-pages-react-hello/#layout",
+    "aiFallback": "http://127.0.0.1:4173/github-pages-react-hello/#home"
+  }
+}
