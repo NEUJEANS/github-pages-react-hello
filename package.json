@@ -8,7 +8,7 @@
     "build": "vite build",
     "build:pages": "npm run build && node ./scripts/sync-dist-to-docs.mjs",
     "preview": "vite preview",
-    "test": "node --test src/components/*.test.js",
+    "test": "node --test src/components/*.test.js server/*.test.js",
     "review:gemini": "bash ./scripts/gemini-review.sh",
     "smoke:auth": "node ./scripts/auth-login-smoke.mjs --require-browser",
     "smoke:auth:scaffold": "node ./scripts/auth-login-smoke.mjs",
@@ -19,8 +19,12 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
+    "cookie": "^1.1.1",
+    "dotenv": "^17.4.2",
+    "pino": "^10.3.1",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.0",

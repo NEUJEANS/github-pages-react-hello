@@ -1,5 +1,9 @@
+import 'dotenv/config'
+import crypto from 'node:crypto'
 import http from 'node:http'
 import { pathToFileURL } from 'node:url'
+import pino from 'pino'
+import { z } from 'zod'
 import {
   AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
   AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
@@ -19,6 +23,70 @@ import {
   AUTH_STATUS_LABEL_HEADER,
 } from '../src/components/auth-headers.js'
 import { handleAuthRequest, readAuthStorePaths } from './auth-persistent-store.js'
+
+const logLevelSchema = z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+const authServerOptionsSchema = z.object({
+  host: z.string().trim().min(1).catch('127.0.0.1'),
+  port: z.coerce.number().int().min(0).max(65535).catch(4175),
+  dataDir: z.string().trim().optional().transform((value) => value || undefined),
+  sqlitePath: z.string().trim().optional().transform((value) => value || undefined),
+  logLevel: logLevelSchema.optional(),
+})
+
+function createAuthLogger({ logLevel = 'info' } = {}) {
+  return pino({
+    name: 'havenly-auth-server',
+    level: logLevel,
+    redact: {
+      paths: [
+        'req.headers.cookie',
+        'res.headers.set-cookie',
+      ],
+      remove: true,
+    },
+  })
+}
+
+function readRequestId(req) {
+  const headerValue = typeof req?.headers?.['x-request-id'] === 'string'
+    ? req.headers['x-request-id'].trim()
+    : ''
+
+  return headerValue || crypto.randomUUID()
+}
+
+function readExplicitLogLevel(argv = [], env = process.env) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index]
+    const nextValue = argv[index + 1]
+
+    if (arg === '--log-level' && nextValue) {
+      return nextValue
+    }
+  }
+
+  return env.HAVENLY_AUTH_LOG_LEVEL ?? env.LOG_LEVEL ?? undefined
+}
+
+function readStatusLogLevel(statusCode = 200) {
+  if (statusCode >= 500) return 'error'
+  if (statusCode >= 400) return 'warn'
+  return 'info'
+}
+
+function logRequestResult(logger, req, requestId, { statusCode, requestPath, startedAt, error = null } = {}) {
+  const level = error ? 'error' : readStatusLogLevel(statusCode)
+  logger[level]({
+    requestId,
+    method: req.method ?? 'GET',
+    path: requestPath,
+    statusCode,
+    durationMs: Date.now() - startedAt,
+    remoteAddress: req.socket?.remoteAddress ?? null,
+    userAgent: typeof req.headers?.['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+    err: error ?? undefined,
+  }, error ? 'auth request failed' : 'auth request completed')
+}
 
 function readRequestBody(req) {
   return new Promise((resolve, reject) => {
@@ -304,110 +372,156 @@ function buildVerificationCallbackPage({ verificationId, status = 'verified' }) 
 }
 
 export function startAuthHttpServer(options = {}) {
-  const host = options.host ?? '127.0.0.1'
-  const port = Number.parseInt(options.port ?? process.env.HAVENLY_AUTH_SERVER_PORT ?? '4175', 10)
-  const storePaths = readAuthStorePaths({
+  const resolvedOptions = authServerOptionsSchema.parse({
+    host: options.host ?? process.env.HAVENLY_AUTH_SERVER_HOST ?? process.env.HAVENLY_AUTH_HOST ?? '127.0.0.1',
+    port: options.port ?? process.env.HAVENLY_AUTH_SERVER_PORT ?? process.env.HAVENLY_AUTH_PORT ?? '4175',
     dataDir: options.dataDir,
-    sqlitePath: options.sqlitePath,
-    storeFile: options.storeFile,
+    sqlitePath: options.sqlitePath ?? options.storeFile,
+    logLevel: options.logLevel,
+  })
+  const { host, port, dataDir, sqlitePath, logLevel } = resolvedOptions
+  const logger = createAuthLogger({ logLevel: logLevel ?? 'info' })
+  const storePaths = readAuthStorePaths({
+    dataDir,
+    sqlitePath,
+    storeFile: sqlitePath,
   })
 
   const server = http.createServer(async (req, res) => {
+    const startedAt = Date.now()
+    const requestId = readRequestId(req)
     const corsHeaders = buildCorsHeaders(req)
+    let requestPath = ''
 
-    if (req.method === 'OPTIONS') {
-      writeJson(res, 204, {}, corsHeaders)
-      return
+    const finishJson = (statusCode, data, headers = {}) => {
+      writeJson(res, statusCode, data, { ...headers, 'x-request-id': requestId })
+      logRequestResult(logger, req, requestId, { statusCode, requestPath, startedAt })
     }
 
-    if (!req.url) {
-      writeJson(res, 400, { message: 'Missing request URL' }, corsHeaders)
-      return
+    const finishHtml = (statusCode, html, headers = {}) => {
+      writeHtml(res, statusCode, html, { ...headers, 'x-request-id': requestId })
+      logRequestResult(logger, req, requestId, { statusCode, requestPath, startedAt })
     }
 
-    const requestPath = normalizeAuthPath(readRequestPath(req))
+    try {
+      if (req.method === 'OPTIONS') {
+        finishJson(204, {}, corsHeaders)
+        return
+      }
 
-    if (requestPath === '/api/auth/health') {
-      writeHealthResponse(res, { storePaths, corsHeaders })
-      return
-    }
+      if (!req.url) {
+        finishJson(400, { message: 'Missing request URL' }, corsHeaders)
+        return
+      }
 
-    const supportedPaths = [
-      '/api/auth/login',
-      '/api/auth/signup',
-      '/api/auth/session',
-      '/api/auth/pending',
-      '/api/auth/logout',
-      '/api/auth/continue',
-      '/api/auth/verification/start',
-      '/api/auth/verification/status',
-      '/api/auth/verification/callback',
-      '/api/auth/layout/track',
-    ]
+      requestPath = normalizeAuthPath(readRequestPath(req))
 
-    if (!supportedPaths.includes(requestPath)) {
-      writeJson(res, 404, { message: `Unknown auth path: ${requestPath}` }, corsHeaders)
-      return
-    }
+      if (requestPath === '/api/auth/health') {
+        finishJson(200, {
+          ok: true,
+          service: 'havenly-auth-http-server',
+          storage: 'sqlite',
+          sqlitePath: storePaths.sqlitePath,
+        }, {
+          ...corsHeaders,
+          'cache-control': 'no-store',
+          'x-havenly-auth-server': 'health',
+        })
+        return
+      }
 
-    const connection = readAuthConnection(req, requestPath)
-    const actionConnection = buildActionConnection(req)
-    const query = readRequestQuery(req)
-    const rawBody = req.method === 'GET' || req.method === 'HEAD'
-      ? {}
-      : await readRequestBody(req)
-    const body = requestPath === '/api/auth/verification/callback'
-      ? { ...query, ...rawBody }
-      : rawBody
+      const supportedPaths = [
+        '/api/auth/login',
+        '/api/auth/signup',
+        '/api/auth/session',
+        '/api/auth/pending',
+        '/api/auth/logout',
+        '/api/auth/continue',
+        '/api/auth/verification/start',
+        '/api/auth/verification/status',
+        '/api/auth/verification/callback',
+        '/api/auth/layout/track',
+      ]
 
-    const response = handleAuthRequest(req, {
-      connection,
-      actionConnection,
-      body: {
-        ...body,
-        continuation: {
-          ...(body?.continuation ?? {}),
-          resumeToken: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? body?.continuation?.resumeToken ?? null,
-          nextAction: req.headers[AUTH_NEXT_ACTION_HEADER] ?? body?.continuation?.nextAction ?? null,
-          status: body?.continuation?.status ?? null,
-          statusLabel: body?.continuation?.statusLabel ?? null,
+      if (!supportedPaths.includes(requestPath)) {
+        finishJson(404, { message: `Unknown auth path: ${requestPath}` }, corsHeaders)
+        return
+      }
+
+      const connection = readAuthConnection(req, requestPath)
+      const actionConnection = buildActionConnection(req)
+      const query = readRequestQuery(req)
+      const rawBody = req.method === 'GET' || req.method === 'HEAD'
+        ? {}
+        : await readRequestBody(req)
+      const body = requestPath === '/api/auth/verification/callback'
+        ? { ...query, ...rawBody }
+        : rawBody
+
+      const response = handleAuthRequest(req, {
+        connection,
+        actionConnection,
+        body: {
+          ...body,
+          continuation: {
+            ...(body?.continuation ?? {}),
+            resumeToken: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? body?.continuation?.resumeToken ?? null,
+            nextAction: req.headers[AUTH_NEXT_ACTION_HEADER] ?? body?.continuation?.nextAction ?? null,
+            status: body?.continuation?.status ?? null,
+            statusLabel: body?.continuation?.statusLabel ?? null,
+          },
         },
-      },
-      pathName: requestPath,
-      handoffHeader: req.headers[AUTH_HANDOFF_HEADER] ?? null,
-      resumeTokenHeader: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? null,
-      dataDir: storePaths.dataDir,
-      sqlitePath: storePaths.sqlitePath,
-      storeFile: storePaths.sqlitePath,
-    })
+        pathName: requestPath,
+        handoffHeader: req.headers[AUTH_HANDOFF_HEADER] ?? null,
+        resumeTokenHeader: req.headers[AUTH_RESUME_TOKEN_HEADER] ?? null,
+        dataDir: storePaths.dataDir,
+        sqlitePath: storePaths.sqlitePath,
+        storeFile: storePaths.sqlitePath,
+      })
 
-    if (Array.isArray(response.cookies) && response.cookies.length > 0) {
-      res.setHeader('set-cookie', response.cookies)
+      if (Array.isArray(response.cookies) && response.cookies.length > 0) {
+        res.setHeader('set-cookie', response.cookies)
+      }
+
+      const responseHeaders = {
+        ...corsHeaders,
+        'x-havenly-auth-server': 'true',
+        [AUTH_SCAFFOLD_HEADER]: 'true',
+        ...buildAuthConnectionHeaders(response.data?.connection ?? connection),
+        ...buildAuthActionConnectionHeaders(response.data?.actionConnection ?? actionConnection),
+        ...buildAuthContinuationHeaders(response.data),
+      }
+
+      if (requestPath === '/api/auth/verification/callback' && response.status === 200) {
+        finishHtml(
+          response.status,
+          buildVerificationCallbackPage({
+            verificationId: response.data?.verificationId ?? body?.verificationId ?? null,
+            status: response.data?.status ?? body?.status ?? 'verified',
+          }),
+          responseHeaders,
+        )
+        return
+      }
+
+      finishJson(response.status, response.data, responseHeaders)
+    } catch (error) {
+      if (!requestPath && req.url) {
+        requestPath = normalizeAuthPath(readRequestPath(req))
+      }
+
+      writeJson(res, 500, { message: 'Internal auth server error' }, {
+        ...corsHeaders,
+        'x-havenly-auth-server': 'true',
+        'x-request-id': requestId,
+      })
+      logRequestResult(logger, req, requestId, {
+        statusCode: 500,
+        requestPath,
+        startedAt,
+        error,
+      })
     }
-
-    const responseHeaders = {
-      ...corsHeaders,
-      'x-havenly-auth-server': 'true',
-      [AUTH_SCAFFOLD_HEADER]: 'true',
-      ...buildAuthConnectionHeaders(response.data?.connection ?? connection),
-      ...buildAuthActionConnectionHeaders(response.data?.actionConnection ?? actionConnection),
-      ...buildAuthContinuationHeaders(response.data),
-    }
-
-    if (requestPath === '/api/auth/verification/callback' && response.status === 200) {
-      writeHtml(
-        res,
-        response.status,
-        buildVerificationCallbackPage({
-          verificationId: response.data?.verificationId ?? body?.verificationId ?? null,
-          status: response.data?.status ?? body?.status ?? 'verified',
-        }),
-        responseHeaders,
-      )
-      return
-    }
-
-    writeJson(res, response.status, response.data, responseHeaders)
   })
 
   return new Promise((resolve, reject) => {
@@ -416,11 +530,15 @@ export function startAuthHttpServer(options = {}) {
       server.off('error', reject)
       const address = server.address()
       const resolvedPort = typeof address === 'object' && address ? address.port : port
+      const url = `http://${host}:${resolvedPort}`
+
+      logger.info({ host, port: resolvedPort, url, sqlitePath: storePaths.sqlitePath }, 'havenly auth server listening')
       resolve({
         server,
         host,
         port: resolvedPort,
-        url: `http://${host}:${resolvedPort}`,
+        url,
+        logger,
         close: () => new Promise((closeResolve, closeReject) => {
           server.close((error) => {
             if (error) {
@@ -441,6 +559,7 @@ function parseCliArgs(argv = process.argv.slice(2), env = process.env) {
     port: env.HAVENLY_AUTH_SERVER_PORT ?? env.HAVENLY_AUTH_PORT ?? '4175',
     dataDir: env.HAVENLY_AUTH_DATA_DIR,
     sqlitePath: env.HAVENLY_AUTH_SQLITE_PATH ?? env.HAVENLY_AUTH_STORE_FILE,
+    logLevel: readExplicitLogLevel(argv, env),
   }
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -470,6 +589,12 @@ function parseCliArgs(argv = process.argv.slice(2), env = process.env) {
       index += 1
       continue
     }
+
+    if (arg === '--log-level' && nextValue) {
+      options.logLevel = nextValue
+      index += 1
+      continue
+    }
   }
 
   return options
@@ -477,11 +602,14 @@ function parseCliArgs(argv = process.argv.slice(2), env = process.env) {
 
 function resolveAuthHttpServerOptions({ args = process.argv.slice(2), env = process.env } = {}) {
   const parsed = parseCliArgs(args, env)
+  const resolved = authServerOptionsSchema.parse(parsed)
+
   return {
-    host: parsed.host,
-    port: Number.parseInt(parsed.port, 10),
-    ...(parsed.dataDir ? { dataDir: parsed.dataDir } : {}),
-    ...(parsed.sqlitePath ? { sqlitePath: parsed.sqlitePath } : {}),
+    host: resolved.host,
+    port: resolved.port,
+    ...(resolved.dataDir ? { dataDir: resolved.dataDir } : {}),
+    ...(resolved.sqlitePath ? { sqlitePath: resolved.sqlitePath } : {}),
+    ...(resolved.logLevel ? { logLevel: resolved.logLevel } : {}),
   }
 }
 
@@ -491,13 +619,11 @@ const invokedPath = process.argv[1] ? pathToFileURL(process.argv[1]).href : null
 const isDirectExecution = invokedPath === import.meta.url
 
 if (isDirectExecution) {
-  const options = parseCliArgs()
+  const options = resolveAuthHttpServerOptions()
   startAuthHttpServer(options)
-    .then(({ host, port, url }) => {
-      console.log(`[havenly-auth-server] listening on ${url} (host=${host} port=${port})`)
-    })
     .catch((error) => {
-      console.error('[havenly-auth-server] failed to start', error)
+      const logger = createAuthLogger({ logLevel: options.logLevel ?? 'info' })
+      logger.error({ err: error }, 'failed to start havenly auth server')
       process.exitCode = 1
     })
 }

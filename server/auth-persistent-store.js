@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import Database from 'better-sqlite3'
+import { parseCookie, stringifySetCookie } from 'cookie'
 
 const sessionCookieName = 'havenly_auth_session'
 const handoffCookieName = 'havenly_auth_handoff'
@@ -475,12 +476,8 @@ function normalizeEmail(email = '') {
 }
 
 function readCookies(req) {
-  const cookieHeader = req.headers.cookie ?? ''
-  return Object.fromEntries(cookieHeader.split(';').map((entry) => entry.trim()).filter(Boolean).map((entry) => {
-    const index = entry.indexOf('=')
-    if (index === -1) return [entry, '']
-    return [entry.slice(0, index), decodeURIComponent(entry.slice(index + 1))]
-  }))
+  const cookieHeader = typeof req?.headers?.cookie === 'string' ? req.headers.cookie : ''
+  return parseCookie(cookieHeader)
 }
 
 function readRequestOrigin(req) {
@@ -505,10 +502,15 @@ function shouldUseCrossSiteSecureCookies(req) {
 }
 
 function serializeCookie(name, value, { maxAge = null, sameSite = 'Lax', secure = false } = {}) {
-  const parts = [`${name}=${encodeURIComponent(value)}`, 'Path=/', 'HttpOnly', `SameSite=${sameSite}`]
-  if (secure) parts.push('Secure')
-  if (maxAge != null) parts.push(`Max-Age=${maxAge}`)
-  return parts.join('; ')
+  return stringifySetCookie({
+    name,
+    value,
+    path: '/',
+    httpOnly: true,
+    sameSite,
+    secure,
+    ...(maxAge != null ? { maxAge } : {}),
+  })
 }
 
 function randomId(prefix) {

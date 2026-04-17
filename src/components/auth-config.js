@@ -1,22 +1,12 @@
-function trimTrailingSlash(value = '') {
-  return value.endsWith('/') ? value.slice(0, -1) : value
-}
+import {
+  normalizeApiBaseUrl,
+  normalizeAuthConfigResult,
+  normalizeCredentialMode,
+  normalizeEndpointOverride,
+} from './auth-schemas.js'
 
 function readString(value) {
   return typeof value === 'string' ? value.trim() : ''
-}
-
-function readCredentialMode(value) {
-  return value === 'include' || value === 'same-origin' || value === 'omit'
-    ? value
-    : ''
-}
-
-function readEndpoint(value, fallback = '/api/auth/login') {
-  const normalized = readString(value)
-  if (!normalized) return fallback
-  if (/^https?:\/\//.test(normalized)) return normalized
-  return normalized.startsWith('/') ? normalized : `/${normalized}`
 }
 
 function resolveAuthConfigSource({
@@ -89,7 +79,7 @@ export async function detectLocalPagesAuthConfig({
   if (typeof fetchImpl !== 'function') return null
 
   for (const candidate of candidates) {
-    const apiBaseUrl = trimTrailingSlash(candidate)
+    const apiBaseUrl = normalizeApiBaseUrl(candidate)
     if (!apiBaseUrl) continue
 
     try {
@@ -158,9 +148,9 @@ export function resolveAuthConfig({
   const queryLogoutEndpoint = readString(params.get('authLogoutEndpoint'))
   const runtimeLogoutEndpoint = readString(runtimeConfig?.logoutEndpoint)
   const envLogoutEndpoint = readString(env?.VITE_AUTH_LOGOUT_ENDPOINT)
-  const queryCredentialMode = readCredentialMode(params.get('authCredentials'))
-  const runtimeCredentialMode = readCredentialMode(runtimeConfig?.credentialsMode)
-  const envCredentialMode = readCredentialMode(env?.VITE_AUTH_CREDENTIALS)
+  const queryCredentialMode = normalizeCredentialMode(params.get('authCredentials'))
+  const runtimeCredentialMode = normalizeCredentialMode(runtimeConfig?.credentialsMode)
+  const envCredentialMode = normalizeCredentialMode(env?.VITE_AUTH_CREDENTIALS)
   const runtimeAppBasePath = readString(runtimeConfig?.appBasePath)
   const envAppBasePath = readString(env?.BASE_URL)
   const allowLoopbackProbe = runtimeConfig?.allowLoopbackProbe === true || params.get('authLoopbackProbe') === '1'
@@ -171,7 +161,7 @@ export function resolveAuthConfig({
     && !isLoopbackOrigin(runtimeApiBaseUrl)
   const effectiveRuntimeApiBaseUrl = ignoreRuntimeApiBaseUrlForLoopback ? '' : runtimeApiBaseUrl
 
-  const apiBaseUrl = trimTrailingSlash(
+  const apiBaseUrl = normalizeApiBaseUrl(
     effectiveRuntimeApiBaseUrl
       || queryApiBaseUrl
       || explicitEnvApiBaseUrl
@@ -211,40 +201,40 @@ export function resolveAuthConfig({
     ],
   })
 
-  return {
+  return normalizeAuthConfigResult({
     apiBaseUrl,
     currentOrigin,
-    appBasePath: readEndpoint(runtimeAppBasePath || envAppBasePath || '/', '/'),
-    loginEndpoint: readEndpoint(
+    appBasePath: normalizeEndpointOverride(runtimeAppBasePath || envAppBasePath || '/', '/'),
+    loginEndpoint: normalizeEndpointOverride(
       runtimeLoginEndpoint
         || queryLoginEndpoint
         || envLoginEndpoint,
     ),
-    signupEndpoint: readEndpoint(
+    signupEndpoint: normalizeEndpointOverride(
       runtimeSignupEndpoint
         || querySignupEndpoint
         || envSignupEndpoint,
       '/api/auth/signup',
     ),
-    sessionEndpoint: readEndpoint(
+    sessionEndpoint: normalizeEndpointOverride(
       runtimeSessionEndpoint
         || querySessionEndpoint
         || envSessionEndpoint,
       '/api/auth/session',
     ),
-    pendingEndpoint: readEndpoint(
+    pendingEndpoint: normalizeEndpointOverride(
       runtimePendingEndpoint
         || queryPendingEndpoint
         || envPendingEndpoint,
       '/api/auth/pending',
     ),
-    continueEndpoint: readEndpoint(
+    continueEndpoint: normalizeEndpointOverride(
       runtimeContinueEndpoint
         || queryContinueEndpoint
         || envContinueEndpoint,
       '/api/auth/continue',
     ),
-    logoutEndpoint: readEndpoint(
+    logoutEndpoint: normalizeEndpointOverride(
       runtimeLogoutEndpoint
         || queryLogoutEndpoint
         || envLogoutEndpoint,
@@ -258,5 +248,5 @@ export function resolveAuthConfig({
     loopbackProbeBlockedReason,
     source,
     isConfigured: resolveAuthConfigConfigured(source, { allowLoopbackProbe }),
-  }
+  })
 }

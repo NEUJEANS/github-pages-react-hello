@@ -6,6 +6,11 @@ import {
   submitAuthScaffoldRequest,
 } from './auth-backend-scaffold.js'
 import {
+  normalizeAuthConnection,
+  normalizeAuthPayload,
+  normalizeGuestDraftSummary,
+} from './auth-schemas.js'
+import {
   AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
   AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
   AUTH_ACTION_CONNECTION_METHOD_HEADER,
@@ -173,7 +178,7 @@ function buildScaffoldLoginResult(plan, connectionFallback, { via = 'local-fallb
   return {
     ok: scaffoldResponse.status >= 200 && scaffoldResponse.status < 300,
     status: scaffoldResponse.status,
-    data: scaffoldResponse.data,
+    data: normalizeAuthPayload(scaffoldResponse.data),
     meta: buildScaffoldMeta({ via }),
   }
 }
@@ -182,7 +187,7 @@ function buildScaffoldReadResult(readResponse, { via = 'local-fallback' } = {}) 
   return {
     ok: readResponse.status >= 200 && readResponse.status < 300,
     status: readResponse.status,
-    data: readResponse.data,
+    data: normalizeAuthPayload(readResponse.data),
     meta: buildScaffoldMeta({ via }),
   }
 }
@@ -313,20 +318,26 @@ function readDecoratedAuthConnection(data = {}, response = null, fallback = null
 }
 
 function readAuthConnection(data = {}, response = null, fallback = null) {
-  return readDecoratedAuthConnection(data, response, fallback)
+  return normalizeAuthConnection(
+    readDecoratedAuthConnection(data, response, fallback),
+    normalizeAuthConnection(fallback),
+  )
 }
 
 function readAuthActionConnection(data = {}, response = null, fallback = null) {
-  return readDecoratedAuthConnection(data, response, fallback, {
-    bodyKeys: ['actionConnection'],
-    headerNames: {
-      method: AUTH_ACTION_CONNECTION_METHOD_HEADER,
-      endpoint: AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
-      targetLabel: AUTH_ACTION_CONNECTION_TARGET_HEADER,
-      credentialsMode: AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
-      source: AUTH_ACTION_CONNECTION_SOURCE_HEADER,
-    },
-  })
+  return normalizeAuthConnection(
+    readDecoratedAuthConnection(data, response, fallback, {
+      bodyKeys: ['actionConnection'],
+      headerNames: {
+        method: AUTH_ACTION_CONNECTION_METHOD_HEADER,
+        endpoint: AUTH_ACTION_CONNECTION_ENDPOINT_HEADER,
+        targetLabel: AUTH_ACTION_CONNECTION_TARGET_HEADER,
+        credentialsMode: AUTH_ACTION_CONNECTION_CREDENTIALS_HEADER,
+        source: AUTH_ACTION_CONNECTION_SOURCE_HEADER,
+      },
+    }),
+    normalizeAuthConnection(fallback),
+  )
 }
 
 function cloneJsonValue(value) {
@@ -383,9 +394,8 @@ function buildGuestDraftSummaryFromSnapshot(guestDraftSnapshot = null) {
 }
 
 function readGuestDraftSummary(data = {}) {
-  if (data?.guestDraftSummary && typeof data.guestDraftSummary === 'object' && !Array.isArray(data.guestDraftSummary)) {
-    return cloneJsonValue(data.guestDraftSummary)
-  }
+  const inlineSummary = normalizeGuestDraftSummary(data?.guestDraftSummary)
+  if (inlineSummary) return inlineSummary
 
   const summary = data?.summary
   if (summary && typeof summary === 'object' && !Array.isArray(summary)) {
@@ -398,7 +408,7 @@ function readGuestDraftSummary(data = {}) {
       || summary.selectedSpaceIds != null
 
     if (hasSummaryShape) {
-      return {
+      return normalizeGuestDraftSummary({
         apartmentLabel: summary.apartmentLabel ?? null,
         selectedRoomCount: summary.selectedRoomCount ?? 0,
         selectedRooms: Array.isArray(summary.selectedRooms) ? [...summary.selectedRooms] : [],
@@ -407,11 +417,13 @@ function readGuestDraftSummary(data = {}) {
         wishlistCount: summary.wishlistCount ?? 0,
         cartCount: summary.cartCount ?? 0,
         layoutItemCount: summary.layoutItemCount ?? 0,
-      }
+      })
     }
   }
 
-  return buildGuestDraftSummaryFromSnapshot(data?.guestDraftSnapshot ?? data?.request?.guestDraftSnapshot ?? null)
+  return normalizeGuestDraftSummary(
+    buildGuestDraftSummaryFromSnapshot(data?.guestDraftSnapshot ?? data?.request?.guestDraftSnapshot ?? null),
+  )
 }
 
 function applyAuthResponseDecorators(data, response, { handoffIdFallback = null, connectionFallback = null, actionConnectionFallback = null } = {}) {
@@ -423,9 +435,11 @@ function applyAuthResponseDecorators(data, response, { handoffIdFallback = null,
   const draftSave = readSerializableDraftSave(data)
   const guestDraftSummary = readGuestDraftSummary(data)
 
-  if (!handoffId && !continuation && !connection && !actionConnection && !continuationFields && !draftSave && !guestDraftSummary) return data
+  if (!handoffId && !continuation && !connection && !actionConnection && !continuationFields && !draftSave && !guestDraftSummary) {
+    return normalizeAuthPayload(data)
+  }
 
-  return {
+  return normalizeAuthPayload({
     ...(data ?? {}),
     ...(handoffId ? { handoffId } : {}),
     ...(continuation ?? {}),
@@ -434,7 +448,7 @@ function applyAuthResponseDecorators(data, response, { handoffIdFallback = null,
     ...(continuationFields ? { continuationFields } : {}),
     ...(draftSave ? { draftSave } : {}),
     ...(guestDraftSummary ? { guestDraftSummary } : {}),
-  }
+  })
 }
 
 function buildResponseMeta(response) {
