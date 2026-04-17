@@ -84,6 +84,7 @@ import {
   parseHashState,
 } from './components/spa-hash-navigation-state.js'
 import { buildLayoutProduct } from './components/catalog-product-selection-state.js'
+import { toggleWishlistId } from './components/wishlist-state.js'
 import {
   buildLayoutEditorActionCommands,
   buildLayoutEditorHint,
@@ -597,6 +598,10 @@ export function AppShell() {
   const verificationPollTimeoutRef = React.useRef(null)
   const verificationAdvanceTimeoutRef = React.useRef(null)
   const verificationPendingStartedAtRef = React.useRef(null)
+
+  const handleToggleWishlist = React.useCallback((id) => {
+    setWishlistedIds((current) => toggleWishlistId(current, id))
+  }, [])
   const appliedAuthSessionRestoreRef = React.useRef(null)
   const autoResumedAuthReadyKeyRef = React.useRef('')
 
@@ -1953,6 +1958,8 @@ export function AppShell() {
     addToCart: cart.addItem,
     onOpenLogin: openLogin,
     onAddProductToLayout: addProductToLayout,
+    onToggleWishlist: handleToggleWishlist,
+    wishlistedIds,
     layoutTrayItems,
     onLayoutTrayDropToRoom: handleLayoutTrayDropToRoom,
     onLayoutTrayAbandon: handleLayoutTrayAbandon,
@@ -2069,10 +2076,10 @@ function renderScreen(screen, props) {
         />
       )
     case 'beds':
-      return <BedsCategoryPage {...props} />
+      return <BedsCategoryPage libraryItems={libraryItems} {...props} />
     case 'home':
     default:
-      return <FurnitureHomePage {...props} />
+      return <FurnitureHomePage aiProducts={aiProducts} libraryItems={libraryItems} {...props} />
   }
 }
 
