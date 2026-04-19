@@ -1186,6 +1186,49 @@ test('submitAuthLoginPlan falls back to the local scaffold when a same-origin pr
   assert.equal(result.data.connection.targetLabel, 'same-origin /api auth scaffold')
 })
 
+test('submitAuthLoginPlan returns a recoverable network failure result for external auth backends', async () => {
+  const result = await submitAuthLoginPlan({
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    handoffId: 'auth-network-failure-1',
+    request: {
+      email: 'user@example.com',
+      password: 'password123',
+      handoffId: 'auth-network-failure-1',
+    },
+  }, {
+    apiBaseUrl: 'https://api.example.com',
+    currentOrigin: 'https://havenly.example.com',
+    credentialsMode: 'include',
+    fetchImpl: async () => {
+      throw new Error('connect ECONNREFUSED')
+    },
+  })
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: 0,
+    data: {
+      message: 'Auth request failed',
+      handoffId: 'auth-network-failure-1',
+      connection: {
+        method: 'POST',
+        endpoint: '/api/auth/login',
+        resolvedUrl: 'https://api.example.com/api/auth/login',
+        targetLabel: 'api.example.com',
+        isExternal: true,
+        isSameOriginScaffold: false,
+        credentialsMode: 'include',
+        source: 'default',
+      },
+    },
+    meta: {
+      authMode: 'remote',
+      authTransport: 'network',
+    },
+  })
+})
+
 test('readAuthSession falls back to the local scaffold when a same-origin preview serves HTML for the session endpoint', async () => {
   resetAuthScaffoldState()
 

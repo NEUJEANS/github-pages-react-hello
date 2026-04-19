@@ -6,6 +6,8 @@ import { parseCookie, stringifySetCookie } from 'cookie'
 
 const sessionCookieName = 'havenly_auth_session'
 const handoffCookieName = 'havenly_auth_handoff'
+const authSessionMaxAgeSeconds = 60 * 60 * 24 * 30
+const authHandoffMaxAgeSeconds = 60 * 60 * 24 * 7
 
 let database = null
 let databasePath = null
@@ -68,6 +70,26 @@ function parseJson(value, fallback = null) {
     return JSON.parse(value)
   } catch {
     return clone(fallback)
+  }
+}
+
+function addSecondsToTimestamp(timestamp = new Date().toISOString(), seconds = 0) {
+  const parsedAt = Date.parse(timestamp)
+  const baseTime = Number.isNaN(parsedAt) ? Date.now() : parsedAt
+  return new Date(baseTime + (seconds * 1000)).toISOString()
+}
+
+function isExpiredTimestamp(timestamp = null) {
+  if (typeof timestamp !== 'string' || !timestamp.trim()) return false
+  const parsedAt = Date.parse(timestamp)
+  return !Number.isNaN(parsedAt) && parsedAt <= Date.now()
+}
+
+function ensureDatabaseColumn(db, tableName, columnName, columnDefinition) {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all()
+  const hasColumn = columns.some((column) => column.name === columnName)
+  if (!hasColumn) {
+    db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`)
   }
 }
 
@@ -161,6 +183,7 @@ function ensureDatabase(source = null) {
       user_email TEXT NOT NULL,
       payload_json TEXT NOT NULL,
       saved_at TEXT NOT NULL,
+      expires_at TEXT,
       FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
     );
     CREATE TABLE IF NOT EXISTS pending (
@@ -183,6 +206,7 @@ function ensureDatabase(source = null) {
       count INTEGER NOT NULL
     );
   `)
+  ensureDatabaseColumn(database, 'sessions', 'expires_at', 'TEXT')
 
   const hasUsers = database.prepare('SELECT 1 FROM users LIMIT 1').get()
   if (!hasUsers) {
@@ -196,8 +220,8 @@ function ensureDatabase(source = null) {
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
     const insertSession = database.prepare(`
-      INSERT OR REPLACE INTO sessions (id, user_email, payload_json, saved_at)
-      VALUES (?, ?, ?, ?)
+      INSERT OR REPLACE INTO sessions (id, user_email, payload_json, saved_at, expires_at)
+      VALUES (?, ?, ?, ?, ?)
     `)
     const insertPending = database.prepare(`
       INSERT OR REPLACE INTO pending (handoff_id, payload_json, saved_at)
@@ -221,11 +245,13 @@ function ensureDatabase(source = null) {
       })
 
       Object.entries(legacyStore?.sessions ?? {}).forEach(([id, session]) => {
+        const savedAt = session.savedAt ?? new Date().toISOString()
         insertSession.run(
           id,
           session.userEmail,
           serializeJson(session.payload),
-          session.savedAt ?? new Date().toISOString(),
+          savedAt,
+          session.expiresAt ?? addSecondsToTimestamp(savedAt, authSessionMaxAgeSeconds),
         )
       })
 
@@ -309,27 +335,35 @@ function saveUser(user, source = null) {
 
 function readSessionRecord(sessionId, source = null) {
   const db = ensureDatabase(source)
-  const row = db.prepare('SELECT id, user_email, payload_json, saved_at FROM sessions WHERE id = ?').get(sessionId)
+  const row = db.prepare('SELECT id, user_email, payload_json, saved_at, expires_at FROM sessions WHERE id = ?').get(sessionId)
   if (!row) return null
+
+  const expiresAt = row.expires_at ?? addSecondsToTimestamp(row.saved_at, authSessionMaxAgeSeconds)
+  if (isExpiredTimestamp(expiresAt)) {
+    deleteSessionRecord(sessionId, source)
+    return null
+  }
 
   return {
     id: row.id,
     userEmail: row.user_email,
     payload: parseJson(row.payload_json, null),
     savedAt: row.saved_at,
+    expiresAt,
   }
 }
 
-function saveSessionRecord(sessionId, { userEmail, payload, savedAt = new Date().toISOString() }, source = null) {
+function saveSessionRecord(sessionId, { userEmail, payload, savedAt = new Date().toISOString(), expiresAt = addSecondsToTimestamp(savedAt, authSessionMaxAgeSeconds) }, source = null) {
   const db = ensureDatabase(source)
   db.prepare(`
-    INSERT INTO sessions (id, user_email, payload_json, saved_at)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO sessions (id, user_email, payload_json, saved_at, expires_at)
+    VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       user_email = excluded.user_email,
       payload_json = excluded.payload_json,
-      saved_at = excluded.saved_at
-  `).run(sessionId, userEmail, serializeJson(payload), savedAt)
+      saved_at = excluded.saved_at,
+      expires_at = excluded.expires_at
+  `).run(sessionId, userEmail, serializeJson(payload), savedAt, expiresAt)
 }
 
 function deleteSessionRecord(sessionId, source = null) {
@@ -458,6 +492,7 @@ function finalizeVerificationRequest(verificationId, { status = 'verified', stor
       userEmail: sessionRecord.userEmail,
       payload,
       savedAt: new Date().toISOString(),
+      expiresAt: sessionRecord.expiresAt,
     }, storeSource)
   }
 
@@ -490,15 +525,84 @@ function readForwardedProto(req) {
     : ''
 }
 
-function shouldUseCrossSiteSecureCookies(req) {
-  const origin = readRequestOrigin(req)
+function readForwardedHost(req) {
+  return typeof req?.headers?.['x-forwarded-host'] === 'string'
+    ? req.headers['x-forwarded-host'].trim()
+    : ''
+}
+
+function readRequestHost(req) {
+  return readForwardedHost(req)
+    || (typeof req?.headers?.host === 'string' ? req.headers.host.trim() : '')
+}
+
+function normalizeHostName(host = '') {
+  const candidate = String(host ?? '').trim()
+  if (!candidate) return ''
+
+  try {
+    return new URL(candidate.includes('://') ? candidate : `http://${candidate}`).hostname.toLowerCase()
+  } catch {
+    return candidate.replace(/:\d+$/, '').toLowerCase()
+  }
+}
+
+function isLoopbackHost(host = '') {
+  const normalizedHost = normalizeHostName(host)
+  return normalizedHost === 'localhost'
+    || normalizedHost === '::1'
+    || /^127(?:\.\d{1,3}){3}$/i.test(normalizedHost)
+}
+
+function readRequestProtocol(req) {
   const forwardedProto = readForwardedProto(req)
+  if (forwardedProto === 'https' || forwardedProto === 'http') return forwardedProto
+  if (req?.socket?.encrypted) return 'https'
 
-  const isGithubPagesOrigin = /^https:\/\/[\w.-]+\.github\.io$/i.test(origin)
-  if (!isGithubPagesOrigin) return false
+  const origin = readRequestOrigin(req)
+  if (/^https:\/\//i.test(origin)) return 'https'
+  if (/^http:\/\//i.test(origin)) return 'http'
 
-  if (forwardedProto === 'https') return true
-  return /^https:\/\//i.test(origin)
+  return 'http'
+}
+
+function isSecureRequest(req) {
+  return readRequestProtocol(req) === 'https'
+}
+
+function shouldUseCrossSiteCookiePolicy(req) {
+  const origin = readRequestOrigin(req)
+  if (!origin) return false
+
+  try {
+    const originUrl = new URL(origin)
+    const requestHost = readRequestHost(req)
+    const requestProtocol = readRequestProtocol(req)
+
+    if (!requestHost) return false
+    if (isLoopbackHost(originUrl.hostname) && isLoopbackHost(requestHost)) return false
+
+    return originUrl.origin !== `${requestProtocol}://${requestHost}`
+  } catch {
+    return false
+  }
+}
+
+function buildCookieOptions(req) {
+  const secureRequest = isSecureRequest(req)
+  const crossSiteRequest = shouldUseCrossSiteCookiePolicy(req)
+
+  if (crossSiteRequest && secureRequest) {
+    return {
+      sameSite: 'None',
+      secure: true,
+    }
+  }
+
+  return {
+    sameSite: 'Lax',
+    secure: secureRequest,
+  }
 }
 
 function serializeCookie(name, value, { maxAge = null, sameSite = 'Lax', secure = false } = {}) {
@@ -514,7 +618,7 @@ function serializeCookie(name, value, { maxAge = null, sameSite = 'Lax', secure 
 }
 
 function randomId(prefix) {
-  return `${prefix}_${crypto.randomBytes(12).toString('hex')}`
+  return `${prefix}_${crypto.randomBytes(16).toString('hex')}`
 }
 
 function buildMergedGuestDraft(guestDraftSnapshot = null, { mode = 'merged', resolution = null } = {}) {
@@ -804,9 +908,7 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
   const sessionRecord = sessionId ? readSessionRecord(sessionId, storeSource) : null
 
   const cookieHeaders = []
-  const cookieOptions = shouldUseCrossSiteSecureCookies(req)
-    ? { sameSite: 'None', secure: true }
-    : { sameSite: 'Lax', secure: false }
+  const cookieOptions = buildCookieOptions(req)
 
   if (pathName === '/api/auth/verification/start') {
     if (!sessionRecord) return { status: 401, data: { message: 'No auth session', nextAction: 'login-required', connection, actionConnection }, cookies: cookieHeaders }
@@ -901,6 +1003,7 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
         userEmail: sessionRecord.userEmail,
         payload,
         savedAt: new Date().toISOString(),
+        expiresAt: sessionRecord.expiresAt,
       }, storeSource)
     }
 
@@ -1018,7 +1121,7 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
         status: 409,
       }
       if (handoffId) savePendingRecord(handoffId, pending, {}, storeSource)
-      if (handoffId) cookieHeaders.push(serializeCookie(handoffCookieName, handoffId, { ...cookieOptions, maxAge: 60 * 60 * 24 * 7 }))
+      if (handoffId) cookieHeaders.push(serializeCookie(handoffCookieName, handoffId, { ...cookieOptions, maxAge: authHandoffMaxAgeSeconds }))
       return {
         status: 409,
         data: {
@@ -1058,10 +1161,11 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
       userEmail: email,
       payload,
       savedAt: new Date().toISOString(),
+      expiresAt: addSecondsToTimestamp(new Date().toISOString(), authSessionMaxAgeSeconds),
     }, storeSource)
     if (handoffId) deletePendingRecord(handoffId, storeSource)
-    cookieHeaders.push(serializeCookie(sessionCookieName, newSessionId, { ...cookieOptions, maxAge: 60 * 60 * 24 * 30 }))
-    cookieHeaders.push(serializeCookie(handoffCookieName, handoffId ?? '', { ...cookieOptions, maxAge: handoffId ? 60 * 60 * 24 * 7 : 0 }))
+    cookieHeaders.push(serializeCookie(sessionCookieName, newSessionId, { ...cookieOptions, maxAge: authSessionMaxAgeSeconds }))
+    cookieHeaders.push(serializeCookie(handoffCookieName, handoffId ?? '', { ...cookieOptions, maxAge: handoffId ? authHandoffMaxAgeSeconds : 0 }))
     return { status: 200, data: payload, cookies: cookieHeaders }
   }
 
@@ -1096,10 +1200,15 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
         actionConnection: pending.actionConnection ?? actionConnection,
       })
       const newSessionId = randomId('session')
-      saveSessionRecord(newSessionId, { userEmail: user.email, payload, savedAt: new Date().toISOString() }, storeSource)
+      saveSessionRecord(newSessionId, {
+        userEmail: user.email,
+        payload,
+        savedAt: new Date().toISOString(),
+        expiresAt: addSecondsToTimestamp(new Date().toISOString(), authSessionMaxAgeSeconds),
+      }, storeSource)
       deletePendingRecord(effectiveHandoffId, storeSource)
-      cookieHeaders.push(serializeCookie(sessionCookieName, newSessionId, { ...cookieOptions, maxAge: 60 * 60 * 24 * 30 }))
-      cookieHeaders.push(serializeCookie(handoffCookieName, effectiveHandoffId, { ...cookieOptions, maxAge: 60 * 60 * 24 * 7 }))
+      cookieHeaders.push(serializeCookie(sessionCookieName, newSessionId, { ...cookieOptions, maxAge: authSessionMaxAgeSeconds }))
+      cookieHeaders.push(serializeCookie(handoffCookieName, effectiveHandoffId, { ...cookieOptions, maxAge: authHandoffMaxAgeSeconds }))
       return { status: 200, data: payload, cookies: cookieHeaders }
     }
 
@@ -1166,6 +1275,7 @@ export function handleAuthRequest(req, { connection = null, actionConnection = n
       userEmail: sessionRecord.userEmail,
       payload,
       savedAt: new Date().toISOString(),
+      expiresAt: sessionRecord.expiresAt,
     }, storeSource)
     return { status: 200, data: payload, cookies: cookieHeaders }
   }

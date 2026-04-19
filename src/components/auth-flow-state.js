@@ -42,6 +42,23 @@ function normalizeAuthErrorMessage(message = '', { tone = 'unknown' } = {}) {
     if (normalized === 'Verification code required') return '인증 코드를 먼저 입력해 주세요.'
   }
 
+  if (tone === 'service') {
+    if (
+      normalized === 'Auth request failed'
+      || normalized === 'Auth continuation request failed'
+      || normalized === 'Auth session request failed'
+      || normalized === 'Auth pending request failed'
+      || normalized === 'Auth logout request failed'
+      || normalized === 'Network request failed'
+      || /network/i.test(normalized)
+      || /timeout/i.test(normalized)
+      || /ECONN/i.test(normalized)
+      || /Failed to fetch/i.test(normalized)
+    ) {
+      return '인증 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'
+    }
+  }
+
   return normalized
 }
 
@@ -344,7 +361,7 @@ export function buildAuthSubmitPlan({
 } = {}) {
   const normalizedEmail = sanitizeEmail(email)
   const normalizedHandoffId = sanitizeAuthHandoffId(handoffId)
-  const hasPassword = password.trim().length >= 8
+  const hasPassword = password.trim().length > 0
   const hasGuestDraft = Boolean(guestDraftSnapshot)
   const serializableContinuation = buildSerializableContinuation(continuation)
   const serializableDraftSave = buildSerializableDraftSaveHandoff(draftSave)
@@ -471,7 +488,7 @@ export function buildAuthErrorSummary(result, fallbackSummary = {}) {
   if (status >= 500 || status === 0) {
     return {
       tone: 'service',
-      message: message ?? '인증 데모 상태를 준비하지 못했어요. 잠시 후 다시 시도해주세요.',
+      message: normalizeAuthErrorMessage(message, { tone: 'service' }) || '인증 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.',
       summary: buildFallbackSummary(fallbackSummary),
       resumeToken: data.resumeToken ?? null,
       nextAction: normalizeContinuationNextAction(data.nextAction ?? null),

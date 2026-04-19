@@ -597,7 +597,22 @@ async function submitAuthAccessPlan(plan, { fetchImpl = fetch, apiBaseUrl, appBa
       return buildScaffoldLoginResult(plan, connectionFallback)
     }
 
-    throw new Error('Auth request failed')
+    return {
+      ok: false,
+      status: 0,
+      data: applyAuthResponseDecorators(
+        { message: 'Auth request failed' },
+        null,
+        {
+          handoffIdFallback: plan.handoffId ?? null,
+          connectionFallback,
+        },
+      ),
+      meta: {
+        authMode: 'remote',
+        authTransport: 'network',
+      },
+    }
   }
 }
 
@@ -703,7 +718,22 @@ export async function submitAuthContinuationPlan(plan, { fetchImpl = fetch, apiB
       return submitScaffoldContinuation()
     }
 
-    throw new Error('Auth continuation request failed')
+    return {
+      ok: false,
+      status: 0,
+      data: applyAuthResponseDecorators(
+        { message: 'Auth continuation request failed' },
+        null,
+        {
+          handoffIdFallback: plan.handoffId ?? null,
+          connectionFallback,
+        },
+      ),
+      meta: {
+        authMode: 'remote',
+        authTransport: 'network',
+      },
+    }
   }
 }
 

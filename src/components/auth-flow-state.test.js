@@ -728,6 +728,26 @@ test('buildAuthErrorSummary keeps service failures frontend-focused for scaffold
   assert.equal(summary.message, 'GitHub Pages auth backend is not configured yet.')
 })
 
+test('buildAuthErrorSummary normalizes low-level network auth failures into a short retryable message', () => {
+  const summary = buildAuthErrorSummary(
+    {
+      ok: false,
+      status: 0,
+      data: {
+        message: 'Auth request failed',
+      },
+      meta: {
+        authMode: 'remote',
+        authTransport: 'network',
+      },
+    },
+    { handoffId: 'auth-network-1', wishlistCount: 0, cartCount: 0, layoutItemCount: 0, hasRecommendationDraft: false },
+  )
+
+  assert.equal(summary.tone, 'service')
+  assert.equal(summary.message, '인증 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.')
+})
+
 test('buildAuthStatusCopy reflects the staged auth handoff state', () => {
   assert.equal(
     buildAuthStatusCopy(

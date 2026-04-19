@@ -115,6 +115,8 @@ test('public GitHub Pages auth requests receive cross-site secure session cookie
     const signup = handleAuthRequest(buildRequest({
       headers: {
         origin: 'https://neujeans.github.io',
+        host: 'auth.havenly.example',
+        'x-forwarded-host': 'auth.havenly.example',
         'x-forwarded-proto': 'https',
       },
     }), {
@@ -133,6 +135,8 @@ test('public GitHub Pages auth requests receive cross-site secure session cookie
     const login = handleAuthRequest(buildRequest({
       headers: {
         origin: 'https://neujeans.github.io',
+        host: 'auth.havenly.example',
+        'x-forwarded-host': 'auth.havenly.example',
         'x-forwarded-proto': 'https',
       },
     }), {
@@ -146,6 +150,34 @@ test('public GitHub Pages auth requests receive cross-site secure session cookie
     assert.equal(login.status, 200)
     const sessionCookie = login.cookies.find((value) => value.startsWith('havenly_auth_session='))
     assert.match(sessionCookie ?? '', /SameSite=None/)
+    assert.match(sessionCookie ?? '', /Secure/)
+    assert.match(sessionCookie ?? '', /HttpOnly/)
+  })
+})
+
+test('https same-origin auth requests keep secure lax session cookies for server-side validation', async () => {
+  await withTempCwd(async () => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { handleAuthRequest } = await import(moduleUrl)
+
+    const login = handleAuthRequest(buildRequest({
+      headers: {
+        origin: 'https://auth.havenly.example',
+        host: 'auth.havenly.example',
+        'x-forwarded-host': 'auth.havenly.example',
+        'x-forwarded-proto': 'https',
+      },
+    }), {
+      pathName: '/api/auth/login',
+      body: {
+        email: 'user@example.com',
+        password: 'password123',
+      },
+    })
+
+    assert.equal(login.status, 200)
+    const sessionCookie = login.cookies.find((value) => value.startsWith('havenly_auth_session='))
+    assert.match(sessionCookie ?? '', /SameSite=Lax/)
     assert.match(sessionCookie ?? '', /Secure/)
     assert.match(sessionCookie ?? '', /HttpOnly/)
   })
@@ -173,6 +205,39 @@ test('local auth requests keep lax non-secure cookies for same-machine preview l
     assert.match(sessionCookie ?? '', /SameSite=Lax/)
     assert.doesNotMatch(sessionCookie ?? '', /Secure/)
     assert.match(sessionCookie ?? '', /HttpOnly/)
+  })
+})
+
+test('expired sqlite-backed sessions are rejected by server-side validation even if the cookie is still presented', async () => {
+  await withTempCwd(async (tempDir) => {
+    const moduleUrl = `${pathToFileURL(modulePath).href}?t=${Date.now()}`
+    const { handleAuthRequest } = await import(moduleUrl)
+
+    const login = handleAuthRequest(buildRequest(), {
+      pathName: '/api/auth/login',
+      body: {
+        email: 'user@example.com',
+        password: 'password123',
+      },
+    })
+
+    assert.equal(login.status, 200)
+    const sessionCookie = login.cookies.find((value) => value.startsWith('havenly_auth_session='))
+    assert.ok(sessionCookie)
+
+    const dbPath = path.join(tempDir, '.data', 'havenly-auth-store.sqlite')
+    const db = new DatabaseSync(dbPath)
+    db.prepare('UPDATE sessions SET expires_at = ? WHERE id = ?').run(
+      new Date(Date.now() - 60_000).toISOString(),
+      sessionCookie.split(';')[0].split('=')[1],
+    )
+    db.close()
+
+    const expiredSession = handleAuthRequest(buildRequest({ cookie: sessionCookie }), {
+      pathName: '/api/auth/session',
+    })
+
+    assert.equal(expiredSession.status, 401)
   })
 })
 
