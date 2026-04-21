@@ -1,3 +1,26 @@
+function escapeHtml(value = '') {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function buildAuthSessionNoticeBodyHtml({
+  mergeLabel,
+  restoredBits,
+  continuationLabel,
+  intentCopy,
+}) {
+  return [
+    mergeLabel ? `<strong>${escapeHtml(mergeLabel)}</strong>` : '',
+    restoredBits.length ? `복원됨: <strong>${escapeHtml(restoredBits.join(' · '))}</strong>.` : '',
+    continuationLabel ? `현재 단계: <strong>${escapeHtml(continuationLabel)}</strong>.` : '',
+    intentCopy ? escapeHtml(intentCopy) : '',
+  ].filter(Boolean).join(' ').replace(/\s{2,}/g, ' ').trim()
+}
+
 function buildDraftContextBits(summary = null) {
   if (!summary) return []
 
@@ -397,6 +420,7 @@ export function buildAuthSessionNotice(session) {
     : session.mergeMode === 'replaced'
       ? '계정에 저장된 상태로 전환했어요.'
       : '로그인이 완료됐어요.'
+  const intentCopy = buildIntentCopy(session.intent)
 
   return {
     title: `${session.accountLabel} 계정 연결됨`,
@@ -404,8 +428,14 @@ export function buildAuthSessionNotice(session) {
       mergeLabel,
       restoredBits.length ? `복원됨: ${restoredBits.join(' · ')}.` : '',
       continuationLabel ? `현재 단계: ${continuationLabel}.` : '',
-      buildIntentCopy(session.intent),
+      intentCopy,
     ].filter(Boolean).join(' ').replace(/\s{2,}/g, ' ').trim(),
+    bodyHtml: buildAuthSessionNoticeBodyHtml({
+      mergeLabel,
+      restoredBits,
+      continuationLabel,
+      intentCopy,
+    }),
     restoredBits,
     draftContextBits: buildDraftContextBits(session.guestDraftSummary),
     draftSaveBits: buildDraftSaveBits(session.draftSave),

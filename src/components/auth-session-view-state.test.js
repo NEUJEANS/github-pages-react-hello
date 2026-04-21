@@ -427,6 +427,7 @@ test('buildAuthSessionNotice summarizes restored guest draft details after login
   }), {
     title: 'user@example.com 계정 연결됨',
     body: '게스트 초안을 계정에 연결했어요. 복원됨: 찜 2개 · 장바구니 1개 · 배치 3개 · 추천 초안. 로그인 후 보드 저장 (거실 84A) 단계까지 이어서 진행할 수 있어요.',
+    bodyHtml: '<strong>게스트 초안을 계정에 연결했어요.</strong> 복원됨: <strong>찜 2개 · 장바구니 1개 · 배치 3개 · 추천 초안</strong>. 로그인 후 보드 저장 (거실 84A) 단계까지 이어서 진행할 수 있어요.',
     restoredBits: ['찜 2개', '장바구니 1개', '배치 3개', '추천 초안'],
     draftContextBits: ['래미안 포레스트 84A', '공간 2개', '거실 추천'],
     draftSaveBits: ['초안 거실 배치 보드', '래미안 포레스트 84A', '거실 추천', '선택 공간 2개', '저장 배치 3개'],
@@ -445,8 +446,32 @@ test('buildAuthSessionNotice surfaces continuation blockers in customer-facing c
   }), {
     title: 'verify@example.com 계정 연결됨',
     body: '게스트 초안을 계정에 연결했어요. 현재 단계: 이메일 인증 필요.',
+    bodyHtml: '<strong>게스트 초안을 계정에 연결했어요.</strong> 현재 단계: <strong>이메일 인증 필요</strong>.',
     restoredBits: [],
     draftContextBits: [],
     draftSaveBits: [],
   })
+})
+
+test('buildAuthSessionNotice escapes dynamic copy before building bodyHtml', () => {
+  const notice = buildAuthSessionNotice({
+    accountLabel: 'verify@example.com',
+    mergeMode: 'replaced',
+    continuation: {
+      nextAction: 'verify-email',
+      status: 'action-required',
+      statusLabel: '<img src=x onerror=alert(1)>',
+    },
+    intent: {
+      label: '<script>alert(1)</script>',
+      draftLabel: '"draft"',
+    },
+  })
+
+  assert.equal(notice.body.includes('<img src=x onerror=alert(1)>'), true)
+  assert.equal(notice.bodyHtml.includes('<img src=x onerror=alert(1)>'), false)
+  assert.equal(notice.bodyHtml.includes('<script>alert(1)</script>'), false)
+  assert.match(notice.bodyHtml, /&lt;img src=x onerror=alert\(1\)&gt;/)
+  assert.match(notice.bodyHtml, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/)
+  assert.match(notice.bodyHtml, /&quot;draft&quot;/)
 })

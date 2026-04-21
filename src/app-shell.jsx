@@ -2135,7 +2135,9 @@ function AuthSessionNoticeBanner({ notice, authReadyPanelState, onDismiss, onOpe
     <section className="authSessionNotice" aria-live="polite">
       <div>
         <strong>{notice.title}</strong>
-        <p>{notice.body}</p>
+        {notice.bodyHtml
+          ? <p dangerouslySetInnerHTML={{ __html: notice.bodyHtml }} />
+          : <p>{notice.body}</p>}
       </div>
       <div className="authSessionNoticeActions">
         {primaryActionLabel && (
