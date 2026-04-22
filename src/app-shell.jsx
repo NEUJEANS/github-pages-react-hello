@@ -48,6 +48,12 @@ import {
   buildEmptyLoginForm,
   pickPersistedAuthContinuationFields,
 } from './components/auth-entry-shell-state.js'
+import {
+  buildShellAccountIdentity,
+  buildShellAccountMenuActions,
+  buildShellHeaderSearchState,
+  shouldReloadAfterLoginSuccess,
+} from './components/auth-shell-header-state.js'
 import { buildAccountContinuityPatch, buildRestoredRecommendationDraft } from './components/auth-account-continuity.js'
 import { buildPostAuthContinuityPatch } from './components/auth-session-merge.js'
 import { buildPostAuthSessionRestorePatch, shouldApplyPostAuthSessionRestore } from './components/auth-session-restore.js'
@@ -598,6 +604,8 @@ export function AppShell() {
     persistedAuthHandoff?.continuationFields ?? persistedAuthSession?.continuationFields ?? null,
   ))
   const [authNoticeDismissed, setAuthNoticeDismissed] = React.useState(false)
+  const [pendingPostLoginRefresh, setPendingPostLoginRefresh] = React.useState(false)
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = React.useState(false)
   const [engagement, setEngagement] = React.useState(initialEngagement)
   const [layoutBoardSaveState, setLayoutBoardSaveState] = React.useState({ status: 'idle', message: '', savedAt: null })
   const [layoutTrayItems, setLayoutTrayItems] = React.useState(() => aiProducts.map((item) => ({ ...item })))
@@ -605,6 +613,7 @@ export function AppShell() {
   const verificationPollTimeoutRef = React.useRef(null)
   const verificationAdvanceTimeoutRef = React.useRef(null)
   const verificationPendingStartedAtRef = React.useRef(null)
+  const accountMenuRef = React.useRef(null)
 
   const handleToggleWishlist = React.useCallback((id) => {
     setWishlistedIds((current) => toggleWishlistId(current, id))
@@ -654,6 +663,38 @@ export function AppShell() {
       return current.room === nextRoom ? current : { ...current, room: nextRoom }
     })
   }, [selectedSpaceSummary])
+
+  React.useEffect(() => {
+    if (!isAccountMenuOpen) return undefined
+
+    const handlePointerDown = (event) => {
+      if (accountMenuRef.current?.contains(event.target)) return
+      setIsAccountMenuOpen(false)
+    }
+
+    window.addEventListener('pointerdown', handlePointerDown)
+    return () => window.removeEventListener('pointerdown', handlePointerDown)
+  }, [isAccountMenuOpen])
+
+  React.useEffect(() => {
+    if (authSession) return
+    setIsAccountMenuOpen(false)
+  }, [authSession])
+
+  React.useEffect(() => {
+    if (!pendingPostLoginRefresh || !authSession) return undefined
+
+    const reloadTimer = window.setTimeout(() => {
+      setPendingPostLoginRefresh(false)
+      globalThis.location?.reload?.()
+    }, 220)
+
+    return () => window.clearTimeout(reloadTimer)
+  }, [authSession, pendingPostLoginRefresh])
+
+  React.useEffect(() => {
+    setIsAccountMenuOpen(false)
+  }, [screen])
 
   const loginGuardSnapshot = React.useMemo(() => buildLoginGuardSnapshot({
     engagement,
@@ -1333,6 +1374,8 @@ export function AppShell() {
     clearPersistedAuthHandoff(globalThis.sessionStorage)
     setAuthSession(null)
     setAuthNoticeDismissed(false)
+    setPendingPostLoginRefresh(false)
+    setIsAccountMenuOpen(false)
     setAuthContinuationFields(buildAuthContinuationFieldState())
     setLoginModalState('closed')
     setLoginForm(buildEmptyLoginForm())
@@ -1725,6 +1768,10 @@ export function AppShell() {
         && result?.data?.nextAction === 'retry-login'
 
       if (isSignupSuccessHandoff) {
+        if (typeof globalThis.alert === 'function') {
+          globalThis.alert('회원가입이 완료되었습니다')
+        }
+
         persistAuthHandoff(
           globalThis.sessionStorage,
           buildPersistedAuthHandoff(
@@ -1799,6 +1846,12 @@ export function AppShell() {
         clearPersistedAuthHandoff(globalThis.sessionStorage)
         setAuthSession(nextSession)
         setAuthNoticeDismissed(false)
+
+        if (shouldReloadAfterLoginSuccess(result, loginForm.mode)) {
+          setLoginModalState('closed')
+          setPendingPostLoginRefresh(true)
+          return
+        }
       }
 
       let failedHandoff = null
@@ -2004,6 +2057,45 @@ export function AppShell() {
     }
   }, [authConfig, authConnectionSummary, authContinuationConnectionSummary, authDraftSavePayload, authSession, cart.count, editor, layoutTrayItems, loginForm.handoffId, spaceProfile, wishlistedIds.length])
 
+  const shellHeaderSearchState = React.useMemo(
+    () => buildShellHeaderSearchState(screen),
+    [screen],
+  )
+  const shellAccountIdentity = React.useMemo(
+    () => buildShellAccountIdentity(authSession),
+    [authSession],
+  )
+  const shellAccountMenuActions = React.useMemo(
+    () => buildShellAccountMenuActions({
+      authSession,
+      hasRestorableLayout: Boolean(authSession?.accountState),
+    }),
+    [authSession],
+  )
+
+  const handleShellAccountAction = React.useCallback((actionId) => {
+    setIsAccountMenuOpen(false)
+
+    switch (actionId) {
+      case 'account':
+        openLogin({
+          source: 'shell-header-account',
+          action: 'resume-authenticated-flow',
+          label: '계정 상태 보기',
+          draftLabel: spaceProfile.apartmentType ?? DEFAULT_LAYOUT_BOARD_LABEL,
+          returnScreen: screen,
+        })
+        return
+      case 'restore-layout':
+        handleRestoreSavedLayout()
+        return
+      case 'logout':
+        handleLogout()
+        return
+      default:
+    }
+  }, [handleLogout, handleRestoreSavedLayout, openLogin, screen, spaceProfile.apartmentType])
+
   const shared = {
     navigate,
     openOverlay,
@@ -2043,6 +2135,27 @@ export function AppShell() {
         />
       )}
       <section className={`screenStage ${overlay ? 'overlayOpen' : ''}`}>
+        <ShellTopbar
+          screen={screen}
+          navigate={navigate}
+          cartCount={cart.count}
+          onOpenCart={() => cart.setIsOpen(true)}
+          searchState={shellHeaderSearchState}
+          authSession={authSession}
+          accountIdentity={shellAccountIdentity}
+          accountMenuActions={shellAccountMenuActions}
+          isAccountMenuOpen={isAccountMenuOpen}
+          accountMenuRef={accountMenuRef}
+          onToggleAccountMenu={() => setIsAccountMenuOpen((current) => !current)}
+          onAccountAction={handleShellAccountAction}
+          onOpenLogin={() => openLogin({
+            source: 'shell-header-login',
+            action: 'resume-authenticated-flow',
+            label: '로그인 후 이어가기',
+            draftLabel: spaceProfile.apartmentType ?? DEFAULT_LAYOUT_BOARD_LABEL,
+            returnScreen: screen,
+          })}
+        />
         <StageTransition screen={screen} direction={direction}>
           {(visibleScreen) => renderScreen(visibleScreen, { ...shared, ...screenProps[visibleScreen] })}
         </StageTransition>
@@ -2125,6 +2238,89 @@ function renderScreen(screen, props) {
     default:
       return <FurnitureHomePage aiProducts={aiProducts} libraryItems={libraryItems} {...props} />
   }
+}
+
+function ShellTopbar({
+  screen,
+  navigate,
+  cartCount,
+  onOpenCart,
+  searchState,
+  authSession,
+  accountIdentity,
+  accountMenuActions,
+  isAccountMenuOpen,
+  accountMenuRef,
+  onToggleAccountMenu,
+  onAccountAction,
+  onOpenLogin,
+}) {
+  const navItems = [
+    { id: 'home', label: '홈' },
+    { id: 'beds', label: '카탈로그' },
+    { id: 'layout', label: '레이아웃' },
+  ]
+
+  return (
+    <header className="topbar">
+      <button className="logoBtn" onClick={() => navigate('home')} aria-label="HAVENLY 홈으로 이동">
+        <div className="logo">HAVENLY</div>
+      </button>
+      <nav className="navlinks" aria-label="주요 화면 이동">
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            className={screen === item.id ? 'active' : ''}
+            onClick={() => navigate(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+      <div className="topActions">
+        <button className="searchPill shellSearchPill" onClick={() => navigate(searchState.targetScreen)}>
+          <strong>{searchState.label}</strong>
+          <small>{searchState.helper}</small>
+        </button>
+        <button className="cart utilityButton utilityIconButton" onClick={onOpenCart} aria-label={`장바구니 ${cartCount}개`}>
+          🛒
+          {cartCount > 0 && <span>{cartCount}</span>}
+        </button>
+        {authSession ? (
+          <div className="accountMenuWrap" ref={accountMenuRef}>
+            <button className="accountTrigger" onClick={onToggleAccountMenu} aria-expanded={isAccountMenuOpen} aria-haspopup="menu">
+              <span className="accountGlyph" aria-hidden="true">{accountIdentity.initial}</span>
+              <span>{accountIdentity.label}</span>
+            </button>
+            {isAccountMenuOpen && (
+              <div className="accountMenuPanel" role="menu" aria-label="계정 설정 메뉴">
+                <div className="accountMenuPanelHead">
+                  <strong>{accountIdentity.label}</strong>
+                  <small>{accountIdentity.subtitle}</small>
+                </div>
+                <div className="accountMenuActionList">
+                  {accountMenuActions.map((action) => (
+                    <button
+                      key={action.id}
+                      className={`accountMenuAction ${action.tone === 'danger' ? 'danger' : ''}`}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => onAccountAction(action.id)}
+                    >
+                      <strong>{action.label}</strong>
+                      <small>{action.description}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button className="ghost utilityButton" onClick={onOpenLogin}>로그인</button>
+        )}
+      </div>
+    </header>
+  )
 }
 
 function AuthSessionNoticeBanner({ notice, authReadyPanelState, onDismiss, onOpenAccount, onResumeAuthenticatedIntent, onLogout }) {

@@ -91,6 +91,19 @@ button:active { transform: translateY(0); }
 .topbar.dark .navlinks button.active::after { background: white; }
 .topActions { display: flex; align-items: center; gap: 12px; justify-self: end; }
 .searchPill { background: #f4f1ed; padding: 10px 16px; border-radius: 999px; color: #878787; min-width: 250px; line-height: 1.15; text-align: left; }
+.shellSearchPill {
+  display: grid;
+  gap: 3px;
+  min-width: 280px;
+}
+.shellSearchPill strong {
+  color: #5f4e3d;
+  font-size: 13px;
+}
+.shellSearchPill small {
+  color: #8c7f72;
+  font-size: 11px;
+}
 .utilityButton { min-height: 50px; }
 .utilityIconButton { width: 50px; min-width: 50px; justify-content: center; }
 .cart { position: relative; display: inline-grid; place-items: center; font-size: 24px; border-radius: 999px; }
@@ -454,6 +467,60 @@ textarea { width: 100%; min-height: 96px; resize: none; border: 2px solid #e8dfd
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+.accountMenuWrap {
+  position: relative;
+}
+.accountMenuPanel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(320px, calc(100vw - 36px));
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(139,115,85,.16);
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 18px 40px rgba(36, 29, 20, 0.12);
+  display: grid;
+  gap: 12px;
+  z-index: 12;
+}
+.accountMenuPanelHead {
+  display: grid;
+  gap: 4px;
+}
+.accountMenuPanelHead strong {
+  color: #5c4e40;
+}
+.accountMenuPanelHead small {
+  color: #8b7e71;
+}
+.accountMenuActionList {
+  display: grid;
+  gap: 8px;
+}
+.accountMenuAction {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid #eadcca;
+  background: #fcfaf7;
+  text-align: left;
+  color: #5f4e3d;
+}
+.accountMenuAction strong {
+  font-size: 14px;
+}
+.accountMenuAction small {
+  color: #8b7e71;
+  line-height: 1.4;
+}
+.accountMenuAction.danger {
+  border-color: rgba(204, 72, 72, 0.18);
+  background: #fff7f7;
+  color: #b14646;
 }
 .loginPanel {
   position: relative;

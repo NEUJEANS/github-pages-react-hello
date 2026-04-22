@@ -1198,9 +1198,18 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
   const { chromium } = playwright
   markSmokeStage('browser-launch')
   const browser = await chromium.launch({ headless: true })
+  const createSmokePage = async () => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    page.on('dialog', async (dialog) => {
+      console.error(`[auth-smoke] dialog:${normalizeUiText(dialog.message())}`)
+      await dialog.accept().catch(() => {})
+    })
+    return page
+  }
+
   try {
     markSmokeStage('signup-scenario:start')
-    const signupPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    const signupPage = await createSmokePage()
     await resetBrowserScenario(signupPage)
     await signupPage.goto(withBaseUrlHash('layout'), { waitUntil: 'domcontentloaded' })
     await signupPage.getByRole('button', { name: '로그인 후 보드 저장' }).click()
@@ -1266,7 +1275,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     await signupPage.close()
 
     markSmokeStage('direct-login-scenario:start')
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    const page = await createSmokePage()
     await resetBrowserScenario(page)
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded' })
 
@@ -1355,7 +1364,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     }
 
     markSmokeStage('save-draft-scenario:start')
-    const saveDraftPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    const saveDraftPage = await createSmokePage()
     await resetBrowserScenario(saveDraftPage)
     await saveDraftPage.goto(withBaseUrlHash('layout'), { waitUntil: 'domcontentloaded' })
     await saveDraftPage.getByRole('button', { name: '로그인 후 보드 저장' }).click()
@@ -1491,7 +1500,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     }
 
     markSmokeStage('merge-scenario:start')
-    const mergePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    const mergePage = await createSmokePage()
     await resetBrowserScenario(mergePage)
     await mergePage.goto(baseUrl, { waitUntil: 'domcontentloaded' })
 
@@ -1554,7 +1563,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     await mergePage.close()
 
     markSmokeStage('complete-profile-scenario:start')
-    const completeProfilePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    const completeProfilePage = await createSmokePage()
     await resetBrowserScenario(completeProfilePage)
     await completeProfilePage.goto(baseUrl, { waitUntil: 'domcontentloaded' })
     await openLogin(completeProfilePage)
@@ -1597,7 +1606,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     await completeProfilePage.close()
 
     markSmokeStage('verify-email-scenario:start')
-    const verifyEmailPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    const verifyEmailPage = await createSmokePage()
     await resetBrowserScenario(verifyEmailPage)
     await verifyEmailPage.goto(baseUrl, { waitUntil: 'domcontentloaded' })
     await openLogin(verifyEmailPage)
@@ -1663,7 +1672,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     await verifyEmailPage.close()
 
     markSmokeStage('layout-tray-drag-scenario:start')
-    const layoutTrayPage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    const layoutTrayPage = await createSmokePage()
     await resetBrowserScenario(layoutTrayPage)
     await layoutTrayPage.goto(withBaseUrlHash('layout'), { waitUntil: 'domcontentloaded' })
     const roomFrame = layoutTrayPage.locator('.roomFrame')
@@ -1702,7 +1711,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     await layoutTrayPage.close()
 
     markSmokeStage('query-override-scenario:start')
-    const queryOverridePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    const queryOverridePage = await createSmokePage()
     const queryContinueEndpoint = '/v1/session/continue'
     await resetBrowserScenario(queryOverridePage)
     await queryOverridePage.goto(withBaseUrlQuery(baseUrl, {
@@ -1729,7 +1738,7 @@ async function runBrowserSmoke(playwright, { restartAuthProxy } = {}) {
     await queryOverridePage.close()
 
     markSmokeStage('runtime-override-scenario:start')
-    const runtimeOverridePage = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+    const runtimeOverridePage = await createSmokePage()
     const runtimeContinueEndpoint = '/v2/runtime/continue'
     await runtimeOverridePage.addInitScript((continueEndpoint) => {
       globalThis.__HAVENLY_AUTH_CONFIG__ = {
